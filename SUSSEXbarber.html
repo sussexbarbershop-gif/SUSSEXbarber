@@ -1,0 +1,1967 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sussex Barber Shop | Premium Grooming</title>
+    <!-- Security Meta Tags -->
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://fonts.googleapis.com https://fonts.gstatic.com data: blob:;">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        charcoal: {
+                            900: '#121212',
+                            800: '#1a1a1a',
+                            700: '#2a2a2a',
+                        },
+                        gold: '#d4af37',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                    },
+                    animation: {
+                        'slide-in-right': 'slideInRight 0.4s ease-out forwards',
+                        'slide-in-left': 'slideInLeft 0.4s ease-out forwards',
+                    },
+                    keyframes: {
+                        slideInRight: {
+                            '0%': { opacity: '0', transform: 'translateX(30px)' },
+                            '100%': { opacity: '1', transform: 'translateX(0)' },
+                        },
+                        slideInLeft: {
+                            '0%': { opacity: '0', transform: 'translateX(-30px)' },
+                            '100%': { opacity: '1', transform: 'translateX(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Styles & Theme Transitions */
+        body {
+            transition: background-color 0.3s ease, color 0.3s ease;
+            -webkit-user-select: none; /* Safari */
+            -ms-user-select: none; /* IE 10 and IE 11 */
+            user-select: none; /* Standard syntax */
+        }
+        input, textarea {
+            -webkit-user-select: auto;
+            -ms-user-select: auto;
+            user-select: auto;
+        }
+        .dark body { background-color: #121212; color: #f3f4f6; }
+        html:not(.dark) body { background-color: #fafafa; color: #1f2937; }
+
+        .hero-bg {
+            background-image: linear-gradient(rgba(18, 18, 18, 0.75), rgba(18, 18, 18, 0.9)), url('assets/hero_bg_1783434947258.jpg');
+            background-size: cover;
+            background-position: center;
+        }
+        
+        .dark input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
+        html:not(.dark) input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: none;
+        }
+
+        /* Scroll Reveal Animation */
+        .reveal {
+            opacity: 0;
+            transform: translateY(25px);
+            transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+        }
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d4af37;
+            border-radius: 4px;
+        }
+        /* Animations for Map Effects */
+        @keyframes flyPlane {
+            0% { left: -20%; bottom: -20%; transform: rotate(45deg); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { left: 120%; bottom: 120%; transform: rotate(45deg); opacity: 0; }
+        }
+        @keyframes driftCloud1 {
+            0% { left: -20%; opacity: 0; }
+            10% { opacity: 0.8; }
+            90% { opacity: 0.8; }
+            100% { left: 120%; opacity: 0; }
+        }
+        @keyframes driftCloud2 {
+            0% { left: 120%; opacity: 0; }
+            10% { opacity: 0.5; }
+            90% { opacity: 0.5; }
+            100% { left: -20%; opacity: 0; }
+        }
+        .animate-fly-plane {
+            animation: flyPlane 15s linear infinite;
+        }
+        .animate-drift-cloud-1 {
+            animation: driftCloud1 30s linear infinite;
+        }
+        .animate-drift-cloud-2 {
+            animation: driftCloud2 45s linear infinite;
+        }
+    </style>
+</head>
+<body class="antialiased font-sans selection:bg-gold selection:text-charcoal-900 overflow-x-hidden">
+
+    <!-- Sticky Mobile Book Now FAB -->
+    <a href="#booking" class="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 md:hidden">
+        <div class="bg-gold text-charcoal-900 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center hover:bg-white transition-colors active:scale-95">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+        </div>
+    </a>
+
+    <!-- Toast Notifications Container -->
+    <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col gap-3 pointer-events-none"></div>
+
+    <!-- Navigation Bar -->
+    <nav class="fixed w-full z-40 bg-white/90 dark:bg-charcoal-900/90 backdrop-blur-md border-b border-gray-200 dark:border-charcoal-700 transition-colors duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-20">
+                <div class="flex items-center space-x-3">
+                    <a href="#" class="font-serif text-2xl font-semibold tracking-wider text-gray-900 dark:text-white">SUSSEX<span class="text-gold">.</span></a>
+                    <!-- Live Working Hours Status Badge -->
+                    <div id="statusBadge" class="hidden sm:inline-block"></div>
+                </div>
+                
+                <div class="hidden md:flex space-x-8">
+                    <a href="#about" class="text-sm tracking-widest uppercase text-gray-700 dark:text-gray-300 hover:text-gold dark:hover:text-gold transition-colors">About</a>
+                    <a href="#services" class="text-sm tracking-widest uppercase text-gray-700 dark:text-gray-300 hover:text-gold dark:hover:text-gold transition-colors">Services</a>
+                    <a href="#gallery" class="text-sm tracking-widest uppercase text-gray-700 dark:text-gray-300 hover:text-gold dark:hover:text-gold transition-colors">Gallery</a>
+                    <a href="#contact" class="text-sm tracking-widest uppercase text-gray-700 dark:text-gray-300 hover:text-gold dark:hover:text-gold transition-colors">Contact</a>
+                </div>
+
+                <div class="flex items-center space-x-3 sm:space-x-4">
+                    <!-- Language Toggle -->
+                    <button id="langToggleBtn" onclick="toggleLanguage()" type="button" aria-label="Toggle Language" class="px-3 h-9 rounded-lg text-xs font-medium border border-gray-300 dark:border-charcoal-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-charcoal-800 transition-colors flex items-center justify-center shadow-sm">
+                        EN
+                    </button>
+                    
+                    <!-- Theme Switcher Dropdown -->
+                    <div class="relative">
+                        <button id="themeToggleBtn" type="button" aria-label="Select theme" class="px-3 h-9 rounded-lg border border-gray-300 dark:border-charcoal-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-charcoal-800 transition-colors flex items-center justify-center space-x-1.5 focus:outline-none shadow-sm">
+                            <span id="activeThemeIcon" class="flex items-center"></span>
+                            <svg class="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+
+                        <div id="themeDropdown" class="hidden absolute right-0 mt-2 w-36 bg-white dark:bg-charcoal-800 rounded-lg shadow-xl border border-gray-200 dark:border-charcoal-700 py-1.5 z-50">
+                            <button type="button" data-theme-value="light" class="w-full px-3.5 py-2 text-left text-xs uppercase tracking-wider text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-charcoal-700 flex items-center space-x-2.5 transition-colors">
+                                <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                                <span>Light</span>
+                            </button>
+                            <button type="button" data-theme-value="dark" class="w-full px-3.5 py-2 text-left text-xs uppercase tracking-wider text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-charcoal-700 flex items-center space-x-2.5 transition-colors">
+                                <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                                <span>Dark</span>
+                            </button>
+                            <button type="button" data-theme-value="system" class="w-full px-3.5 py-2 text-left text-xs uppercase tracking-wider text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-charcoal-700 flex items-center space-x-2.5 transition-colors">
+                                <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                                <span>System</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <a href="#booking" class="whitespace-nowrap bg-gold text-charcoal-900 px-4 sm:px-6 py-2 rounded-lg text-xs sm:text-sm font-semibold tracking-wider uppercase hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-charcoal-900 transition-colors duration-300">Book Now</a>
+                    
+                    <!-- Mobile Menu Button -->
+                    <button id="mobileMenuBtn" type="button" aria-label="Open menu" class="md:hidden p-2 text-gray-700 dark:text-gray-300 focus:outline-none hover:bg-gray-100 dark:hover:bg-charcoal-800 rounded-lg transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </nav>
+
+    <!-- Mobile Menu Overlay -->
+    <div id="mobileMenu" class="fixed inset-0 bg-white/95 dark:bg-charcoal-900/95 backdrop-blur-lg z-[100] flex flex-col justify-center items-center space-y-8 transform translate-x-full transition-transform duration-300 ease-in-out">
+        <button id="closeMobileMenuBtn" type="button" aria-label="Close menu" class="absolute top-6 right-6 p-2 text-gray-900 dark:text-white focus:outline-none hover:text-gold dark:hover:text-gold transition-colors">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+        <a href="#about" class="mobile-link text-2xl font-serif text-gray-900 dark:text-white hover:text-gold dark:hover:text-gold transition-colors" data-translate="About">About</a>
+        <a href="#team" class="mobile-link text-2xl font-serif text-gray-900 dark:text-white hover:text-gold dark:hover:text-gold transition-colors" data-translate="Our Barbers">Our Barbers</a>
+        <a href="#services" class="mobile-link text-2xl font-serif text-gray-900 dark:text-white hover:text-gold dark:hover:text-gold transition-colors" data-translate="Services">Services</a>
+        <a href="#gallery" class="mobile-link text-2xl font-serif text-gray-900 dark:text-white hover:text-gold dark:hover:text-gold transition-colors" data-translate="Gallery">Gallery</a>
+        <a href="#contact" class="mobile-link text-2xl font-serif text-gray-900 dark:text-white hover:text-gold dark:hover:text-gold transition-colors" data-translate="Contact">Contact</a>
+        
+        <div class="mt-8 pt-8 border-t border-gray-200 dark:border-charcoal-700 flex flex-col items-center w-64 space-y-4">
+            <p class="text-sm uppercase tracking-widest text-gray-500" data-translate="Call Us">Call Us</p>
+            <a href="tel:+31653730803" class="text-xl text-gold">+31 6 53730803</a>
+        </div>
+    </div>
+    <script>
+        document.getElementById('mobileMenuBtn').addEventListener('click', function() {
+            document.getElementById('mobileMenu').classList.remove('translate-x-full');
+        });
+        document.getElementById('closeMobileMenuBtn').addEventListener('click', function() {
+            document.getElementById('mobileMenu').classList.add('translate-x-full');
+        });
+        document.querySelectorAll('.mobile-link').forEach(link => {
+            link.addEventListener('click', () => document.getElementById('mobileMenu').classList.add('translate-x-full'));
+        });
+    </script>
+
+    <!-- Hero Section -->
+    <section id="hero" class="h-screen flex items-center justify-center text-center px-4 relative overflow-hidden hero-bg">
+        <div class="absolute inset-0 bg-black/30 z-10"></div>
+        <div class="max-w-3xl reveal active relative z-20">
+            <h1 class="font-serif text-5xl md:text-7xl mb-6 text-white leading-tight">Masterful Cuts.<br><span class="text-gold italic">Timeless Style.</span></h1>
+            <p class="text-gray-300 text-lg md:text-xl mb-10 font-light tracking-wide">Experience premium grooming and hearty service in the heart of Wassenaar.</p>
+            <a href="#booking" class="border border-gold text-gold hover:bg-gold hover:text-charcoal-900 px-8 py-4 text-sm font-semibold tracking-wider uppercase transition-all duration-300 inline-block">Reserve Your Chair</a>
+        </div>
+    </section>
+
+    <!-- About Section with Parallax effect -->
+    <section id="about" class="py-24 bg-gray-50 dark:bg-charcoal-800 transition-colors duration-300 relative">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center gap-16 reveal">
+            <div class="w-full md:w-1/2">
+                <img src="assets/sussex_experience_1783438070840.jpg" alt="Barber Tools" class="grayscale hover:grayscale-0 transition-all duration-700 shadow-2xl shadow-black/20 dark:shadow-black/50 rounded-xl">
+            </div>
+            <div class="w-full md:w-1/2">
+                <h2 class="font-serif text-4xl mb-6 text-gray-900 dark:text-white">The Sussex <span class="text-gold">Experience</span></h2>
+                <p class="text-gray-600 dark:text-gray-400 font-light leading-relaxed mb-6">
+                    At Sussex Barber Shop, we blend modern styling techniques with traditional barbering values. Our space is designed to be a sanctuary for men—a place where you can unwind, enjoy a free coffee, and leave looking your absolute best.
+                </p>
+                <p class="text-gray-600 dark:text-gray-400 font-light leading-relaxed">
+                    With a 4.7-star rating and a reputation for precise cuts and a friendly atmosphere, our attentive barbers ensure that every haircut, beard trim, and hot towel shave is executed to perfection.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Our Barbers Section -->
+    <section id="team" class="py-24 bg-white dark:bg-charcoal-900 transition-colors duration-300">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 reveal">
+            <div class="text-center mb-16">
+                <h2 class="font-serif text-4xl text-gray-900 dark:text-white mb-4">Our Master Barbers</h2>
+                <div class="w-16 h-px bg-gold mx-auto"></div>
+                <p class="text-gray-600 dark:text-gray-400 mt-6 font-light max-w-2xl mx-auto">Meet the experienced professionals dedicated to giving you the perfect look. Every barber at Sussex is a master of their craft.</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Barber 1 -->
+                <div class="bg-gray-50 dark:bg-charcoal-800 rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-charcoal-700 hover:-translate-y-2 transition-transform duration-300">
+                    <img src="assets/barber_1_1783434973367.jpg" alt="Amir" class="w-full h-80 object-cover filter brightness-90 contrast-125 dark:brightness-75 transition-transform duration-700 group-hover:scale-110">
+                    <div class="p-6">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-xl font-medium text-gray-900 dark:text-white">Hemen</h3>
+                            <div class="text-gold text-sm">★★★★★ 4.9</div>
+                        </div>
+                        <p class="text-gold text-xs uppercase tracking-widest mb-4">Master Barber</p>
+                        <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-2 mb-6">
+                            <li><span class="font-semibold text-gray-800 dark:text-gray-200">Specialty:</span> Skin Fades, Beards</li>
+                            <li><span class="font-semibold text-gray-800 dark:text-gray-200">Experience:</span> 5+ Years</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Barber 2 -->
+                <div class="bg-gray-50 dark:bg-charcoal-800 rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-charcoal-700 hover:-translate-y-2 transition-transform duration-300">
+                    <img src="assets/barber_2_1783434982938.jpg" alt="Raman" class="w-full h-80 object-cover filter brightness-90 contrast-125 dark:brightness-75 transition-transform duration-700 group-hover:scale-110">
+                    <div class="p-6">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-xl font-medium text-gray-900 dark:text-white">Amir</h3>
+                            <div class="text-gold text-sm">★★★★★ 4.8</div>
+                        </div>
+                        <p class="text-gold text-xs uppercase tracking-widest mb-4">Senior Stylist</p>
+                        <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-2 mb-6">
+                            <li><span class="font-semibold text-gray-800 dark:text-gray-200">Specialty:</span> Classic Cuts, Styling</li>
+                            <li><span class="font-semibold text-gray-800 dark:text-gray-200">Experience:</span> 8+ Years</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Barber 3 -->
+                <div class="bg-gray-50 dark:bg-charcoal-800 rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-charcoal-700 hover:-translate-y-2 transition-transform duration-300">
+                    <img src="assets/barber_3_1783435001784.jpg" alt="Bassam" class="w-full h-80 object-cover filter brightness-90 contrast-125 dark:brightness-75 transition-transform duration-700 group-hover:scale-110">
+                    <div class="p-6">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-xl font-medium text-gray-900 dark:text-white">Raman</h3>
+                            <div class="text-gold text-sm">★★★★★ 4.9</div>
+                        </div>
+                        <p class="text-gold text-xs uppercase tracking-widest mb-4">Barber</p>
+                        <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-2 mb-6">
+                            <li><span class="font-semibold text-gray-800 dark:text-gray-200">Specialty:</span> Hot Towel Shaves</li>
+                            <li><span class="font-semibold text-gray-800 dark:text-gray-200">Experience:</span> 4+ Years</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Services Section -->
+    <section id="services" class="py-24 bg-white dark:bg-charcoal-900 transition-colors duration-300">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 reveal">
+            <div class="text-center mb-16">
+                <h2 class="font-serif text-4xl text-gray-900 dark:text-white mb-4">Our Services</h2>
+                <div class="w-16 h-px bg-gold mx-auto"></div>
+            </div>
+            <div class="space-y-6">
+                <div class="flex justify-between items-end border-b border-gray-200 dark:border-charcoal-700 pb-4">
+                    <div>
+                        <h3 class="text-xl text-gray-900 dark:text-white font-medium" data-translate="Classic Haircut">Classic Haircut</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">⏱️ ~30 min</p>
+                    </div>
+                    <span class="text-gold text-xl font-serif">€28</span>
+                </div>
+                <div class="flex justify-between items-end border-b border-gray-200 dark:border-charcoal-700 pb-4">
+                    <div>
+                        <h3 class="text-xl text-gray-900 dark:text-white font-medium" data-translate="Skin Fade">Skin Fade</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">⏱️ ~45 min</p>
+                    </div>
+                    <span class="text-gold text-xl font-serif">€28</span>
+                </div>
+                <div class="flex justify-between items-end border-b border-gray-200 dark:border-charcoal-700 pb-4">
+                    <div>
+                        <h3 class="text-xl text-gray-900 dark:text-white font-medium" data-translate="Scissor Cut">Scissor Cut</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">⏱️ ~30 min</p>
+                    </div>
+                    <span class="text-gold text-xl font-serif">€28</span>
+                </div>
+                <div class="flex justify-between items-end border-b border-gray-200 dark:border-charcoal-700 pb-4">
+                    <div>
+                        <h3 class="text-xl text-gray-900 dark:text-white font-medium" data-translate="Wash & Haircut">Wash & Haircut</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">⏱️ ~45 min</p>
+                    </div>
+                    <span class="text-gold text-xl font-serif">€35</span>
+                </div>
+                <div class="flex justify-between items-end border-b border-gray-200 dark:border-charcoal-700 pb-4">
+                    <div>
+                        <h3 class="text-xl text-gray-900 dark:text-white font-medium" data-translate="Beard Trim">Beard Trim</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">⏱️ ~20 min</p>
+                    </div>
+                    <span class="text-gold text-xl font-serif">€20</span>
+                </div>
+                <div class="flex justify-between items-end border-b border-gray-200 dark:border-charcoal-700 pb-4">
+                    <div>
+                        <h3 class="text-xl text-gray-900 dark:text-white font-medium" data-translate="Clean Shave">Clean Shave</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">⏱️ ~30 min</p>
+                    </div>
+                    <span class="text-gold text-xl font-serif">€20</span>
+                </div>
+                <div class="flex justify-between items-end border-b border-gray-200 dark:border-charcoal-700 pb-4">
+                    <div>
+                        <h3 class="text-xl text-gray-900 dark:text-white font-medium" data-translate="Classic Haircut + Beard Trim">Classic Haircut + Beard Trim</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">⏱️ ~45 min</p>
+                    </div>
+                    <span class="text-gold text-xl font-serif">€40</span>
+                </div>
+                <div class="flex justify-between items-end border-b border-gray-200 dark:border-charcoal-700 pb-4">
+                    <div>
+                        <h3 class="text-xl text-gray-900 dark:text-white font-medium" data-translate="Skin Fade + Beard Trim">Skin Fade + Beard Trim</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">⏱️ ~60 min</p>
+                    </div>
+                    <span class="text-gold text-xl font-serif">€40</span>
+                </div>
+                <div class="flex justify-between items-end border-b border-gray-200 dark:border-charcoal-700 pb-4">
+                    <div>
+                        <h3 class="text-xl text-gray-900 dark:text-white font-medium" data-translate="One Grade Trim">One Grade Trim</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">⏱️ ~15 min</p>
+                    </div>
+                    <span class="text-gold text-xl font-serif">€20</span>
+                </div>
+                <div class="flex justify-between items-end border-b border-gray-200 dark:border-charcoal-700 pb-4">
+                    <div>
+                        <h3 class="text-xl text-gray-900 dark:text-white font-medium" data-translate="Kids Haircut (Up to 10 Years)">Kids Haircut (Up to 10 Years)</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">⏱️ ~30 min</p>
+                    </div>
+                    <span class="text-gold text-xl font-serif">€21</span>
+                </div>
+                <div class="flex justify-between items-end pb-4">
+                    <div>
+                        <h3 class="text-xl text-gray-900 dark:text-white font-medium" data-translate="Kids Haircut (Up to 13 Years)">Kids Haircut (Up to 13 Years)</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">⏱️ ~30 min</p>
+                    </div>
+                    <span class="text-gold text-xl font-serif">€23</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section id="faq" class="py-24 bg-gray-50 dark:bg-charcoal-800 transition-colors duration-300">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 reveal">
+            <div class="text-center mb-16">
+                <h2 class="font-serif text-4xl text-gray-900 dark:text-white mb-4">Frequently Asked Questions</h2>
+                <div class="w-16 h-px bg-gold mx-auto"></div>
+            </div>
+            
+            <div class="space-y-4" id="faqAccordion">
+                <!-- FAQ Item 1 -->
+                <div class="border border-gray-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 rounded-lg overflow-hidden faq-item">
+                    <button class="w-full px-6 py-4 text-left flex justify-between items-center focus:outline-none" onclick="toggleFaq(this)">
+                        <span class="font-medium text-gray-900 dark:text-white">Do I need to make an appointment or can I just walk in?</span>
+                        <svg class="w-5 h-5 text-gold transform transition-transform duration-300 faq-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div class="px-6 pb-4 hidden faq-content text-gray-600 dark:text-gray-400 font-light text-sm">
+                        While we do accept walk-ins if we have availability, we highly recommend booking an appointment online to secure your preferred time and barber without waiting.
+                    </div>
+                </div>
+                
+                <!-- FAQ Item 2 -->
+                <div class="border border-gray-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 rounded-lg overflow-hidden faq-item">
+                    <button class="w-full px-6 py-4 text-left flex justify-between items-center focus:outline-none" onclick="toggleFaq(this)">
+                        <span class="font-medium text-gray-900 dark:text-white">Is there parking available nearby?</span>
+                        <svg class="w-5 h-5 text-gold transform transition-transform duration-300 faq-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div class="px-6 pb-4 hidden faq-content text-gray-600 dark:text-gray-400 font-light text-sm">
+                        Yes, there is public parking available directly in front of the shop and along Van Hogendorpstraat. Make sure to check the local parking meters if applicable.
+                    </div>
+                </div>
+                
+                <!-- FAQ Item 3 -->
+                <div class="border border-gray-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 rounded-lg overflow-hidden faq-item">
+                    <button class="w-full px-6 py-4 text-left flex justify-between items-center focus:outline-none" onclick="toggleFaq(this)">
+                        <span class="font-medium text-gray-900 dark:text-white">What payment methods do you accept?</span>
+                        <svg class="w-5 h-5 text-gold transform transition-transform duration-300 faq-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div class="px-6 pb-4 hidden faq-content text-gray-600 dark:text-gray-400 font-light text-sm">
+                        We accept PIN (Debit/Maestro), Credit Cards (Visa, Mastercard), and Cash. You can pay securely after your service is completed.
+                    </div>
+                </div>
+            </div>
+            
+            <script>
+                function toggleFaq(btn) {
+                    const content = btn.nextElementSibling;
+                    const icon = btn.querySelector('.faq-icon');
+                    const isHidden = content.classList.contains('hidden');
+                    
+                    // Close all others
+                    document.querySelectorAll('.faq-content').forEach(el => el.classList.add('hidden'));
+                    document.querySelectorAll('.faq-icon').forEach(el => el.classList.remove('rotate-180'));
+                    
+                    if (isHidden) {
+                        content.classList.remove('hidden');
+                        icon.classList.add('rotate-180');
+                    }
+                }
+            </script>
+        </div>
+    </section>
+
+    <!-- Booking Section (Multi-step Wizard) -->
+    <section id="booking" class="py-24 bg-gray-50 dark:bg-charcoal-800 transition-colors duration-300">
+        <div class="max-w-4xl mx-auto bg-white dark:bg-charcoal-800 rounded-2xl md:rounded-3xl shadow-2xl p-4 sm:p-6 md:p-10 lg:p-12 border border-gray-100 dark:border-charcoal-700 relative">
+            <h2 class="font-serif text-4xl text-gray-900 dark:text-white mb-3 text-center">Book an Appointment</h2>
+            <p class="text-gray-600 dark:text-gray-400 mb-10 font-light text-center">Select your preferred service, barber, date, and time slot.</p>
+            
+            <div class="md:grid md:grid-cols-12 md:gap-8 md:items-start text-left">
+                <!-- Left Column: Form -->
+                <div class="md:col-span-12">
+                    <!-- Step Progress Indicator -->
+                    <div class="flex justify-between items-center max-w-md mx-auto mb-10 relative px-4 sticky top-20 z-40 bg-gray-50/90 dark:bg-charcoal-800/90 backdrop-blur py-4 rounded-xl border border-gray-100 dark:border-charcoal-700 shadow-sm">
+                        <div class="absolute top-1/2 left-9 right-9 h-0.5 bg-gray-300 dark:bg-charcoal-700 -translate-y-1/2 z-0">
+                            <div id="progressLine" class="h-full bg-gold transition-all duration-500 ease-out" style="width: 0%"></div>
+                        </div>
+
+                        <div class="relative z-10 flex flex-col items-center">
+                            <div id="stepDot1" class="w-10 h-10 rounded-full bg-gold text-charcoal-900 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300">1</div>
+                            <span id="stepLabel1" class="text-xs uppercase tracking-wider mt-2 font-medium text-gray-900 dark:text-white">Service</span>
+                        </div>
+                        <div class="relative z-10 flex flex-col items-center">
+                            <div id="stepDot2" class="w-10 h-10 rounded-full bg-gray-300 dark:bg-charcoal-700 text-gray-600 dark:text-gray-400 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300">2</div>
+                            <span id="stepLabel2" class="text-xs uppercase tracking-wider mt-2 font-medium text-gray-400 dark:text-gray-500">Date & Time</span>
+                        </div>
+                        <div class="relative z-10 flex flex-col items-center">
+                            <div id="stepDot3" class="w-10 h-10 rounded-full bg-gray-300 dark:bg-charcoal-700 text-gray-600 dark:text-gray-400 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300">3</div>
+                            <span id="stepLabel3" class="text-xs uppercase tracking-wider mt-2 font-medium text-gray-400 dark:text-gray-500">Confirm</span>
+                        </div>
+                    </div>
+
+                    <!-- Multi-step Form -->
+                    <form id="bookingForm" class="bg-white dark:bg-charcoal-900 p-6 sm:p-10 shadow-xl text-left border border-gray-200 dark:border-charcoal-700 transition-colors duration-300 rounded-lg relative z-30">
+                <input type="hidden" id="service" value="Classic Haircut">
+                <input type="hidden" id="barber" value="Any Available">
+                <input type="hidden" id="time" value="">
+
+                <!-- STEP 1: Select Service & Barber -->
+                <div id="bookingStep1" class="space-y-8">
+                    <div>
+                        <label class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-3 font-semibold">1. Choose Preferred Barber</label>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="barberCardsContainer">
+                            <div tabindex="0" data-barber="Any Available" class="barber-card cursor-pointer p-3 sm:p-4 border-2 border-gold bg-gold/5 dark:bg-gold/10 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                                <div class="w-12 h-12 mx-auto rounded-full bg-gold/20 flex items-center justify-center text-gold mb-2">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                </div>
+                                <h5 class="font-medium text-sm text-gray-900 dark:text-white">Any Available</h5>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">First available chair</p>
+                            </div>
+                            <div tabindex="0" data-barber="Hemen" class="barber-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                                <div class="w-12 h-12 mx-auto rounded-full bg-gray-200 dark:bg-charcoal-800 flex items-center justify-center text-gray-700 dark:text-gray-300 mb-2 font-serif font-bold">H</div>
+                                <h5 class="font-medium text-sm text-gray-900 dark:text-white">Hemen</h5>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Barber</p>
+                            </div>
+                            <div tabindex="0" data-barber="Amir" class="barber-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                                <div class="w-12 h-12 mx-auto rounded-full bg-gray-200 dark:bg-charcoal-800 flex items-center justify-center text-gray-700 dark:text-gray-300 mb-2 font-serif font-bold">A</div>
+                                <h5 class="font-medium text-sm text-gray-900 dark:text-white">Amir</h5>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Barber</p>
+                            </div>
+                            <div tabindex="0" data-barber="Raman" class="barber-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                                <div class="w-12 h-12 mx-auto rounded-full bg-gray-200 dark:bg-charcoal-800 flex items-center justify-center text-gray-700 dark:text-gray-300 mb-2 font-serif font-bold">R</div>
+                                <h5 class="font-medium text-sm text-gray-900 dark:text-white">Raman</h5>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Barber</p>
+                            </div>
+                            <div tabindex="0" data-barber="Bassam" class="barber-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                                <div class="w-12 h-12 mx-auto rounded-full bg-gray-200 dark:bg-charcoal-800 flex items-center justify-center text-gray-700 dark:text-gray-300 mb-2 font-serif font-bold">B</div>
+                                <h5 class="font-medium text-sm text-gray-900 dark:text-white">Bassam</h5>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Barber</p>
+                            </div>
+                            <div tabindex="0" data-barber="Saan" class="barber-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                                <div class="w-12 h-12 mx-auto rounded-full bg-gray-200 dark:bg-charcoal-800 flex items-center justify-center text-gray-700 dark:text-gray-300 mb-2 font-serif font-bold">S</div>
+                                <h5 class="font-medium text-sm text-gray-900 dark:text-white">Saan</h5>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Barber</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-3 font-semibold">2. Choose Service</label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="serviceCardsContainer">
+                            <div tabindex="0" data-service="Classic Haircut" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                                <div>
+                                    <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Classic Haircut">Classic Haircut</h4>
+                                    <p class="text-xs text-gold mt-1 font-medium">⏱️ ~30 min</p>
+                                </div>
+                                <span class="text-gold font-serif font-bold text-lg">€28.00</span>
+                            </div>
+                            <div tabindex="0" data-service="Skin Fade" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                                <div>
+                                    <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Skin Fade">Skin Fade</h4>
+                                    <p class="text-xs text-gold mt-1 font-medium">⏱️ ~45 min</p>
+                                </div>
+                                <span class="text-gold font-serif font-bold text-lg">€28.00</span>
+                            </div>
+                            <div tabindex="0" data-service="Scissor Cut" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                                <div>
+                                    <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Scissor Cut">Scissor Cut</h4>
+                                    <p class="text-xs text-gold mt-1 font-medium">⏱️ ~30 min</p>
+                                </div>
+                                <span class="text-gold font-serif font-bold text-lg">€28.00</span>
+                            </div>
+                            <div tabindex="0" data-service="Wash & Haircut" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                                <div>
+                                    <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Wash & Haircut">Wash & Haircut</h4>
+                                    <p class="text-xs text-gold mt-1 font-medium">⏱️ ~45 min</p>
+                                </div>
+                                <span class="text-gold font-serif font-bold text-lg">€35.00</span>
+                            </div>
+                            <div tabindex="0" data-service="Beard Trim" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                                <div>
+                                    <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Beard Trim">Beard Trim</h4>
+                                    <p class="text-xs text-gold mt-1 font-medium">⏱️ ~20 min</p>
+                                </div>
+                                <span class="text-gold font-serif font-bold text-lg">€20.00</span>
+                            </div>
+                            <div tabindex="0" data-service="Clean Shave" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                                <div>
+                                    <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Clean Shave">Clean Shave</h4>
+                                    <p class="text-xs text-gold mt-1 font-medium">⏱️ ~30 min</p>
+                                </div>
+                                <span class="text-gold font-serif font-bold text-lg">€20.00</span>
+                            </div>
+                            <div tabindex="0" data-service="Classic Haircut + Beard Trim" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                                <div>
+                                    <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Classic Haircut + Beard Trim">Classic Haircut + Beard Trim</h4>
+                                    <p class="text-xs text-gold mt-1 font-medium">⏱️ ~45 min</p>
+                                </div>
+                                <span class="text-gold font-serif font-bold text-lg">€40.00</span>
+                            </div>
+                            <div tabindex="0" data-service="Skin Fade + Beard Trim" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                                <div>
+                                    <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Skin Fade + Beard Trim">Skin Fade + Beard Trim</h4>
+                                    <p class="text-xs text-gold mt-1 font-medium">⏱️ ~60 min</p>
+                                </div>
+                                <span class="text-gold font-serif font-bold text-lg">€40.00</span>
+                            </div>
+                            <div tabindex="0" data-service="One Grade Trim" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                                <div>
+                                    <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="One Grade Trim">One Grade Trim</h4>
+                                    <p class="text-xs text-gold mt-1 font-medium">⏱️ ~15 min</p>
+                                </div>
+                                <span class="text-gold font-serif font-bold text-lg">€20.00</span>
+                            </div>
+                            <div tabindex="0" data-service="Kids Haircut (Up to 10 Years)" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                                <div>
+                                    <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Kids Haircut (Up to 10 Years)">Kids Haircut (Up to 10 Years)</h4>
+                                    <p class="text-xs text-gold mt-1 font-medium">⏱️ ~30 min</p>
+                                </div>
+                                <span class="text-gold font-serif font-bold text-lg">€21.00</span>
+                            </div>
+                            <div tabindex="0" data-service="Kids Haircut (Up to 13 Years)" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                                <div>
+                                    <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Kids Haircut (Up to 13 Years)">Kids Haircut (Up to 13 Years)</h4>
+                                    <p class="text-xs text-gold mt-1 font-medium">⏱️ ~30 min</p>
+                                </div>
+                                <span class="text-gold font-serif font-bold text-lg">€23.00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 flex justify-end">
+                        <button type="button" id="goToStep2Btn" class="bg-gold text-charcoal-900 font-semibold uppercase tracking-widest px-8 py-3.5 rounded-lg hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-charcoal-900 transition-colors duration-300 text-sm flex items-center gap-2">
+                            <span>Continue to Date & Time</span>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- STEP 2: Select Date & Time Chips -->
+                <div id="bookingStep2" class="space-y-8 hidden">
+                    <div>
+                        <label class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-3 font-semibold">1. Select Date</label>
+                        <input type="hidden" id="date" required>
+                        
+                        <!-- Custom Modern Calendar UI -->
+                        <div id="customCalendar" class="bg-gray-50 dark:bg-charcoal-800 border border-gray-200 dark:border-charcoal-700 rounded-xl p-4 sm:p-6 shadow-xl select-none">
+                            <div class="flex justify-between items-center mb-5 pb-3.5 border-b border-gray-200 dark:border-charcoal-700">
+                                <div class="flex items-center space-x-2">
+                                    <svg class="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                    <h4 id="calendarMonthYear" class="font-serif text-lg font-bold text-gray-900 dark:text-white">Month Year</h4>
+                                </div>
+                                <div class="flex space-x-2">
+                                    <button id="calPrevBtn" type="button" aria-label="Previous Month" class="p-2 rounded-lg border border-gray-300 dark:border-charcoal-700 text-gray-700 dark:text-gray-300 hover:bg-gold hover:text-charcoal-900 hover:border-gold transition-all flex items-center justify-center">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                                    </button>
+                                    <button id="calNextBtn" type="button" aria-label="Next Month" class="p-2 rounded-lg border border-gray-300 dark:border-charcoal-700 text-gray-700 dark:text-gray-300 hover:bg-gold hover:text-charcoal-900 hover:border-gold transition-all flex items-center justify-center">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-7 gap-1 text-center text-xs font-semibold tracking-wider text-gray-500 dark:text-gray-400 mb-3 uppercase">
+                                <div class="text-rose-500/80">Sun</div>
+                                <div>Mon</div>
+                                <div>Tue</div>
+                                <div>Wed</div>
+                                <div>Thu</div>
+                                <div>Fri</div>
+                                <div>Sat</div>
+                            </div>
+                            <div id="calendarDaysGrid" class="grid grid-cols-7 gap-1.5 sm:gap-2"></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <label class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest font-semibold">2. Select Time Slot</label>
+                            <span id="timeSlotStatusText" class="text-xs text-gray-500 dark:text-gray-400">Please choose a date first</span>
+                        </div>
+                        <!-- Interactive Time Chips Grid -->
+                        <div id="timeChipsGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5"></div>
+                    </div>
+
+                    <div class="pt-4 flex justify-between items-stretch gap-3">
+                        <button type="button" id="backToStep1Btn" class="border border-gray-300 dark:border-charcoal-700 text-gray-700 dark:text-gray-300 px-4 sm:px-6 py-3.5 rounded-lg hover:bg-gray-100 dark:hover:bg-charcoal-800 transition-colors text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                            <span>Back</span>
+                        </button>
+                        <button type="button" id="goToStep3Btn" class="bg-gold text-charcoal-900 font-semibold uppercase tracking-widest px-4 sm:px-8 py-3.5 rounded-lg hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-charcoal-900 transition-colors duration-300 text-xs sm:text-sm flex flex-1 items-center justify-center gap-2 text-center whitespace-nowrap sm:whitespace-normal">
+                            <span>Continue to Summary</span>
+                            <svg class="w-4 h-4 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- STEP 3: Confirm Details & Submit -->
+                <div id="bookingStep3" class="space-y-6 hidden">
+                    <!-- Summary Card -->
+                    <div class="bg-gray-50 dark:bg-charcoal-800 p-5 rounded-lg border border-gray-200 dark:border-charcoal-700 space-y-2">
+                        <h4 class="text-xs uppercase tracking-widest text-gold font-bold mb-3">Booking Summary</h4>
+                        <div class="flex justify-between text-sm"><span class="text-gray-500 dark:text-gray-400">Service:</span><span id="summaryService" class="font-medium text-gray-900 dark:text-white">Classic Haircut</span></div>
+                        <div class="flex justify-between text-sm"><span class="text-gray-500 dark:text-gray-400">Barber:</span><span id="summaryBarber" class="font-medium text-gray-900 dark:text-white">Any Available</span></div>
+                        <div class="flex justify-between text-sm"><span class="text-gray-500 dark:text-gray-400">Date:</span><span id="summaryDate" class="font-medium text-gray-900 dark:text-white">-</span></div>
+                        <div class="flex justify-between text-sm"><span class="text-gray-500 dark:text-gray-400">Time Slot:</span><span id="summaryTime" class="font-medium text-gold font-semibold">-</span></div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2 font-semibold">Your Full Name</label>
+                            <input type="text" id="fullName" required placeholder="John Doe" class="w-full bg-gray-50 dark:bg-charcoal-800 border border-gray-300 dark:border-charcoal-700 text-gray-900 dark:text-white p-3.5 focus:outline-none focus:border-gold transition-colors rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2 font-semibold">Phone Number</label>
+                            <input type="tel" id="phoneNumber" inputmode="numeric" required placeholder="+31 6 12345678" class="w-full bg-gray-50 dark:bg-charcoal-800 border border-gray-300 dark:border-charcoal-700 text-gray-900 dark:text-white p-3.5 focus:outline-none focus:border-gold transition-colors rounded-lg">
+                        </div>
+                    </div>
+
+                    <div class="pt-4 flex justify-between items-stretch gap-3">
+                        <button type="button" id="backToStep2Btn" class="border border-gray-300 dark:border-charcoal-700 text-gray-700 dark:text-gray-300 px-4 sm:px-6 py-3.5 rounded-lg hover:bg-gray-100 dark:hover:bg-charcoal-800 transition-colors text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                            <span>Back</span>
+                        </button>
+                        <button type="submit" id="submitBtn" class="bg-gold text-charcoal-900 font-semibold uppercase tracking-widest px-4 sm:px-8 py-3.5 rounded-lg hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-charcoal-900 transition-colors duration-300 text-xs sm:text-sm flex flex-1 items-center justify-center text-center whitespace-nowrap sm:whitespace-normal">
+                            Confirm Booking
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 4: Confirmation Card -->
+                <div id="bookingStep4" class="space-y-6 hidden animate-slide-in-right">
+                    <div class="bg-gold/5 dark:bg-gold/10 border border-gold p-8 rounded-xl text-center shadow-lg">
+                        <svg class="w-12 h-12 md:w-16 md:h-16 text-gold mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <h3 class="text-2xl font-serif text-gray-900 dark:text-white mb-2">Booking Confirmed!</h3>
+                        <p class="text-gray-600 dark:text-gray-400 mb-6 font-light">Thank you, <span id="confirmName" class="font-medium text-gray-900 dark:text-white"></span>. We look forward to seeing you.</p>
+                        
+                        <div class="bg-white dark:bg-charcoal-800 p-4 rounded-lg text-left mb-8 space-y-3 border border-gray-200 dark:border-charcoal-700">
+                            <div class="flex justify-between text-sm border-b border-gray-100 dark:border-charcoal-700 pb-2"><span class="text-gray-500">Service:</span><span id="confirmService" class="font-medium text-gray-900 dark:text-white"></span></div>
+                            <div class="flex justify-between text-sm border-b border-gray-100 dark:border-charcoal-700 pb-2"><span class="text-gray-500">Barber:</span><span id="confirmBarber" class="font-medium text-gray-900 dark:text-white"></span></div>
+                            <div class="flex justify-between text-sm border-b border-gray-100 dark:border-charcoal-700 pb-2"><span class="text-gray-500">Date:</span><span id="confirmDate" class="font-medium text-gray-900 dark:text-white"></span></div>
+                            <div class="flex justify-between text-sm"><span class="text-gray-500">Time:</span><span id="confirmTime" class="font-medium text-gold font-bold text-base"></span></div>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                            <button type="button" id="addToCalendarBtn" class="bg-gray-900 dark:bg-white text-white dark:text-charcoal-900 font-medium px-6 py-3 rounded-lg hover:bg-gold hover:text-white dark:hover:bg-gold transition-colors flex items-center justify-center gap-2 uppercase tracking-wider text-sm shadow-md">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                Add to Calendar
+                            </button>
+                            <button type="button" id="bookAnotherBtn" class="border border-gold text-gold font-medium px-6 py-3 rounded-lg hover:bg-gold hover:text-white transition-colors uppercase tracking-wider text-sm">
+                                Book Another
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+                </div> <!-- End Left Column -->
+
+                <!-- Bottom/Right Column: Live Summary (Desktop only) -->
+                <div class="hidden md:block md:col-span-12 mt-4">
+                    <div class="bg-gold/10 dark:bg-gold/5 p-6 rounded-xl border border-gold/30 shadow-lg space-y-4">
+                        <h4 class="text-sm uppercase tracking-widest text-gold font-bold mb-4 flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                            Live Summary
+                        </h4>
+                        <div class="space-y-3">
+                            <div class="flex justify-between text-sm"><span class="text-gray-600 dark:text-gray-400">Service:</span><span id="desktopLiveService" class="font-medium text-gray-900 dark:text-white text-right">Classic Haircut</span></div>
+                            <div class="flex justify-between text-sm"><span class="text-gray-600 dark:text-gray-400">Barber:</span><span id="desktopLiveBarber" class="font-medium text-gray-900 dark:text-white text-right">Any Available</span></div>
+                            <div class="flex justify-between text-sm"><span class="text-gray-600 dark:text-gray-400">Date:</span><span id="desktopLiveDate" class="font-medium text-gray-900 dark:text-white text-right">-</span></div>
+                            <div class="flex justify-between text-sm"><span class="text-gray-600 dark:text-gray-400">Time:</span><span id="desktopLiveTime" class="font-medium text-gold font-bold text-right">-</span></div>
+                        </div>
+                    </div>
+                </div> <!-- End Right Column -->
+            </div> <!-- End Grid -->
+        </div>
+    </section>
+
+    <!-- Gallery Section -->
+    <section id="gallery" class="py-24 bg-white dark:bg-charcoal-900 transition-colors duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 reveal">
+            <div class="text-center mb-16">
+                <h2 class="font-serif text-4xl text-gray-900 dark:text-white mb-4">Our Work</h2>
+                <div class="w-16 h-px bg-gold mx-auto"></div>
+            </div>
+            <!-- Masonry Grid -->
+            <div class="columns-1 sm:columns-2 md:columns-3 gap-4 space-y-4">
+                <img src="assets/IMG_8582.PNG" alt="Gallery Image 1" class="w-full h-64 object-cover filter brightness-90 contrast-125 dark:brightness-75 hover:brightness-110 dark:hover:brightness-100 transition-all duration-500 cursor-pointer" onclick="openLightbox(this.src)">
+                <img src="assets/IMG_8577.JPEG" alt="Gallery Image 2" class="w-full h-64 object-cover filter brightness-90 contrast-125 dark:brightness-75 hover:brightness-110 dark:hover:brightness-100 transition-all duration-500 cursor-pointer" onclick="openLightbox(this.src)">
+                <img src="assets/IMG_8575.JPEG" alt="Gallery Image 3" class="w-full h-64 object-cover filter brightness-90 contrast-125 dark:brightness-75 hover:brightness-110 dark:hover:brightness-100 transition-all duration-500 cursor-pointer" onclick="openLightbox(this.src)">
+                <img src="assets/IMG_8572.JPEG" alt="Gallery Image 4" class="w-full h-64 object-cover filter brightness-90 contrast-125 dark:brightness-75 hover:brightness-110 dark:hover:brightness-100 transition-all duration-500 cursor-pointer" onclick="openLightbox(this.src)">
+                <img src="assets/IMG_8567.JPEG" alt="Gallery Image 5" class="w-full h-64 object-cover filter brightness-90 contrast-125 dark:brightness-75 hover:brightness-110 dark:hover:brightness-100 transition-all duration-500 cursor-pointer" onclick="openLightbox(this.src)">
+                <img src="assets/IMG_8569.JPEG" alt="Gallery Image 6" class="w-full h-64 object-cover filter brightness-90 contrast-125 dark:brightness-75 hover:brightness-110 dark:hover:brightness-100 transition-all duration-500 cursor-pointer" onclick="openLightbox(this.src)">
+            </div>
+        </div>
+
+        <!-- Lightbox Overlay -->
+        <div id="lightbox" class="fixed inset-0 bg-charcoal-900/95 backdrop-blur-sm z-[60] hidden flex-col justify-center items-center opacity-0 transition-opacity duration-300">
+            <button id="closeLightboxBtn" type="button" aria-label="Close Lightbox" class="absolute top-6 right-6 p-2 text-white hover:text-gold focus:outline-none transition-colors">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            <button id="prevLightboxBtn" type="button" aria-label="Previous Image" class="absolute left-4 sm:left-10 p-3 text-white hover:text-gold focus:outline-none transition-colors bg-black/50 rounded-full">
+                <svg class="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+            </button>
+            <button id="nextLightboxBtn" type="button" aria-label="Next Image" class="absolute right-4 sm:right-10 p-3 text-white hover:text-gold focus:outline-none transition-colors bg-black/50 rounded-full">
+                <svg class="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </button>
+            <img id="lightboxImg" src="" alt="Gallery Full Image" class="max-h-[85vh] max-w-[90vw] object-contain shadow-2xl rounded-sm transform scale-95 transition-transform duration-300">
+        </div>
+    </section>
+
+    <!-- Testimonials Section (Carousel) -->
+    <section class="py-24 bg-gray-50 dark:bg-charcoal-800 transition-colors duration-300">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 reveal">
+            <div class="text-center mb-12">
+                <h2 class="font-serif text-4xl text-gray-900 dark:text-white mb-2">Client Testimonials</h2>
+                <div class="flex justify-center text-gold text-xl mb-3">★★★★★</div>
+                <p class="text-gray-600 dark:text-gray-400 font-light">Rated 4.7/5 based on 131 Google Reviews</p>
+            </div>
+
+            <!-- Carousel Wrapper -->
+            <div class="relative bg-white dark:bg-charcoal-900 p-8 sm:p-12 border border-gray-200 dark:border-charcoal-700 shadow-lg rounded-xl h-[420px] sm:h-[300px] flex flex-col justify-between" id="testimonialCarousel">
+                <div id="testimonialSlideContent" class="transition-opacity duration-300">
+                    <!-- Dynamic Slide Inserted Here -->
+                </div>
+
+                <div class="flex justify-between items-center mt-8 pt-4 border-t border-gray-100 dark:border-charcoal-800">
+                    <!-- Indicator Dots -->
+                    <div class="flex space-x-2" id="carouselDots"></div>
+                    <!-- Navigation Controls -->
+                    <div class="flex space-x-2">
+                        <button id="prevTestimonialBtn" type="button" aria-label="Previous review" class="p-2 border border-gray-300 dark:border-charcoal-700 rounded-full hover:bg-gray-100 dark:hover:bg-charcoal-800 text-gray-700 dark:text-gray-300 transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                        </button>
+                        <button id="nextTestimonialBtn" type="button" aria-label="Next review" class="p-2 border border-gray-300 dark:border-charcoal-700 rounded-full hover:bg-gray-100 dark:hover:bg-charcoal-800 text-gray-700 dark:text-gray-300 transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="py-24 bg-white dark:bg-charcoal-900 border-t border-gray-200 dark:border-charcoal-700 transition-colors duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 reveal">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16">
+                <div>
+                    <h2 class="font-serif text-4xl text-gray-900 dark:text-white mb-10">Visit Us</h2>
+                    
+                    <div class="mb-8">
+                        <h3 class="text-gold uppercase tracking-widest text-sm mb-3">Location</h3>
+                        <p class="text-gray-700 dark:text-gray-300 font-light">Van Hogendorpstraat 10<br>2242 KZ Wassenaar<br>Netherlands</p>
+                    </div>
+
+                    <div class="mb-8">
+                        <h3 class="text-gold uppercase tracking-widest text-sm mb-3">Working Hours</h3>
+                        <ul class="text-gray-700 dark:text-gray-300 font-light space-y-2">
+                            <li class="flex justify-between border-b border-gray-100 dark:border-charcoal-700 py-1"><span data-translate="Monday">Monday</span> <span>12:00 - 18:00</span></li>
+                            <li class="flex justify-between border-b border-gray-100 dark:border-charcoal-700 py-1"><span data-translate="Tuesday">Tuesday</span> <span>10:00 - 18:00</span></li>
+                            <li class="flex justify-between border-b border-gray-100 dark:border-charcoal-700 py-1"><span data-translate="Wednesday">Wednesday</span> <span>10:00 - 18:00</span></li>
+                            <li class="flex justify-between border-b border-gray-100 dark:border-charcoal-700 py-1"><span data-translate="Thursday">Thursday</span> <span>10:00 - 18:00</span></li>
+                            <li class="flex justify-between border-b border-gray-100 dark:border-charcoal-700 py-1"><span data-translate="Friday">Friday</span> <span>10:00 - 18:00</span></li>
+                            <li class="flex justify-between border-b border-gray-100 dark:border-charcoal-700 py-1"><span data-translate="Saturday">Saturday</span> <span>10:00 - 18:00</span></li>
+                            <li class="flex justify-between py-1"><span data-translate="Sunday">Sunday</span> <span class="text-rose-500 font-medium" data-translate="Closed">Closed</span></li>
+                        </ul>
+                    </div>
+
+                    <div class="mb-8">
+                        <h3 class="text-gold uppercase tracking-widest text-sm mb-3">Contact</h3>
+                        <p class="text-gray-700 dark:text-gray-300 font-light text-xl">+31 6 53730803</p>
+                    </div>
+                    
+                    <div class="mt-6">
+                        <a href="https://www.instagram.com/sussexbarbershop" target="_blank" rel="noopener noreferrer" class="inline-flex items-center space-x-3 text-gray-600 dark:text-gray-400 hover:text-gold dark:hover:text-gold transition-colors group">
+                            <div class="w-10 h-10 rounded-full border border-gray-300 dark:border-charcoal-700 flex items-center justify-center group-hover:border-gold transition-colors">
+                                IG
+                            </div>
+                            <span class="font-light tracking-wide text-sm">@sussexbarbershop</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="w-full aspect-square min-h-[400px] md:h-[600px] bg-gray-100 dark:bg-charcoal-800 border border-gray-200 dark:border-charcoal-700 p-2 relative group overflow-hidden rounded-xl shadow-xl shadow-black/5 dark:shadow-black/20">
+                    <a href="https://maps.app.goo.gl/vhDfYkHsUg5vzWHB8" target="_blank" rel="noopener noreferrer" class="absolute inset-0 z-30 w-full h-full cursor-pointer" aria-label="View Location on Google Maps"></a>
+                    
+                    <!-- Clouds & Plane Effects -->
+                    <div class="absolute inset-0 z-20 pointer-events-none overflow-hidden rounded-xl">
+                        <!-- Cloud 1 -->
+                        <div class="absolute top-10 animate-drift-cloud-1 drop-shadow-md">
+                            <svg class="w-32 h-16 text-white" fill="currentColor" viewBox="0 0 24 24" style="filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.1)); opacity: 0.9;"><path d="M17.5 19c2.481 0 4.5-2.019 4.5-4.5 0-2.222-1.605-4.075-3.738-4.423-.198-3.057-2.73-5.452-5.834-5.452-2.316 0-4.382 1.341-5.353 3.332-1.748.163-3.137 1.62-3.137 3.418 0 1.9 1.545 3.447 3.446 3.447h10.116V19z"/></svg>
+                        </div>
+                        <!-- Cloud 2 -->
+                        <div class="absolute top-1/2 animate-drift-cloud-2 drop-shadow-md" style="animation-delay: -10s;">
+                            <svg class="w-48 h-24 text-white" fill="currentColor" viewBox="0 0 24 24" style="filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.1)); opacity: 0.7;"><path d="M17.5 19c2.481 0 4.5-2.019 4.5-4.5 0-2.222-1.605-4.075-3.738-4.423-.198-3.057-2.73-5.452-5.834-5.452-2.316 0-4.382 1.341-5.353 3.332-1.748.163-3.137 1.62-3.137 3.418 0 1.9 1.545 3.447 3.446 3.447h10.116V19z"/></svg>
+                        </div>
+                        <!-- Airplane -->
+                        <div class="absolute animate-fly-plane drop-shadow-2xl text-charcoal-900 dark:text-gray-200" style="filter: drop-shadow(0 10px 8px rgba(0,0,0,0.3));">
+                            <svg class="w-10 h-10" fill="currentColor" viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>
+                        </div>
+                    </div>
+
+                    <div class="absolute inset-0 z-40 flex items-center justify-center bg-black/40 dark:bg-charcoal-900/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                        <span class="bg-gold text-charcoal-900 px-6 py-3 text-sm font-semibold tracking-wider uppercase shadow-lg rounded-md">Open in Maps</span>
+                    </div>
+
+                    <div class="w-full h-full bg-gray-100 dark:bg-charcoal-900 flex items-center justify-center text-gray-500 rounded-lg overflow-hidden relative z-10">
+                        <iframe 
+                            id="mapIframe"
+                            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2449.610582236528!2d4.394628212130325!3d52.1412030656041!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47c5b736b4421bfd%3A0xc6c4293e50ab52e4!2sVan%20Hogendorpstraat%2010%2C%202242%20KZ%20Wassenaar%2C%20Netherlands!5e0!3m2!1sen!2sus!4v1715690000000!5m2!1sen!2sus" 
+                            width="100%" 
+                            height="100%" 
+                            style="border:0;" 
+                            allowfullscreen="" 
+                            loading="lazy" 
+                            referrerpolicy="no-referrer-when-downgrade">
+                        </iframe>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Floating Quick Contact Button -->
+    <div class="fixed bottom-6 right-6 z-40">
+        <div id="quickContactMenu" class="hidden flex-col gap-2.5 mb-3 items-end transition-all duration-300">
+            <a href="tel:+31653730803" class="bg-gold text-charcoal-900 font-semibold px-4 py-2.5 rounded-full shadow-lg hover:bg-white transition-colors flex items-center space-x-2 text-xs uppercase tracking-wider">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                <span>Call +31 6 53730803</span>
+            </a>
+            <a href="https://www.instagram.com/sussexbarbershop" target="_blank" rel="noopener noreferrer" class="bg-charcoal-900 text-white dark:bg-white dark:text-charcoal-900 font-semibold px-4 py-2.5 rounded-full shadow-lg hover:text-gold transition-colors flex items-center space-x-2 text-xs uppercase tracking-wider border border-gray-700 dark:border-gray-200">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                <span>Instagram @sussex</span>
+            </a>
+        </div>
+        <button id="quickContactBtn" type="button" aria-label="Quick Contact" class="bg-gold text-charcoal-900 p-4 rounded-full shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+        </button>
+    </div>
+
+    <!-- Mega Footer -->
+    <footer class="bg-gray-100 dark:bg-charcoal-900 pt-16 pb-8 border-t border-gray-200 dark:border-charcoal-800 transition-colors duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row justify-between items-center text-gray-500 dark:text-gray-600 text-sm tracking-wide">
+                <p>© 2026 Sussex Barber Shop. All rights reserved.</p>
+                <div class="flex space-x-4 mt-4 md:mt-0">
+                    <a href="#" class="hover:text-gold transition-colors">Privacy Policy</a>
+                    <a href="#" class="hover:text-gold transition-colors">Terms of Service</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Main JavaScript Logic -->
+    <script>
+        // --- 1. Toast Notification System ---
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `pointer-events-auto flex items-center space-x-3 px-5 py-3.5 rounded-lg shadow-2xl text-sm font-medium transition-all duration-300 transform translate-x-10 opacity-0 ${
+                type === 'success' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+            }`;
+            
+            const icon = type === 'success' 
+                ? `<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`
+                : `<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
+
+            toast.innerHTML = `${icon}<span>${message}</span>`;
+            container.appendChild(toast);
+
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-x-10', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-x-10');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // --- 2. Live Business Status (Netherlands Local Time) ---
+        function updateBusinessStatus() {
+            const badge = document.getElementById('statusBadge');
+            if (!badge) return;
+
+            const now = new Date();
+            const formatter = new Intl.DateTimeFormat('en-US', {
+                timeZone: 'Europe/Amsterdam',
+                hour12: false,
+                weekday: 'short',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            
+            const parts = formatter.formatToParts(now);
+            let day = '', hour = 0, minute = 0;
+            parts.forEach(p => {
+                if (p.type === 'weekday') day = p.value;
+                if (p.type === 'hour') hour = parseInt(p.value, 10);
+                if (p.type === 'minute') minute = parseInt(p.value, 10);
+            });
+
+            const timeInMinutes = hour * 60 + minute;
+            let isOpen = false;
+
+            if (day === 'Sun') {
+                isOpen = false;
+            } else if (day === 'Mon') {
+                isOpen = timeInMinutes >= 720 && timeInMinutes < 1080; // 12:00 PM - 6:00 PM
+            } else {
+                isOpen = timeInMinutes >= 600 && timeInMinutes < 1080; // 10:00 AM - 6:00 PM
+            }
+
+            if (isOpen) {
+                badge.innerHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Open Now</span>`;
+            } else {
+                badge.innerHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30"><span class="w-2 h-2 rounded-full bg-rose-500"></span> Closed Now</span>`;
+            }
+        }
+        updateBusinessStatus();
+        setInterval(updateBusinessStatus, 60000);
+
+        // --- 3. Theme Switcher Logic ---
+        const svgIcons = {
+            light: `<svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>`,
+            dark: `<svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>`,
+            system: `<svg class="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>`
+        };
+
+        const themeToggleBtn = document.getElementById('themeToggleBtn');
+        const themeDropdown = document.getElementById('themeDropdown');
+        const activeThemeIcon = document.getElementById('activeThemeIcon');
+        const mapIframe = document.getElementById('mapIframe');
+
+        function getSystemTheme() {
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+
+        function applyTheme(themeMode) {
+            const actualTheme = themeMode === 'system' ? getSystemTheme() : themeMode;
+            if (actualTheme === 'dark') {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+
+            if (mapIframe) {
+                mapIframe.style.filter = actualTheme === 'dark' ? 'invert(90%) hue-rotate(180deg)' : 'none';
+            }
+
+            if (activeThemeIcon) {
+                activeThemeIcon.innerHTML = svgIcons[themeMode] || svgIcons.system;
+            }
+        }
+
+        function setTheme(themeMode) {
+            localStorage.setItem('theme', themeMode);
+            applyTheme(themeMode);
+        }
+
+        themeToggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            themeDropdown.classList.toggle('hidden');
+        });
+
+        document.addEventListener('click', () => {
+            if (!themeDropdown.classList.contains('hidden')) {
+                themeDropdown.classList.add('hidden');
+            }
+        });
+
+        document.querySelectorAll('[data-theme-value]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                setTheme(btn.getAttribute('data-theme-value'));
+                themeDropdown.classList.add('hidden');
+            });
+        });
+
+        applyTheme(localStorage.getItem('theme') || 'system');
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+            if ((localStorage.getItem('theme') || 'system') === 'system') {
+                applyTheme('system');
+            }
+        });
+
+        // --- 4. Scroll Entrance Animations ---
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                }
+            });
+        }, { threshold: 0.15 });
+
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+        // --- 5. Testimonials Carousel Slider ---
+        const testimonials = [
+            {
+                quote: `"Awesome haircut, modern style and hearty service."`,
+                author: "Anonymous Client",
+                initial: "A",
+                color: "bg-gray-600"
+            },
+            {
+                quote: `"Myself and my two teenage sons - who are quite particular - went here and were delighted with our haircuts and the friendly atmosphere. I would have no hesitation in recommending this barber shop."`,
+                author: "Michael Bride",
+                initial: "M",
+                color: "bg-green-800"
+            },
+            {
+                quote: `"Always receive great haircuts and the place itself is well kept. Good price/quality, great location and attentive employees."`,
+                author: "Verified Client",
+                initial: "P",
+                color: "bg-blue-800"
+            }
+        ];
+
+        let currentTestimonialIndex = 0;
+        const slideContainer = document.getElementById('testimonialSlideContent');
+        const dotsContainer = document.getElementById('carouselDots');
+
+        function renderTestimonial(index) {
+            const item = testimonials[index];
+            slideContainer.style.opacity = 0;
+
+            setTimeout(() => {
+                slideContainer.innerHTML = `
+                    <p class="text-gray-700 dark:text-gray-300 font-light italic text-base sm:text-lg mb-6 leading-relaxed">
+                        ${item.quote}
+                    </p>
+                    <div class="flex items-center">
+                        <div class="w-11 h-11 rounded-full ${item.color} flex items-center justify-center text-white font-serif font-bold text-lg">
+                            ${item.initial}
+                        </div>
+                        <div class="ml-4">
+                            <h4 class="text-gray-900 dark:text-white font-medium text-sm sm:text-base">${item.author}</h4>
+                            <p class="text-gold text-xs">★★★★★</p>
+                        </div>
+                    </div>
+                `;
+                slideContainer.style.opacity = 1;
+            }, 200);
+
+            // Update Dots
+            dotsContainer.innerHTML = testimonials.map((_, i) => `
+                <button type="button" aria-label="Go to slide ${i+1}" onclick="goToTestimonial(${i})" class="w-2.5 h-2.5 rounded-full transition-all ${
+                    i === index ? 'bg-gold w-6' : 'bg-gray-300 dark:bg-charcoal-700'
+                }"></button>
+            `).join('');
+        }
+
+        function nextTestimonial() {
+            currentTestimonialIndex = (currentTestimonialIndex + 1) % testimonials.length;
+            renderTestimonial(currentTestimonialIndex);
+        }
+
+        function prevTestimonial() {
+            currentTestimonialIndex = (currentTestimonialIndex - 1 + testimonials.length) % testimonials.length;
+            renderTestimonial(currentTestimonialIndex);
+        }
+
+        function goToTestimonial(index) {
+            currentTestimonialIndex = index;
+            renderTestimonial(currentTestimonialIndex);
+        }
+
+        document.getElementById('nextTestimonialBtn').addEventListener('click', nextTestimonial);
+        document.getElementById('prevTestimonialBtn').addEventListener('click', prevTestimonial);
+
+        renderTestimonial(0);
+        setInterval(nextTestimonial, 6000);
+
+        // --- 6. Floating Quick Contact Menu ---
+        const quickContactBtn = document.getElementById('quickContactBtn');
+        const quickContactMenu = document.getElementById('quickContactMenu');
+
+        quickContactBtn.addEventListener('click', () => {
+            quickContactMenu.classList.toggle('hidden');
+            quickContactMenu.classList.toggle('flex');
+        });
+
+        // Live Summary Update
+        const updateDesktopLiveSummary = () => {
+            const service = document.getElementById('service').value || '-';
+            const barber = document.getElementById('barber').value || '-';
+            const date = document.getElementById('date').value || '-';
+            const time = document.getElementById('time').value || '-';
+            
+            const elService = document.getElementById('desktopLiveService');
+            const elBarber = document.getElementById('desktopLiveBarber');
+            const elDate = document.getElementById('desktopLiveDate');
+            const elTime = document.getElementById('desktopLiveTime');
+            
+            if (elService) elService.innerText = service;
+            if (elBarber) elBarber.innerText = barber;
+            if (elDate) elDate.innerText = date;
+            if (elTime) elTime.innerText = time;
+        };
+
+        // --- 7. Multi-step Booking Wizard & Time Chips Logic ---
+        const availableTimesList = [
+            "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM",
+            "12:00 PM", "12:30 PM", "01:00 PM", "01:30 PM",
+            "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM",
+            "04:00 PM", "04:30 PM", "05:00 PM", "05:30 PM"
+        ];
+
+        let bookedTimesList = [];
+        const API_URL = "https://script.google.com/macros/s/AKfycbyEaZa65gCE2tQcCEvsDKcg8rIfPK8wS9RqjhaLJv5Pa8kCJ9ta5dlG0I29HAu9gnCeHA/exec";
+
+        // Service Cards Selection
+        document.querySelectorAll('#serviceCardsContainer .service-card').forEach(card => {
+            const selectService = () => {
+                const isActive = card.classList.contains('border-gold');
+                
+                if (isActive) {
+                    card.classList.remove('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
+                    card.classList.add('border-gray-200', 'dark:border-charcoal-700');
+                } else {
+                    card.classList.remove('border-gray-200', 'dark:border-charcoal-700');
+                    card.classList.add('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
+                }
+
+                // Gather all selected services
+                const selectedServices = [];
+                document.querySelectorAll('#serviceCardsContainer .service-card.border-gold').forEach(c => {
+                    selectedServices.push(c.getAttribute('data-service'));
+                });
+                
+                document.getElementById('service').value = selectedServices.join(', ');
+                updateDesktopLiveSummary();
+                
+                const selectedDate = document.getElementById('date').value;
+                if (selectedDate) {
+                    renderTimeChips();
+                }
+            };
+            card.addEventListener('click', selectService);
+            card.addEventListener('keydown', (e) => {
+                if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectService(); }
+            });
+        });
+
+        // Barber Cards Selection
+        document.querySelectorAll('#barberCardsContainer .barber-card').forEach(card => {
+            const selectBarber = () => {
+                document.querySelectorAll('#barberCardsContainer .barber-card').forEach(c => {
+                    c.classList.remove('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
+                    c.classList.add('border-gray-200', 'dark:border-charcoal-700');
+                });
+                card.classList.remove('border-gray-200', 'dark:border-charcoal-700');
+                card.classList.add('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
+                document.getElementById('barber').value = card.getAttribute('data-barber');
+                updateDesktopLiveSummary();
+            };
+            card.addEventListener('click', selectBarber);
+            card.addEventListener('keydown', (e) => {
+                if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectBarber(); }
+            });
+        });
+
+        // Step Navigation Logic
+        const step1 = document.getElementById('bookingStep1');
+        const step2 = document.getElementById('bookingStep2');
+        const step3 = document.getElementById('bookingStep3');
+        const progressLine = document.getElementById('progressLine');
+
+        let currentWizardStep = 1;
+
+        function updateWizardUI(stepNum) {
+            const isForward = stepNum > currentWizardStep;
+            
+            [step1, step2, step3].forEach((el, i) => {
+                if (i === stepNum - 1) {
+                    el.classList.remove('hidden', 'animate-slide-in-right', 'animate-slide-in-left');
+                    // Trigger reflow for animation restart
+                    void el.offsetWidth;
+                    el.classList.add(isForward ? 'animate-slide-in-right' : 'animate-slide-in-left');
+                }
+                else {
+                    el.classList.add('hidden');
+                }
+            });
+
+            currentWizardStep = stepNum;
+
+            // Scroll up to the top of the booking section smoothly
+            // Use setTimeout to allow the DOM to render the new step before scrolling
+            setTimeout(() => {
+                const bookingEl = document.getElementById('booking');
+                if (bookingEl) {
+                    const y = bookingEl.getBoundingClientRect().top + window.scrollY - 100;
+                    window.scrollTo({top: y, behavior: 'smooth'});
+                }
+            }, 50);
+
+            // Progress Line width
+            if (stepNum === 1) progressLine.style.width = '0%';
+            else if (stepNum === 2) progressLine.style.width = '50%';
+            else if (stepNum === 3) progressLine.style.width = '100%';
+
+            // Step dots
+            const d1 = document.getElementById('stepDot1');
+            const d2 = document.getElementById('stepDot2');
+            const d3 = document.getElementById('stepDot3');
+            const l1 = document.getElementById('stepLabel1');
+            const l2 = document.getElementById('stepLabel2');
+            const l3 = document.getElementById('stepLabel3');
+
+            d1.className = stepNum >= 1 
+                ? 'w-10 h-10 rounded-full bg-gold text-charcoal-900 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300'
+                : 'w-10 h-10 rounded-full bg-gray-300 dark:bg-charcoal-700 text-gray-600 dark:text-gray-400 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300';
+            
+            d2.className = stepNum >= 2 
+                ? 'w-10 h-10 rounded-full bg-gold text-charcoal-900 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300'
+                : 'w-10 h-10 rounded-full bg-gray-300 dark:bg-charcoal-700 text-gray-600 dark:text-gray-400 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300';
+            
+            d3.className = stepNum >= 3 
+                ? 'w-10 h-10 rounded-full bg-gold text-charcoal-900 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300'
+                : 'w-10 h-10 rounded-full bg-gray-300 dark:bg-charcoal-700 text-gray-600 dark:text-gray-400 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300';
+
+            l1.className = stepNum >= 1 ? 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-900 dark:text-white' : 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-400 dark:text-gray-500';
+            l2.className = stepNum >= 2 ? 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-900 dark:text-white' : 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-400 dark:text-gray-500';
+            l3.className = stepNum >= 3 ? 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-900 dark:text-white' : 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-400 dark:text-gray-500';
+        }
+
+        document.getElementById('goToStep2Btn').addEventListener('click', () => {
+            updateWizardUI(2);
+            currentCalDate = new Date();
+            renderCustomCalendar();
+        });
+
+        document.getElementById('backToStep1Btn').addEventListener('click', () => {
+            updateWizardUI(1);
+        });
+
+        document.getElementById('goToStep3Btn').addEventListener('click', () => {
+            const dateInput = document.getElementById('date');
+            const dateVal = dateInput.value;
+            const timeVal = document.getElementById('time').value;
+
+            if (!dateVal) {
+                showToast("Please select a date.", "error");
+                return;
+            }
+
+            const selectedDate = new Date(dateVal);
+            selectedDate.setHours(0,0,0,0);
+            
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            
+            const maxDate = new Date();
+            maxDate.setDate(today.getDate() + 30);
+            maxDate.setHours(0,0,0,0);
+
+            if (selectedDate < today || selectedDate > maxDate) {
+                showToast("Booking is only available for the next 30 days.", "error");
+                return;
+            }
+
+            if (selectedDate.getDay() === 0) {
+                showToast("We are closed on Sundays. Please choose another day.", "error");
+                return;
+            }
+
+            if (!timeVal) {
+                showToast("Please select an available time slot.", "error");
+                return;
+            }
+
+            document.getElementById('summaryService').innerText = document.getElementById('service').value;
+            document.getElementById('summaryBarber').innerText = document.getElementById('barber').value;
+            document.getElementById('summaryDate').innerText = dateVal;
+            document.getElementById('summaryTime').innerText = timeVal;
+
+            updateWizardUI(3);
+        });
+
+        document.getElementById('backToStep2Btn').addEventListener('click', () => {
+            updateWizardUI(2);
+        });
+
+        // Time Chips Rendering
+        function renderTimeChips() {
+            const grid = document.getElementById('timeChipsGrid');
+            const selectedTime = document.getElementById('time').value;
+            const selectedDate = document.getElementById('date').value;
+            const statusText = document.getElementById('timeSlotStatusText');
+
+            grid.innerHTML = '';
+
+            // ئەگەر بەروار هەڵنەبژێردرابێت، هەموو کاتژمێرەکان لەکار بخە
+            if (!selectedDate) {
+                statusText.innerText = 'Please choose a date first';
+                availableTimesList.forEach(t => {
+                    const chip = document.createElement('button');
+                    chip.type = 'button';
+                    chip.disabled = true;
+                    chip.className = 'py-3 px-2 text-xs font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 cursor-not-allowed rounded-lg text-center opacity-50';
+                    chip.innerText = t;
+                    grid.appendChild(chip);
+                });
+                return;
+            }
+
+            if (bookedTimesList.length > 0) {
+                statusText.innerText = 'Slots updated for selected date';
+            } else {
+                statusText.innerText = 'Available time slots:';
+            }
+
+            const dateObj = new Date(selectedDate);
+            const isMonday = dateObj.getDay() === 1;
+
+            const selectedServicesStr = document.getElementById('service').value;
+            const selectedServicesCount = selectedServicesStr ? selectedServicesStr.split(',').length : 1;
+            const intervalStep = Math.max(1, selectedServicesCount);
+
+            const validTimes = availableTimesList.filter(t => {
+                if (isMonday && (t.startsWith("10:") || t.startsWith("11:"))) return false;
+                return true;
+            });
+
+            validTimes.forEach((t, i) => {
+                // For each additional service, add 30 mins to the interval (skip slots)
+                if (i % intervalStep !== 0) return;
+                
+                const isBooked = bookedTimesList.includes(t);
+                const isSelected = selectedTime === t;
+
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                chip.disabled = isBooked;
+
+                if (isBooked) {
+                    chip.className = 'py-3 px-2 text-xs font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 line-through cursor-not-allowed rounded-lg text-center';
+                    chip.innerHTML = `${t} <span class="block text-[10px] no-underline">Booked</span>`;
+                } else if (isSelected) {
+                    chip.className = 'py-3 px-2 text-xs font-semibold border-2 border-gold bg-gold text-charcoal-900 rounded-lg text-center shadow-md';
+                    chip.innerText = t;
+                } else {
+                    chip.className = 'py-3 px-2 text-xs font-medium border border-gray-300 dark:border-charcoal-700 bg-gray-50 dark:bg-charcoal-800 text-gray-800 dark:text-gray-200 hover:border-gold hover:text-gold rounded-lg text-center transition-colors';
+                    chip.innerText = t;
+                }
+
+                if (!isBooked) {
+                    chip.addEventListener('click', () => {
+                        document.getElementById('time').value = t;
+                        renderTimeChips();
+                        updateDesktopLiveSummary();
+                    });
+                }
+
+                grid.appendChild(chip);
+            });
+        }
+
+        // Date Change Event (Fetch availability)
+        document.getElementById('date').addEventListener('change', async function() {
+            const dateVal = this.value;
+            document.getElementById('time').value = "";
+
+            if (!dateVal) return;
+
+            const selectedDate = new Date(dateVal);
+            selectedDate.setHours(0,0,0,0);
+            
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            
+            const maxDate = new Date();
+            maxDate.setDate(today.getDate() + 30);
+            maxDate.setHours(0,0,0,0);
+
+            if (selectedDate < today || selectedDate > maxDate) {
+                showToast("Booking is only available for the next 30 days.", "error");
+                this.value = "";
+                renderTimeChips();
+                return;
+            }
+
+            if (selectedDate.getDay() === 0) {
+                showToast("We are closed on Sundays. Please choose another day.", "error");
+                this.value = "";
+                renderTimeChips();
+                return;
+            }
+
+            const statusText = document.getElementById('timeSlotStatusText');
+            statusText.innerText = "Checking slot availability...";
+
+            // Skeleton loading effect for timeslots
+            const grid = document.getElementById('timeChipsGrid');
+            grid.innerHTML = '';
+            for(let i=0; i<8; i++) {
+                const skeleton = document.createElement('div');
+                skeleton.className = 'py-5 px-2 bg-gray-200 dark:bg-charcoal-700 animate-pulse rounded-lg';
+                grid.appendChild(skeleton);
+            }
+
+            try {
+                const response = await fetch(`${API_URL}?date=${dateVal}`);
+                bookedTimesList = await response.json();
+            } catch (error) {
+                console.error("Error fetching booked slots:", error);
+                bookedTimesList = [];
+            }
+
+            renderTimeChips();
+        });
+
+        // Set date constraints & Custom Modern Calendar Logic
+        let currentCalDate = new Date();
+
+        function renderCustomCalendar() {
+            const grid = document.getElementById('calendarDaysGrid');
+            const monthYearEl = document.getElementById('calendarMonthYear');
+            if (!grid || !monthYearEl) return;
+
+            const selectedDateVal = document.getElementById('date').value;
+            
+            const year = currentCalDate.getFullYear();
+            const month = currentCalDate.getMonth();
+            
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            monthYearEl.innerText = `${monthNames[month]} ${year}`;
+            
+            grid.innerHTML = '';
+            
+            const firstDayIndex = new Date(year, month, 1).getDay();
+            const totalDays = new Date(year, month + 1, 0).getDate();
+            
+            for (let i = 0; i < firstDayIndex; i++) {
+                const emptyCell = document.createElement('div');
+                emptyCell.className = 'w-full aspect-square';
+                grid.appendChild(emptyCell);
+            }
+            
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            
+            const maxDate = new Date();
+            maxDate.setDate(today.getDate() + 30);
+            maxDate.setHours(0,0,0,0);
+            
+            for (let day = 1; day <= totalDays; day++) {
+                const dateObj = new Date(year, month, day);
+                dateObj.setHours(0,0,0,0);
+                
+                const yyyy = dateObj.getFullYear();
+                const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const dd = String(dateObj.getDate()).padStart(2, '0');
+                const dateStr = `${yyyy}-${mm}-${dd}`;
+                
+                const isSelected = selectedDateVal === dateStr;
+                const isToday = today.getTime() === dateObj.getTime();
+                const isSunday = dateObj.getDay() === 0;
+                
+                const isOutOfRange = dateObj < today || dateObj > maxDate;
+                const isDisabled = isOutOfRange || isSunday;
+                
+                const dayBtn = document.createElement('button');
+                dayBtn.type = 'button';
+                dayBtn.className = 'w-full aspect-square flex flex-col items-center justify-center text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 relative select-none';
+                dayBtn.innerHTML = `<span>${day}</span>`;
+                
+                if (isDisabled) {
+                    dayBtn.disabled = true;
+                    if (isSunday) {
+                        dayBtn.className += ' text-rose-500/50 dark:text-rose-400/40 bg-rose-500/5 dark:bg-rose-500/10 cursor-not-allowed border border-transparent';
+                        dayBtn.title = 'Closed on Sundays';
+                        const dot = document.createElement('span');
+                        dot.className = 'absolute bottom-1 w-1 h-1 rounded-full bg-rose-500/40';
+                        dayBtn.appendChild(dot);
+                    } else {
+                        dayBtn.className += ' text-gray-300 dark:text-charcoal-700 bg-transparent cursor-not-allowed opacity-30';
+                    }
+                } else {
+                    if (isSelected) {
+                        dayBtn.className += ' bg-gold text-charcoal-900 font-bold shadow-lg shadow-gold/30 scale-105 border-2 border-gold';
+                    } else {
+                        dayBtn.className += ' text-gray-800 dark:text-gray-200 bg-white dark:bg-charcoal-900 border border-gray-200 dark:border-charcoal-700 hover:border-gold hover:text-gold hover:scale-105 shadow-sm';
+                        if (isToday) {
+                            dayBtn.className += ' ring-2 ring-gold/60 ring-offset-1 dark:ring-offset-charcoal-800 font-bold text-gold';
+                        }
+                    }
+                    
+                    // Add availability dot for bookable days
+                    const availDot = document.createElement('span');
+                    availDot.className = 'absolute bottom-1 w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.5)]';
+                    dayBtn.appendChild(availDot);
+                    
+                    dayBtn.addEventListener('click', () => {
+                        const dateInput = document.getElementById('date');
+                        dateInput.value = dateStr;
+                        
+                        const event = new Event('change', { bubbles: true });
+                        dateInput.dispatchEvent(event);
+                        
+                        renderCustomCalendar();
+                        updateDesktopLiveSummary();
+                    });
+                }
+                
+                grid.appendChild(dayBtn);
+            }
+            
+            const lastDayOfPrevMonth = new Date(year, month, 0);
+            const calPrevBtn = document.getElementById('calPrevBtn');
+            calPrevBtn.disabled = lastDayOfPrevMonth < today;
+            if (lastDayOfPrevMonth < today) {
+                calPrevBtn.classList.add('opacity-30', 'cursor-not-allowed');
+            } else {
+                calPrevBtn.classList.remove('opacity-30', 'cursor-not-allowed');
+            }
+            
+            const nextMonthFirstDay = new Date(year, month + 1, 1);
+            const calNextBtn = document.getElementById('calNextBtn');
+            calNextBtn.disabled = nextMonthFirstDay > maxDate;
+            if (nextMonthFirstDay > maxDate) {
+                calNextBtn.classList.add('opacity-30', 'cursor-not-allowed');
+            } else {
+                calNextBtn.classList.remove('opacity-30', 'cursor-not-allowed');
+            }
+        }
+
+        document.getElementById('calPrevBtn').addEventListener('click', () => {
+            currentCalDate.setMonth(currentCalDate.getMonth() - 1);
+            renderCustomCalendar();
+        });
+
+        document.getElementById('calNextBtn').addEventListener('click', () => {
+            currentCalDate.setMonth(currentCalDate.getMonth() + 1);
+            renderCustomCalendar();
+        });
+
+        renderCustomCalendar();
+
+        // Initial Chips Render
+        renderTimeChips();
+
+        // Submit Booking Form Event
+        document.getElementById('bookingForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const originalText = submitBtn.innerText;
+            
+            submitBtn.innerText = "Processing...";
+            submitBtn.disabled = true;
+
+            const timeVal = document.getElementById('time').value;
+
+            const bookingData = {
+                date: document.getElementById('date').value,
+                time: timeVal,
+                name: document.getElementById('fullName').value,
+                phone: document.getElementById('phoneNumber').value,
+                service: document.getElementById('service').value,
+                barber: document.getElementById('barber').value
+            };
+
+            try {
+                await fetch(API_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(bookingData)
+                });
+                
+                bookedTimesList.push(bookingData.time);
+                renderTimeChips();
+
+                // Populate confirmation card
+                document.getElementById('confirmName').innerText = bookingData.name;
+                document.getElementById('confirmService').innerText = bookingData.service;
+                document.getElementById('confirmBarber').innerText = bookingData.barber || 'Any Available';
+                document.getElementById('confirmDate').innerText = new Date(bookingData.date).toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                document.getElementById('confirmTime').innerText = bookingData.time;
+
+                // Show Step 4
+                document.getElementById('bookingStep3').classList.add('hidden');
+                document.getElementById('bookingStep4').classList.remove('hidden');
+                
+                // Keep progress bar full
+                document.getElementById('progressLine').style.width = '100%';
+
+                // Prepare calendar event data
+                window.lastBookingData = {
+                    service: bookingData.service,
+                    date: bookingData.date,
+                    time: bookingData.time,
+                    duration: 30 // Approx 30 mins
+                };
+
+                // Reset form in background
+                this.reset();
+                document.getElementById('time').value = "";
+                document.getElementById('date').value = "";
+                currentCalDate = new Date();
+                renderCustomCalendar();
+                
+                submitBtn.innerText = originalText;
+                submitBtn.disabled = false;
+
+            } catch (error) {
+                console.error("Failed to submit booking:", error);
+                showToast("Error! Could not connect to the booking server.", "error");
+                submitBtn.innerText = originalText;
+                submitBtn.disabled = false;
+            }
+        });
+
+        // --- 11. Gallery Lightbox Logic ---
+        const galleryImages = Array.from(document.querySelectorAll('.gallery-img'));
+        const lightbox = document.getElementById('lightbox');
+        const lightboxImg = document.getElementById('lightboxImg');
+        const closeLightboxBtn = document.getElementById('closeLightboxBtn');
+        const prevLightboxBtn = document.getElementById('prevLightboxBtn');
+        const nextLightboxBtn = document.getElementById('nextLightboxBtn');
+        let currentLightboxIndex = 0;
+
+        function openLightbox(index) {
+            currentLightboxIndex = index;
+            lightboxImg.src = galleryImages[index].src;
+            lightbox.classList.remove('hidden');
+            lightbox.classList.add('flex');
+            // Trigger reflow
+            void lightbox.offsetWidth;
+            lightbox.classList.remove('opacity-0');
+            lightboxImg.classList.remove('scale-95');
+            lightboxImg.classList.add('scale-100');
+        }
+
+        function closeLightbox() {
+            lightbox.classList.add('opacity-0');
+            lightboxImg.classList.remove('scale-100');
+            lightboxImg.classList.add('scale-95');
+            setTimeout(() => {
+                lightbox.classList.add('hidden');
+                lightbox.classList.remove('flex');
+            }, 300);
+        }
+
+        galleryImages.forEach((img, idx) => {
+            img.addEventListener('click', () => openLightbox(idx));
+        });
+
+        closeLightboxBtn.addEventListener('click', closeLightbox);
+        
+        prevLightboxBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            currentLightboxIndex = (currentLightboxIndex - 1 + galleryImages.length) % galleryImages.length;
+            lightboxImg.src = galleryImages[currentLightboxIndex].src;
+        });
+
+        nextLightboxBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            currentLightboxIndex = (currentLightboxIndex + 1) % galleryImages.length;
+            lightboxImg.src = galleryImages[currentLightboxIndex].src;
+        });
+
+        // Keyboard and Touch Support for Lightbox
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeLightbox();
+                // Also close mobile menu if open
+                const mobileMenu = document.getElementById('mobileMenu');
+                if(mobileMenu && !mobileMenu.classList.contains('translate-x-full')) {
+                    mobileMenu.classList.add('translate-x-full');
+                }
+            }
+            if (!lightbox.classList.contains('hidden')) {
+                if (e.key === 'ArrowLeft') prevLightboxBtn.click();
+                if (e.key === 'ArrowRight') nextLightboxBtn.click();
+            }
+        });
+
+        let touchStartX = 0;
+        let touchEndX = 0;
+        lightbox.addEventListener('touchstart', e => {
+            touchStartX = e.changedTouches[0].screenX;
+        }, {passive: true});
+        lightbox.addEventListener('touchend', e => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleLightboxSwipe();
+        }, {passive: true});
+        
+        function handleLightboxSwipe() {
+            if (touchEndX < touchStartX - 50) nextLightboxBtn.click();
+            if (touchEndX > touchStartX + 50) prevLightboxBtn.click();
+        }
+
+        lightbox.addEventListener('click', (e) => {
+            if(e.target === lightbox) closeLightbox();
+        });
+
+        // --- 12. Confirmation Card Actions ---
+        document.getElementById('bookAnotherBtn').addEventListener('click', () => {
+            document.getElementById('bookingStep4').classList.add('hidden');
+            updateWizardUI(1);
+            document.getElementById('booking').scrollIntoView({ behavior: 'smooth' });
+        });
+
+        document.getElementById('addToCalendarBtn').addEventListener('click', () => {
+            if (!window.lastBookingData) return;
+            const b = window.lastBookingData;
+            
+            // Parse date and time
+            const dateObj = new Date(b.date);
+            const timeParts = b.time.match(/(\d+):(\d+)\s+(AM|PM)/);
+            if(timeParts) {
+                let hours = parseInt(timeParts[1], 10);
+                let mins = parseInt(timeParts[2], 10);
+                if(timeParts[3] === 'PM' && hours < 12) hours += 12;
+                if(timeParts[3] === 'AM' && hours === 12) hours = 0;
+                dateObj.setHours(hours, mins, 0);
+            }
+
+            const serviceCount = b.service ? b.service.split(',').length : 1;
+            const durationMins = serviceCount * 30;
+            const endDate = new Date(dateObj.getTime() + durationMins * 60000);
+
+            // Format to UTC (YYYYMMDDTHHMMSSZ)
+            const formatCalDateUTC = (d) => {
+                return d.toISOString().replace(/-|:|\.\d+/g, '');
+            };
+
+            const isApple = /Mac|iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+            if (isApple) {
+                // Generate ICS for Apple Calendar
+                const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Sussex Barber Shop//Booking//EN\nBEGIN:VEVENT\nUID:${Date.now()}@sussexbarber.com\nDTSTAMP:${formatCalDateUTC(new Date())}\nDTSTART:${formatCalDateUTC(dateObj)}\nDTEND:${formatCalDateUTC(endDate)}\nSUMMARY:Haircut at Sussex Barber Shop\nDESCRIPTION:Appointment for ${b.service}.\nLOCATION:Van Hogendorpstraat 80, 2242 VN Wassenaar, Netherlands\nEND:VEVENT\nEND:VCALENDAR`;
+                // Opening data URI directly in iOS triggers the native "Add Event" sheet
+                window.location.assign('data:text/calendar;charset=utf8,' + encodeURIComponent(icsContent));
+            } else {
+                // Use Google Calendar for Android and Windows
+                const title = encodeURIComponent("Haircut at Sussex Barber Shop");
+                const details = encodeURIComponent(`Appointment for: ${b.service}`);
+                const location = encodeURIComponent("Van Hogendorpstraat 80, 2242 VN Wassenaar, Netherlands");
+                const dates = `${formatCalDateUTC(dateObj)}/${formatCalDateUTC(endDate)}`;
+                const googleCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}&location=${location}`;
+                window.open(googleCalUrl, '_blank');
+            }
+        });
+
+        // --- 13. Multi-language Support (EN/NL) ---
+        const dict = {
+            'About': 'Over Ons',
+            'Services': 'Diensten',
+            'Gallery': 'Gallerij',
+            'Contact': 'Contact',
+            'Book Now': 'Boek Nu',
+            'Our Work': 'Ons Werk',
+            'Our Master Barbers': 'Onze Meesterkappers',
+            'Our Services': 'Onze Diensten',
+            'Book an Appointment': 'Maak een afspraak',
+            '1. Choose Service': '1. Kies Dienst',
+            '2. Choose Barber (Optional)': '2. Kies Kapper (Optioneel)',
+            'Any Available Barber': 'Elke Beschikbare Kapper',
+            'Next Step': 'Volgende Stap',
+            '1. Select Date': '1. Selecteer Datum',
+            '2. Select Time Slot': '2. Selecteer Tijdslot',
+            'Please choose a date first': 'Kies eerst een datum',
+            'Your Full Name': 'Uw Volledige Naam',
+            'Phone Number': 'Telefoonnummer',
+            'Back': 'Terug',
+            'Confirm Booking': 'Bevestig Boeking',
+            'Booking Confirmed!': 'Boeking Bevestigd!',
+            'Booking Summary': 'Boekingsoverzicht',
+            'Add to Calendar': 'Zet in Agenda',
+            'Book Another': 'Nog een boeken',
+            'Working Hours': 'Werktijden',
+            'Location': 'Locatie',
+            'Call Us': 'Bel Ons',
+            'Follow Us': 'Volg Ons',
+            'Monday': 'Maandag',
+            'Tuesday': 'Dinsdag',
+            'Wednesday': 'Woensdag',
+            'Thursday': 'Donderdag',
+            'Friday': 'Vrijdag',
+            'Saturday': 'Zaterdag',
+            'Sunday': 'Zondag',
+            'Closed': 'Gesloten',
+            'Client Testimonials': 'Klantbeoordelingen',
+            'Frequently Asked Questions': 'Veelgestelde Vragen',
+            'Classic Haircut': 'Klassieke knipbeurt',
+            'Skin Fade': 'Skin Fade',
+            'Scissor Cut': 'Knippen met schaar',
+            'Wash & Haircut': 'Haar wassen & knippen',
+            'Beard Trim': 'Baard trimmen',
+            'Clean Shave': 'Glad scheren',
+            'Classic Haircut + Beard Trim': 'Klassieke knipbeurt + baard trimmen',
+            'Skin Fade + Beard Trim': 'Skin Fade + baard trimmen',
+            'One Grade Trim': 'Eén lengte trim (tondeuse)',
+            'Kids Haircut (Up to 10 Years)': 'Kinderknipbeurt (t/m 10 jaar)',
+            'Kids Haircut (Up to 13 Years)': 'Kinderknipbeurt (t/m 13 jaar)'
+        };
+
+        let currentLang = 'en';
+        
+        function toggleLanguage() {
+            currentLang = currentLang === 'en' ? 'nl' : 'en';
+            
+            // Update Toggle Button Text
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) {
+                langBtn.innerHTML = currentLang === 'en' ? 'EN' : 'NL';
+            }
+            
+            // Walk DOM and replace text
+            const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+            let n;
+            while (n = walk.nextNode()) {
+                const parent = n.parentElement;
+                if(parent && (parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE')) continue;
+                
+                let text = n.nodeValue.trim();
+                if(!text) continue;
+                
+                // Store original EN text if not stored
+                if(!parent.dataset.en) {
+                    if(dict[text]) {
+                        parent.dataset.en = text;
+                        parent.dataset.nl = dict[text];
+                    }
+                }
+                
+                if(parent.dataset.en && parent.dataset.nl) {
+                    if (currentLang === 'nl') {
+                        n.nodeValue = n.nodeValue.replace(parent.dataset.en, parent.dataset.nl);
+                    } else {
+                        n.nodeValue = n.nodeValue.replace(parent.dataset.nl, parent.dataset.en);
+                    }
+                }
+            }
+        }
+
+    </script>
+
+    <!-- Security Enhancements -->
+    <script>
+        (function() {
+            // Framebusting (Anti-Clickjacking)
+            if (window.top !== window.self) {
+                window.top.location = window.self.location;
+            }
+
+            // Secure target="_blank" links
+            const externalLinks = document.querySelectorAll('a[target="_blank"]');
+            externalLinks.forEach(link => {
+                link.setAttribute('rel', 'noopener noreferrer');
+            });
+
+            // Prevent Image Dragging
+            document.querySelectorAll('img').forEach(img => {
+                img.addEventListener('dragstart', (e) => e.preventDefault());
+            });
+
+            // Disable Right Click & Keyboard Shortcuts for basic asset protection
+            document.addEventListener('contextmenu', (e) => e.preventDefault());
+            document.addEventListener('keydown', (e) => {
+                // F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
+                if (e.keyCode === 123 || 
+                   (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) || 
+                   (e.ctrlKey && e.keyCode === 85)) {
+                    e.preventDefault();
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
