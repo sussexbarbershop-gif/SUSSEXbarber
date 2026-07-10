@@ -215,7 +215,7 @@
         
         <div class="mt-8 pt-8 border-t border-gray-200 dark:border-charcoal-700 flex flex-col items-center w-64 space-y-4">
             <p class="text-sm uppercase tracking-widest text-gray-500" data-translate="Call Us">Call Us</p>
-            <a href="tel:+31653730803" class="text-xl text-gold">+31 6 53730803</a>
+            <a href="tel:+31653730803" class="text-xl text-gold cms-contact-phone">+31 6 53730803</a>
         </div>
     </div>
     <script>
@@ -234,8 +234,8 @@
     <section id="hero" class="h-screen flex items-center justify-center text-center px-4 relative overflow-hidden hero-bg">
         <div class="absolute inset-0 bg-black/30 z-10"></div>
         <div class="max-w-3xl reveal active relative z-20">
-            <h1 class="font-serif text-5xl md:text-7xl mb-6 text-white leading-tight">Masterful Cuts.<br><span class="text-gold italic">Timeless Style.</span></h1>
-            <p class="text-gray-300 text-lg md:text-xl mb-10 font-light tracking-wide">Experience premium grooming and hearty service in the heart of Wassenaar.</p>
+            <h1 id="cms-hero-title" class="font-serif text-5xl md:text-7xl mb-6 text-white leading-tight">Masterful Cuts.<br><span class="text-gold italic">Timeless Style.</span></h1>
+            <p id="cms-hero-subtitle" class="text-gray-300 text-lg md:text-xl mb-10 font-light tracking-wide">Experience premium grooming and hearty service in the heart of Wassenaar.</p>
             <a href="#booking" class="border border-gold text-gold hover:bg-gold hover:text-charcoal-900 px-8 py-4 text-sm font-semibold tracking-wider uppercase transition-all duration-300 inline-block">Reserve Your Chair</a>
         </div>
     </section>
@@ -248,10 +248,8 @@
             </div>
             <div class="w-full md:w-1/2">
                 <h2 class="font-serif text-4xl mb-6 text-gray-900 dark:text-white">The Sussex <span class="text-gold">Experience</span></h2>
-                <p class="text-gray-600 dark:text-gray-400 font-light leading-relaxed mb-6">
-                    At Sussex Barber Shop, we blend modern styling techniques with traditional barbering values. Our space is designed to be a sanctuary for men—a place where you can unwind, enjoy a free coffee, and leave looking your absolute best.
-                </p>
-                <p class="text-gray-600 dark:text-gray-400 font-light leading-relaxed">
+                <p id="cms-about-text" class="text-gray-600 dark:text-gray-400 font-light leading-relaxed mb-6">
+                    At Sussex Barber Shop, we blend modern styling techniques with traditional barbering values. Our space is designed to be a sanctuary for men—a place where you can unwind, enjoy a free coffee, and leave looking your absolute best.<br><br>
                     With a 4.7-star rating and a reputation for precise cuts and a friendly atmosphere, our attentive barbers ensure that every haircut, beard trim, and hot towel shave is executed to perfection.
                 </p>
             </div>
@@ -267,7 +265,7 @@
                 <p class="text-gray-600 dark:text-gray-400 mt-6 font-light max-w-2xl mx-auto">Meet the experienced professionals dedicated to giving you the perfect look. Every barber at Sussex is a master of their craft.</p>
             </div>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div id="cms-barbers-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <!-- Barber 1 -->
                 <div class="bg-gray-50 dark:bg-charcoal-800 rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-charcoal-700 hover:-translate-y-2 transition-transform duration-300">
                     <img src="assets/barber_1_1783434973367.jpg" alt="Amir" class="w-full h-80 object-cover filter brightness-90 contrast-125 dark:brightness-75 transition-transform duration-700 group-hover:scale-110">
@@ -582,8 +580,8 @@
                         <input type="hidden" id="date" required>
                         
                         <!-- Custom Modern Calendar UI -->
-                        <div id="customCalendar" class="bg-gray-50 dark:bg-charcoal-800 border border-gray-200 dark:border-charcoal-700 rounded-xl p-4 sm:p-6 shadow-xl select-none">
-                            <div class="flex justify-between items-center mb-5 pb-3.5 border-b border-gray-200 dark:border-charcoal-700">
+                        <div id="customCalendar" class="bg-gray-50 dark:bg-charcoal-800 border border-gray-200 dark:border-charcoal-700 rounded-xl p-3 sm:p-5 shadow-xl select-none">
+                            <div class="flex justify-between items-center mb-4 pb-3 border-b border-gray-200 dark:border-charcoal-700">
                                 <div class="flex items-center space-x-2">
                                     <svg class="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                                     <h4 id="calendarMonthYear" class="font-serif text-lg font-bold text-gray-900 dark:text-white">Month Year</h4>
@@ -616,7 +614,7 @@
                             <span id="timeSlotStatusText" class="text-xs text-gray-500 dark:text-gray-400">Please choose a date first</span>
                         </div>
                         <!-- Interactive Time Chips Grid -->
-                        <div id="timeChipsGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5"></div>
+                        <div id="timeChipsGrid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-2.5"></div>
                     </div>
 
                     <div class="pt-4 flex justify-between items-stretch gap-3">
@@ -719,7 +717,7 @@
                 <div class="w-16 h-px bg-gold mx-auto"></div>
             </div>
             <!-- Masonry Grid -->
-            <div class="columns-1 sm:columns-2 md:columns-3 gap-4 space-y-4">
+            <div id="cms-gallery-grid" class="columns-1 sm:columns-2 md:columns-3 gap-4 space-y-4">
                 <img src="assets/IMG_8582.PNG" alt="Gallery Image 1" class="w-full h-64 object-cover filter brightness-90 contrast-125 dark:brightness-75 hover:brightness-110 dark:hover:brightness-100 transition-all duration-500 cursor-pointer" onclick="openLightbox(this.src)">
                 <img src="assets/IMG_8577.JPEG" alt="Gallery Image 2" class="w-full h-64 object-cover filter brightness-90 contrast-125 dark:brightness-75 hover:brightness-110 dark:hover:brightness-100 transition-all duration-500 cursor-pointer" onclick="openLightbox(this.src)">
                 <img src="assets/IMG_8575.JPEG" alt="Gallery Image 3" class="w-full h-64 object-cover filter brightness-90 contrast-125 dark:brightness-75 hover:brightness-110 dark:hover:brightness-100 transition-all duration-500 cursor-pointer" onclick="openLightbox(this.src)">
@@ -785,7 +783,7 @@
                     
                     <div class="mb-8">
                         <h3 class="text-gold uppercase tracking-widest text-sm mb-3">Location</h3>
-                        <p class="text-gray-700 dark:text-gray-300 font-light">Van Hogendorpstraat 10<br>2242 KZ Wassenaar<br>Netherlands</p>
+                        <p id="cms-contact-address" class="text-gray-700 dark:text-gray-300 font-light">Van Hogendorpstraat 10<br>2242 KZ Wassenaar<br>Netherlands</p>
                     </div>
 
                     <div class="mb-8">
@@ -797,7 +795,7 @@
 
                     <div class="mb-8">
                         <h3 class="text-gold uppercase tracking-widest text-sm mb-3">Contact</h3>
-                        <p class="text-gray-700 dark:text-gray-300 font-light text-xl">+31 6 53730803</p>
+                        <p class="text-gray-700 dark:text-gray-300 font-light text-xl cms-contact-phone">+31 6 53730803</p>
                     </div>
                     
                     <div class="mt-6">
@@ -1141,23 +1139,18 @@
         // Service Cards Selection
         document.querySelectorAll('#serviceCardsContainer .service-card').forEach(card => {
             const selectService = () => {
-                const isActive = card.classList.contains('border-gold');
-                
-                if (isActive) {
-                    card.classList.remove('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
-                    card.classList.add('border-gray-200', 'dark:border-charcoal-700');
-                } else {
-                    card.classList.remove('border-gray-200', 'dark:border-charcoal-700');
-                    card.classList.add('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
-                }
-
-                // Gather all selected services
-                const selectedServices = [];
-                document.querySelectorAll('#serviceCardsContainer .service-card.border-gold').forEach(c => {
-                    selectedServices.push(c.getAttribute('data-service'));
+                // Deselect all cards first
+                document.querySelectorAll('#serviceCardsContainer .service-card').forEach(c => {
+                    c.classList.remove('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
+                    c.classList.add('border-gray-200', 'dark:border-charcoal-700', 'border');
                 });
                 
-                document.getElementById('service').value = selectedServices.join(', ');
+                // Select the clicked card
+                card.classList.remove('border-gray-200', 'dark:border-charcoal-700', 'border');
+                card.classList.add('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
+
+                // Update selected service
+                document.getElementById('service').value = card.getAttribute('data-service');
                 updateDesktopLiveSummary();
                 
                 const selectedDate = document.getElementById('date').value;
@@ -1327,7 +1320,7 @@
                     const chip = document.createElement('button');
                     chip.type = 'button';
                     chip.disabled = true;
-                    chip.className = 'py-3 px-2 text-xs font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 cursor-not-allowed rounded-lg text-center opacity-50';
+                    chip.className = 'py-2 sm:py-3 px-1 sm:px-2 text-xs font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 cursor-not-allowed rounded-lg text-center opacity-50';
                     chip.innerText = t;
                     grid.appendChild(chip);
                 });
@@ -1463,7 +1456,7 @@
             
             for (let i = 0; i < firstDayIndex; i++) {
                 const emptyCell = document.createElement('div');
-                emptyCell.className = 'w-full aspect-square';
+                emptyCell.className = 'w-full aspect-[5/4] sm:aspect-square';
                 grid.appendChild(emptyCell);
             }
             
@@ -1492,7 +1485,7 @@
                 
                 const dayBtn = document.createElement('button');
                 dayBtn.type = 'button';
-                dayBtn.className = 'w-full aspect-square flex flex-col items-center justify-center text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 relative select-none';
+                dayBtn.className = 'w-full aspect-[5/4] sm:aspect-square flex flex-col items-center justify-center text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 relative select-none';
                 dayBtn.innerHTML = `<span>${day}</span>`;
                 
                 if (isDisabled) {
@@ -1867,7 +1860,37 @@
             'Skin Fade + Beard Trim': 'Skin Fade + baard trimmen',
             'One Grade Trim': 'Eén lengte trim (tondeuse)',
             'Kids Haircut (Up to 10 Years)': 'Kinderknipbeurt (t/m 10 jaar)',
-            'Kids Haircut (Up to 13 Years)': 'Kinderknipbeurt (t/m 13 jaar)'
+            'Kids Haircut (Up to 13 Years)': 'Kinderknipbeurt (t/m 13 jaar)',
+            'Masterful Cuts, Exceptional Service.': 'Meesterlijke snitten, Uitzonderlijke service.',
+            'Elevating the art of grooming in Sussex. Experience the difference.': 'Verhoging van de kunst van verzorging in Sussex. Ervaar het verschil.',
+            'Precision haircuts & styling for the modern man.': 'Precisie kapsels & styling voor de moderne man.',
+            'Hot towel shaves & beard styling.': 'Hot towel scheren & baard styling.',
+            'Because every detail matters.': 'Omdat elk detail telt.',
+            'Reserve Your Chair': 'Reserveer uw stoel',
+            'Choose Date & Time': 'Kies Datum & Tijd',
+            'Finalize Details': 'Rond details af',
+            'Continue to Date & Time': 'Ga naar Datum & Tijd',
+            'Continue to Summary': 'Ga naar Overzicht',
+            'Confirming...': 'Bevestigen...',
+            'Step 1': 'Stap 1',
+            'Step 2': 'Stap 2',
+            'Step 3': 'Stap 3',
+            'Please select a service first': 'Selecteer eerst een dienst',
+            'Please choose a time slot': 'Kies een tijdslot',
+            'Please fill out all required fields': 'Vul alle verplichte velden in',
+            'Date': 'Datum',
+            'Time': 'Tijd',
+            'Price': 'Prijs',
+            'Total': 'Totaal',
+            'Duration': 'Duur',
+            'Contact Us': 'Neem Contact Op',
+            'Quick Links': 'Snelle Links',
+            'Rights Reserved.': 'Alle rechten voorbehouden.',
+            'About Us': 'Over Ons',
+            'Book Appointment': 'Afspraak Maken',
+            'Select a service': 'Selecteer een dienst',
+            'Enter your full name': 'Voer uw volledige naam in',
+            'e.g. 06 1234 5678': 'bijv. 06 1234 5678'
         };
 
         let currentLang = 'en';
@@ -1891,7 +1914,6 @@
                 let text = n.nodeValue.trim();
                 if(!text) continue;
                 
-                // Store original EN text if not stored
                 if(!parent.dataset.en) {
                     if(dict[text]) {
                         parent.dataset.en = text;
@@ -1907,6 +1929,20 @@
                     }
                 }
             }
+            
+            // Translate placeholders
+            document.querySelectorAll('input[placeholder], textarea[placeholder]').forEach(el => {
+                const text = el.placeholder.trim();
+                if(!el.dataset.enPlaceholder) {
+                    if(dict[text]) {
+                        el.dataset.enPlaceholder = text;
+                        el.dataset.nlPlaceholder = dict[text];
+                    }
+                }
+                if(el.dataset.enPlaceholder && el.dataset.nlPlaceholder) {
+                    el.placeholder = currentLang === 'nl' ? el.dataset.nlPlaceholder : el.dataset.enPlaceholder;
+                }
+            });
         }
 
     </script>
@@ -2023,22 +2059,20 @@
             // Re-bind service card click events (multi-select support)
             serviceCardsContainer.querySelectorAll('.service-card').forEach(card => {
                 const selectService = () => {
-                    const isActive = card.classList.contains('border-gold');
-                    if (isActive) {
-                        card.classList.remove('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
-                        card.classList.add('border-gray-200', 'dark:border-charcoal-700', 'border');
-                    } else {
-                        card.classList.remove('border-gray-200', 'dark:border-charcoal-700', 'border');
-                        card.classList.add('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
-                    }
-                    // Gather all selected services
-                    const selectedServices = [];
-                    serviceCardsContainer.querySelectorAll('.service-card.border-gold').forEach(c => {
-                        selectedServices.push(c.getAttribute('data-service'));
+                    // Deselect all cards first
+                    serviceCardsContainer.querySelectorAll('.service-card').forEach(c => {
+                        c.classList.remove('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
+                        c.classList.add('border-gray-200', 'dark:border-charcoal-700', 'border');
                     });
-                    document.getElementById('service').value = selectedServices.join(', ');
+                    
+                    // Select the clicked card
+                    card.classList.remove('border-gray-200', 'dark:border-charcoal-700', 'border');
+                    card.classList.add('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
+
+                    const selectedService = card.getAttribute('data-service');
+                    document.getElementById('service').value = selectedService;
                     const liveEl = document.getElementById('desktopLiveService');
-                    if (liveEl) liveEl.textContent = selectedServices.join(', ') || 'Select a service';
+                    if (liveEl) liveEl.textContent = selectedService || 'Select a service';
                     if (typeof updateDesktopLiveSummary === 'function') updateDesktopLiveSummary();
                     const selectedDate = document.getElementById('date').value;
                     if (selectedDate) renderTimeChips();
@@ -2159,6 +2193,7 @@
 
     // Render my bookings on load
     document.addEventListener('DOMContentLoaded', () => {
+        fetchCMS();
         renderMyBookings();
     });
 

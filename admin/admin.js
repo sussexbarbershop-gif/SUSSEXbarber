@@ -2,6 +2,8 @@
 // Sussex Barber Shop — Admin Panel JS
 // ===========================
 
+const API_URL = "https://script.google.com/macros/s/AKfycbyEaZa65gCE2tQcCEvsDKcg8rIfPK8wS9RqjhaLJv5Pa8kCJ9ta5dlG0I29HAu9gnCeHA/exec";
+
 // ---- Default Data ----
 const DEFAULT_SERVICES = [
     { id: 1, nameEN: 'Classic Haircut', nameNL: 'Klassieke knipbeurt', price: 28, duration: 30 },
@@ -46,6 +48,8 @@ let bookings = [];
 let services = [];
 let hours = [];
 let galleryImages = [];
+let barbers = [];
+let settings = {};
 let visitCount = 0;
 
 // ---- Init ----
@@ -539,6 +543,64 @@ function deleteGalleryImage(id) {
         saveGallery();
         renderGallery();
         showToast('Image deleted', 'info');
+    }
+}
+
+
+// ---- Barbers ----
+function renderBarbers() {
+    const container = document.getElementById('barbersContainer');
+    if (!container) return;
+
+    container.innerHTML = '';
+    
+    // Add Barber button card
+    const addCard = document.createElement('div');
+    addCard.className = 'gallery-item add-new';
+    addCard.innerHTML = `<span style="font-size:24px;color:var(--gold)">+</span><span style="font-size:12px;color:var(--text-muted);margin-top:5px">Add Barber</span>`;
+    addCard.onclick = () => addBarber();
+    container.appendChild(addCard);
+
+    barbers.forEach(b => {
+        const item = document.createElement('div');
+        item.className = 'gallery-item';
+        item.style.position = 'relative';
+        item.innerHTML = `
+            <img src="${b.image}" style="width:100%;height:100%;object-fit:cover;border-radius:4px;">
+            <div style="position:absolute;bottom:0;background:rgba(0,0,0,0.7);color:white;width:100%;text-align:center;padding:5px;font-size:12px">${b.name}</div>
+        `;
+        item.onclick = () => deleteBarber(b.id);
+        container.appendChild(item);
+    });
+}
+
+function addBarber() {
+    const name = prompt("Enter barber name:");
+    if(!name) return;
+    
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const newId = barbers.length > 0 ? Math.max(...barbers.map(g => g.id || 0)) + 1 : 1;
+            barbers.push({ id: newId, name: name, image: ev.target.result });
+            saveData();
+            renderBarbers();
+        };
+        reader.readAsDataURL(file);
+    };
+    input.click();
+}
+
+function deleteBarber(id) {
+    if (confirm('Delete this barber?')) {
+        barbers = barbers.filter(g => g.id !== id);
+        saveData();
+        renderBarbers();
     }
 }
 
