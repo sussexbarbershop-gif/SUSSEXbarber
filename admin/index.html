@@ -257,14 +257,43 @@
                             <h3>Website Content (Texts)</h3>
                             <button class="btn btn-primary" onclick="saveCMSData()">Save to Website</button>
                         </div>
-                        <div style="padding: 20px" id="cmsContainer">
-                            <div class="form-group"><label>Hero Title (e.g. Masterful Cuts)</label><input type="text" id="cms_hero_title" class="form-control"></div>
-                            <div class="form-group"><label>Hero Subtitle</label><input type="text" id="cms_hero_subtitle" class="form-control"></div>
-                            <div class="form-group"><label>About Us Text</label><textarea id="cms_about_text" class="form-control" rows="4"></textarea></div>
-                            <div class="form-group"><label>Contact Phone</label><input type="text" id="cms_contact_phone" class="form-control"></div>
-                            <div class="form-group"><label>Contact Address</label><input type="text" id="cms_contact_address" class="form-control"></div>
+                                                <div style="padding: 20px" id="cmsContainer">
+                            <p style="margin-bottom:20px; font-size:14px; color:var(--text-muted);">
+                                Here you can easily change the texts that appear on your website. 
+                                <br>Make your changes in the boxes below, then click <b>Save to Website</b>.
+                            </p>
+                            
+                            <div class="form-group" style="background:var(--bg-secondary); padding:15px; border-radius:8px; border:1px solid var(--border-color);">
+                                <label style="color:var(--gold); font-size:14px; margin-bottom:5px;">1. Hero Title (Main Website Title)</label>
+                                <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">The big text at the top of the website. You can use &lt;br&gt; to drop to a new line, and &lt;span class="text-gold italic"&gt;Text&lt;/span&gt; to make words golden.</p>
+                                <input type="text" id="cms_hero_title" class="form-control" style="font-family:monospace;">
+                            </div>
+                            
+                            <div class="form-group" style="background:var(--bg-secondary); padding:15px; border-radius:8px; border:1px solid var(--border-color);">
+                                <label style="color:var(--gold); font-size:14px; margin-bottom:5px;">2. Hero Subtitle</label>
+                                <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">The smaller text below the main title.</p>
+                                <input type="text" id="cms_hero_subtitle" class="form-control">
+                            </div>
+                            
+                            <div class="form-group" style="background:var(--bg-secondary); padding:15px; border-radius:8px; border:1px solid var(--border-color);">
+                                <label style="color:var(--gold); font-size:14px; margin-bottom:5px;">3. About Us Text</label>
+                                <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">The paragraph explaining your barber shop. Use &lt;br&gt;&lt;br&gt; to make a new paragraph.</p>
+                                <textarea id="cms_about_text" class="form-control" rows="6"></textarea>
+                            </div>
+                            
+                            <div class="form-group" style="background:var(--bg-secondary); padding:15px; border-radius:8px; border:1px solid var(--border-color);">
+                                <label style="color:var(--gold); font-size:14px; margin-bottom:5px;">4. Contact Phone Number</label>
+                                <input type="text" id="cms_contact_phone" class="form-control" style="max-width:300px;">
+                            </div>
+                            
+                            <div class="form-group" style="background:var(--bg-secondary); padding:15px; border-radius:8px; border:1px solid var(--border-color);">
+                                <label style="color:var(--gold); font-size:14px; margin-bottom:5px;">5. Contact Address</label>
+                                <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">Use &lt;br&gt; to break lines in the address.</p>
+                                <input type="text" id="cms_contact_address" class="form-control" style="max-width:300px;">
+                            </div>
                         </div>
                     </div>
+                </div>
                 </div>
 
                 <!-- ========== OUR BARBERS ========== -->

@@ -53,11 +53,31 @@ let settings = {};
 let visitCount = 0;
 
 // ---- Init ----
+async function fetchLiveCMS() {
+    try {
+        const res = await fetch(API_URL + "?action=getSettings");
+        const data = await res.json();
+        if(data.status === 'success') {
+            if(data.settings) settings = data.settings;
+            if(data.barbers && data.barbers.length > 0) barbers = data.barbers;
+            if(data.gallery && data.gallery.length > 0) {
+                galleryImages = data.gallery.map((g, i) => ({id: i+1, src: g, name: 'Img '+(i+1)}));
+            }
+            saveData(); // update local storage cache with live data
+            if(currentPage === 'cms') renderCMSForm();
+            if(currentPage === 'barbers') renderBarbers();
+            if(currentPage === 'gallery') renderGallery();
+        }
+    } catch(e) { console.error("Failed to fetch live CMS data", e); }
+}
 document.addEventListener('DOMContentLoaded', () => {
     loadData();
     checkAuth();
     setupNavigation();
     setupSidebar();
+    
+    // Fetch real CMS data from server directly!
+    setTimeout(fetchLiveCMS, 500);
 });
 
 // ---- Auth ----
@@ -547,6 +567,7 @@ function deleteGalleryImage(id) {
 }
 
 
+
 // ---- Barbers ----
 function renderBarbers() {
     const container = document.getElementById('barbersContainer');
@@ -561,17 +582,47 @@ function renderBarbers() {
     addCard.onclick = () => addBarber();
     container.appendChild(addCard);
 
-    barbers.forEach(b => {
+    barbers.forEach((b, index) => {
         const item = document.createElement('div');
         item.className = 'gallery-item';
         item.style.position = 'relative';
         item.innerHTML = `
             <img src="${b.image}" style="width:100%;height:100%;object-fit:cover;border-radius:4px;">
-            <div style="position:absolute;bottom:0;background:rgba(0,0,0,0.7);color:white;width:100%;text-align:center;padding:5px;font-size:12px">${b.name}</div>
+            <div style="position:absolute;bottom:0;background:rgba(0,0,0,0.8);color:var(--gold);width:100%;text-align:center;padding:8px;font-size:14px;font-weight:bold;">${b.name}</div>
         `;
-        item.onclick = () => deleteBarber(b.id);
+        item.onclick = () => openBarberModal(index);
         container.appendChild(item);
     });
+}
+
+function openBarberModal(index) {
+    const b = barbers[index];
+    const newName = prompt(`Edit name for ${b.name}:`, b.name);
+    if(newName !== null) {
+        b.name = newName;
+        
+        if(confirm(`Do you want to change the image for ${b.name}?`)) {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    b.image = ev.target.result;
+                    saveData();
+                    renderBarbers();
+                    showToast('Barber image updated! Click Save to Website.', 'success');
+                };
+                reader.readAsDataURL(file);
+            };
+            input.click();
+        } else {
+            saveData();
+            renderBarbers();
+        }
+    }
 }
 
 function addBarber() {
@@ -590,6 +641,7 @@ function addBarber() {
             barbers.push({ id: newId, name: name, image: ev.target.result });
             saveData();
             renderBarbers();
+            showToast('Barber added! Click Save to Website.', 'success');
         };
         reader.readAsDataURL(file);
     };

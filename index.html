@@ -580,8 +580,8 @@
                         <input type="hidden" id="date" required>
                         
                         <!-- Custom Modern Calendar UI -->
-                        <div id="customCalendar" class="bg-gray-50 dark:bg-charcoal-800 border border-gray-200 dark:border-charcoal-700 rounded-xl p-3 sm:p-5 shadow-xl select-none">
-                            <div class="flex justify-between items-center mb-4 pb-3 border-b border-gray-200 dark:border-charcoal-700">
+                        <div id="customCalendar" class="bg-gray-50 dark:bg-charcoal-800 border border-gray-200 dark:border-charcoal-700 rounded-xl p-2 sm:p-5 shadow-xl select-none">
+                            <div class="flex justify-between items-center mb-2 pb-2 border-b border-gray-200 dark:border-charcoal-700">
                                 <div class="flex items-center space-x-2">
                                     <svg class="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                                     <h4 id="calendarMonthYear" class="font-serif text-lg font-bold text-gray-900 dark:text-white">Month Year</h4>
@@ -614,7 +614,7 @@
                             <span id="timeSlotStatusText" class="text-xs text-gray-500 dark:text-gray-400">Please choose a date first</span>
                         </div>
                         <!-- Interactive Time Chips Grid -->
-                        <div id="timeChipsGrid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-2.5"></div>
+                        <div id="timeChipsGrid" class="grid grid-cols-4 sm:grid-cols-5 gap-1 sm:gap-2.5"></div>
                     </div>
 
                     <div class="pt-4 flex justify-between items-stretch gap-3">
@@ -1320,7 +1320,7 @@
                     const chip = document.createElement('button');
                     chip.type = 'button';
                     chip.disabled = true;
-                    chip.className = 'py-2 sm:py-3 px-1 sm:px-2 text-xs font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 cursor-not-allowed rounded-lg text-center opacity-50';
+                    chip.className = 'py-1.5 sm:py-3 px-1 sm:px-2 text-[10px] sm:text-xs font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 cursor-not-allowed rounded-lg text-center opacity-50';
                     chip.innerText = t;
                     grid.appendChild(chip);
                 });
@@ -1456,7 +1456,7 @@
             
             for (let i = 0; i < firstDayIndex; i++) {
                 const emptyCell = document.createElement('div');
-                emptyCell.className = 'w-full aspect-[5/4] sm:aspect-square';
+                emptyCell.className = 'w-full h-10 sm:aspect-square';
                 grid.appendChild(emptyCell);
             }
             
@@ -1485,7 +1485,7 @@
                 
                 const dayBtn = document.createElement('button');
                 dayBtn.type = 'button';
-                dayBtn.className = 'w-full aspect-[5/4] sm:aspect-square flex flex-col items-center justify-center text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 relative select-none';
+                dayBtn.className = 'w-full h-10 sm:aspect-square flex flex-col items-center justify-center text-xs sm:text-sm font-semibold rounded-lg sm:rounded-xl transition-all duration-200 relative select-none';
                 dayBtn.innerHTML = `<span>${day}</span>`;
                 
                 if (isDisabled) {
