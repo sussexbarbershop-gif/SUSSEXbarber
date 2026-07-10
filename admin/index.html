@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sussex Admin Panel</title>
+    <meta name="robots" content="noindex, nofollow">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+    <!-- LOGIN -->
+    <div id="loginWrapper" class="login-wrapper">
+        <div class="login-card">
+            <img src="../assets/logo.jpg" alt="Sussex Logo" class="logo-img">
+            <h1>Admin Panel</h1>
+            <div class="gold-line"></div>
+            <p>Sign in to manage your barber shop</p>
+
+            <form onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="loginUsername" placeholder="Enter username" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="loginPassword" placeholder="Enter password" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn-login">Sign In</button>
+            </form>
+            <div id="loginError" class="login-error"></div>
+        </div>
+    </div>
+
+    <!-- SIDEBAR OVERLAY (Mobile) -->
+    <div id="sidebarOverlay" class="sidebar-overlay"></div>
+
+    <!-- ADMIN LAYOUT -->
+    <div id="adminLayout" class="admin-layout">
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <img src="../assets/logo.jpg" alt="Logo">
+                <div class="brand">
+                    <span class="brand-name">Sussex</span>
+                    <span class="brand-sub">Admin Panel</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section-title">Main</div>
+
+                <button class="nav-item active" data-page="dashboard">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zm0 7a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1h-4a1 1 0 01-1-1v-5zm-10-2a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1v-5z"></path></svg>
+                    Dashboard
+                </button>
+
+                <button class="nav-item" data-page="bookings">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    Bookings
+                    <span class="badge" id="pendingBadge" style="display:none">0</span>
+                </button>
+
+                <div class="nav-section-title">Management</div>
+
+                <button class="nav-item" data-page="services">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z"></path></svg>
+                    Services & Pricing
+                </button>
+
+                <button class="nav-item" data-page="hours">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Working Hours
+                </button>
+
+                <button class="nav-item" data-page="gallery">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    Gallery
+                </button>
+
+                <div class="nav-section-title">Insights</div>
+
+                <button class="nav-item" data-page="analytics">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    Analytics
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button class="btn-logout" onclick="handleLogout()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    Log Out
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Top Bar -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="burger-btn" onclick="toggleSidebar()">
+                        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                    </button>
+                    <h2 id="pageTitle">Dashboard</h2>
+                </div>
+                <div class="topbar-right">
+                    <span class="admin-name">Admin</span>
+                    <div class="admin-avatar">A</div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="content-area">
+
+                <!-- ========== DASHBOARD ========== -->
+                <div id="page-dashboard" class="page-section active">
+                    <div class="stats-grid">
+                        <div class="stat-card gold">
+                            <div class="stat-icon">
+                                <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            </div>
+                            <div class="stat-value" id="statTodayBookings">0</div>
+                            <div class="stat-label">Today's Bookings</div>
+                        </div>
+                        <div class="stat-card orange">
+                            <div class="stat-icon">
+                                <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </div>
+                            <div class="stat-value" id="statPending">0</div>
+                            <div class="stat-label">Pending</div>
+                        </div>
+                        <div class="stat-card green">
+                            <div class="stat-icon">
+                                <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </div>
+                            <div class="stat-value" id="statRevenue">€0</div>
+                            <div class="stat-label">Total Revenue</div>
+                        </div>
+                        <div class="stat-card blue">
+                            <div class="stat-icon">
+                                <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                            </div>
+                            <div class="stat-value" id="statVisits">0</div>
+                            <div class="stat-label">Site Visits</div>
+                        </div>
+                    </div>
+
+                    <div class="data-card">
+                        <div class="data-card-header">
+                            <h3>Recent Bookings</h3>
+                            <button class="btn btn-secondary btn-sm" onclick="navigateTo('bookings')">View All →</button>
+                        </div>
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Customer</th>
+                                        <th>Service</th>
+                                        <th>Barber</th>
+                                        <th>Time</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recentBookingsBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ========== BOOKINGS ========== -->
+                <div id="page-bookings" class="page-section">
+                    <div class="data-card">
+                        <div class="data-card-header">
+                            <h3>All Bookings</h3>
+                            <div class="data-card-actions">
+                                <div class="filter-tabs" id="bookingFilters">
+                                    <button class="filter-tab active" data-filter="all" onclick="setBookingFilter('all')">All</button>
+                                    <button class="filter-tab" data-filter="today" onclick="setBookingFilter('today')">Today</button>
+                                    <button class="filter-tab" data-filter="week" onclick="setBookingFilter('week')">This Week</button>
+                                    <button class="filter-tab" data-filter="pending" onclick="setBookingFilter('pending')">Pending</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Customer</th>
+                                        <th>Phone</th>
+                                        <th>Service</th>
+                                        <th>Barber</th>
+                                        <th>Date</th>
+                                        <th>Time</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="bookingsBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ========== SERVICES ========== -->
+                <div id="page-services" class="page-section">
+                    <div class="data-card">
+                        <div class="data-card-header">
+                            <h3>Services & Pricing</h3>
+                            <button class="btn btn-primary" onclick="openServiceModal()">+ Add Service</button>
+                        </div>
+                        <div style="padding: 20px" id="servicesContainer"></div>
+                    </div>
+                </div>
+
+                <!-- ========== WORKING HOURS ========== -->
+                <div id="page-hours" class="page-section">
+                    <div class="data-card">
+                        <div class="data-card-header">
+                            <h3>Working Hours</h3>
+                            <span style="font-size:13px;color:var(--text-muted)">Toggle days on/off and set hours</span>
+                        </div>
+                        <div style="padding: 20px" id="hoursContainer"></div>
+                    </div>
+                </div>
+
+                <!-- ========== GALLERY ========== -->
+                <div id="page-gallery" class="page-section">
+                    <div class="data-card">
+                        <div class="data-card-header">
+                            <h3>Gallery Management</h3>
+                            <span style="font-size:13px;color:var(--text-muted)">Click images to delete, use + to upload</span>
+                        </div>
+                        <div style="padding: 20px">
+                            <div class="gallery-grid" id="galleryContainer"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ========== ANALYTICS ========== -->
+                <div id="page-analytics" class="page-section">
+                    <div class="stats-grid">
+                        <div class="stat-card blue">
+                            <div class="stat-icon">
+                                <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                            </div>
+                            <div class="stat-value" id="analyticsTotalVisits">0</div>
+                            <div class="stat-label">Total Page Visits</div>
+                        </div>
+                        <div class="stat-card gold">
+                            <div class="stat-icon">
+                                <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            </div>
+                            <div class="stat-value" id="analyticsTotalBookings">0</div>
+                            <div class="stat-label">Total Bookings</div>
+                        </div>
+                        <div class="stat-card green">
+                            <div class="stat-icon">
+                                <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </div>
+                            <div class="stat-value" id="analyticsConfirmed">0</div>
+                            <div class="stat-label">Confirmed Bookings</div>
+                        </div>
+                        <div class="stat-card orange">
+                            <div class="stat-icon">
+                                <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                            </div>
+                            <div class="stat-value" id="analyticsConversion">0%</div>
+                            <div class="stat-label">Confirmation Rate</div>
+                        </div>
+                    </div>
+
+                    <div class="data-card">
+                        <div class="data-card-header">
+                            <h3>Bookings — Last 7 Days</h3>
+                        </div>
+                        <div style="padding: 20px">
+                            <canvas id="analyticsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- SERVICE MODAL -->
+    <div class="modal-overlay" id="serviceModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="serviceModalTitle">Add New Service</h3>
+                <button class="modal-close" onclick="closeServiceModal()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <form id="serviceForm" onsubmit="handleServiceSubmit(event)">
+                <input type="hidden" id="svcId">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Service Name (English)</label>
+                        <input type="text" id="svcNameEN" placeholder="e.g. Classic Haircut" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Service Name (Dutch)</label>
+                        <input type="text" id="svcNameNL" placeholder="e.g. Klassieke knipbeurt" required>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                        <div class="form-group">
+                            <label>Price (€)</label>
+                            <input type="number" id="svcPrice" min="0" step="1" placeholder="28" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Duration (min)</label>
+                            <input type="number" id="svcDuration" min="5" step="5" value="30" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeServiceModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Service</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>

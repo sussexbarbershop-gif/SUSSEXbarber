@@ -9,7 +9,7 @@
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://fonts.googleapis.com https://fonts.gstatic.com data: blob:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://fonts.googleapis.com https://fonts.gstatic.com https://script.google.com https://script.googleusercontent.com data: blob:;">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -188,6 +188,7 @@
                         </div>
                     </div>
 
+                    <a href="#booking" class="hidden sm:block whitespace-nowrap bg-transparent text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-charcoal-700 px-4 sm:px-6 py-2 rounded-lg text-xs sm:text-sm font-semibold tracking-wider uppercase hover:bg-gold hover:text-charcoal-900 hover:border-gold transition-colors duration-300" data-translate="My Bookings">My Bookings</a>
                     <a href="#booking" class="whitespace-nowrap bg-gold text-charcoal-900 px-4 sm:px-6 py-2 rounded-lg text-xs sm:text-sm font-semibold tracking-wider uppercase hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-charcoal-900 transition-colors duration-300">Book Now</a>
                     
                     <!-- Mobile Menu Button -->
@@ -205,6 +206,7 @@
         <button id="closeMobileMenuBtn" type="button" aria-label="Close menu" class="absolute top-6 right-6 p-2 text-gray-900 dark:text-white focus:outline-none hover:text-gold dark:hover:text-gold transition-colors">
             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
         </button>
+        <a href="#booking" class="mobile-link text-2xl font-serif text-gold hover:text-white transition-colors" data-translate="My Bookings">My Bookings</a>
         <a href="#about" class="mobile-link text-2xl font-serif text-gray-900 dark:text-white hover:text-gold dark:hover:text-gold transition-colors" data-translate="About">About</a>
         <a href="#team" class="mobile-link text-2xl font-serif text-gray-900 dark:text-white hover:text-gold dark:hover:text-gold transition-colors" data-translate="Our Barbers">Our Barbers</a>
         <a href="#services" class="mobile-link text-2xl font-serif text-gray-900 dark:text-white hover:text-gold dark:hover:text-gold transition-colors" data-translate="Services">Services</a>
@@ -324,84 +326,8 @@
                 <h2 class="font-serif text-4xl text-gray-900 dark:text-white mb-4">Our Services</h2>
                 <div class="w-16 h-px bg-gold mx-auto"></div>
             </div>
-            <div class="space-y-6">
-                <div class="flex justify-between items-end border-b border-gray-200 dark:border-charcoal-700 pb-4">
-                    <div>
-                        <h3 class="text-xl text-gray-900 dark:text-white font-medium" data-translate="Classic Haircut">Classic Haircut</h3>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">⏱️ ~30 min</p>
-                    </div>
-                    <span class="text-gold text-xl font-serif">€28</span>
-                </div>
-                <div class="flex justify-between items-end border-b border-gray-200 dark:border-charcoal-700 pb-4">
-                    <div>
-                        <h3 class="text-xl text-gray-900 dark:text-white font-medium" data-translate="Skin Fade">Skin Fade</h3>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">⏱️ ~45 min</p>
-                    </div>
-                    <span class="text-gold text-xl font-serif">€28</span>
-                </div>
-                <div class="flex justify-between items-end border-b border-gray-200 dark:border-charcoal-700 pb-4">
-                    <div>
-                        <h3 class="text-xl text-gray-900 dark:text-white font-medium" data-translate="Scissor Cut">Scissor Cut</h3>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">⏱️ ~30 min</p>
-                    </div>
-                    <span class="text-gold text-xl font-serif">€28</span>
-                </div>
-                <div class="flex justify-between items-end border-b border-gray-200 dark:border-charcoal-700 pb-4">
-                    <div>
-                        <h3 class="text-xl text-gray-900 dark:text-white font-medium" data-translate="Wash & Haircut">Wash & Haircut</h3>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">⏱️ ~45 min</p>
-                    </div>
-                    <span class="text-gold text-xl font-serif">€35</span>
-                </div>
-                <div class="flex justify-between items-end border-b border-gray-200 dark:border-charcoal-700 pb-4">
-                    <div>
-                        <h3 class="text-xl text-gray-900 dark:text-white font-medium" data-translate="Beard Trim">Beard Trim</h3>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">⏱️ ~20 min</p>
-                    </div>
-                    <span class="text-gold text-xl font-serif">€20</span>
-                </div>
-                <div class="flex justify-between items-end border-b border-gray-200 dark:border-charcoal-700 pb-4">
-                    <div>
-                        <h3 class="text-xl text-gray-900 dark:text-white font-medium" data-translate="Clean Shave">Clean Shave</h3>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">⏱️ ~30 min</p>
-                    </div>
-                    <span class="text-gold text-xl font-serif">€20</span>
-                </div>
-                <div class="flex justify-between items-end border-b border-gray-200 dark:border-charcoal-700 pb-4">
-                    <div>
-                        <h3 class="text-xl text-gray-900 dark:text-white font-medium" data-translate="Classic Haircut + Beard Trim">Classic Haircut + Beard Trim</h3>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">⏱️ ~45 min</p>
-                    </div>
-                    <span class="text-gold text-xl font-serif">€40</span>
-                </div>
-                <div class="flex justify-between items-end border-b border-gray-200 dark:border-charcoal-700 pb-4">
-                    <div>
-                        <h3 class="text-xl text-gray-900 dark:text-white font-medium" data-translate="Skin Fade + Beard Trim">Skin Fade + Beard Trim</h3>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">⏱️ ~60 min</p>
-                    </div>
-                    <span class="text-gold text-xl font-serif">€40</span>
-                </div>
-                <div class="flex justify-between items-end border-b border-gray-200 dark:border-charcoal-700 pb-4">
-                    <div>
-                        <h3 class="text-xl text-gray-900 dark:text-white font-medium" data-translate="One Grade Trim">One Grade Trim</h3>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">⏱️ ~15 min</p>
-                    </div>
-                    <span class="text-gold text-xl font-serif">€20</span>
-                </div>
-                <div class="flex justify-between items-end border-b border-gray-200 dark:border-charcoal-700 pb-4">
-                    <div>
-                        <h3 class="text-xl text-gray-900 dark:text-white font-medium" data-translate="Kids Haircut (Up to 10 Years)">Kids Haircut (Up to 10 Years)</h3>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">⏱️ ~30 min</p>
-                    </div>
-                    <span class="text-gold text-xl font-serif">€21</span>
-                </div>
-                <div class="flex justify-between items-end pb-4">
-                    <div>
-                        <h3 class="text-xl text-gray-900 dark:text-white font-medium" data-translate="Kids Haircut (Up to 13 Years)">Kids Haircut (Up to 13 Years)</h3>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">⏱️ ~30 min</p>
-                    </div>
-                    <span class="text-gold text-xl font-serif">€23</span>
-                </div>
+            <div class="space-y-6" id="servicesListContainer">
+                <!-- Dynamically populated from admin panel data -->
             </div>
         </div>
     </section>
@@ -470,6 +396,21 @@
 
     <!-- Booking Section (Multi-step Wizard) -->
     <section id="booking" class="py-24 bg-gray-50 dark:bg-charcoal-800 transition-colors duration-300">
+        <!-- My Bookings Section -->
+        <div id="myBookingsContainer" class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-12 hidden">
+            <div class="bg-white dark:bg-charcoal-800 rounded-2xl shadow-xl overflow-hidden border border-gray-100 dark:border-charcoal-700">
+                <div class="bg-gold/10 px-6 py-4 border-b border-gold/20 flex justify-between items-center">
+                    <h3 class="text-xl font-bold font-serif text-charcoal-900 dark:text-white" data-translate="My Bookings">My Bookings</h3>
+                    <span class="text-gold"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></span>
+                </div>
+                <div class="p-6">
+                    <div id="myBookingsList" class="space-y-4">
+                        <!-- Bookings will be injected here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="max-w-4xl mx-auto bg-white dark:bg-charcoal-800 rounded-2xl md:rounded-3xl shadow-2xl p-4 sm:p-6 md:p-10 lg:p-12 border border-gray-100 dark:border-charcoal-700 relative">
             <h2 class="font-serif text-4xl text-gray-900 dark:text-white mb-3 text-center">Book an Appointment</h2>
             <p class="text-gray-600 dark:text-gray-400 mb-10 font-light text-center">Select your preferred service, barber, date, and time slot.</p>
@@ -849,14 +790,8 @@
 
                     <div class="mb-8">
                         <h3 class="text-gold uppercase tracking-widest text-sm mb-3">Working Hours</h3>
-                        <ul class="text-gray-700 dark:text-gray-300 font-light space-y-2">
-                            <li class="flex justify-between border-b border-gray-100 dark:border-charcoal-700 py-1"><span data-translate="Monday">Monday</span> <span>12:00 - 18:00</span></li>
-                            <li class="flex justify-between border-b border-gray-100 dark:border-charcoal-700 py-1"><span data-translate="Tuesday">Tuesday</span> <span>10:00 - 18:00</span></li>
-                            <li class="flex justify-between border-b border-gray-100 dark:border-charcoal-700 py-1"><span data-translate="Wednesday">Wednesday</span> <span>10:00 - 18:00</span></li>
-                            <li class="flex justify-between border-b border-gray-100 dark:border-charcoal-700 py-1"><span data-translate="Thursday">Thursday</span> <span>10:00 - 18:00</span></li>
-                            <li class="flex justify-between border-b border-gray-100 dark:border-charcoal-700 py-1"><span data-translate="Friday">Friday</span> <span>10:00 - 18:00</span></li>
-                            <li class="flex justify-between border-b border-gray-100 dark:border-charcoal-700 py-1"><span data-translate="Saturday">Saturday</span> <span>10:00 - 18:00</span></li>
-                            <li class="flex justify-between py-1"><span data-translate="Sunday">Sunday</span> <span class="text-rose-500 font-medium" data-translate="Closed">Closed</span></li>
+                        <ul id="hoursListContainer" class="text-gray-700 dark:text-gray-300 font-light space-y-2">
+                            <!-- Dynamically populated from admin panel data -->
                         </ul>
                     </div>
 
@@ -1647,13 +1582,27 @@
 
             const timeVal = document.getElementById('time').value;
 
+            const selectedServiceName = document.getElementById('service').value;
+            let servicePrice = 0;
+            try {
+                if (window.sussexServices && Array.isArray(window.sussexServices)) {
+                    // Support multi-select: "Classic Haircut, Beard Trim" → sum both prices
+                    const serviceNames = selectedServiceName.split(',').map(n => n.trim()).filter(n => n);
+                    serviceNames.forEach(name => {
+                        const s = window.sussexServices.find(srv => srv.nameEN === name || srv.nameNL === name);
+                        if (s) servicePrice += s.price;
+                    });
+                }
+            } catch(err) { console.warn('Error finding price', err); }
+
             const bookingData = {
                 date: document.getElementById('date').value,
                 time: timeVal,
                 name: document.getElementById('fullName').value,
                 phone: document.getElementById('phoneNumber').value,
-                service: document.getElementById('service').value,
-                barber: document.getElementById('barber').value
+                service: selectedServiceName,
+                barber: document.getElementById('barber').value,
+                price: servicePrice
             };
 
             try {
@@ -1666,6 +1615,31 @@
                 
                 bookedTimesList.push(bookingData.time);
                 renderTimeChips();
+
+                // === Save booking to localStorage for Admin Panel ===
+                try {
+                    const existingBookings = JSON.parse(localStorage.getItem('sussex_bookings') || '[]');
+                    const newId = existingBookings.length > 0 ? Math.max(...existingBookings.map(b => b.id || 0)) + 1 : 1;
+                    existingBookings.push({
+                        id: newId,
+                        name: bookingData.name,
+                        phone: bookingData.phone,
+                        service: bookingData.service,
+                        barber: bookingData.barber || 'Any Available',
+                        date: bookingData.date,
+                        time: bookingData.time,
+                        price: servicePrice, // Keep real price for Admin panel
+                        status: 'pending',
+                        createdAt: new Date().toISOString()
+                    });
+                    localStorage.setItem('sussex_bookings', JSON.stringify(existingBookings));
+                    
+                    // === Save booking to localStorage for My Bookings ===
+                    const myBookings = JSON.parse(localStorage.getItem('my_personal_bookings') || '[]');
+                    myBookings.push(bookingData);
+                    localStorage.setItem('my_personal_bookings', JSON.stringify(myBookings));
+                    renderMyBookings();
+                } catch(e) { console.warn('Could not save booking to localStorage', e); }
 
                 // Populate confirmation card
                 document.getElementById('confirmName').innerText = bookingData.name;
@@ -1701,7 +1675,8 @@
 
             } catch (error) {
                 console.error("Failed to submit booking:", error);
-                showToast("Error! Could not connect to the booking server.", "error");
+                const errMsg = error.message ? error.message : String(error);
+                showToast("Error: " + errMsg, "error");
                 submitBtn.innerText = originalText;
                 submitBtn.disabled = false;
             }
@@ -1847,6 +1822,8 @@
             'Gallery': 'Gallerij',
             'Contact': 'Contact',
             'Book Now': 'Boek Nu',
+            'My Bookings': 'Mijn Boekingen',
+            'Cancel Booking': 'Boeking Annuleren',
             'Our Work': 'Ons Werk',
             'Our Master Barbers': 'Onze Meesterkappers',
             'Our Services': 'Onze Diensten',
@@ -1964,6 +1941,227 @@
                 }
             });
         })();
+    </script>
+
+    <!-- Admin Panel Sync: Load dynamic data from localStorage -->
+    <script>
+    (function() {
+        // Track page visits for admin analytics
+        const visits = parseInt(localStorage.getItem('sussex_visits') || '0') + 1;
+        localStorage.setItem('sussex_visits', visits.toString());
+
+        // Default data (fallback when admin hasn't set anything)
+        const DEFAULT_SERVICES = [
+            { id:1, nameEN:'Classic Haircut', nameNL:'Klassieke knipbeurt', price:28, duration:30 },
+            { id:2, nameEN:'Skin Fade', nameNL:'Skin Fade', price:28, duration:30 },
+            { id:3, nameEN:'Scissor Cut', nameNL:'Knippen met schaar', price:28, duration:30 },
+            { id:4, nameEN:'Wash & Haircut', nameNL:'Haar wassen & knippen', price:35, duration:30 },
+            { id:5, nameEN:'Beard Trim', nameNL:'Baard trimmen', price:20, duration:30 },
+            { id:6, nameEN:'Clean Shave', nameNL:'Glad scheren', price:20, duration:30 },
+            { id:7, nameEN:'Classic Haircut + Beard Trim', nameNL:'Klassieke knipbeurt + baard trimmen', price:40, duration:30 },
+            { id:8, nameEN:'Skin Fade + Beard Trim', nameNL:'Skin Fade + baard trimmen', price:40, duration:30 },
+            { id:9, nameEN:'One Grade Trim', nameNL:'Eén lengte trim (tondeuse)', price:20, duration:30 },
+            { id:10, nameEN:'Kids Haircut (Up to 10 Years)', nameNL:'Kinderknipbeurt (t/m 10 jaar)', price:21, duration:30 },
+            { id:11, nameEN:'Kids Haircut (Up to 13 Years)', nameNL:'Kinderknipbeurt (t/m 13 jaar)', price:23, duration:30 },
+        ];
+
+        const DEFAULT_HOURS = [
+            { day:'Monday', dayNL:'Maandag', open:true, from:'09:00', to:'18:00' },
+            { day:'Tuesday', dayNL:'Dinsdag', open:true, from:'09:00', to:'18:00' },
+            { day:'Wednesday', dayNL:'Woensdag', open:true, from:'09:00', to:'18:00' },
+            { day:'Thursday', dayNL:'Donderdag', open:true, from:'09:00', to:'18:00' },
+            { day:'Friday', dayNL:'Vrijdag', open:true, from:'09:00', to:'18:00' },
+            { day:'Saturday', dayNL:'Zaterdag', open:true, from:'09:00', to:'17:00' },
+            { day:'Sunday', dayNL:'Zondag', open:false, from:'09:00', to:'17:00' },
+        ];
+
+        const DEFAULT_GALLERY = [
+            { src:'assets/IMG_8582.PNG', name:'Gallery 1' },
+            { src:'assets/IMG_8577.JPEG', name:'Gallery 2' },
+            { src:'assets/IMG_8575.JPEG', name:'Gallery 3' },
+            { src:'assets/IMG_8572.JPEG', name:'Gallery 4' },
+            { src:'assets/IMG_8567.JPEG', name:'Gallery 5' },
+            { src:'assets/IMG_8569.JPEG', name:'Gallery 6' },
+        ];
+
+        // Load data
+        const services = JSON.parse(localStorage.getItem('sussex_services')) || DEFAULT_SERVICES;
+        const hours = JSON.parse(localStorage.getItem('sussex_hours')) || DEFAULT_HOURS;
+        
+        // Expose globally for booking submission
+        window.sussexServices = services;
+
+        // ---- Populate Services List (Price List Section) ----
+        const servicesContainer = document.getElementById('servicesListContainer');
+        if (servicesContainer) {
+            servicesContainer.innerHTML = services.map((s, i) => {
+                const isLast = i === services.length - 1;
+                const borderClass = isLast ? '' : 'border-b border-gray-200 dark:border-charcoal-700';
+                return `<div class="flex justify-between items-end ${borderClass} pb-4">
+                    <div>
+                        <h3 class="text-xl text-gray-900 dark:text-white font-medium" data-translate="${s.nameEN}">${s.nameEN}</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">⏱️ ~${s.duration} min</p>
+                    </div>
+                    <span class="text-gold text-xl font-serif">€${s.price}</span>
+                </div>`;
+            }).join('');
+        }
+
+        // ---- Populate Booking Service Cards ----
+        const serviceCardsContainer = document.getElementById('serviceCardsContainer');
+        if (serviceCardsContainer) {
+            serviceCardsContainer.innerHTML = services.map(s => {
+                return `<div tabindex="0" data-service="${s.nameEN}" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                    <div>
+                        <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="${s.nameEN}">${s.nameEN}</h4>
+                        <p class="text-xs text-gold mt-1 font-medium">⏱️ ~${s.duration} min</p>
+                    </div>
+                    <span class="text-gold font-serif font-bold text-lg">€${s.price.toFixed(2)}</span>
+                </div>`;
+            }).join('');
+
+            // Re-bind service card click events (multi-select support)
+            serviceCardsContainer.querySelectorAll('.service-card').forEach(card => {
+                const selectService = () => {
+                    const isActive = card.classList.contains('border-gold');
+                    if (isActive) {
+                        card.classList.remove('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
+                        card.classList.add('border-gray-200', 'dark:border-charcoal-700', 'border');
+                    } else {
+                        card.classList.remove('border-gray-200', 'dark:border-charcoal-700', 'border');
+                        card.classList.add('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
+                    }
+                    // Gather all selected services
+                    const selectedServices = [];
+                    serviceCardsContainer.querySelectorAll('.service-card.border-gold').forEach(c => {
+                        selectedServices.push(c.getAttribute('data-service'));
+                    });
+                    document.getElementById('service').value = selectedServices.join(', ');
+                    const liveEl = document.getElementById('desktopLiveService');
+                    if (liveEl) liveEl.textContent = selectedServices.join(', ') || 'Select a service';
+                    if (typeof updateDesktopLiveSummary === 'function') updateDesktopLiveSummary();
+                    const selectedDate = document.getElementById('date').value;
+                    if (selectedDate) renderTimeChips();
+                };
+                card.addEventListener('click', selectService);
+                card.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectService(); }
+                });
+            });
+        }
+
+        // ---- Populate Working Hours ----
+        const hoursContainer = document.getElementById('hoursListContainer');
+        if (hoursContainer) {
+            hoursContainer.innerHTML = hours.map((h, i) => {
+                const isLast = i === hours.length - 1;
+                const borderClass = isLast ? '' : 'border-b border-gray-100 dark:border-charcoal-700';
+                if (h.open) {
+                    return `<li class="flex justify-between ${borderClass} py-1"><span data-translate="${h.day}">${h.day}</span> <span>${h.from} - ${h.to}</span></li>`;
+                } else {
+                    return `<li class="flex justify-between ${borderClass} py-1"><span data-translate="${h.day}">${h.day}</span> <span class="text-rose-500 font-medium" data-translate="Closed">Closed</span></li>`;
+                }
+            }).join('');
+        }
+
+        // ---- Populate Gallery (only if admin uploaded new images) ----
+        const adminGallery = JSON.parse(localStorage.getItem('sussex_gallery'));
+        if (adminGallery && adminGallery.length > 0) {
+            const galleryGrid = document.querySelector('#gallery .columns-1');
+            if (galleryGrid) {
+                galleryGrid.innerHTML = adminGallery.map(img => {
+                    const src = img.src.startsWith('data:') ? img.src : img.src.replace('../', '');
+                    return `<img src="${src}" alt="${img.name || 'Gallery Image'}" class="w-full h-64 object-cover filter brightness-90 contrast-125 dark:brightness-75 hover:brightness-110 dark:hover:brightness-100 transition-all duration-500 cursor-pointer" onclick="openLightbox(this.src)">`;
+                }).join('');
+            }
+        }
+    })();
+    // --- 11. My Bookings System ---
+    function renderMyBookings() {
+        const container = document.getElementById('myBookingsContainer');
+        const listEl = document.getElementById('myBookingsList');
+        if (!container || !listEl) return;
+
+        let myBookings = [];
+        try {
+            myBookings = JSON.parse(localStorage.getItem('my_personal_bookings') || '[]');
+        } catch(e) {}
+
+        // Filter out past bookings automatically
+        const today = new Date().toISOString().split('T')[0];
+        myBookings = myBookings.filter(b => b.date >= today);
+        localStorage.setItem('my_personal_bookings', JSON.stringify(myBookings));
+
+        if (myBookings.length === 0) {
+            container.classList.add('hidden');
+            return;
+        }
+
+        container.classList.remove('hidden');
+        listEl.innerHTML = myBookings.map((b, index) => `
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-gray-50 dark:bg-charcoal-900 p-4 rounded-xl border border-gray-100 dark:border-charcoal-700 gap-4">
+                <div class="flex-1">
+                    <div class="font-bold text-gray-900 dark:text-white text-lg">${b.service}</div>
+                    <div class="text-sm text-gray-500 dark:text-gray-400 mt-1 flex flex-col sm:flex-row sm:gap-4 gap-1">
+                        <span>📅 ${b.date}</span>
+                        <span>⏰ ${b.time}</span>
+                        <span>💈 ${b.barber || 'Any'}</span>
+                    </div>
+                </div>
+                <button onclick="cancelMyBooking(${index})" class="w-full sm:w-auto px-4 py-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-sm font-medium rounded-lg transition-colors border border-rose-200 dark:border-rose-500/20 flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    <span data-translate="Cancel">لابردن</span>
+                </button>
+            </div>
+        `).join('');
+        if (typeof applyTranslations === 'function') applyTranslations();
+    }
+
+    async function cancelMyBooking(index) {
+        const msg = currentLang === 'nl' ? 'Weet je zeker dat je deze boeking wilt annuleren?' : 'Are you sure you want to cancel this booking?';
+        if (!confirm(msg)) return;
+        
+        try {
+            const myBookings = JSON.parse(localStorage.getItem('my_personal_bookings') || '[]');
+            const b = myBookings[index];
+            if (!b) return;
+
+            // Send cancel request
+            await fetch(API_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({
+                    action: 'cancel',
+                    phone: b.phone,
+                    date: b.date,
+                    time: b.time
+                })
+            });
+
+            // Remove from local storage
+            myBookings.splice(index, 1);
+            localStorage.setItem('my_personal_bookings', JSON.stringify(myBookings));
+            renderMyBookings();
+            const toastMsg = currentLang === 'nl' ? 'Boeking succesvol geannuleerd' : 'Booking cancelled successfully';
+            showToast(toastMsg, 'success');
+            
+            // Also refresh time chips if looking at the same date
+            if (document.getElementById('date') && document.getElementById('date').value === b.date) {
+                document.getElementById('date').dispatchEvent(new Event('change'));
+            }
+
+        } catch (err) {
+            console.error(err);
+            showToast('Error cancelling booking', 'error');
+        }
+    }
+
+    // Render my bookings on load
+    document.addEventListener('DOMContentLoaded', () => {
+        renderMyBookings();
+    });
+
     </script>
 </body>
 </html>
