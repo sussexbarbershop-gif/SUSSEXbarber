@@ -2,7 +2,7 @@
 // Sussex Barber Shop — Admin Panel JS
 // ===========================
 
-const API_URL = "https://script.google.com/macros/s/AKfycbyEaZa65gCE2tQcCEvsDKcg8rIfPK8wS9RqjhaLJv5Pa8kCJ9ta5dlG0I29HAu9gnCeHA/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyB3U2n2W2HRn20BxQWLi7Swjq0dSQV6_nnrSXPHRMsx53kP6xy8OpO2w9OTu9cdZvVtQ/exec";
 
 // ---- Default Data ----
 const DEFAULT_SERVICES = [
