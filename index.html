@@ -1821,6 +1821,18 @@
             'Meet the experienced professionals dedicated to giving you the perfect look. Every barber at Sussex is a master of their craft.': 'Ontmoet de ervaren professionals die toegewijd zijn om u de perfecte look te geven. Elke kapper bij Sussex is een meester in zijn vak.',
             'At Sussex Barber Shop, we blend modern styling techniques with traditional barbering values. Our space is designed to be a sanctuary for men—a place where you can unwind, enjoy a free coffee, and leave looking your absolute best.': 'Bij Sussex Barber Shop combineren we moderne stylingtechnieken met traditionele barbierswaarden. Onze ruimte is ontworpen als een rustplek voor mannen—een plek waar u kunt ontspannen, genieten van een gratis koffie en er op uw best uitziet.',
             'With a 4.7-star rating and a reputation for precise cuts and a friendly atmosphere, our attentive barbers ensure that every haircut, beard trim, and hot towel shave is executed to perfection.': 'Met een beoordeling van 4.7 sterren en een reputatie voor nauwkeurige knipbeurten en een vriendelijke sfeer, zorgen onze aandachtige kappers ervoor dat elke knipbeurt, baardtrim en hot towel scheerbeurt tot in de perfectie wordt uitgevoerd.',
+            'Skin Fade': 'Skin Fade',
+            'min': 'min.',
+            '~15 min': '~15 min.',
+            '~20 min': '~20 min.',
+            '~30 min': '~30 min.',
+            '~45 min': '~45 min.',
+            '~60 min': '~60 min.',
+            '⏱️ ~15 min': '⏱️ ~15 min.',
+            '⏱️ ~20 min': '⏱️ ~20 min.',
+            '⏱️ ~30 min': '⏱️ ~30 min.',
+            '⏱️ ~45 min': '⏱️ ~45 min.',
+            '⏱️ ~60 min': '⏱️ ~60 min.',
             'Visit Us': 'Bezoek Ons',
             'LIVE SUMMARY': 'LIVE OVERZICHT',
             'Service:': 'Dienst:',
@@ -1917,6 +1929,14 @@
                 }
             });
 
+            // Translate service duration tags (.service-duration)
+            document.querySelectorAll('.service-duration').forEach(el => {
+                const dur = el.getAttribute('data-duration');
+                if (dur) {
+                    el.innerText = lang === 'nl' ? `⏱️ ~${dur} min.` : `⏱️ ~${dur} min`;
+                }
+            });
+
             // Re-render live status badge and desktop live summary
             if (typeof updateBusinessStatus === 'function') updateBusinessStatus();
             if (typeof updateDesktopLiveSummary === 'function') updateDesktopLiveSummary();
@@ -2006,6 +2026,8 @@
         
         // Expose globally for booking submission
         window.sussexServices = services;
+        
+        const minLabel = window.currentLang === 'nl' ? 'min.' : 'min';
 
         // ---- Populate Services List (Price List Section) ----
         const servicesContainer = document.getElementById('servicesListContainer');
@@ -2016,7 +2038,7 @@
                 return `<div class="flex justify-between items-end ${borderClass} pb-4">
                     <div>
                         <h3 class="text-xl text-gray-900 dark:text-white font-medium" data-translate="${s.nameEN}">${s.nameEN}</h3>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">⏱️ ~${s.duration} min</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 service-duration" data-duration="${s.duration}">⏱️ ~${s.duration} ${minLabel}</p>
                     </div>
                     <span class="text-gold text-xl font-serif">€${s.price}</span>
                 </div>`;
@@ -2030,7 +2052,7 @@
                 return `<div tabindex="0" data-service="${s.nameEN}" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
                     <div>
                         <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="${s.nameEN}">${s.nameEN}</h4>
-                        <p class="text-xs text-gold mt-1 font-medium">⏱️ ~${s.duration} min</p>
+                        <p class="text-xs text-gold mt-1 font-medium service-duration" data-duration="${s.duration}">⏱️ ~${s.duration} ${minLabel}</p>
                     </div>
                     <span class="text-gold font-serif font-bold text-lg">€${s.price.toFixed(2)}</span>
                 </div>`;
