@@ -2134,7 +2134,13 @@
             const serverBookings = await res.json();
             if (Array.isArray(serverBookings)) {
                 myBookings = myBookings.filter(mb => {
-                    return serverBookings.some(sb => sb.date === mb.date && sb.time === mb.time);
+                    return serverBookings.some(sb => {
+                        const dateMatch = sb.date === mb.date;
+                        const timeMatch = sb.time === mb.time;
+                        const serviceMatch = !mb.service || !sb.service || sb.service.trim().toLowerCase() === mb.service.trim().toLowerCase();
+                        const barberMatch = !mb.barber || !sb.barber || sb.barber === 'Any' || sb.barber === 'Any Available' || sb.barber.trim().toLowerCase() === mb.barber.trim().toLowerCase();
+                        return dateMatch && timeMatch && serviceMatch && barberMatch;
+                    });
                 });
             }
         } catch(e) { console.error("Could not sync my bookings with server", e); }
