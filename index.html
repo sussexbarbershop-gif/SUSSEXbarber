@@ -808,36 +808,22 @@
                     </div>
                 </div>
 
-                <div class="w-full aspect-square min-h-[400px] md:h-[600px] bg-gray-100 dark:bg-charcoal-800 border border-gray-200 dark:border-charcoal-700 p-2 relative group overflow-hidden rounded-xl shadow-xl shadow-black/5 dark:shadow-black/20">
-                    <a href="https://maps.app.goo.gl/vhDfYkHsUg5vzWHB8" target="_blank" rel="noopener noreferrer" class="absolute inset-0 z-30 w-full h-full cursor-pointer" aria-label="View Location on Google Maps"></a>
-                    
-                    <!-- Clouds & Plane Effects -->
-                    <div class="absolute inset-0 z-20 pointer-events-none overflow-hidden rounded-xl">
-                        <!-- Cloud 1 -->
-                        <div class="absolute top-10 animate-drift-cloud-1 drop-shadow-md">
-                            <svg class="w-32 h-16 text-white" fill="currentColor" viewBox="0 0 24 24" style="filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.1)); opacity: 0.9;"><path d="M17.5 19c2.481 0 4.5-2.019 4.5-4.5 0-2.222-1.605-4.075-3.738-4.423-.198-3.057-2.73-5.452-5.834-5.452-2.316 0-4.382 1.341-5.353 3.332-1.748.163-3.137 1.62-3.137 3.418 0 1.9 1.545 3.447 3.446 3.447h10.116V19z"/></svg>
-                        </div>
-                        <!-- Cloud 2 -->
-                        <div class="absolute top-1/2 animate-drift-cloud-2 drop-shadow-md" style="animation-delay: -10s;">
-                            <svg class="w-48 h-24 text-white" fill="currentColor" viewBox="0 0 24 24" style="filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.1)); opacity: 0.7;"><path d="M17.5 19c2.481 0 4.5-2.019 4.5-4.5 0-2.222-1.605-4.075-3.738-4.423-.198-3.057-2.73-5.452-5.834-5.452-2.316 0-4.382 1.341-5.353 3.332-1.748.163-3.137 1.62-3.137 3.418 0 1.9 1.545 3.447 3.446 3.447h10.116V19z"/></svg>
-                        </div>
-                        <!-- Airplane -->
-                        <div class="absolute animate-fly-plane drop-shadow-2xl text-charcoal-900 dark:text-gray-200" style="filter: drop-shadow(0 10px 8px rgba(0,0,0,0.3));">
-                            <svg class="w-10 h-10" fill="currentColor" viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>
-                        </div>
+                <div class="w-full aspect-square min-h-[400px] md:h-[600px] bg-gray-100 dark:bg-charcoal-800 border border-gray-200 dark:border-charcoal-700 relative overflow-hidden rounded-xl shadow-xl shadow-black/5 dark:shadow-black/20">
+                    <!-- Clean Open in Maps Overlay Button -->
+                    <div class="absolute top-4 right-4 z-20">
+                        <a href="https://maps.google.com/?q=Van+Hogendorpstraat+10,+2242+KZ+Wassenaar" target="_blank" rel="noopener noreferrer" class="bg-gold hover:bg-white text-charcoal-900 font-bold px-4 py-2 text-xs uppercase tracking-wider shadow-lg rounded-lg transition-colors flex items-center gap-2 border border-gold">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            <span>Open in Google Maps</span>
+                        </a>
                     </div>
 
-                    <div class="absolute inset-0 z-40 flex items-center justify-center bg-black/40 dark:bg-charcoal-900/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-                        <span class="bg-gold text-charcoal-900 px-6 py-3 text-sm font-semibold tracking-wider uppercase shadow-lg rounded-md">Open in Maps</span>
-                    </div>
-
-                    <div class="w-full h-full bg-gray-100 dark:bg-charcoal-900 flex items-center justify-center text-gray-500 rounded-lg overflow-hidden relative z-10">
+                    <div class="w-full h-full bg-gray-100 dark:bg-charcoal-900 relative z-10">
                         <iframe 
                             id="mapIframe"
-                            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2449.610582236528!2d4.394628212130325!3d52.1412030656041!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47c5b736b4421bfd%3A0xc6c4293e50ab52e4!2sVan%20Hogendorpstraat%2010%2C%202242%20KZ%20Wassenaar%2C%20Netherlands!5e0!3m2!1sen!2sus!4v1715690000000!5m2!1sen!2sus" 
+                            src="https://maps.google.com/maps?q=Van%20Hogendorpstraat%2010%2C%202242%20KZ%20Wassenaar&t=&z=16&ie=UTF8&iwloc=&output=embed" 
                             width="100%" 
                             height="100%" 
-                            style="border:0;" 
+                            style="border:0; filter: contrast(105%) brightness(95%);" 
                             allowfullscreen="" 
                             loading="lazy" 
                             referrerpolicy="no-referrer-when-downgrade">
