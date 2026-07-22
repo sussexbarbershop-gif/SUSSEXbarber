@@ -967,6 +967,121 @@ async function cancelLiveBookingFromPlanner(date, time, phone) {
     }
 }
 
+// ---- CSV Export Engine ----
+function exportBookingsCSV() {
+    if (!bookings || bookings.length === 0) {
+        showToast('No bookings available to export', 'error');
+        return;
+    }
+
+    let csvContent = 'data:text/csv;charset=utf-8,';
+    csvContent += 'ID,Date,Time,Customer Name,Phone,Barber,Service,Price,Status\n';
+
+    bookings.forEach(b => {
+        const row = [
+            `"${b.id || ''}"`,
+            `"${b.date || ''}"`,
+            `"${b.time || ''}"`,
+            `"${(b.customerName || '').replace(/"/g, '""')}"`,
+            `"${(b.customerPhone || '').replace(/"/g, '""')}"`,
+            `"${(b.barberName || '').replace(/"/g, '""')}"`,
+            `"${(b.serviceName || '').replace(/"/g, '""')}"`,
+            `"${b.price || ''}"`,
+            `"${b.status || 'Confirmed'}"`
+        ];
+        csvContent += row.join(',') + '\n';
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `sussex_barber_bookings_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    showToast('Bookings exported to CSV (Excel) successfully!', 'success');
+}
+
+// ---- Admin Theme Switcher (Dark / Light) ----
+function toggleAdminTheme() {
+    const isLight = document.body.classList.toggle('admin-light-mode');
+    const btn = document.getElementById('btnThemeToggle');
+    if (btn) {
+        btn.innerHTML = isLight ? '☀️' : '🌙';
+    }
+    localStorage.setItem('sussex_admin_theme', isLight ? 'light' : 'dark');
+}
+
+// ---- Admin Multi-Language Engine ----
+const ADMIN_I18N = {
+    en: {
+        dashboard: "Dashboard",
+        bookings: "Bookings",
+        services: "Services & Pricing",
+        hours: "Working Hours",
+        gallery: "Gallery",
+        cms: "Website Text",
+        barbers: "Our Barbers",
+        analytics: "Analytics"
+    },
+    nl: {
+        dashboard: "Dashboard",
+        bookings: "Boekingen",
+        services: "Diensten & Prijzen",
+        hours: "Werktijden",
+        gallery: "Galerij",
+        cms: "Website Teksten",
+        barbers: "Onze Kappers",
+        analytics: "Analyses"
+    },
+    ku: {
+        dashboard: "داشبۆرد",
+        bookings: "حیجزەکان",
+        services: "سێرڤسەکان و نرخ",
+        hours: "کاتژمێرەکانی کارکردن",
+        gallery: "گەلەری",
+        cms: "نووسینەکانی وێبسایت",
+        barbers: "تراشەرەکان",
+        analytics: "ئامارەکان"
+    }
+};
+
+let currentAdminLang = 'en';
+
+function setAdminLanguage(lang) {
+    if (!ADMIN_I18N[lang]) return;
+    currentAdminLang = lang;
+    localStorage.setItem('sussex_admin_lang', lang);
+
+    const select = document.getElementById('adminLangSelect');
+    if (select) select.value = lang;
+
+    const dict = ADMIN_I18N[lang];
+    document.querySelectorAll('[data-admin-i18n]').forEach(el => {
+        const key = el.getAttribute('data-admin-i18n');
+        if (dict[key]) el.textContent = dict[key];
+    });
+
+    const pageTitle = document.getElementById('pageTitle');
+    if (pageTitle && dict[currentPage]) {
+        pageTitle.textContent = dict[currentPage];
+    }
+}
+
+// Load saved theme & language on init
+document.addEventListener('DOMContentLoaded', () => {
+    const savedTheme = localStorage.getItem('sussex_admin_theme');
+    if (savedTheme === 'light') {
+        document.body.classList.add('admin-light-mode');
+        const btn = document.getElementById('btnThemeToggle');
+        if (btn) btn.innerHTML = '☀️';
+    }
+
+    const savedLang = localStorage.getItem('sussex_admin_lang') || 'en';
+    setAdminLanguage(savedLang);
+});
+
 // Utilities
 function escapeHtml(str) {
     if (!str) return '';
@@ -995,4 +1110,5 @@ function showToast(message, type = 'info') {
         setTimeout(() => toast.remove(), 300);
     }, 3000);
 }
+
 

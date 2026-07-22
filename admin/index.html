@@ -113,9 +113,21 @@
                     <button class="burger-btn" onclick="toggleSidebar()">
                         <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                     </button>
-                    <h2 id="pageTitle">Dashboard</h2>
+                    <h2 id="pageTitle" data-admin-i18n="dashboard">Dashboard</h2>
                 </div>
-                <div class="topbar-right">
+                <div class="topbar-right" style="display:flex; align-items:center; gap:15px;">
+                    <!-- Theme Toggle -->
+                    <button class="btn btn-secondary btn-sm" onclick="toggleAdminTheme()" id="btnThemeToggle" title="Toggle Dark/Light Mode" style="padding:6px 10px;">
+                        🌙
+                    </button>
+
+                    <!-- Language Switcher -->
+                    <select id="adminLangSelect" onchange="setAdminLanguage(this.value)" style="background:var(--bg-secondary); color:var(--text-main); border:1px solid var(--border-color); padding:5px 10px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;">
+                        <option value="en">🇬🇧 English</option>
+                        <option value="nl">🇳🇱 Nederlands</option>
+                        <option value="ku">☀️ کوردی</option>
+                    </select>
+
                     <span class="admin-name">Admin</span>
                     <div class="admin-avatar">A</div>
                 </div>
@@ -191,7 +203,11 @@
                                     <button class="view-switch-btn" id="btnViewList" onclick="switchBookingView('list')" style="padding:6px 14px; font-size:13px; border-radius:6px; border:none; background:transparent; color:var(--text-muted); font-weight:500; cursor:pointer;">📋 All List Table</button>
                                 </div>
                             </div>
-                            <div class="data-card-actions">
+                            <div class="data-card-actions" style="display:flex; align-items:center; gap:10px;">
+                                <button class="btn btn-primary btn-sm" onclick="exportBookingsCSV()" style="display:flex; align-items:center; gap:6px; background:#10b981; border:none; font-weight:600;">
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                    Export CSV (Excel)
+                                </button>
                                 <button class="btn btn-secondary btn-sm" onclick="fetchLiveBookings()" style="display:flex; align-items:center; gap:6px;">
                                     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                                     Refresh Data
