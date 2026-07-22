@@ -808,24 +808,51 @@
                     </div>
                 </div>
 
-                <div class="w-full aspect-square min-h-[400px] md:h-[600px] bg-charcoal-800 border border-gray-200 dark:border-charcoal-700 relative overflow-hidden rounded-xl shadow-xl">
-                    <!-- Open in Google Maps Direct Action Button -->
-                    <div class="absolute top-4 right-4 z-30">
-                        <a href="https://maps.google.com/?q=Van+Hogendorpstraat+10,+2242+KZ+Wassenaar" target="_blank" rel="noopener noreferrer" class="bg-gold hover:bg-white text-charcoal-900 font-bold px-4 py-2.5 text-xs uppercase tracking-wider shadow-xl rounded-lg transition-colors flex items-center gap-2 border border-gold">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                            <span>Open in Google Maps ↗</span>
+                <div class="w-full min-h-[420px] md:h-[600px] bg-charcoal-900 border border-gray-200 dark:border-charcoal-700 relative overflow-hidden rounded-2xl shadow-2xl flex flex-col justify-between p-6 sm:p-8 bg-gradient-to-br from-charcoal-900 via-charcoal-800 to-black">
+                    <!-- Google Maps Business Info Card Header -->
+                    <div class="relative z-20">
+                        <div class="flex items-center justify-between gap-4">
+                            <div>
+                                <span class="text-xs uppercase tracking-widest text-gold font-bold">Google Maps Location</span>
+                                <h3 class="text-2xl sm:text-3xl font-bold font-serif text-white mt-1">Sussex Barber Shop</h3>
+                            </div>
+                            <div class="bg-gold/10 border border-gold/30 px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs text-gold font-bold">
+                                <span>★ 4.7</span>
+                                <span class="text-gray-400 font-normal">(130 reviews)</span>
+                            </div>
+                        </div>
+
+                        <!-- Location Details -->
+                        <div class="mt-6 space-y-3 text-sm text-gray-300">
+                            <div class="flex items-start gap-3">
+                                <span class="text-gold text-lg">📍</span>
+                                <div>
+                                    <div class="font-medium text-white">Van Hogendorpstraat 10, 2242 KZ Wassenaar</div>
+                                    <div class="text-xs text-gray-400">Netherlands</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="text-gold text-lg">📞</span>
+                                <a href="tel:+31653730803" class="hover:text-gold transition-colors font-mono text-white">+31 6 53730803</a>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="text-emerald-400 text-lg">🟢</span>
+                                <span class="text-emerald-400 font-semibold">Open • Closes 6 PM</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Direct Navigation Action Bar -->
+                    <div class="relative z-20 mt-8 pt-6 border-t border-gray-800 flex flex-col sm:flex-row gap-3 items-center justify-between">
+                        <span class="text-xs text-gray-400">Click below to open route in Google Maps app:</span>
+                        <a href="https://maps.app.goo.gl/vhDfYkHsUg5vzWHB8" target="_blank" rel="noopener noreferrer" class="w-full sm:w-auto px-6 py-3.5 bg-gold hover:bg-white text-charcoal-900 font-bold text-xs uppercase tracking-widest rounded-xl shadow-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2 border border-gold">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                            <span>Open Route in Google Maps ➔</span>
                         </a>
                     </div>
 
-                    <!-- OpenStreetMap Unblockable Embed -->
-                    <iframe 
-                        id="mapIframe"
-                        src="https://www.openstreetmap.org/export/embed.html?bbox=4.3850%2C52.1350%2C4.4040%2C52.1470&layer=mapnik&marker=52.141203%2C4.394628" 
-                        width="100%" 
-                        height="100%" 
-                        style="border:0; filter: invert(90%) hue-rotate(180deg) brightness(95%) contrast(90%);" 
-                        loading="lazy">
-                    </iframe>
+                    <!-- Background Map Visual Styling -->
+                    <div class="absolute inset-0 opacity-20 z-0 bg-cover bg-center pointer-events-none" style="background-image: url('https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=1200&q=80'); filter: grayscale(100%) contrast(150%);"></div>
                 </div>
             </div>
         </div>
