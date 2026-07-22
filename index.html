@@ -330,67 +330,7 @@
         </div>
     </section>
 
-    <!-- FAQ Section -->
-    <section id="faq" class="py-24 bg-gray-50 dark:bg-charcoal-800 transition-colors duration-300">
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 reveal">
-            <div class="text-center mb-16">
-                <h2 class="font-serif text-4xl text-gray-900 dark:text-white mb-4">Frequently Asked Questions</h2>
-                <div class="w-16 h-px bg-gold mx-auto"></div>
-            </div>
-            
-            <div class="space-y-4" id="faqAccordion">
-                <!-- FAQ Item 1 -->
-                <div class="border border-gray-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 rounded-lg overflow-hidden faq-item">
-                    <button class="w-full px-6 py-4 text-left flex justify-between items-center focus:outline-none" onclick="toggleFaq(this)">
-                        <span class="font-medium text-gray-900 dark:text-white">Do I need to make an appointment or can I just walk in?</span>
-                        <svg class="w-5 h-5 text-gold transform transition-transform duration-300 faq-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </button>
-                    <div class="px-6 pb-4 hidden faq-content text-gray-600 dark:text-gray-400 font-light text-sm">
-                        While we do accept walk-ins if we have availability, we highly recommend booking an appointment online to secure your preferred time and barber without waiting.
-                    </div>
-                </div>
-                
-                <!-- FAQ Item 2 -->
-                <div class="border border-gray-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 rounded-lg overflow-hidden faq-item">
-                    <button class="w-full px-6 py-4 text-left flex justify-between items-center focus:outline-none" onclick="toggleFaq(this)">
-                        <span class="font-medium text-gray-900 dark:text-white">Is there parking available nearby?</span>
-                        <svg class="w-5 h-5 text-gold transform transition-transform duration-300 faq-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </button>
-                    <div class="px-6 pb-4 hidden faq-content text-gray-600 dark:text-gray-400 font-light text-sm">
-                        Yes, there is public parking available directly in front of the shop and along Van Hogendorpstraat. Make sure to check the local parking meters if applicable.
-                    </div>
-                </div>
-                
-                <!-- FAQ Item 3 -->
-                <div class="border border-gray-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 rounded-lg overflow-hidden faq-item">
-                    <button class="w-full px-6 py-4 text-left flex justify-between items-center focus:outline-none" onclick="toggleFaq(this)">
-                        <span class="font-medium text-gray-900 dark:text-white">What payment methods do you accept?</span>
-                        <svg class="w-5 h-5 text-gold transform transition-transform duration-300 faq-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </button>
-                    <div class="px-6 pb-4 hidden faq-content text-gray-600 dark:text-gray-400 font-light text-sm">
-                        We accept PIN (Debit/Maestro), Credit Cards (Visa, Mastercard), and Cash. You can pay securely after your service is completed.
-                    </div>
-                </div>
-            </div>
-            
-            <script>
-                function toggleFaq(btn) {
-                    const content = btn.nextElementSibling;
-                    const icon = btn.querySelector('.faq-icon');
-                    const isHidden = content.classList.contains('hidden');
-                    
-                    // Close all others
-                    document.querySelectorAll('.faq-content').forEach(el => el.classList.add('hidden'));
-                    document.querySelectorAll('.faq-icon').forEach(el => el.classList.remove('rotate-180'));
-                    
-                    if (isHidden) {
-                        content.classList.remove('hidden');
-                        icon.classList.add('rotate-180');
-                    }
-                }
-            </script>
-        </div>
-    </section>
+
 
     <!-- Booking Section (Multi-step Wizard) -->
     <section id="booking" class="py-24 bg-gray-50 dark:bg-charcoal-800 transition-colors duration-300">
