@@ -1062,49 +1062,31 @@
         // ===========================
         const API_URL = "https://script.google.com/macros/s/AKfycbyB3U2n2W2HRn20BxQWLi7Swjq0dSQV6_nnrSXPHRMsx53kP6xy8OpO2w9OTu9cdZvVtQ/exec";
 
-        // Global Delegation for Barber & Service Selection
-        const bookingStep1Container = document.getElementById('bookingStep1');
-        if (bookingStep1Container) {
-            bookingStep1Container.addEventListener('click', (e) => {
-                const barberCard = e.target.closest('.barber-card');
-                if (barberCard) {
+        // Barber Cards Direct Selection Handlers
+        const initBarberCards = () => {
+            document.querySelectorAll('#barberCardsContainer .barber-card').forEach(card => {
+                const selectBarber = () => {
                     document.querySelectorAll('#barberCardsContainer .barber-card').forEach(c => {
-                        c.classList.remove('border-2', 'border-gold', 'bg-gold/10', 'dark:bg-gold/20', 'shadow-lg', 'selected');
+                        c.classList.remove('border-2', 'border-gold', 'bg-gold/10', 'dark:bg-gold/20', 'shadow-lg');
                         c.classList.add('border', 'border-gray-200', 'dark:border-charcoal-700');
                         const b = c.querySelector('.check-badge');
                         if (b) b.classList.add('hidden');
                     });
-                    barberCard.classList.remove('border', 'border-gray-200', 'dark:border-charcoal-700');
-                    barberCard.classList.add('border-2', 'border-gold', 'bg-gold/10', 'dark:bg-gold/20', 'shadow-lg', 'selected');
-                    const badge = barberCard.querySelector('.check-badge');
-                    if (badge) badge.classList.remove('hidden');
+                    card.classList.remove('border', 'border-gray-200', 'dark:border-charcoal-700');
+                    card.classList.add('border-2', 'border-gold', 'bg-gold/10', 'dark:bg-gold/20', 'shadow-lg');
+                    const selectedBadge = card.querySelector('.check-badge');
+                    if (selectedBadge) selectedBadge.classList.remove('hidden');
 
-                    document.getElementById('barber').value = barberCard.getAttribute('data-barber') || '';
+                    document.getElementById('barber').value = card.getAttribute('data-barber') || '';
                     if (typeof updateDesktopLiveSummary === 'function') updateDesktopLiveSummary();
-                    return;
-                }
-
-                const serviceCard = e.target.closest('.service-card');
-                if (serviceCard) {
-                    document.querySelectorAll('#serviceCardsContainer .service-card').forEach(c => {
-                        c.classList.remove('border-2', 'border-gold', 'bg-gold/10', 'dark:bg-gold/20', 'shadow-lg', 'selected');
-                        c.classList.add('border', 'border-gray-200', 'dark:border-charcoal-700');
-                        const b = c.querySelector('.check-badge');
-                        if (b) b.classList.add('hidden');
-                    });
-                    serviceCard.classList.remove('border', 'border-gray-200', 'dark:border-charcoal-700');
-                    serviceCard.classList.add('border-2', 'border-gold', 'bg-gold/10', 'dark:bg-gold/20', 'shadow-lg', 'selected');
-                    const badge = serviceCard.querySelector('.check-badge');
-                    if (badge) badge.classList.remove('hidden');
-
-                    document.getElementById('service').value = serviceCard.getAttribute('data-service') || '';
-                    if (typeof updateDesktopLiveSummary === 'function') updateDesktopLiveSummary();
-                    const selectedDate = document.getElementById('date').value;
-                    if (selectedDate && typeof renderTimeChips === 'function') renderTimeChips();
-                    return;
-                }
+                };
+                card.onclick = selectBarber;
+                card.onkeydown = (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectBarber(); }
+                };
             });
-        }
+        };
+        initBarberCards();
 
         // Step Navigation Logic
         const step1 = document.getElementById('bookingStep1');
