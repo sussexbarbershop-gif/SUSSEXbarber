@@ -146,7 +146,7 @@
             <div class="flex justify-between items-center h-20">
                 <div class="flex items-center space-x-3">
                     <a href="#" class="flex items-center transition-transform duration-300 hover:scale-105">
-                        <img src="assets/logo.jpg" alt="Sussex Barber Shop Logo" class="h-16 w-auto object-contain mix-blend-multiply grayscale contrast-[1.2] brightness-[1.1] dark:invert dark:mix-blend-screen transition-all duration-300" style="margin-top: -10px; margin-bottom: -10px; mix-blend-mode: multiply;">
+                        <img src="assets/logo.jpg" alt="Sussex Barber Shop Logo" class="h-16 w-auto object-contain mix-blend-multiply grayscale contrast-[1.2] brightness-[1.1] dark:invert dark:mix-blend-screen transition-all duration-300" style="margin-top: -10px; margin-bottom: -10px;">
                     </a>
                     <!-- Live Working Hours Status Badge -->
                     <div id="statusBadge" class="hidden sm:inline-block"></div>
@@ -1718,7 +1718,10 @@
             }
         });
 
-        // --- 13. Multi-language Support (EN/NL) ---
+    </script>
+
+    <!-- Global Language Translation Engine -->
+    <script>
         const dict = {
             'About': 'Over Ons',
             'Services': 'Diensten',
@@ -1803,24 +1806,23 @@
             'e.g. 06 1234 5678': 'bijv. 06 1234 5678'
         };
 
-        let currentLang = 'en';
-        window.currentLang = currentLang;
+        window.currentLang = 'en';
         
         function toggleLanguage() {
-            currentLang = currentLang === 'en' ? 'nl' : 'en';
-            window.currentLang = currentLang;
+            window.currentLang = window.currentLang === 'en' ? 'nl' : 'en';
+            const lang = window.currentLang;
             
             // Update Toggle Button Text
             const langBtn = document.getElementById('langToggleBtn');
             if (langBtn) {
-                langBtn.innerHTML = currentLang === 'en' ? 'EN' : 'NL';
+                langBtn.innerHTML = lang === 'en' ? 'EN' : 'NL';
             }
 
             // Translate data-translate elements
             document.querySelectorAll('[data-translate]').forEach(el => {
                 const key = el.getAttribute('data-translate');
                 if (dict[key]) {
-                    if (currentLang === 'nl') {
+                    if (lang === 'nl') {
                         if (!el.dataset.en) el.dataset.en = el.innerText;
                         el.innerText = dict[key];
                     } else {
@@ -1848,7 +1850,7 @@
                 }
                 
                 if(parent.dataset.en && parent.dataset.nl) {
-                    if (currentLang === 'nl') {
+                    if (lang === 'nl') {
                         n.nodeValue = n.nodeValue.replace(parent.dataset.en, parent.dataset.nl);
                     } else {
                         n.nodeValue = n.nodeValue.replace(parent.dataset.nl, parent.dataset.en);
@@ -1866,7 +1868,7 @@
                     }
                 }
                 if(el.dataset.enPlaceholder && el.dataset.nlPlaceholder) {
-                    el.placeholder = currentLang === 'nl' ? el.dataset.nlPlaceholder : el.dataset.enPlaceholder;
+                    el.placeholder = lang === 'nl' ? el.dataset.nlPlaceholder : el.dataset.enPlaceholder;
                 }
             });
         }
