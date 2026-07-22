@@ -1334,71 +1334,37 @@
                 return true;
             });
 
-            // Group valid times by Morning, Afternoon, Evening
-            const morningTimes = validTimes.filter(t => {
-                const hour = parseInt(t.split(':')[0], 10);
-                const isAM = t.includes('AM');
-                return (isAM && hour >= 9 && hour < 12) || (isAM && hour === 12);
+            validTimes.forEach((t, i) => {
+                if (i % intervalStep !== 0) return;
+                
+                const isBooked = bookedTimesList.includes(t);
+                const isSelected = selectedTime === t;
+
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                chip.disabled = isBooked;
+
+                if (isBooked) {
+                    chip.className = 'py-3 px-2 text-xs font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 line-through cursor-not-allowed rounded-lg text-center';
+                    chip.innerHTML = `${t} <span class="block text-[10px] no-underline">Booked</span>`;
+                } else if (isSelected) {
+                    chip.className = 'py-3 px-2 text-xs font-semibold border-2 border-gold bg-gold text-charcoal-900 rounded-lg text-center shadow-md';
+                    chip.innerText = t;
+                } else {
+                    chip.className = 'py-3 px-2 text-xs font-medium border border-gray-300 dark:border-charcoal-700 bg-gray-50 dark:bg-charcoal-800 text-gray-800 dark:text-gray-200 hover:border-gold hover:text-gold rounded-lg text-center transition-colors';
+                    chip.innerText = t;
+                }
+
+                if (!isBooked) {
+                    chip.addEventListener('click', () => {
+                        document.getElementById('time').value = t;
+                        renderTimeChips();
+                        updateDesktopLiveSummary();
+                    });
+                }
+
+                grid.appendChild(chip);
             });
-
-            const afternoonTimes = validTimes.filter(t => {
-                const hour = parseInt(t.split(':')[0], 10);
-                const isPM = t.includes('PM');
-                const isAM = t.includes('AM');
-                if (isAM && hour === 12) return false;
-                if (isPM && (hour === 12 || (hour >= 1 && hour < 5))) return true;
-                return false;
-            });
-
-            const eveningTimes = validTimes.filter(t => {
-                const hour = parseInt(t.split(':')[0], 10);
-                const isPM = t.includes('PM');
-                if (isPM && hour >= 5 && hour < 12) return true;
-                return false;
-            });
-
-            const renderCategorySection = (title, times) => {
-                if (times.length === 0) return;
-
-                const catHeader = document.createElement('div');
-                catHeader.className = 'col-span-full font-bold text-xs text-gold uppercase tracking-wider mt-3 mb-1 flex items-center gap-2 border-b border-gray-200 dark:border-charcoal-700 pb-1';
-                catHeader.innerText = title;
-                grid.appendChild(catHeader);
-
-                times.forEach((t) => {
-                    const isBooked = bookedTimesList.includes(t);
-                    const isSelected = selectedTime === t;
-
-                    const chip = document.createElement('button');
-                    chip.type = 'button';
-                    chip.disabled = isBooked;
-
-                    if (isBooked) {
-                        chip.className = 'py-2 px-2 text-xs font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 line-through cursor-not-allowed rounded-lg text-center';
-                        chip.innerHTML = `${t} <span class="block text-[10px] no-underline">Booked</span>`;
-                    } else if (isSelected) {
-                        chip.className = 'py-2 px-2 text-xs font-semibold border-2 border-gold bg-gold text-charcoal-900 rounded-lg text-center shadow-md scale-105 transition-all';
-                        chip.innerText = t;
-                    } else {
-                        chip.className = 'py-2 px-2 text-xs font-medium border border-gray-300 dark:border-charcoal-700 bg-gray-50 dark:bg-charcoal-800 text-gray-800 dark:text-gray-200 hover:border-gold hover:text-gold rounded-lg text-center transition-colors';
-                        chip.innerText = t;
-                    }
-
-                    if (!isBooked) {
-                        chip.addEventListener('click', () => {
-                            document.getElementById('time').value = t;
-                            renderTimeChips();
-                            updateDesktopLiveSummary();
-                        });
-                    }
-
-                    grid.appendChild(chip);
-                });
-            };
-
-            renderCategorySection('🌅 Morning (09:00 - 12:00)', morningTimes);
-            renderCategorySection('☀️ Afternoon (12:00 - 17:00)', afternoonTimes);
-            renderCategorySection('🌙 Evening (17:00+)', eveningTimes);
         }
 
         // Date Change Event (Fetch availability)
