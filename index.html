@@ -1069,13 +1069,13 @@
                 const barberCard = e.target.closest('.barber-card');
                 if (barberCard) {
                     document.querySelectorAll('#barberCardsContainer .barber-card').forEach(c => {
-                        c.classList.remove('border-2', 'border-gold', 'bg-gold/20', 'dark:bg-gold/30', 'ring-2', 'ring-gold', 'shadow-xl', 'selected');
+                        c.classList.remove('border-2', 'border-gold', 'bg-gold/10', 'dark:bg-gold/20', 'shadow-lg', 'selected');
                         c.classList.add('border', 'border-gray-200', 'dark:border-charcoal-700');
                         const b = c.querySelector('.check-badge');
                         if (b) b.classList.add('hidden');
                     });
                     barberCard.classList.remove('border', 'border-gray-200', 'dark:border-charcoal-700');
-                    barberCard.classList.add('border-2', 'border-gold', 'bg-gold/20', 'dark:bg-gold/30', 'ring-2', 'ring-gold', 'shadow-xl', 'selected');
+                    barberCard.classList.add('border-2', 'border-gold', 'bg-gold/10', 'dark:bg-gold/20', 'shadow-lg', 'selected');
                     const badge = barberCard.querySelector('.check-badge');
                     if (badge) badge.classList.remove('hidden');
 
@@ -1087,13 +1087,13 @@
                 const serviceCard = e.target.closest('.service-card');
                 if (serviceCard) {
                     document.querySelectorAll('#serviceCardsContainer .service-card').forEach(c => {
-                        c.classList.remove('border-2', 'border-gold', 'bg-gold/20', 'dark:bg-gold/30', 'ring-2', 'ring-gold', 'shadow-xl', 'selected');
+                        c.classList.remove('border-2', 'border-gold', 'bg-gold/10', 'dark:bg-gold/20', 'shadow-lg', 'selected');
                         c.classList.add('border', 'border-gray-200', 'dark:border-charcoal-700');
                         const b = c.querySelector('.check-badge');
                         if (b) b.classList.add('hidden');
                     });
                     serviceCard.classList.remove('border', 'border-gray-200', 'dark:border-charcoal-700');
-                    serviceCard.classList.add('border-2', 'border-gold', 'bg-gold/20', 'dark:bg-gold/30', 'ring-2', 'ring-gold', 'shadow-xl', 'selected');
+                    serviceCard.classList.add('border-2', 'border-gold', 'bg-gold/10', 'dark:bg-gold/20', 'shadow-lg', 'selected');
                     const badge = serviceCard.querySelector('.check-badge');
                     if (badge) badge.classList.remove('hidden');
 
