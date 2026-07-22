@@ -76,8 +76,11 @@ document.addEventListener('DOMContentLoaded', () => {
     setupNavigation();
     setupSidebar();
     
-    // Fetch real CMS data from server directly!
-    setTimeout(fetchLiveCMS, 500);
+    // Fetch real CMS data & live bookings from server directly!
+    setTimeout(() => {
+        fetchLiveCMS();
+        fetchLiveBookings();
+    }, 500);
 });
 
 // ---- Auth ----
@@ -726,7 +729,238 @@ function renderSimpleChart() {
     });
 }
 
-// ---- Utilities ----
+// ---- Live Bookings & Weekly Planner Engine ----
+let currentWeekOffset = 0;
+let bookingViewMode = 'planner';
+
+async function fetchLiveBookings() {
+    try {
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        if (Array.isArray(data)) {
+            bookings = data.map((b, idx) => ({
+                id: 'BK-' + (100 + idx),
+                customerName: b.name || 'Customer',
+                customerPhone: b.phone || '',
+                serviceName: b.service || 'Haircut',
+                barberName: b.barber || 'Any',
+                date: b.date || '',
+                time: b.time || '',
+                price: b.price || '',
+                status: 'Confirmed'
+            }));
+            saveBookings();
+            renderDashboard();
+            renderBookings();
+            renderWeeklyPlannerGrid();
+        }
+    } catch (e) {
+        console.error("Failed to fetch live bookings", e);
+    }
+}
+
+function switchBookingView(mode) {
+    bookingViewMode = mode;
+    const plannerEl = document.getElementById('bookingPlannerView');
+    const listEl = document.getElementById('bookingListView');
+    const btnPlanner = document.getElementById('btnViewPlanner');
+    const btnList = document.getElementById('btnViewList');
+
+    if (mode === 'planner') {
+        if (plannerEl) plannerEl.style.display = 'block';
+        if (listEl) listEl.style.display = 'none';
+        if (btnPlanner) {
+            btnPlanner.style.background = 'var(--gold)';
+            btnPlanner.style.color = '#000';
+            btnPlanner.style.fontWeight = '600';
+        }
+        if (btnList) {
+            btnList.style.background = 'transparent';
+            btnList.style.color = 'var(--text-muted)';
+            btnList.style.fontWeight = '500';
+        }
+        renderWeeklyPlannerGrid();
+    } else {
+        if (plannerEl) plannerEl.style.display = 'none';
+        if (listEl) listEl.style.display = 'block';
+        if (btnPlanner) {
+            btnPlanner.style.background = 'transparent';
+            btnPlanner.style.color = 'var(--text-muted)';
+            btnPlanner.style.fontWeight = '500';
+        }
+        if (btnList) {
+            btnList.style.background = 'var(--gold)';
+            btnList.style.color = '#000';
+            btnList.style.fontWeight = '600';
+        }
+        renderBookings();
+    }
+}
+
+function navigateWeek(offsetDir) {
+    if (offsetDir === 0) {
+        currentWeekOffset = 0;
+    } else {
+        currentWeekOffset += offsetDir;
+    }
+    renderWeeklyPlannerGrid();
+}
+
+function getMondayOfOffsetWeek(offsetWeeks) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const day = today.getDay();
+    const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Monday
+    const monday = new Date(today.setDate(diff));
+    monday.setDate(monday.getDate() + (offsetWeeks * 7));
+    return monday;
+}
+
+function formatDateISO(date) {
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+function formatDateShort(date) {
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    return `${dd}/${mm}`;
+}
+
+function renderWeeklyPlannerGrid() {
+    const container = document.getElementById('weeklyGridContainer');
+    const titleEl = document.getElementById('plannerWeekTitle');
+    const countEl = document.getElementById('plannerTotalCount');
+    const revEl = document.getElementById('plannerEstRevenue');
+
+    if (!container) return;
+
+    const monday = getMondayOfOffsetWeek(currentWeekOffset);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+
+    if (titleEl) {
+        titleEl.textContent = `📅 WEEK: ${formatDateShort(monday)} to ${formatDateShort(sunday)}`;
+    }
+
+    const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const weekDays = [];
+
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        const iso = formatDateISO(d);
+        const dayBookings = bookings.filter(b => b.date === iso);
+        weekDays.push({
+            name: dayNames[i],
+            dateObj: d,
+            iso: iso,
+            bookings: dayBookings
+        });
+    }
+
+    let totalWeekBookings = 0;
+    let totalEstRev = 0;
+
+    let html = '';
+
+    weekDays.forEach((dayData, colIdx) => {
+        totalWeekBookings += dayData.bookings.length;
+
+        // Calculate day revenue
+        dayData.bookings.forEach(b => {
+            let priceNum = parseInt(String(b.price).replace(/[^0-9]/g, '')) || 28;
+            totalEstRev += priceNum;
+        });
+
+        const isClosed = (colIdx === 6); // Sunday
+        const countText = dayData.bookings.length === 1 ? '1 booking' : `${dayData.bookings.length} bookings`;
+
+        html += `
+            <div class="planner-day-col" style="background:var(--bg-secondary); border-radius:10px; border:1px solid var(--border-color); overflow:hidden; display:flex; flex-direction:column;">
+                <div class="planner-day-header" style="background:${isClosed ? '#3b1c1c' : '#222'}; padding:12px; text-align:center; border-bottom:1px solid var(--border-color);">
+                    <div style="font-weight:700; color:var(--gold); font-size:14px;">${dayData.name}</div>
+                    <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${formatDateShort(dayData.dateObj)}</div>
+                    <div style="font-size:11px; color:#aaa; margin-top:4px; font-weight:600;">${countText}</div>
+                </div>
+                <div class="planner-day-body" style="padding:10px; flex:1; display:flex; flex-direction:column; gap:10px; min-height:300px; background:${isClosed ? 'rgba(239, 68, 68, 0.03)' : 'transparent'};">
+        `;
+
+        if (isClosed && dayData.bookings.length === 0) {
+            html += `
+                <div style="text-align:center; color:#ef4444; font-size:13px; font-weight:600; padding:20px 0;">
+                    🚫 CLOSED
+                </div>
+            `;
+        } else if (dayData.bookings.length === 0) {
+            html += `
+                <div style="text-align:center; color:var(--text-muted); font-size:12px; padding:20px 0; font-style:italic;">
+                    No bookings
+                </div>
+            `;
+        } else {
+            // Sort bookings by time
+            dayData.bookings.sort((a, b) => a.time.localeCompare(b.time));
+
+            dayData.bookings.forEach(b => {
+                html += `
+                    <div class="planner-card" style="background:var(--bg-card); border:1px solid var(--border-color); border-left:3px solid var(--gold); border-radius:6px; padding:10px; font-size:12px; transition:transform 0.2s ease;">
+                        <div style="font-weight:700; color:var(--gold); font-size:13px; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
+                            <span>⏰ ${escapeHtml(b.time)}</span>
+                            <button onclick="cancelLiveBookingFromPlanner('${escapeHtml(b.date)}', '${escapeHtml(b.time)}', '${escapeHtml(b.customerPhone)}')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:12px; padding:0 4px;" title="Cancel Booking">✕</button>
+                        </div>
+                        <div style="font-weight:600; color:#fff; margin-bottom:2px;">👤 ${escapeHtml(b.customerName)}</div>
+                        ${b.customerPhone ? `<div style="margin-bottom:2px;"><a href="tel:${escapeHtml(b.customerPhone)}" style="color:#60a5fa; text-decoration:none;">📞 ${escapeHtml(b.customerPhone)}</a></div>` : ''}
+                        <div style="color:var(--text-muted); margin-bottom:2px;">💈 ${escapeHtml(b.barberName)}</div>
+                        <div style="color:var(--text-muted); margin-bottom:2px;">✂️ ${escapeHtml(b.serviceName)}</div>
+                        ${b.price ? `<div style="color:#4ade80; font-weight:600; margin-top:4px;">💶 €${escapeHtml(String(b.price))}</div>` : ''}
+                    </div>
+                `;
+            });
+        }
+
+        html += `
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+    if (countEl) countEl.textContent = totalWeekBookings;
+    if (revEl) revEl.textContent = `€${totalEstRev}`;
+}
+
+async function cancelLiveBookingFromPlanner(date, time, phone) {
+    if (!confirm(`Are you sure you want to cancel the booking on ${date} at ${time}?`)) return;
+
+    showToast('Canceling booking...', 'info');
+
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'cancelBooking',
+                date: date,
+                time: time,
+                phone: phone
+            })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            showToast('Booking canceled successfully!', 'success');
+            fetchLiveBookings(); // Reload live bookings
+        } else {
+            showToast('Could not cancel booking: ' + (data.message || 'Error'), 'error');
+        }
+    } catch (e) {
+        console.error("Cancel failed", e);
+        showToast('Failed to reach server', 'error');
+    }
+}
+
+// Utilities
 function escapeHtml(str) {
     if (!str) return '';
     const div = document.createElement('div');
@@ -754,3 +988,4 @@ function showToast(message, type = 'info') {
         setTimeout(() => toast.remove(), 300);
     }, 3000);
 }
+

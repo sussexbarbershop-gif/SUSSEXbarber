@@ -183,9 +183,45 @@
                 <!-- ========== BOOKINGS ========== -->
                 <div id="page-bookings" class="page-section">
                     <div class="data-card">
-                        <div class="data-card-header">
-                            <h3>All Bookings</h3>
+                        <div class="data-card-header" style="flex-wrap: wrap; gap: 15px;">
+                            <div style="display:flex; align-items:center; gap:15px;">
+                                <h3>Bookings Management</h3>
+                                <div class="view-switch-tabs" style="display:flex; background:var(--bg-secondary); padding:4px; border-radius:8px; border:1px solid var(--border-color);">
+                                    <button class="view-switch-btn active" id="btnViewPlanner" onclick="switchBookingView('planner')" style="padding:6px 14px; font-size:13px; border-radius:6px; border:none; background:var(--gold); color:#000; font-weight:600; cursor:pointer;">📅 Weekly Planner Grid</button>
+                                    <button class="view-switch-btn" id="btnViewList" onclick="switchBookingView('list')" style="padding:6px 14px; font-size:13px; border-radius:6px; border:none; background:transparent; color:var(--text-muted); font-weight:500; cursor:pointer;">📋 All List Table</button>
+                                </div>
+                            </div>
                             <div class="data-card-actions">
+                                <button class="btn btn-secondary btn-sm" onclick="fetchLiveBookings()" style="display:flex; align-items:center; gap:6px;">
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                    Refresh Data
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- WEEKLY PLANNER VIEW -->
+                        <div id="bookingPlannerView" style="padding: 20px;">
+                            <div class="planner-toolbar" style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-secondary); padding:12px 20px; border-radius:10px; margin-bottom:20px; border:1px solid var(--border-color); flex-wrap:wrap; gap:12px;">
+                                <div style="display:flex; align-items:center; gap:10px;">
+                                    <button class="btn btn-secondary btn-sm" onclick="navigateWeek(-1)">← Previous Week</button>
+                                    <button class="btn btn-secondary btn-sm" onclick="navigateWeek(0)">This Week</button>
+                                    <button class="btn btn-secondary btn-sm" onclick="navigateWeek(1)">Next Week →</button>
+                                </div>
+                                <h4 id="plannerWeekTitle" style="color:var(--gold); font-size:16px; font-weight:700; margin:0;">Week Range</h4>
+                                <div style="display:flex; gap:15px; font-size:13px;">
+                                    <span style="color:var(--text-muted);">Total Bookings: <b id="plannerTotalCount" style="color:#fff;">0</b></span>
+                                    <span style="color:var(--text-muted);">Est. Revenue: <b id="plannerEstRevenue" style="color:#4ade80;">€0</b></span>
+                                </div>
+                            </div>
+
+                            <div class="weekly-grid-container" id="weeklyGridContainer" style="display:grid; grid-template-columns: repeat(7, minmax(180px, 1fr)); gap:12px; overflow-x:auto; padding-bottom:10px;">
+                                <!-- Rendered dynamically by JS -->
+                            </div>
+                        </div>
+
+                        <!-- LIST TABLE VIEW -->
+                        <div id="bookingListView" style="display:none;">
+                            <div class="data-card-actions" style="padding: 15px 20px 0 20px;">
                                 <div class="filter-tabs" id="bookingFilters">
                                     <button class="filter-tab active" data-filter="all" onclick="setBookingFilter('all')">All</button>
                                     <button class="filter-tab" data-filter="today" onclick="setBookingFilter('today')">Today</button>
@@ -193,23 +229,23 @@
                                     <button class="filter-tab" data-filter="pending" onclick="setBookingFilter('pending')">Pending</button>
                                 </div>
                             </div>
-                        </div>
-                        <div class="table-responsive">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Customer</th>
-                                        <th>Phone</th>
-                                        <th>Service</th>
-                                        <th>Barber</th>
-                                        <th>Date</th>
-                                        <th>Time</th>
-                                        <th>Status</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="bookingsBody"></tbody>
-                            </table>
+                            <div class="table-responsive">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Customer</th>
+                                            <th>Phone</th>
+                                            <th>Service</th>
+                                            <th>Barber</th>
+                                            <th>Date</th>
+                                            <th>Time</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="bookingsBody"></tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
