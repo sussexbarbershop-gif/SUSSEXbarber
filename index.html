@@ -1895,52 +1895,42 @@
                 const key = el.getAttribute('data-translate');
                 if (dict[key]) {
                     if (lang === 'nl') {
-                        if (!el.dataset.en) el.dataset.en = el.innerText;
                         el.innerText = dict[key];
                     } else {
-                        if (el.dataset.en) el.innerText = el.dataset.en;
-                        else el.innerText = key;
+                        el.innerText = key;
                     }
                 }
             });
             
-            // Walk DOM and replace text
+            // Walk DOM and replace text safely using pristine original English preservation
             const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
             let n;
             while (n = walk.nextNode()) {
                 const parent = n.parentElement;
                 if(parent && (parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE')) continue;
                 
-                let text = n.nodeValue.trim();
-                if(!text) continue;
-                
-                if(!parent.dataset.en) {
-                    if(dict[text]) {
-                        parent.dataset.en = text;
-                        parent.dataset.nl = dict[text];
-                    }
+                if (typeof n._origEn === 'undefined') {
+                    n._origEn = n.nodeValue;
                 }
-                
-                if(parent.dataset.en && parent.dataset.nl) {
+
+                let key = n._origEn.trim();
+                if (key && dict[key]) {
                     if (lang === 'nl') {
-                        n.nodeValue = n.nodeValue.replace(parent.dataset.en, parent.dataset.nl);
+                        n.nodeValue = n._origEn.replace(key, dict[key]);
                     } else {
-                        n.nodeValue = n.nodeValue.replace(parent.dataset.nl, parent.dataset.en);
+                        n.nodeValue = n._origEn;
                     }
                 }
             }
             
             // Translate placeholders
             document.querySelectorAll('input[placeholder], textarea[placeholder]').forEach(el => {
-                const text = el.placeholder.trim();
-                if(!el.dataset.enPlaceholder) {
-                    if(dict[text]) {
-                        el.dataset.enPlaceholder = text;
-                        el.dataset.nlPlaceholder = dict[text];
-                    }
+                if (typeof el._origPlaceholder === 'undefined') {
+                    el._origPlaceholder = el.placeholder.trim();
                 }
-                if(el.dataset.enPlaceholder && el.dataset.nlPlaceholder) {
-                    el.placeholder = lang === 'nl' ? el.dataset.nlPlaceholder : el.dataset.enPlaceholder;
+                const key = el._origPlaceholder;
+                if (dict[key]) {
+                    el.placeholder = lang === 'nl' ? dict[key] : el._origPlaceholder;
                 }
             });
 
