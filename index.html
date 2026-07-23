@@ -141,7 +141,7 @@
     <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col gap-3 pointer-events-none"></div>
 
     <!-- Navigation Bar -->
-    <nav class="fixed w-full z-40 bg-white dark:bg-charcoal-900 border-b border-gray-200 dark:border-charcoal-700 transition-colors duration-300">
+    <nav class="fixed w-full z-40 bg-white/90 dark:bg-charcoal-900/90 backdrop-blur-md border-b border-gray-200 dark:border-charcoal-700 transition-colors duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-20">
                 <div class="flex items-center space-x-3">
@@ -247,7 +247,7 @@
                 <img src="assets/sussex_experience_1783438070840.jpg" alt="Barber Tools" class="grayscale hover:grayscale-0 transition-all duration-700 shadow-2xl shadow-black/20 dark:shadow-black/50 rounded-xl">
             </div>
             <div class="w-full md:w-1/2">
-                <h2 class="font-serif text-4xl mb-6 text-gray-900 dark:text-white" data-translate="The Sussex Experience">The Sussex <span class="text-gold">Experience</span></h2>
+                <h2 class="font-serif text-4xl mb-6 text-gray-900 dark:text-white">The Sussex <span class="text-gold">Experience</span></h2>
                 <p id="cms-about-text" class="text-gray-600 dark:text-gray-400 font-light leading-relaxed mb-6">
                     At Sussex Barber Shop, we blend modern styling techniques with traditional barbering values. Our space is designed to be a sanctuary for men—a place where you can unwind, enjoy a free coffee, and leave looking your absolute best.<br><br>
                     With a 4.7-star rating and a reputation for precise cuts and a friendly atmosphere, our attentive barbers ensure that every haircut, beard trim, and hot towel shave is executed to perfection.
@@ -364,30 +364,30 @@
 
                         <div class="relative z-10 flex flex-col items-center">
                             <div id="stepDot1" class="w-10 h-10 rounded-full bg-gold text-charcoal-900 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300 ring-4 ring-gold/20">1</div>
-                            <span id="stepLabel1" class="text-xs uppercase tracking-wider mt-2 font-bold text-gold" data-translate="Service">Service</span>
+                            <span id="stepLabel1" class="text-xs uppercase tracking-wider mt-2 font-bold text-gold">Service</span>
                         </div>
                         <div class="relative z-10 flex flex-col items-center">
                             <div id="stepDot2" class="w-10 h-10 rounded-full bg-gray-300 dark:bg-charcoal-700 text-gray-600 dark:text-gray-400 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300">2</div>
-                            <span id="stepLabel2" class="text-xs uppercase tracking-wider mt-2 font-medium text-gray-400 dark:text-gray-500" data-translate="Date & Time">Date & Time</span>
+                            <span id="stepLabel2" class="text-xs uppercase tracking-wider mt-2 font-medium text-gray-400 dark:text-gray-500">Date & Time</span>
                         </div>
                         <div class="relative z-10 flex flex-col items-center">
                             <div id="stepDot3" class="w-10 h-10 rounded-full bg-gray-300 dark:bg-charcoal-700 text-gray-600 dark:text-gray-400 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300">3</div>
-                            <span id="stepLabel3" class="text-xs uppercase tracking-wider mt-2 font-medium text-gray-400 dark:text-gray-500" data-translate="Confirm">Confirm</span>
+                            <span id="stepLabel3" class="text-xs uppercase tracking-wider mt-2 font-medium text-gray-400 dark:text-gray-500">Confirm</span>
                         </div>
                     </div>
 
                     <!-- Multi-step Form -->
                     <form id="bookingForm" class="bg-white dark:bg-charcoal-900 p-6 sm:p-10 shadow-xl text-left border border-gray-200 dark:border-charcoal-700 transition-colors duration-300 rounded-lg relative z-30">
-                <input type="hidden" id="service" value="">
-                <input type="hidden" id="barber" value="">
+                <input type="hidden" id="service" value="Classic Haircut">
+                <input type="hidden" id="barber" value="Any Available">
                 <input type="hidden" id="time" value="">
 
                 <!-- STEP 1: Select Service & Barber -->
                 <div id="bookingStep1" class="space-y-8">
                     <div>
-                        <label class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-3 font-semibold" data-translate="1. Choose Preferred Barber">1. Choose Preferred Barber</label>
+                        <label class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-3 font-semibold">1. Choose Preferred Barber</label>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="barberCardsContainer">
-                            <div tabindex="0" data-barber="Any Available" class="barber-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                            <div tabindex="0" data-barber="Any Available" class="barber-card cursor-pointer p-3 sm:p-4 border-2 border-gold bg-gold/5 dark:bg-gold/10 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
                                 <div class="w-12 h-12 mx-auto rounded-full bg-gold/20 flex items-center justify-center text-gold mb-2">
                                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                                 </div>
@@ -423,7 +423,7 @@
                     </div>
 
                     <div>
-                        <label class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-3 font-semibold" data-translate="2. Choose Service">2. Choose Service</label>
+                        <label class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-3 font-semibold">2. Choose Service</label>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="serviceCardsContainer">
                             <div tabindex="0" data-service="Classic Haircut" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
                                 <div>
@@ -574,8 +574,8 @@
                     <!-- Summary Card -->
                     <div class="bg-gray-50 dark:bg-charcoal-800 p-5 rounded-lg border border-gray-200 dark:border-charcoal-700 space-y-2">
                         <h4 class="text-xs uppercase tracking-widest text-gold font-bold mb-3">Booking Summary</h4>
-                        <div class="flex justify-between text-sm"><span class="text-gray-500 dark:text-gray-400">Service:</span><span id="summaryService" class="font-medium text-gray-900 dark:text-white">-</span></div>
-                        <div class="flex justify-between text-sm"><span class="text-gray-500 dark:text-gray-400">Barber:</span><span id="summaryBarber" class="font-medium text-gray-900 dark:text-white">-</span></div>
+                        <div class="flex justify-between text-sm"><span class="text-gray-500 dark:text-gray-400">Service:</span><span id="summaryService" class="font-medium text-gray-900 dark:text-white">Classic Haircut</span></div>
+                        <div class="flex justify-between text-sm"><span class="text-gray-500 dark:text-gray-400">Barber:</span><span id="summaryBarber" class="font-medium text-gray-900 dark:text-white">Any Available</span></div>
                         <div class="flex justify-between text-sm"><span class="text-gray-500 dark:text-gray-400">Date:</span><span id="summaryDate" class="font-medium text-gray-900 dark:text-white">-</span></div>
                         <div class="flex justify-between text-sm"><span class="text-gray-500 dark:text-gray-400">Time Slot:</span><span id="summaryTime" class="font-medium text-gold font-semibold">-</span></div>
                     </div>
@@ -633,15 +633,15 @@
                 <!-- Bottom/Right Column: Live Summary (Desktop only) -->
                 <div class="hidden md:block md:col-span-12 mt-4">
                     <div class="bg-gold/10 dark:bg-gold/5 p-6 rounded-xl border border-gold/30 shadow-lg space-y-4">
-                        <h4 class="text-sm uppercase tracking-widest text-gold font-bold mb-4 flex items-center gap-2" data-translate="LIVE SUMMARY">
+                        <h4 class="text-sm uppercase tracking-widest text-gold font-bold mb-4 flex items-center gap-2">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
                             Live Summary
                         </h4>
                         <div class="space-y-3">
-                            <div class="flex justify-between text-sm"><span class="text-gray-600 dark:text-gray-400" data-translate="Service:">Service:</span><span id="desktopLiveService" class="font-medium text-gray-900 dark:text-white text-right">-</span></div>
-                            <div class="flex justify-between text-sm"><span class="text-gray-600 dark:text-gray-400" data-translate="Barber:">Barber:</span><span id="desktopLiveBarber" class="font-medium text-gray-900 dark:text-white text-right">-</span></div>
-                            <div class="flex justify-between text-sm"><span class="text-gray-600 dark:text-gray-400" data-translate="Date:">Date:</span><span id="desktopLiveDate" class="font-medium text-gray-900 dark:text-white text-right">-</span></div>
-                            <div class="flex justify-between text-sm"><span class="text-gray-600 dark:text-gray-400" data-translate="Time:">Time:</span><span id="desktopLiveTime" class="font-medium text-gold font-bold text-right">-</span></div>
+                            <div class="flex justify-between text-sm"><span class="text-gray-600 dark:text-gray-400">Service:</span><span id="desktopLiveService" class="font-medium text-gray-900 dark:text-white text-right">Classic Haircut</span></div>
+                            <div class="flex justify-between text-sm"><span class="text-gray-600 dark:text-gray-400">Barber:</span><span id="desktopLiveBarber" class="font-medium text-gray-900 dark:text-white text-right">Any Available</span></div>
+                            <div class="flex justify-between text-sm"><span class="text-gray-600 dark:text-gray-400">Date:</span><span id="desktopLiveDate" class="font-medium text-gray-900 dark:text-white text-right">-</span></div>
+                            <div class="flex justify-between text-sm"><span class="text-gray-600 dark:text-gray-400">Time:</span><span id="desktopLiveTime" class="font-medium text-gold font-bold text-right">-</span></div>
                         </div>
                     </div>
                 </div> <!-- End Right Column -->
@@ -741,10 +741,10 @@
 
                     <!-- Direct Navigation Action Bar -->
                     <div class="relative z-20 mt-8 pt-6 border-t border-gray-800 flex flex-col sm:flex-row gap-3 items-center justify-between">
-                        <span class="text-xs text-gray-400" data-translate="Click below to open route in Google Maps app:">Click below to open route in Google Maps app:</span>
+                        <span class="text-xs text-gray-400">Click below to open route in Google Maps app:</span>
                         <a href="https://maps.app.goo.gl/vhDfYkHsUg5vzWHB8" target="_blank" rel="noopener noreferrer" class="w-full sm:w-auto px-6 py-3.5 bg-gold hover:bg-white text-charcoal-900 font-bold text-xs uppercase tracking-widest rounded-xl shadow-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2 border border-gold">
                             <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-                            <span data-translate="Open Route in Google Maps ➔">Open Route in Google Maps ➔</span>
+                            <span>Open Route in Google Maps ➔</span>
                         </a>
                     </div>
 
@@ -777,10 +777,10 @@
     <footer class="bg-gray-100 dark:bg-charcoal-900 pt-16 pb-8 border-t border-gray-200 dark:border-charcoal-800 transition-colors duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex flex-col md:flex-row justify-between items-center text-gray-500 dark:text-gray-600 text-sm tracking-wide">
-                <p data-translate="© 2026 Sussex Barber Shop. All rights reserved.">© 2026 Sussex Barber Shop. All rights reserved.</p>
+                <p>© 2026 Sussex Barber Shop. All rights reserved.</p>
                 <div class="flex space-x-4 mt-4 md:mt-0">
-                    <a href="#" class="hover:text-gold transition-colors" data-translate="Privacy Policy">Privacy Policy</a>
-                    <a href="#" class="hover:text-gold transition-colors" data-translate="Terms of Service">Terms of Service</a>
+                    <a href="#" class="hover:text-gold transition-colors">Privacy Policy</a>
+                    <a href="#" class="hover:text-gold transition-colors">Terms of Service</a>
                 </div>
             </div>
         </div>
@@ -847,11 +847,9 @@
             }
 
             if (isOpen) {
-                const openText = (window.currentLang === 'nl') ? 'Nu Open' : 'Open Now';
-                badge.innerHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> ${openText}</span>`;
+                badge.innerHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Open Now</span>`;
             } else {
-                const closedText = (window.currentLang === 'nl') ? 'Nu Gesloten' : 'Closed Now';
-                badge.innerHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30"><span class="w-2 h-2 rounded-full bg-rose-500"></span> ${closedText}</span>`;
+                badge.innerHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30"><span class="w-2 h-2 rounded-full bg-rose-500"></span> Closed Now</span>`;
             }
         }
         updateBusinessStatus();
@@ -1019,17 +1017,10 @@
 
         // Live Summary Update
         const updateDesktopLiveSummary = () => {
-            let service = document.getElementById('service').value || '-';
-            let barber = document.getElementById('barber').value || '-';
+            const service = document.getElementById('service').value || '-';
+            const barber = document.getElementById('barber').value || '-';
             const date = document.getElementById('date').value || '-';
             const time = document.getElementById('time').value || '-';
-            
-            if (window.currentLang === 'nl') {
-                if (typeof dict !== 'undefined') {
-                    if (dict[service]) service = dict[service];
-                    if (dict[barber]) barber = dict[barber];
-                }
-            }
             
             const elService = document.getElementById('desktopLiveService');
             const elBarber = document.getElementById('desktopLiveBarber');
@@ -1168,21 +1159,6 @@
         }
 
         document.getElementById('goToStep2Btn').addEventListener('click', () => {
-            const barberVal = document.getElementById('barber').value;
-            const serviceVal = document.getElementById('service').value;
-
-            if (!barberVal) {
-                const msg = window.currentLang === 'nl' ? 'Selecteer eerst een kapper.' : 'Please select a barber first.';
-                showToast(msg, "error");
-                return;
-            }
-
-            if (!serviceVal) {
-                const msg = window.currentLang === 'nl' ? 'Selecteer eerst een dienst.' : 'Please select a service first.';
-                showToast(msg, "error");
-                return;
-            }
-
             updateWizardUI(2);
             currentCalDate = new Date();
             renderCustomCalendar();
@@ -1742,10 +1718,7 @@
             }
         });
 
-    </script>
-
-    <!-- Global Language Translation Engine -->
-    <script>
+        // --- 13. Multi-language Support (EN/NL) ---
         const dict = {
             'About': 'Over Ons',
             'Services': 'Diensten',
@@ -1798,11 +1771,7 @@
             'One Grade Trim': 'Eén lengte trim (tondeuse)',
             'Kids Haircut (Up to 10 Years)': 'Kinderknipbeurt (t/m 10 jaar)',
             'Kids Haircut (Up to 13 Years)': 'Kinderknipbeurt (t/m 13 jaar)',
-            'Masterful Cuts.': 'Meesterlijke snitten.',
-            'Timeless Style.': 'Tijdloze stijl.',
             'Masterful Cuts, Exceptional Service.': 'Meesterlijke snitten, Uitzonderlijke service.',
-            'Experience premium grooming and hearty service in the heart of Wassenaar.': 'Ervaar eersteklas verzorging en hartelijke service in het hart van Wassenaar.',
-            'Experience premium grooming and hearty service in the heart of Wassenaar': 'Ervaar eersteklas verzorging en hartelijke service in het hart van Wassenaar',
             'Elevating the art of grooming in Sussex. Experience the difference.': 'Verhoging van de kunst van verzorging in Sussex. Ervaar het verschil.',
             'Precision haircuts & styling for the modern man.': 'Precisie kapsels & styling voor de moderne man.',
             'Hot towel shaves & beard styling.': 'Hot towel scheren & baard styling.',
@@ -1827,128 +1796,64 @@
             'Contact Us': 'Neem Contact Op',
             'Quick Links': 'Snelle Links',
             'Rights Reserved.': 'Alle rechten voorbehouden.',
-            'The Sussex Experience': 'De Sussex Ervaring',
-            'Service': 'Dienst',
-            'Date & Time': 'Datum & Tijd',
-            'Confirm': 'Bevestigen',
-            '1. Choose Preferred Barber': '1. Kies Voorkeurskapper',
-            '2. Choose Service': '2. Kies Dienst',
-            'Meet the experienced professionals dedicated to giving you the perfect look. Every barber at Sussex is a master of their craft.': 'Ontmoet de ervaren professionals die toegewijd zijn om u de perfecte look te geven. Elke kapper bij Sussex is een meester in zijn vak.',
-            'At Sussex Barber Shop, we blend modern styling techniques with traditional barbering values. Our space is designed to be a sanctuary for men—a place where you can unwind, enjoy a free coffee, and leave looking your absolute best.': 'Bij Sussex Barber Shop combineren we moderne stylingtechnieken met traditionele barbierswaarden. Onze ruimte is ontworpen als een rustplek voor mannen—een plek waar u kunt ontspannen, genieten van een gratis koffie en er op uw best uitziet.',
-            'With a 4.7-star rating and a reputation for precise cuts and a friendly atmosphere, our attentive barbers ensure that every haircut, beard trim, and hot towel shave is executed to perfection.': 'Met een beoordeling van 4.7 sterren en een reputatie voor nauwkeurige knipbeurten en een vriendelijke sfeer, zorgen onze aandachtige kappers ervoor dat elke knipbeurt, baardtrim en hot towel scheerbeurt tot in de perfectie wordt uitgevoerd.',
-            'Skin Fade': 'Skin Fade',
-            'min': 'min.',
-            '~15 min': '~15 min.',
-            '~20 min': '~20 min.',
-            '~30 min': '~30 min.',
-            '~45 min': '~45 min.',
-            '~60 min': '~60 min.',
-            '⏱️ ~15 min': '⏱️ ~15 min.',
-            '⏱️ ~20 min': '⏱️ ~20 min.',
-            '⏱️ ~30 min': '⏱️ ~30 min.',
-            '⏱️ ~45 min': '⏱️ ~45 min.',
-            '⏱️ ~60 min': '⏱️ ~60 min.',
-            'Visit Us': 'Bezoek Ons',
-            'LIVE SUMMARY': 'LIVE OVERZICHT',
-            'Service:': 'Dienst:',
-            'Barber:': 'Kapper:',
-            'Date:': 'Datum:',
-            'Time:': 'Tijd:',
-            'Any Available': 'Elke Beschikbare Kapper',
-            'First available chair': 'Eerst beschikbare stoel',
-            'MASTER BARBER': 'MEESTERKAPPER',
-            'SENIOR STYLIST': 'SENIOR STYLIST',
-            'BARBER': 'KAPPER',
-            'Specialty:': 'Specialiteit:',
-            'Experience:': 'Ervaring:',
-            'Skin Fades, Beards': 'Skin Fades, Baarden',
-            'Classic Cuts, Styling': 'Klassieke Knipbeurten, Styling',
-            'Hot Towel Shaves': 'Hot Towel Scheren',
-            '5+ Years': '5+ Jaar',
-            '8+ Years': '8+ Jaar',
-            '4+ Years': '4+ Jaar',
-            'Google Maps Location': 'Locatie Google Maps',
-            'Click below to open route in Google Maps app:': 'Klik hieronder om de route te openen in Google Maps:',
-            'Open Route in Google Maps ➔': 'Open Route in Google Maps ➔',
-            'Privacy Policy': 'Privacybeleid',
-            'Terms of Service': 'Algemene Voorwaarden',
+            'About Us': 'Over Ons',
             'Book Appointment': 'Afspraak Maken',
             'Select a service': 'Selecteer een dienst',
             'Enter your full name': 'Voer uw volledige naam in',
             'e.g. 06 1234 5678': 'bijv. 06 1234 5678'
         };
 
-        window.currentLang = 'en';
+        let currentLang = 'en';
         
         function toggleLanguage() {
-            window.currentLang = window.currentLang === 'en' ? 'nl' : 'en';
-            const lang = window.currentLang;
+            currentLang = currentLang === 'en' ? 'nl' : 'en';
             
             // Update Toggle Button Text
             const langBtn = document.getElementById('langToggleBtn');
             if (langBtn) {
-                langBtn.innerHTML = lang === 'en' ? 'EN' : 'NL';
+                langBtn.innerHTML = currentLang === 'en' ? 'EN' : 'NL';
             }
-
-            // Translate data-translate elements
-            document.querySelectorAll('[data-translate]').forEach(el => {
-                const key = el.getAttribute('data-translate');
-                if (dict[key]) {
-                    if (lang === 'nl') {
-                        el.innerText = dict[key];
-                    } else {
-                        el.innerText = key;
-                    }
-                }
-            });
             
-            // Walk DOM and replace text safely using pristine original English preservation
+            // Walk DOM and replace text
             const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
             let n;
             while (n = walk.nextNode()) {
                 const parent = n.parentElement;
                 if(parent && (parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE')) continue;
                 
-                if (typeof n._origEn === 'undefined') {
-                    n._origEn = n.nodeValue;
+                let text = n.nodeValue.trim();
+                if(!text) continue;
+                
+                if(!parent.dataset.en) {
+                    if(dict[text]) {
+                        parent.dataset.en = text;
+                        parent.dataset.nl = dict[text];
+                    }
                 }
-
-                let key = n._origEn.trim();
-                if (key && dict[key]) {
-                    if (lang === 'nl') {
-                        n.nodeValue = n._origEn.replace(key, dict[key]);
+                
+                if(parent.dataset.en && parent.dataset.nl) {
+                    if (currentLang === 'nl') {
+                        n.nodeValue = n.nodeValue.replace(parent.dataset.en, parent.dataset.nl);
                     } else {
-                        n.nodeValue = n._origEn;
+                        n.nodeValue = n.nodeValue.replace(parent.dataset.nl, parent.dataset.en);
                     }
                 }
             }
             
             // Translate placeholders
             document.querySelectorAll('input[placeholder], textarea[placeholder]').forEach(el => {
-                if (typeof el._origPlaceholder === 'undefined') {
-                    el._origPlaceholder = el.placeholder.trim();
+                const text = el.placeholder.trim();
+                if(!el.dataset.enPlaceholder) {
+                    if(dict[text]) {
+                        el.dataset.enPlaceholder = text;
+                        el.dataset.nlPlaceholder = dict[text];
+                    }
                 }
-                const key = el._origPlaceholder;
-                if (dict[key]) {
-                    el.placeholder = lang === 'nl' ? dict[key] : el._origPlaceholder;
-                }
-            });
-
-            // Translate service duration tags (.service-duration)
-            document.querySelectorAll('.service-duration').forEach(el => {
-                const dur = el.getAttribute('data-duration');
-                if (dur) {
-                    el.innerText = lang === 'nl' ? `⏱️ ~${dur} min.` : `⏱️ ~${dur} min`;
+                if(el.dataset.enPlaceholder && el.dataset.nlPlaceholder) {
+                    el.placeholder = currentLang === 'nl' ? el.dataset.nlPlaceholder : el.dataset.enPlaceholder;
                 }
             });
-
-            // Re-render live status badge and desktop live summary
-            if (typeof updateBusinessStatus === 'function') updateBusinessStatus();
-            if (typeof updateDesktopLiveSummary === 'function') updateDesktopLiveSummary();
         }
-
-        window.toggleLanguage = toggleLanguage;
-        window.applyTranslations = toggleLanguage;
 
     </script>
 
@@ -2031,8 +1936,6 @@
         
         // Expose globally for booking submission
         window.sussexServices = services;
-        
-        const minLabel = window.currentLang === 'nl' ? 'min.' : 'min';
 
         // ---- Populate Services List (Price List Section) ----
         const servicesContainer = document.getElementById('servicesListContainer');
@@ -2043,7 +1946,7 @@
                 return `<div class="flex justify-between items-end ${borderClass} pb-4">
                     <div>
                         <h3 class="text-xl text-gray-900 dark:text-white font-medium" data-translate="${s.nameEN}">${s.nameEN}</h3>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 service-duration" data-duration="${s.duration}">⏱️ ~${s.duration} ${minLabel}</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">⏱️ ~${s.duration} min</p>
                     </div>
                     <span class="text-gold text-xl font-serif">€${s.price}</span>
                 </div>`;
@@ -2057,7 +1960,7 @@
                 return `<div tabindex="0" data-service="${s.nameEN}" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
                     <div>
                         <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="${s.nameEN}">${s.nameEN}</h4>
-                        <p class="text-xs text-gold mt-1 font-medium service-duration" data-duration="${s.duration}">⏱️ ~${s.duration} ${minLabel}</p>
+                        <p class="text-xs text-gold mt-1 font-medium">⏱️ ~${s.duration} min</p>
                     </div>
                     <span class="text-gold font-serif font-bold text-lg">€${s.price.toFixed(2)}</span>
                 </div>`;
@@ -2244,8 +2147,8 @@
         const bookingSec = document.getElementById('booking');
         if (!bookingSec) return;
 
-        const serviceVal = document.getElementById('service').value || '-';
-        const priceVal = document.getElementById('service').value ? (document.getElementById('priceDisplay') ? document.getElementById('priceDisplay').innerText : '€28') : '-';
+        const serviceVal = document.getElementById('service').value || 'Classic Haircut';
+        const priceVal = document.getElementById('priceDisplay') ? document.getElementById('priceDisplay').innerText : '€28';
 
         document.getElementById('mobileStickyService').innerText = serviceVal;
         document.getElementById('mobileStickyPrice').innerText = priceVal;
