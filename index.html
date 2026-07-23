@@ -99,12 +99,16 @@
             border-radius: 4px;
         }
 
-        /* Card Selection Visual Styles (Guaranteed) */
+        /* Booking Selection Stroke & Highlight Styles (Guaranteed Stroke) */
         .barber-card.selected,
-        .service-card.selected {
-            border: 2px solid #d4af37 !important;
-            background-color: rgba(212, 175, 55, 0.15) !important;
-            box-shadow: 0 0 15px rgba(212, 175, 55, 0.35) !important;
+        .service-card.selected,
+        .time-chip-selected,
+        .calendar-day-selected {
+            border: 2.5px solid #d4af37 !important;
+            outline: 2.5px solid #d4af37 !important;
+            outline-offset: 2px;
+            background-color: rgba(212, 175, 55, 0.18) !important;
+            box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.5), 0 0 20px rgba(212, 175, 55, 0.4) !important;
         }
         .barber-card.selected .check-badge,
         .service-card.selected .check-badge {
@@ -1315,7 +1319,7 @@
                     chip.className = 'py-3 px-2 text-xs font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 line-through cursor-not-allowed rounded-lg text-center';
                     chip.innerHTML = `${t} <span class="block text-[10px] no-underline">Booked</span>`;
                 } else if (isSelected) {
-                    chip.className = 'py-3 px-2 text-xs font-semibold border-2 border-gold bg-gold text-charcoal-900 rounded-lg text-center shadow-md';
+                    chip.className = 'time-chip-selected py-3 px-2 text-xs font-bold bg-gold text-charcoal-900 rounded-lg text-center shadow-md';
                     chip.innerText = t;
                 } else {
                     chip.className = 'py-3 px-2 text-xs font-medium border border-gray-300 dark:border-charcoal-700 bg-gray-50 dark:bg-charcoal-800 text-gray-800 dark:text-gray-200 hover:border-gold hover:text-gold rounded-lg text-center transition-colors';
@@ -1456,7 +1460,7 @@
                     }
                 } else {
                     if (isSelected) {
-                        dayBtn.className += ' bg-gold text-charcoal-900 font-bold shadow-lg shadow-gold/30 scale-105 border-2 border-gold';
+                        dayBtn.className += ' calendar-day-selected bg-gold text-charcoal-900 font-bold shadow-lg shadow-gold/30 scale-105';
                     } else {
                         dayBtn.className += ' text-gray-800 dark:text-gray-200 bg-white dark:bg-charcoal-900 border border-gray-200 dark:border-charcoal-700 hover:border-gold hover:text-gold hover:scale-105 shadow-sm';
                         if (isToday) {
