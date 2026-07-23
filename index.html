@@ -75,6 +75,9 @@
             const input = document.getElementById('barber');
             if (input) input.value = card.getAttribute('data-barber') || '';
             if (typeof updateDesktopLiveSummary === 'function') updateDesktopLiveSummary();
+            if (typeof fetchBookedSlotsForSelectedDate === 'function') {
+                fetchBookedSlotsForSelectedDate();
+            }
         };
 
         window.selectServiceCard = function(card) {
@@ -1408,24 +1411,86 @@
             const statusText = document.getElementById('timeSlotStatusText');
             statusText.innerText = "Checking slot availability...";
 
-            // Skeleton loading effect for timeslots
+        // Barber-specific slot availability fetching
+        async function fetchBookedSlotsForSelectedDate() {
+            const dateInput = document.getElementById('date');
+            if (!dateInput) return;
+            const dateVal = dateInput.value;
+            if (!dateVal) return;
+
+            const barberInput = document.getElementById('barber');
+            const barberVal = barberInput ? (barberInput.value || 'Any Available').trim() : 'Any Available';
+
             const grid = document.getElementById('timeChipsGrid');
-            grid.innerHTML = '';
-            for(let i=0; i<8; i++) {
-                const skeleton = document.createElement('div');
-                skeleton.className = 'py-5 px-2 bg-gray-200 dark:bg-charcoal-700 animate-pulse rounded-lg';
-                grid.appendChild(skeleton);
+            if (grid) {
+                grid.innerHTML = '';
+                for(let i=0; i<8; i++) {
+                    const skeleton = document.createElement('div');
+                    skeleton.className = 'py-5 px-2 bg-gray-200 dark:bg-charcoal-700 animate-pulse rounded-lg';
+                    grid.appendChild(skeleton);
+                }
             }
 
             try {
-                const response = await fetch(`${API_URL}?date=${dateVal}`);
-                bookedTimesList = await response.json();
+                // Fetch active bookings from Google Sheet API
+                const response = await fetch(API_URL);
+                const apiData = await response.json();
+                
+                // Read local bookings from localStorage
+                const localBookings = JSON.parse(localStorage.getItem('sussex_bookings') || '[]');
+                
+                const allBookings = Array.isArray(apiData) ? [...apiData, ...localBookings] : localBookings;
+                
+                // Count bookings per barber for this date
+                const barberBookingCountPerTime = {};
+                const specificBookedTimesForBarber = new Set();
+
+                allBookings.forEach(b => {
+                    if (!b.date) return;
+                    const bDate = String(b.date).trim();
+                    const bStatus = String(b.status || '').trim().toLowerCase();
+                    if (bStatus === 'canceled' || bStatus === 'cancelled') return;
+
+                    if (bDate === dateVal && b.time) {
+                        const bTime = String(b.time).trim();
+                        const bBarber = String(b.barber || 'Any Available').trim();
+
+                        if (!barberBookingCountPerTime[bTime]) {
+                            barberBookingCountPerTime[bTime] = new Set();
+                        }
+                        barberBookingCountPerTime[bTime].add(bBarber);
+
+                        if (barberVal !== 'Any Available' && (bBarber === barberVal || bBarber === 'Any Available')) {
+                            specificBookedTimesForBarber.add(bTime);
+                        }
+                    }
+                });
+
+                if (barberVal !== 'Any Available') {
+                    bookedTimesList = Array.from(specificBookedTimesForBarber);
+                } else {
+                    const TOTAL_SPECIFIC_BARBERS = 5;
+                    const blocked = [];
+                    Object.keys(barberBookingCountPerTime).forEach(t => {
+                        const barbersBooked = barberBookingCountPerTime[t];
+                        if (barbersBooked.has('Any Available') || barbersBooked.size >= TOTAL_SPECIFIC_BARBERS) {
+                            blocked.push(t);
+                        }
+                    });
+                    bookedTimesList = blocked;
+                }
             } catch (error) {
-                console.error("Error fetching booked slots:", error);
+                console.error("Error fetching booked slots per barber:", error);
                 bookedTimesList = [];
             }
 
             renderTimeChips();
+        }
+
+        // Date Change Event (Fetch barber availability)
+        document.getElementById('date').addEventListener('change', function() {
+            document.getElementById('time').value = "";
+            fetchBookedSlotsForSelectedDate();
         });
 
         // Set date constraints & Custom Modern Calendar Logic
