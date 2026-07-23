@@ -1407,11 +1407,11 @@
             });
         }
 
-        // Date Change Event (Fetch availability)
-        document.getElementById('date').addEventListener('change', async function() {
-            const dateVal = this.value;
-            document.getElementById('time').value = "";
-
+        // Barber-specific slot availability fetching
+        async function fetchBookedSlotsForSelectedDate() {
+            const dateInput = document.getElementById('date');
+            if (!dateInput) return;
+            const dateVal = dateInput.value;
             if (!dateVal) return;
 
             const selectedDate = new Date(dateVal);
@@ -1425,28 +1425,21 @@
             maxDate.setHours(0,0,0,0);
 
             if (selectedDate < today || selectedDate > maxDate) {
-                showToast("Booking is only available for the next 30 days.", "error");
-                this.value = "";
+                if (typeof showToast === 'function') showToast("Booking is only available for the next 30 days.", "error");
+                dateInput.value = "";
                 renderTimeChips();
                 return;
             }
 
             if (selectedDate.getDay() === 0) {
-                showToast("We are closed on Sundays. Please choose another day.", "error");
-                this.value = "";
+                if (typeof showToast === 'function') showToast("We are closed on Sundays. Please choose another day.", "error");
+                dateInput.value = "";
                 renderTimeChips();
                 return;
             }
 
             const statusText = document.getElementById('timeSlotStatusText');
-            statusText.innerText = "Checking slot availability...";
-
-        // Barber-specific slot availability fetching
-        async function fetchBookedSlotsForSelectedDate() {
-            const dateInput = document.getElementById('date');
-            if (!dateInput) return;
-            const dateVal = dateInput.value;
-            if (!dateVal) return;
+            if (statusText) statusText.innerText = "Checking slot availability...";
 
             const barberInput = document.getElementById('barber');
             const barberVal = barberInput ? (barberInput.value || 'Any Available').trim() : 'Any Available';
@@ -1518,10 +1511,14 @@
         }
 
         // Date Change Event (Fetch barber availability)
-        document.getElementById('date').addEventListener('change', function() {
-            document.getElementById('time').value = "";
-            fetchBookedSlotsForSelectedDate();
-        });
+        const dateEl = document.getElementById('date');
+        if (dateEl) {
+            dateEl.addEventListener('change', function() {
+                const timeEl = document.getElementById('time');
+                if (timeEl) timeEl.value = "";
+                fetchBookedSlotsForSelectedDate();
+            });
+        }
 
         // Set date constraints & Custom Modern Calendar Logic
         let currentCalDate = new Date();
