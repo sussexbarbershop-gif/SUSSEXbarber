@@ -418,13 +418,13 @@
                 <div class="md:col-span-12">
                     <!-- Step Progress Indicator -->
                     <div class="flex justify-between items-center max-w-md mx-auto mb-10 relative px-4 sticky top-20 z-40 bg-gray-50/90 dark:bg-charcoal-800/90 backdrop-blur py-4 rounded-xl border border-gray-100 dark:border-charcoal-700 shadow-sm">
-                        <div class="absolute top-1/2 left-9 right-9 h-1 bg-gray-200 dark:bg-charcoal-700 -translate-y-1/2 z-0 rounded-full overflow-hidden">
-                            <div id="progressLine" class="h-full bg-gradient-to-r from-gold via-amber-400 to-gold transition-all duration-500 ease-out shadow-[0_0_10px_rgba(212,175,55,0.8)]" style="width: 0%"></div>
+                        <div class="absolute top-1/2 left-9 right-9 h-0.5 bg-gray-300 dark:bg-charcoal-700 -translate-y-1/2 z-0">
+                            <div id="progressLine" class="h-full bg-gold transition-all duration-500 ease-out" style="width: 0%"></div>
                         </div>
 
                         <div class="relative z-10 flex flex-col items-center">
-                            <div id="stepDot1" class="w-10 h-10 rounded-full bg-gold text-charcoal-900 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300 ring-4 ring-gold/20">1</div>
-                            <span id="stepLabel1" class="text-xs uppercase tracking-wider mt-2 font-bold text-gold">Service</span>
+                            <div id="stepDot1" class="w-10 h-10 rounded-full bg-gold text-charcoal-900 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300">1</div>
+                            <span id="stepLabel1" class="text-xs uppercase tracking-wider mt-2 font-medium text-gray-900 dark:text-white">Service</span>
                         </div>
                         <div class="relative z-10 flex flex-col items-center">
                             <div id="stepDot2" class="w-10 h-10 rounded-full bg-gray-300 dark:bg-charcoal-700 text-gray-600 dark:text-gray-400 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300">2</div>
@@ -580,8 +580,8 @@
                         <input type="hidden" id="date" required>
                         
                         <!-- Custom Modern Calendar UI -->
-                        <div id="customCalendar" class="bg-gray-50 dark:bg-charcoal-800 border border-gray-200 dark:border-charcoal-700 rounded-xl p-2 sm:p-5 shadow-xl select-none">
-                            <div class="flex justify-between items-center mb-2 pb-2 border-b border-gray-200 dark:border-charcoal-700">
+                        <div id="customCalendar" class="bg-gray-50 dark:bg-charcoal-800 border border-gray-200 dark:border-charcoal-700 rounded-xl p-3 sm:p-5 shadow-xl select-none">
+                            <div class="flex justify-between items-center mb-4 pb-3 border-b border-gray-200 dark:border-charcoal-700">
                                 <div class="flex items-center space-x-2">
                                     <svg class="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                                     <h4 id="calendarMonthYear" class="font-serif text-lg font-bold text-gray-900 dark:text-white">Month Year</h4>
@@ -614,7 +614,7 @@
                             <span id="timeSlotStatusText" class="text-xs text-gray-500 dark:text-gray-400">Please choose a date first</span>
                         </div>
                         <!-- Interactive Time Chips Grid -->
-                        <div id="timeChipsGrid" class="grid grid-cols-4 sm:grid-cols-5 gap-1 sm:gap-2.5"></div>
+                        <div id="timeChipsGrid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-2.5"></div>
                     </div>
 
                     <div class="pt-4 flex justify-between items-stretch gap-3">
@@ -1134,10 +1134,7 @@
         ];
 
         let bookedTimesList = [];
-        // ===========================
-        // Sussex Barber Shop - Global State
-        // ===========================
-        const API_URL = "https://script.google.com/macros/s/AKfycbyB3U2n2W2HRn20BxQWLi7Swjq0dSQV6_nnrSXPHRMsx53kP6xy8OpO2w9OTu9cdZvVtQ/exec";
+        const API_URL = "https://script.google.com/macros/s/AKfycbyEaZa65gCE2tQcCEvsDKcg8rIfPK8wS9RqjhaLJv5Pa8kCJ9ta5dlG0I29HAu9gnCeHA/exec";
 
         // Service Cards Selection
         document.querySelectorAll('#serviceCardsContainer .service-card').forEach(card => {
@@ -1323,7 +1320,7 @@
                     const chip = document.createElement('button');
                     chip.type = 'button';
                     chip.disabled = true;
-                    chip.className = 'py-1.5 sm:py-3 px-1 sm:px-2 text-[10px] sm:text-xs font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 cursor-not-allowed rounded-lg text-center opacity-50';
+                    chip.className = 'py-2 sm:py-3 px-1 sm:px-2 text-xs font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 cursor-not-allowed rounded-lg text-center opacity-50';
                     chip.innerText = t;
                     grid.appendChild(chip);
                 });
@@ -1343,71 +1340,43 @@
             const selectedServicesCount = selectedServicesStr ? selectedServicesStr.split(',').length : 1;
             const intervalStep = Math.max(1, selectedServicesCount);
 
-            // Group valid times by Morning, Afternoon, Evening
-            const morningTimes = validTimes.filter(t => {
-                const hour = parseInt(t.split(':')[0], 10);
-                const isAM = t.includes('AM');
-                return (isAM && hour >= 9 && hour < 12) || (isAM && hour === 12);
+            const validTimes = availableTimesList.filter(t => {
+                if (isMonday && (t.startsWith("10:") || t.startsWith("11:"))) return false;
+                return true;
             });
 
-            const afternoonTimes = validTimes.filter(t => {
-                const hour = parseInt(t.split(':')[0], 10);
-                const isPM = t.includes('PM');
-                const isAM = t.includes('AM');
-                if (isAM && hour === 12) return false;
-                if (isPM && (hour === 12 || (hour >= 1 && hour < 5))) return true;
-                return false;
+            validTimes.forEach((t, i) => {
+                // For each additional service, add 30 mins to the interval (skip slots)
+                if (i % intervalStep !== 0) return;
+                
+                const isBooked = bookedTimesList.includes(t);
+                const isSelected = selectedTime === t;
+
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                chip.disabled = isBooked;
+
+                if (isBooked) {
+                    chip.className = 'py-3 px-2 text-xs font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 line-through cursor-not-allowed rounded-lg text-center';
+                    chip.innerHTML = `${t} <span class="block text-[10px] no-underline">Booked</span>`;
+                } else if (isSelected) {
+                    chip.className = 'py-3 px-2 text-xs font-semibold border-2 border-gold bg-gold text-charcoal-900 rounded-lg text-center shadow-md';
+                    chip.innerText = t;
+                } else {
+                    chip.className = 'py-3 px-2 text-xs font-medium border border-gray-300 dark:border-charcoal-700 bg-gray-50 dark:bg-charcoal-800 text-gray-800 dark:text-gray-200 hover:border-gold hover:text-gold rounded-lg text-center transition-colors';
+                    chip.innerText = t;
+                }
+
+                if (!isBooked) {
+                    chip.addEventListener('click', () => {
+                        document.getElementById('time').value = t;
+                        renderTimeChips();
+                        updateDesktopLiveSummary();
+                    });
+                }
+
+                grid.appendChild(chip);
             });
-
-            const eveningTimes = validTimes.filter(t => {
-                const hour = parseInt(t.split(':')[0], 10);
-                const isPM = t.includes('PM');
-                if (isPM && hour >= 5 && hour < 12) return true;
-                return false;
-            });
-
-            const renderCategorySection = (title, times) => {
-                if (times.length === 0) return;
-
-                const catHeader = document.createElement('div');
-                catHeader.className = 'col-span-full font-bold text-xs text-gold uppercase tracking-wider mt-3 mb-1 flex items-center gap-2 border-b border-gray-200 dark:border-charcoal-700 pb-1';
-                catHeader.innerText = title;
-                grid.appendChild(catHeader);
-
-                times.forEach((t) => {
-                    const isBooked = bookedTimesList.includes(t);
-                    const isSelected = selectedTime === t;
-
-                    const chip = document.createElement('button');
-                    chip.type = 'button';
-                    chip.disabled = isBooked;
-
-                    if (isBooked) {
-                        chip.className = 'py-2 px-2 text-xs font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 line-through cursor-not-allowed rounded-lg text-center';
-                        chip.innerHTML = `${t} <span class="block text-[10px] no-underline">Booked</span>`;
-                    } else if (isSelected) {
-                        chip.className = 'py-2 px-2 text-xs font-semibold border-2 border-gold bg-gold text-charcoal-900 rounded-lg text-center shadow-md scale-105 transition-all';
-                        chip.innerText = t;
-                    } else {
-                        chip.className = 'py-2 px-2 text-xs font-medium border border-gray-300 dark:border-charcoal-700 bg-gray-50 dark:bg-charcoal-800 text-gray-800 dark:text-gray-200 hover:border-gold hover:text-gold rounded-lg text-center transition-colors';
-                        chip.innerText = t;
-                    }
-
-                    if (!isBooked) {
-                        chip.addEventListener('click', () => {
-                            document.getElementById('time').value = t;
-                            renderTimeChips();
-                            updateDesktopLiveSummary();
-                        });
-                    }
-
-                    grid.appendChild(chip);
-                });
-            };
-
-            renderCategorySection('🌅 Morning (09:00 - 12:00)', morningTimes);
-            renderCategorySection('☀️ Afternoon (12:00 - 17:00)', afternoonTimes);
-            renderCategorySection('🌙 Evening (17:00+)', eveningTimes);
         }
 
         // Date Change Event (Fetch availability)
@@ -1487,7 +1456,7 @@
             
             for (let i = 0; i < firstDayIndex; i++) {
                 const emptyCell = document.createElement('div');
-                emptyCell.className = 'w-full h-10 sm:aspect-square';
+                emptyCell.className = 'w-full aspect-[5/4] sm:aspect-square';
                 grid.appendChild(emptyCell);
             }
             
@@ -1516,7 +1485,7 @@
                 
                 const dayBtn = document.createElement('button');
                 dayBtn.type = 'button';
-                dayBtn.className = 'w-full h-10 sm:aspect-square flex flex-col items-center justify-center text-xs sm:text-sm font-semibold rounded-lg sm:rounded-xl transition-all duration-200 relative select-none';
+                dayBtn.className = 'w-full aspect-[5/4] sm:aspect-square flex flex-col items-center justify-center text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 relative select-none';
                 dayBtn.innerHTML = `<span>${day}</span>`;
                 
                 if (isDisabled) {
@@ -2142,7 +2111,7 @@
         }
     })();
     // --- 11. My Bookings System ---
-    async function renderMyBookings() {
+    function renderMyBookings() {
         const container = document.getElementById('myBookingsContainer');
         const listEl = document.getElementById('myBookingsList');
         if (!container || !listEl) return;
@@ -2155,24 +2124,6 @@
         // Filter out past bookings automatically
         const today = new Date().toISOString().split('T')[0];
         myBookings = myBookings.filter(b => b.date >= today);
-
-        // Fetch live active bookings from server to remove any deleted/canceled by Admin!
-        try {
-            const res = await fetch(API_URL);
-            const serverBookings = await res.json();
-            if (Array.isArray(serverBookings)) {
-                myBookings = myBookings.filter(mb => {
-                    return serverBookings.some(sb => {
-                        const dateMatch = sb.date === mb.date;
-                        const timeMatch = sb.time === mb.time;
-                        const serviceMatch = !mb.service || !sb.service || sb.service.trim().toLowerCase() === mb.service.trim().toLowerCase();
-                        const barberMatch = !mb.barber || !sb.barber || sb.barber === 'Any' || sb.barber === 'Any Available' || sb.barber.trim().toLowerCase() === mb.barber.trim().toLowerCase();
-                        return dateMatch && timeMatch && serviceMatch && barberMatch;
-                    });
-                });
-            }
-        } catch(e) { console.error("Could not sync my bookings with server", e); }
-
         localStorage.setItem('my_personal_bookings', JSON.stringify(myBookings));
 
         if (myBookings.length === 0) {
@@ -2246,58 +2197,6 @@
         renderMyBookings();
     });
 
-        // Mobile Sticky Booking Summary Bar
-    function updateMobileStickySummaryBar() {
-        let bar = document.getElementById('mobileStickyBar');
-        if (!bar) {
-            bar = document.createElement('div');
-            bar.id = 'mobileStickyBar';
-            bar.className = 'fixed bottom-0 left-0 right-0 bg-charcoal-900/95 backdrop-blur border-t border-gold/30 p-3 z-50 flex justify-between items-center sm:hidden shadow-2xl transition-transform duration-300 transform translate-y-full';
-            bar.innerHTML = `
-                <div class="flex flex-col">
-                    <span id="mobileStickyService" class="text-xs font-bold text-white truncate max-w-[200px]">Classic Haircut</span>
-                    <span id="mobileStickyPrice" class="text-xs text-gold font-semibold">€28</span>
-                </div>
-                <button onclick="handleMobileStickyNext()" class="px-5 py-2 bg-gold text-charcoal-900 font-bold text-xs rounded-lg shadow-md uppercase tracking-wider flex items-center gap-1">
-                    <span>Next</span> ➔
-                </button>
-            `;
-            document.body.appendChild(bar);
-        }
-
-        const bookingSec = document.getElementById('booking');
-        if (!bookingSec) return;
-
-        const serviceVal = document.getElementById('service').value || 'Classic Haircut';
-        const priceVal = document.getElementById('priceDisplay') ? document.getElementById('priceDisplay').innerText : '€28';
-
-        document.getElementById('mobileStickyService').innerText = serviceVal;
-        document.getElementById('mobileStickyPrice').innerText = priceVal;
-
-        // Show bar on mobile when near booking section
-        const rect = bookingSec.getBoundingClientRect();
-        if (rect.top < window.innerHeight && rect.bottom > 100) {
-            bar.classList.remove('translate-y-full');
-        } else {
-            bar.classList.add('translate-y-full');
-        }
-    }
-
-    window.handleMobileStickyNext = function() {
-        const step1 = document.getElementById('bookingStep1');
-        const step2 = document.getElementById('bookingStep2');
-        const step3 = document.getElementById('bookingStep3');
-
-        if (step1 && !step1.classList.contains('hidden')) {
-            if (typeof nextStep === 'function') nextStep(1);
-        } else if (step2 && !step2.classList.contains('hidden')) {
-            if (typeof nextStep === 'function') nextStep(2);
-        }
-    };
-
-    window.addEventListener('scroll', updateMobileStickySummaryBar);
-    window.addEventListener('resize', updateMobileStickySummaryBar);
-    document.addEventListener('DOMContentLoaded', updateMobileStickySummaryBar);
-</script>
+    </script>
 </body>
 </html>
