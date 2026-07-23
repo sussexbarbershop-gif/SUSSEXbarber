@@ -697,11 +697,11 @@
                     </div>
 
                     <div class="pt-4 flex justify-between items-stretch gap-3">
-                        <button type="button" id="backToStep1Btn" class="border border-gray-300 dark:border-charcoal-700 text-gray-700 dark:text-gray-300 px-4 sm:px-6 py-3.5 rounded-lg hover:bg-gray-100 dark:hover:bg-charcoal-800 transition-colors text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2">
+                        <button type="button" id="backToStep1Btn" onclick="goToStep(1)" class="border border-gray-300 dark:border-charcoal-700 text-gray-700 dark:text-gray-300 px-4 sm:px-6 py-3.5 rounded-lg hover:bg-gray-100 dark:hover:bg-charcoal-800 transition-colors text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
                             <span>Back</span>
                         </button>
-                        <button type="button" id="goToStep3Btn" class="bg-gold text-charcoal-900 font-semibold uppercase tracking-widest px-4 sm:px-8 py-3.5 rounded-lg hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-charcoal-900 transition-colors duration-300 text-xs sm:text-sm flex flex-1 items-center justify-center gap-2 text-center whitespace-nowrap sm:whitespace-normal">
+                        <button type="button" id="goToStep3Btn" onclick="goToStep(3)" class="bg-gold text-charcoal-900 font-semibold uppercase tracking-widest px-4 sm:px-8 py-3.5 rounded-lg hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-charcoal-900 transition-colors duration-300 text-xs sm:text-sm flex flex-1 items-center justify-center gap-2 text-center whitespace-nowrap sm:whitespace-normal">
                             <span>Continue to Summary</span>
                             <svg class="w-4 h-4 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                         </button>
@@ -1280,29 +1280,11 @@
         if (goToBtn2) {
             goToBtn2.addEventListener('click', () => { window.goToStep(2); });
         }
-            const barberVal = document.getElementById('barber').value;
-            const serviceVal = document.getElementById('service').value;
 
-            if (!barberVal) {
-                const msg = window.currentLang === 'nl' ? 'Selecteer eerst een kapper.' : 'Please select a barber first.';
-                showToast(msg, "error");
-                return;
-            }
-
-            if (!serviceVal) {
-                const msg = window.currentLang === 'nl' ? 'Selecteer eerst een dienst.' : 'Please select a service first.';
-                showToast(msg, "error");
-                return;
-            }
-
-            updateWizardUI(2);
-            currentCalDate = new Date();
-            renderCustomCalendar();
-        });
-
-        document.getElementById('backToStep1Btn').addEventListener('click', () => {
-            updateWizardUI(1);
-        });
+        const backBtn1 = document.getElementById('backToStep1Btn');
+        if (backBtn1) {
+            backBtn1.addEventListener('click', () => { window.goToStep(1); });
+        }
 
         document.getElementById('goToStep3Btn').addEventListener('click', () => {
             const dateInput = document.getElementById('date');
