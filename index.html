@@ -46,69 +46,6 @@
                 }
             }
         }
-
-        // Global Selection Handler Functions (Early Definition)
-        window.selectBarberCard = function(card) {
-            if (!card) return;
-            document.querySelectorAll('#barberCardsContainer .barber-card').forEach(c => {
-                c.classList.remove('selected');
-                c.style.border = '';
-                c.style.boxShadow = '';
-                c.style.backgroundColor = '';
-                const b = c.querySelector('.check-badge');
-                if (b) {
-                    b.classList.add('hidden');
-                    b.style.display = 'none';
-                }
-            });
-            card.classList.add('selected');
-            card.style.border = '3px solid #d4af37';
-            card.style.boxShadow = '0 0 0 2px #d4af37, 0 0 20px rgba(212, 175, 55, 0.5)';
-            card.style.backgroundColor = 'rgba(212, 175, 55, 0.2)';
-
-            const selectedBadge = card.querySelector('.check-badge');
-            if (selectedBadge) {
-                selectedBadge.classList.remove('hidden');
-                selectedBadge.style.display = 'flex';
-            }
-
-            const input = document.getElementById('barber');
-            if (input) input.value = card.getAttribute('data-barber') || '';
-            if (typeof updateDesktopLiveSummary === 'function') updateDesktopLiveSummary();
-        };
-
-        window.selectServiceCard = function(card) {
-            if (!card) return;
-            document.querySelectorAll('#serviceCardsContainer .service-card').forEach(c => {
-                c.classList.remove('selected');
-                c.style.border = '';
-                c.style.boxShadow = '';
-                c.style.backgroundColor = '';
-                const b = c.querySelector('.check-badge');
-                if (b) {
-                    b.classList.add('hidden');
-                    b.style.display = 'none';
-                }
-            });
-            card.classList.add('selected');
-            card.style.border = '3px solid #d4af37';
-            card.style.boxShadow = '0 0 0 2px #d4af37, 0 0 20px rgba(212, 175, 55, 0.5)';
-            card.style.backgroundColor = 'rgba(212, 175, 55, 0.2)';
-
-            const selectedBadge = card.querySelector('.check-badge');
-            if (selectedBadge) {
-                selectedBadge.classList.remove('hidden');
-                selectedBadge.style.display = 'flex';
-            }
-
-            const selectedService = card.getAttribute('data-service');
-            const input = document.getElementById('service');
-            if (input) input.value = selectedService;
-            if (typeof updateDesktopLiveSummary === 'function') updateDesktopLiveSummary();
-            const dateInput = document.getElementById('date');
-            const selectedDate = dateInput ? dateInput.value : '';
-            if (selectedDate && typeof renderTimeChips === 'function') renderTimeChips();
-        };
     </script>
     <style>
         /* Custom Styles & Theme Transitions */
@@ -160,20 +97,6 @@
         ::-webkit-scrollbar-thumb {
             background: #d4af37;
             border-radius: 4px;
-        }
-
-        /* Booking Selection Stroke & Highlight Styles (Guaranteed Stroke) */
-        .barber-card.selected,
-        .service-card.selected,
-        .time-chip-selected,
-        .calendar-day-selected {
-            border: 3px solid #d4af37 !important;
-            box-shadow: 0 0 0 2px #d4af37, 0 0 20px rgba(212, 175, 55, 0.45) !important;
-            background-color: rgba(212, 175, 55, 0.18) !important;
-        }
-        .barber-card.selected .check-badge,
-        .service-card.selected .check-badge {
-            display: flex !important;
         }
         /* Animations for Map Effects */
         @keyframes flyPlane {
@@ -464,40 +387,34 @@
                     <div>
                         <label class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-3 font-semibold" data-translate="1. Choose Preferred Barber">1. Choose Preferred Barber</label>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="barberCardsContainer">
-                            <div tabindex="0" data-barber="Any Available" onclick="selectBarberCard(this)" class="barber-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
-                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
+                            <div tabindex="0" data-barber="Any Available" class="barber-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
                                 <div class="w-12 h-12 mx-auto rounded-full bg-gold/20 flex items-center justify-center text-gold mb-2">
                                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                                 </div>
-                                <h5 class="font-medium text-sm text-gray-900 dark:text-white" data-translate="Any Available">Any Available</h5>
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5" data-translate="First available chair">First available chair</p>
+                                <h5 class="font-medium text-sm text-gray-900 dark:text-white">Any Available</h5>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">First available chair</p>
                             </div>
-                            <div tabindex="0" data-barber="Hemen" onclick="selectBarberCard(this)" class="barber-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
-                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
+                            <div tabindex="0" data-barber="Hemen" class="barber-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
                                 <div class="w-12 h-12 mx-auto rounded-full bg-gray-200 dark:bg-charcoal-800 flex items-center justify-center text-gray-700 dark:text-gray-300 mb-2 font-serif font-bold">H</div>
                                 <h5 class="font-medium text-sm text-gray-900 dark:text-white">Hemen</h5>
                                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Barber</p>
                             </div>
-                            <div tabindex="0" data-barber="Amir" onclick="selectBarberCard(this)" class="barber-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
-                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
+                            <div tabindex="0" data-barber="Amir" class="barber-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
                                 <div class="w-12 h-12 mx-auto rounded-full bg-gray-200 dark:bg-charcoal-800 flex items-center justify-center text-gray-700 dark:text-gray-300 mb-2 font-serif font-bold">A</div>
                                 <h5 class="font-medium text-sm text-gray-900 dark:text-white">Amir</h5>
                                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Barber</p>
                             </div>
-                            <div tabindex="0" data-barber="Raman" onclick="selectBarberCard(this)" class="barber-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
-                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
+                            <div tabindex="0" data-barber="Raman" class="barber-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
                                 <div class="w-12 h-12 mx-auto rounded-full bg-gray-200 dark:bg-charcoal-800 flex items-center justify-center text-gray-700 dark:text-gray-300 mb-2 font-serif font-bold">R</div>
                                 <h5 class="font-medium text-sm text-gray-900 dark:text-white">Raman</h5>
                                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Barber</p>
                             </div>
-                            <div tabindex="0" data-barber="Bassam" onclick="selectBarberCard(this)" class="barber-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
-                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
+                            <div tabindex="0" data-barber="Bassam" class="barber-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
                                 <div class="w-12 h-12 mx-auto rounded-full bg-gray-200 dark:bg-charcoal-800 flex items-center justify-center text-gray-700 dark:text-gray-300 mb-2 font-serif font-bold">B</div>
                                 <h5 class="font-medium text-sm text-gray-900 dark:text-white">Bassam</h5>
                                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Barber</p>
                             </div>
-                            <div tabindex="0" data-barber="Saan" onclick="selectBarberCard(this)" class="barber-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
-                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
+                            <div tabindex="0" data-barber="Saan" class="barber-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
                                 <div class="w-12 h-12 mx-auto rounded-full bg-gray-200 dark:bg-charcoal-800 flex items-center justify-center text-gray-700 dark:text-gray-300 mb-2 font-serif font-bold">S</div>
                                 <h5 class="font-medium text-sm text-gray-900 dark:text-white">Saan</h5>
                                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Barber</p>
@@ -508,88 +425,77 @@
                     <div>
                         <label class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-3 font-semibold" data-translate="2. Choose Service">2. Choose Service</label>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="serviceCardsContainer">
-                            <div tabindex="0" data-service="Classic Haircut" onclick="selectServiceCard(this)" class="service-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
-                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
+                            <div tabindex="0" data-service="Classic Haircut" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
                                 <div>
                                     <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Classic Haircut">Classic Haircut</h4>
                                     <p class="text-xs text-gold mt-1 font-medium">⏱️ ~30 min</p>
                                 </div>
                                 <span class="text-gold font-serif font-bold text-lg">€28.00</span>
                             </div>
-                            <div tabindex="0" data-service="Skin Fade" onclick="selectServiceCard(this)" class="service-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
-                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
+                            <div tabindex="0" data-service="Skin Fade" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
                                 <div>
                                     <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Skin Fade">Skin Fade</h4>
                                     <p class="text-xs text-gold mt-1 font-medium">⏱️ ~45 min</p>
                                 </div>
                                 <span class="text-gold font-serif font-bold text-lg">€28.00</span>
                             </div>
-                            <div tabindex="0" data-service="Scissor Cut" onclick="selectServiceCard(this)" class="service-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
-                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
+                            <div tabindex="0" data-service="Scissor Cut" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
                                 <div>
                                     <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Scissor Cut">Scissor Cut</h4>
                                     <p class="text-xs text-gold mt-1 font-medium">⏱️ ~30 min</p>
                                 </div>
                                 <span class="text-gold font-serif font-bold text-lg">€28.00</span>
                             </div>
-                            <div tabindex="0" data-service="Wash & Haircut" onclick="selectServiceCard(this)" class="service-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
-                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
+                            <div tabindex="0" data-service="Wash & Haircut" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
                                 <div>
                                     <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Wash & Haircut">Wash & Haircut</h4>
                                     <p class="text-xs text-gold mt-1 font-medium">⏱️ ~45 min</p>
                                 </div>
                                 <span class="text-gold font-serif font-bold text-lg">€35.00</span>
                             </div>
-                            <div tabindex="0" data-service="Beard Trim" onclick="selectServiceCard(this)" class="service-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
-                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
+                            <div tabindex="0" data-service="Beard Trim" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
                                 <div>
                                     <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Beard Trim">Beard Trim</h4>
                                     <p class="text-xs text-gold mt-1 font-medium">⏱️ ~20 min</p>
                                 </div>
                                 <span class="text-gold font-serif font-bold text-lg">€20.00</span>
                             </div>
-                            <div tabindex="0" data-service="Clean Shave" onclick="selectServiceCard(this)" class="service-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
-                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
+                            <div tabindex="0" data-service="Clean Shave" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
                                 <div>
                                     <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Clean Shave">Clean Shave</h4>
                                     <p class="text-xs text-gold mt-1 font-medium">⏱️ ~30 min</p>
                                 </div>
                                 <span class="text-gold font-serif font-bold text-lg">€20.00</span>
                             </div>
-                            <div tabindex="0" data-service="Classic Haircut + Beard Trim" onclick="selectServiceCard(this)" class="service-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
-                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
+                            <div tabindex="0" data-service="Classic Haircut + Beard Trim" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
                                 <div>
                                     <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Classic Haircut + Beard Trim">Classic Haircut + Beard Trim</h4>
                                     <p class="text-xs text-gold mt-1 font-medium">⏱️ ~45 min</p>
                                 </div>
                                 <span class="text-gold font-serif font-bold text-lg">€40.00</span>
                             </div>
-                            <div tabindex="0" data-service="Skin Fade + Beard Trim" onclick="selectServiceCard(this)" class="service-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
-                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
+                            <div tabindex="0" data-service="Skin Fade + Beard Trim" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
                                 <div>
                                     <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Skin Fade + Beard Trim">Skin Fade + Beard Trim</h4>
                                     <p class="text-xs text-gold mt-1 font-medium">⏱️ ~60 min</p>
                                 </div>
                                 <span class="text-gold font-serif font-bold text-lg">€40.00</span>
                             </div>
-                            <div tabindex="0" data-service="One Grade Trim" onclick="selectServiceCard(this)" class="service-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
-                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
+                            <div tabindex="0" data-service="One Grade Trim" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
                                 <div>
                                     <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="One Grade Trim">One Grade Trim</h4>
                                     <p class="text-xs text-gold mt-1 font-medium">⏱️ ~15 min</p>
                                 </div>
                                 <span class="text-gold font-serif font-bold text-lg">€20.00</span>
                             </div>
-                            <div tabindex="0" data-service="Kids Haircut (Up to 10 Years)" onclick="selectServiceCard(this)" class="service-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
-                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
+                            <div tabindex="0" data-service="Kids Haircut (Up to 10 Years)" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
                                 <div>
                                     <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Kids Haircut (Up to 10 Years)">Kids Haircut (Up to 10 Years)</h4>
                                     <p class="text-xs text-gold mt-1 font-medium">⏱️ ~30 min</p>
                                 </div>
                                 <span class="text-gold font-serif font-bold text-lg">€21.00</span>
                             </div>
-                            <div tabindex="0" data-service="Kids Haircut (Up to 13 Years)" onclick="selectServiceCard(this)" class="service-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
-                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
+                            <div tabindex="0" data-service="Kids Haircut (Up to 13 Years)" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
                                 <div>
                                     <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Kids Haircut (Up to 13 Years)">Kids Haircut (Up to 13 Years)</h4>
                                     <p class="text-xs text-gold mt-1 font-medium">⏱️ ~30 min</p>
@@ -668,8 +574,8 @@
                     <!-- Summary Card -->
                     <div class="bg-gray-50 dark:bg-charcoal-800 p-5 rounded-lg border border-gray-200 dark:border-charcoal-700 space-y-2">
                         <h4 class="text-xs uppercase tracking-widest text-gold font-bold mb-3">Booking Summary</h4>
-                        <div class="flex justify-between text-sm"><span class="text-gray-500 dark:text-gray-400">Service:</span><span id="summaryService" class="font-medium text-gray-900 dark:text-white">Classic Haircut</span></div>
-                        <div class="flex justify-between text-sm"><span class="text-gray-500 dark:text-gray-400">Barber:</span><span id="summaryBarber" class="font-medium text-gray-900 dark:text-white">Any Available</span></div>
+                        <div class="flex justify-between text-sm"><span class="text-gray-500 dark:text-gray-400">Service:</span><span id="summaryService" class="font-medium text-gray-900 dark:text-white">-</span></div>
+                        <div class="flex justify-between text-sm"><span class="text-gray-500 dark:text-gray-400">Barber:</span><span id="summaryBarber" class="font-medium text-gray-900 dark:text-white">-</span></div>
                         <div class="flex justify-between text-sm"><span class="text-gray-500 dark:text-gray-400">Date:</span><span id="summaryDate" class="font-medium text-gray-900 dark:text-white">-</span></div>
                         <div class="flex justify-between text-sm"><span class="text-gray-500 dark:text-gray-400">Time Slot:</span><span id="summaryTime" class="font-medium text-gold font-semibold">-</span></div>
                     </div>
@@ -1150,17 +1056,50 @@
         // ===========================
         const API_URL = "https://script.google.com/macros/s/AKfycbyB3U2n2W2HRn20BxQWLi7Swjq0dSQV6_nnrSXPHRMsx53kP6xy8OpO2w9OTu9cdZvVtQ/exec";
 
-        // Additional Event Delegation Backup Handler
-        document.addEventListener('DOMContentLoaded', () => {
-            const step1 = document.getElementById('bookingStep1');
-            if (step1) {
-                step1.addEventListener('click', (e) => {
-                    const barber = e.target.closest('.barber-card');
-                    if (barber) { window.selectBarberCard(barber); return; }
-                    const service = e.target.closest('.service-card');
-                    if (service) { window.selectServiceCard(service); return; }
+        // Service Cards Selection
+        document.querySelectorAll('#serviceCardsContainer .service-card').forEach(card => {
+            const selectService = () => {
+                // Deselect all cards first
+                document.querySelectorAll('#serviceCardsContainer .service-card').forEach(c => {
+                    c.classList.remove('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
+                    c.classList.add('border-gray-200', 'dark:border-charcoal-700', 'border');
                 });
-            }
+                
+                // Select the clicked card
+                card.classList.remove('border-gray-200', 'dark:border-charcoal-700', 'border');
+                card.classList.add('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
+
+                // Update selected service
+                document.getElementById('service').value = card.getAttribute('data-service');
+                updateDesktopLiveSummary();
+                
+                const selectedDate = document.getElementById('date').value;
+                if (selectedDate) {
+                    renderTimeChips();
+                }
+            };
+            card.addEventListener('click', selectService);
+            card.addEventListener('keydown', (e) => {
+                if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectService(); }
+            });
+        });
+
+        // Barber Cards Selection
+        document.querySelectorAll('#barberCardsContainer .barber-card').forEach(card => {
+            const selectBarber = () => {
+                document.querySelectorAll('#barberCardsContainer .barber-card').forEach(c => {
+                    c.classList.remove('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
+                    c.classList.add('border-gray-200', 'dark:border-charcoal-700');
+                });
+                card.classList.remove('border-gray-200', 'dark:border-charcoal-700');
+                card.classList.add('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
+                document.getElementById('barber').value = card.getAttribute('data-barber');
+                updateDesktopLiveSummary();
+            };
+            card.addEventListener('click', selectBarber);
+            card.addEventListener('keydown', (e) => {
+                if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectBarber(); }
+            });
         });
 
         // Step Navigation Logic
@@ -1355,7 +1294,7 @@
                     chip.className = 'py-3 px-2 text-xs font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 line-through cursor-not-allowed rounded-lg text-center';
                     chip.innerHTML = `${t} <span class="block text-[10px] no-underline">Booked</span>`;
                 } else if (isSelected) {
-                    chip.className = 'time-chip-selected py-3 px-2 text-xs font-bold bg-gold text-charcoal-900 rounded-lg text-center shadow-md';
+                    chip.className = 'py-3 px-2 text-xs font-semibold border-2 border-gold bg-gold text-charcoal-900 rounded-lg text-center shadow-md';
                     chip.innerText = t;
                 } else {
                     chip.className = 'py-3 px-2 text-xs font-medium border border-gray-300 dark:border-charcoal-700 bg-gray-50 dark:bg-charcoal-800 text-gray-800 dark:text-gray-200 hover:border-gold hover:text-gold rounded-lg text-center transition-colors';
@@ -1496,7 +1435,7 @@
                     }
                 } else {
                     if (isSelected) {
-                        dayBtn.className += ' calendar-day-selected bg-gold text-charcoal-900 font-bold shadow-lg shadow-gold/30 scale-105';
+                        dayBtn.className += ' bg-gold text-charcoal-900 font-bold shadow-lg shadow-gold/30 scale-105 border-2 border-gold';
                     } else {
                         dayBtn.className += ' text-gray-800 dark:text-gray-200 bg-white dark:bg-charcoal-900 border border-gray-200 dark:border-charcoal-700 hover:border-gold hover:text-gold hover:scale-105 shadow-sm';
                         if (isToday) {
@@ -2125,8 +2064,7 @@
         const serviceCardsContainer = document.getElementById('serviceCardsContainer');
         if (serviceCardsContainer) {
             serviceCardsContainer.innerHTML = services.map(s => {
-                return `<div tabindex="0" data-service="${s.nameEN}" onclick="selectServiceCard(this)" class="service-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
-                    <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
+                return `<div tabindex="0" data-service="${s.nameEN}" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
                     <div>
                         <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="${s.nameEN}">${s.nameEN}</h4>
                         <p class="text-xs text-gold mt-1 font-medium service-duration" data-duration="${s.duration}">⏱️ ~${s.duration} ${minLabel}</p>
@@ -2134,6 +2072,33 @@
                     <span class="text-gold font-serif font-bold text-lg">€${s.price.toFixed(2)}</span>
                 </div>`;
             }).join('');
+
+            // Re-bind service card click events (multi-select support)
+            serviceCardsContainer.querySelectorAll('.service-card').forEach(card => {
+                const selectService = () => {
+                    // Deselect all cards first
+                    serviceCardsContainer.querySelectorAll('.service-card').forEach(c => {
+                        c.classList.remove('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
+                        c.classList.add('border-gray-200', 'dark:border-charcoal-700', 'border');
+                    });
+                    
+                    // Select the clicked card
+                    card.classList.remove('border-gray-200', 'dark:border-charcoal-700', 'border');
+                    card.classList.add('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
+
+                    const selectedService = card.getAttribute('data-service');
+                    document.getElementById('service').value = selectedService;
+                    const liveEl = document.getElementById('desktopLiveService');
+                    if (liveEl) liveEl.textContent = selectedService || 'Select a service';
+                    if (typeof updateDesktopLiveSummary === 'function') updateDesktopLiveSummary();
+                    const selectedDate = document.getElementById('date').value;
+                    if (selectedDate) renderTimeChips();
+                };
+                card.addEventListener('click', selectService);
+                card.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectService(); }
+                });
+            });
         }
 
         // ---- Populate Working Hours ----
@@ -2289,8 +2254,8 @@
         const bookingSec = document.getElementById('booking');
         if (!bookingSec) return;
 
-        const serviceVal = document.getElementById('service').value || 'Classic Haircut';
-        const priceVal = document.getElementById('priceDisplay') ? document.getElementById('priceDisplay').innerText : '€28';
+        const serviceVal = document.getElementById('service').value || '-';
+        const priceVal = document.getElementById('service').value ? (document.getElementById('priceDisplay') ? document.getElementById('priceDisplay').innerText : '€28') : '-';
 
         document.getElementById('mobileStickyService').innerText = serviceVal;
         document.getElementById('mobileStickyPrice').innerText = priceVal;
