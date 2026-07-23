@@ -47,17 +47,7 @@
             }
         }
 
-        // Global State & Functions
-        window.currentWizardStep = 1;
-        window.currentCalDate = new Date();
-        window.bookedTimesList = [];
-        window.availableTimesList = [
-            "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM",
-            "12:00 PM", "12:30 PM", "01:00 PM", "01:30 PM",
-            "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM",
-            "04:00 PM", "04:30 PM", "05:00 PM", "05:30 PM"
-        ];
-
+        // Global Selection Handler Functions (Early Definition)
         window.selectBarberCard = function(card) {
             if (!card) return;
             document.querySelectorAll('#barberCardsContainer .barber-card').forEach(c => {
@@ -85,8 +75,8 @@
             const input = document.getElementById('barber');
             if (input) input.value = card.getAttribute('data-barber') || '';
             if (typeof updateDesktopLiveSummary === 'function') updateDesktopLiveSummary();
-            if (typeof window.fetchBookedSlotsForSelectedDate === 'function') {
-                window.fetchBookedSlotsForSelectedDate();
+            if (typeof fetchBookedSlotsForSelectedDate === 'function') {
+                fetchBookedSlotsForSelectedDate();
             }
         };
 
@@ -120,292 +110,7 @@
             if (typeof updateDesktopLiveSummary === 'function') updateDesktopLiveSummary();
             const dateInput = document.getElementById('date');
             const selectedDate = dateInput ? dateInput.value : '';
-            if (selectedDate && typeof window.renderTimeChips === 'function') window.renderTimeChips();
-        };
-
-        window.updateWizardUI = function(stepNum) {
-            const isForward = stepNum > window.currentWizardStep;
-            
-            const s1 = document.getElementById('bookingStep1');
-            const s2 = document.getElementById('bookingStep2');
-            const s3 = document.getElementById('bookingStep3');
-            const prog = document.getElementById('progressLine');
-
-            [s1, s2, s3].forEach((el, i) => {
-                if (!el) return;
-                if (i === stepNum - 1) {
-                    el.classList.remove('hidden', 'animate-slide-in-right', 'animate-slide-in-left');
-                    void el.offsetWidth;
-                    el.classList.add(isForward ? 'animate-slide-in-right' : 'animate-slide-in-left');
-                }
-                else {
-                    el.classList.add('hidden');
-                }
-            });
-
-            window.currentWizardStep = stepNum;
-
-            setTimeout(() => {
-                const bookingEl = document.getElementById('booking');
-                if (bookingEl) {
-                    const y = bookingEl.getBoundingClientRect().top + window.scrollY - 100;
-                    window.scrollTo({top: y, behavior: 'smooth'});
-                }
-            }, 50);
-
-            if (prog) {
-                if (stepNum === 1) prog.style.width = '0%';
-                else if (stepNum === 2) prog.style.width = '50%';
-                else if (stepNum === 3) prog.style.width = '100%';
-            }
-
-            const d1 = document.getElementById('stepDot1');
-            const d2 = document.getElementById('stepDot2');
-            const d3 = document.getElementById('stepDot3');
-            const l1 = document.getElementById('stepLabel1');
-            const l2 = document.getElementById('stepLabel2');
-            const l3 = document.getElementById('stepLabel3');
-
-            if (d1) d1.className = stepNum >= 1 
-                ? 'w-10 h-10 rounded-full bg-gold text-charcoal-900 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300'
-                : 'w-10 h-10 rounded-full bg-gray-300 dark:bg-charcoal-700 text-gray-600 dark:text-gray-400 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300';
-            
-            if (d2) d2.className = stepNum >= 2 
-                ? 'w-10 h-10 rounded-full bg-gold text-charcoal-900 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300'
-                : 'w-10 h-10 rounded-full bg-gray-300 dark:bg-charcoal-700 text-gray-600 dark:text-gray-400 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300';
-            
-            if (d3) d3.className = stepNum >= 3 
-                ? 'w-10 h-10 rounded-full bg-gold text-charcoal-900 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300'
-                : 'w-10 h-10 rounded-full bg-gray-300 dark:bg-charcoal-700 text-gray-600 dark:text-gray-400 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300';
-
-            if (l1) l1.className = stepNum >= 1 ? 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-900 dark:text-white' : 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-400 dark:text-gray-500';
-            if (l2) l2.className = stepNum >= 2 ? 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-900 dark:text-white' : 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-400 dark:text-gray-500';
-            if (l3) l3.className = stepNum >= 3 ? 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-900 dark:text-white' : 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-400 dark:text-gray-500';
-        };
-
-        window.renderTimeChips = function() {
-            const grid = document.getElementById('timeChipsGrid');
-            if (!grid) return;
-            const selectedTimeInput = document.getElementById('time');
-            const selectedTime = selectedTimeInput ? selectedTimeInput.value : '';
-            const selectedDateInput = document.getElementById('date');
-            const selectedDate = selectedDateInput ? selectedDateInput.value : '';
-            const statusText = document.getElementById('timeSlotStatusText');
-
-            grid.innerHTML = '';
-
-            if (!selectedDate) {
-                if (statusText) statusText.innerText = 'Please choose a date first';
-                (window.availableTimesList || []).forEach(t => {
-                    const chip = document.createElement('button');
-                    chip.type = 'button';
-                    chip.disabled = true;
-                    chip.className = 'py-3 px-2 text-xs font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 cursor-not-allowed rounded-lg text-center opacity-50';
-                    chip.innerText = t;
-                    grid.appendChild(chip);
-                });
-                return;
-            }
-
-            if (statusText) {
-                statusText.innerText = (window.bookedTimesList && window.bookedTimesList.length > 0)
-                    ? 'Slots updated for selected date'
-                    : 'Select an available time slot';
-            }
-
-            const dateObj = new Date(selectedDate);
-            const isMonday = dateObj.getDay() === 1;
-
-            const allTimes = window.availableTimesList || [
-                "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM",
-                "12:00 PM", "12:30 PM", "01:00 PM", "01:30 PM",
-                "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM",
-                "04:00 PM", "04:30 PM", "05:00 PM", "05:30 PM"
-            ];
-
-            const validTimes = allTimes.filter(t => {
-                if (isMonday && (t.startsWith("10:") || t.startsWith("11:"))) return false;
-                return true;
-            });
-
-            validTimes.forEach(t => {
-                const isBooked = (window.bookedTimesList || []).includes(t);
-                const isSelected = selectedTime === t;
-
-                const chip = document.createElement('button');
-                chip.type = 'button';
-                chip.disabled = isBooked;
-
-                if (isBooked) {
-                    chip.className = 'py-3 px-2 text-xs font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 line-through cursor-not-allowed rounded-lg text-center';
-                    chip.innerHTML = `${t} <span class="block text-[10px] no-underline">Booked</span>`;
-                } else if (isSelected) {
-                    chip.className = 'time-chip-selected py-3 px-2 text-xs font-bold bg-gold text-charcoal-900 rounded-lg text-center shadow-md shadow-gold/20 scale-105';
-                    chip.innerText = t;
-                } else {
-                    chip.className = 'py-3 px-2 text-xs font-medium border border-gray-300 dark:border-charcoal-700 bg-gray-50 dark:bg-charcoal-800 text-gray-800 dark:text-gray-200 hover:border-gold hover:text-gold rounded-lg text-center transition-colors cursor-pointer';
-                    chip.innerText = t;
-                }
-
-                if (!isBooked) {
-                    chip.addEventListener('click', () => {
-                        if (selectedTimeInput) selectedTimeInput.value = t;
-                        window.renderTimeChips();
-                        if (typeof updateDesktopLiveSummary === 'function') updateDesktopLiveSummary();
-                    });
-                }
-
-                grid.appendChild(chip);
-            });
-        };
-
-        window.changeCalMonth = function(delta) {
-            if (!window.currentCalDate) window.currentCalDate = new Date();
-            window.currentCalDate.setMonth(window.currentCalDate.getMonth() + delta);
-            window.renderCustomCalendar();
-        };
-
-        window.renderCustomCalendar = function() {
-            const grid = document.getElementById('calendarDaysGrid');
-            const monthYearEl = document.getElementById('calendarMonthYear');
-            if (!grid || !monthYearEl) return;
-
-            const dateEl = document.getElementById('date');
-            const selectedDateVal = dateEl ? dateEl.value : '';
-            
-            if (!window.currentCalDate) window.currentCalDate = new Date();
-            const year = window.currentCalDate.getFullYear();
-            const month = window.currentCalDate.getMonth();
-            
-            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-            monthYearEl.innerText = `${monthNames[month]} ${year}`;
-            
-            grid.innerHTML = '';
-            
-            const firstDayIndex = new Date(year, month, 1).getDay();
-            const totalDays = new Date(year, month + 1, 0).getDate();
-            
-            for (let i = 0; i < firstDayIndex; i++) {
-                const emptyCell = document.createElement('div');
-                emptyCell.className = 'w-full h-10 sm:aspect-square';
-                grid.appendChild(emptyCell);
-            }
-            
-            const today = new Date();
-            today.setHours(0,0,0,0);
-            
-            const maxDate = new Date();
-            maxDate.setDate(today.getDate() + 90);
-            maxDate.setHours(0,0,0,0);
-            
-            for (let day = 1; day <= totalDays; day++) {
-                const dateObj = new Date(year, month, day);
-                dateObj.setHours(0,0,0,0);
-                
-                const yyyy = dateObj.getFullYear();
-                const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-                const dd = String(dateObj.getDate()).padStart(2, '0');
-                const dateStr = `${yyyy}-${mm}-${dd}`;
-                
-                const isSelected = selectedDateVal === dateStr;
-                const isToday = today.getTime() === dateObj.getTime();
-                const isSunday = dateObj.getDay() === 0;
-                
-                const isOutOfRange = dateObj < today || dateObj > maxDate;
-                const isDisabled = isOutOfRange || isSunday;
-                
-                const dayBtn = document.createElement('button');
-                dayBtn.type = 'button';
-                dayBtn.className = 'w-full h-10 sm:aspect-square flex flex-col items-center justify-center text-xs sm:text-sm font-semibold rounded-lg sm:rounded-xl transition-all duration-200 relative select-none';
-                dayBtn.innerHTML = `<span>${day}</span>`;
-                
-                if (isDisabled) {
-                    dayBtn.disabled = true;
-                    if (isSunday) {
-                        dayBtn.className += ' text-rose-500/50 dark:text-rose-400/40 bg-rose-500/5 dark:bg-rose-500/10 cursor-not-allowed border border-transparent';
-                        dayBtn.title = 'Closed on Sundays';
-                        const dot = document.createElement('span');
-                        dot.className = 'absolute bottom-1 w-1 h-1 rounded-full bg-rose-500/40';
-                        dayBtn.appendChild(dot);
-                    } else {
-                        dayBtn.className += ' text-gray-300 dark:text-charcoal-700 bg-transparent cursor-not-allowed opacity-30';
-                    }
-                } else {
-                    if (isSelected) {
-                        dayBtn.className += ' calendar-day-selected bg-gold text-charcoal-900 font-bold shadow-lg shadow-gold/30 scale-105';
-                    } else {
-                        dayBtn.className += ' text-gray-800 dark:text-gray-200 bg-white dark:bg-charcoal-900 border border-gray-200 dark:border-charcoal-700 hover:border-gold hover:text-gold hover:scale-105 shadow-sm';
-                        if (isToday) {
-                            dayBtn.className += ' ring-2 ring-gold/60 ring-offset-1 dark:ring-offset-charcoal-800 font-bold text-gold';
-                        }
-                    }
-                    
-                    const availDot = document.createElement('span');
-                    availDot.className = 'absolute bottom-1 w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.5)]';
-                    dayBtn.appendChild(availDot);
-                    
-                    dayBtn.addEventListener('click', () => {
-                        const dateInput = document.getElementById('date');
-                        if (dateInput) dateInput.value = dateStr;
-                        window.renderCustomCalendar();
-                        window.renderTimeChips();
-                        if (typeof window.fetchBookedSlotsForSelectedDate === 'function') {
-                            window.fetchBookedSlotsForSelectedDate();
-                        }
-                        if (typeof updateDesktopLiveSummary === 'function') updateDesktopLiveSummary();
-                    });
-                }
-                
-                grid.appendChild(dayBtn);
-            }
-
-            const calPrevBtn = document.getElementById('calPrevBtn');
-            if (calPrevBtn) {
-                const isPrevDisabled = (year < today.getFullYear()) || (year === today.getFullYear() && month <= today.getMonth());
-                calPrevBtn.disabled = isPrevDisabled;
-                if (isPrevDisabled) calPrevBtn.classList.add('opacity-30', 'cursor-not-allowed');
-                else calPrevBtn.classList.remove('opacity-30', 'cursor-not-allowed');
-            }
-
-            const calNextBtn = document.getElementById('calNextBtn');
-            if (calNextBtn) {
-                const maxMonthObj = new Date(today);
-                maxMonthObj.setDate(today.getDate() + 90);
-                const isNextDisabled = (year > maxMonthObj.getFullYear()) || (year === maxMonthObj.getFullYear() && month >= maxMonthObj.getMonth());
-                calNextBtn.disabled = isNextDisabled;
-                if (isNextDisabled) calNextBtn.classList.add('opacity-30', 'cursor-not-allowed');
-                else calNextBtn.classList.remove('opacity-30', 'cursor-not-allowed');
-            }
-        };
-
-        window.goToStep = function(stepNum) {
-            if (stepNum === 2) {
-                const barberEl = document.getElementById('barber');
-                const serviceEl = document.getElementById('service');
-                const barberVal = barberEl ? (barberEl.value || '').trim() : '';
-                const serviceVal = serviceEl ? (serviceEl.value || '').trim() : '';
-
-                if (!barberVal) {
-                    const msg = (window.currentLang === 'nl') ? 'Selecteer eerst een kapper.' : 'Please select a barber first.';
-                    if (typeof showToast === 'function') showToast(msg, "error");
-                    else alert(msg);
-                    return;
-                }
-                if (!serviceVal) {
-                    const msg = (window.currentLang === 'nl') ? 'Selecteer eerst een dienst.' : 'Please select a service first.';
-                    if (typeof showToast === 'function') showToast(msg, "error");
-                    else alert(msg);
-                    return;
-                }
-            }
-
-            window.updateWizardUI(stepNum);
-
-            if (stepNum === 2) {
-                if (!window.currentCalDate) window.currentCalDate = new Date();
-                window.renderCustomCalendar();
-                window.renderTimeChips();
-            }
+            if (selectedDate && typeof renderTimeChips === 'function') renderTimeChips();
         };
     </script>
     <style>
@@ -898,8 +603,8 @@
                     </div>
 
                     <div class="pt-4 flex justify-end">
-                        <button type="button" id="goToStep2Btn" onclick="goToStep(2)" class="bg-gold text-charcoal-900 font-semibold uppercase tracking-widest px-8 py-3.5 rounded-lg hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-charcoal-900 transition-colors duration-300 text-sm flex items-center gap-2">
-                            <span data-translate="Continue to Date & Time">Continue to Date & Time</span>
+                        <button type="button" id="goToStep2Btn" class="bg-gold text-charcoal-900 font-semibold uppercase tracking-widest px-8 py-3.5 rounded-lg hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-charcoal-900 transition-colors duration-300 text-sm flex items-center gap-2">
+                            <span>Continue to Date & Time</span>
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                         </button>
                     </div>
@@ -919,10 +624,10 @@
                                     <h4 id="calendarMonthYear" class="font-serif text-lg font-bold text-gray-900 dark:text-white">Month Year</h4>
                                 </div>
                                 <div class="flex space-x-2">
-                                    <button id="calPrevBtn" type="button" onclick="changeCalMonth(-1)" aria-label="Previous Month" class="p-2 rounded-lg border border-gray-300 dark:border-charcoal-700 text-gray-700 dark:text-gray-300 hover:bg-gold hover:text-charcoal-900 hover:border-gold transition-all flex items-center justify-center">
+                                    <button id="calPrevBtn" type="button" aria-label="Previous Month" class="p-2 rounded-lg border border-gray-300 dark:border-charcoal-700 text-gray-700 dark:text-gray-300 hover:bg-gold hover:text-charcoal-900 hover:border-gold transition-all flex items-center justify-center">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
                                     </button>
-                                    <button id="calNextBtn" type="button" onclick="changeCalMonth(1)" aria-label="Next Month" class="p-2 rounded-lg border border-gray-300 dark:border-charcoal-700 text-gray-700 dark:text-gray-300 hover:bg-gold hover:text-charcoal-900 hover:border-gold transition-all flex items-center justify-center">
+                                    <button id="calNextBtn" type="button" aria-label="Next Month" class="p-2 rounded-lg border border-gray-300 dark:border-charcoal-700 text-gray-700 dark:text-gray-300 hover:bg-gold hover:text-charcoal-900 hover:border-gold transition-all flex items-center justify-center">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
                                     </button>
                                 </div>
@@ -950,11 +655,11 @@
                     </div>
 
                     <div class="pt-4 flex justify-between items-stretch gap-3">
-                        <button type="button" id="backToStep1Btn" onclick="goToStep(1)" class="border border-gray-300 dark:border-charcoal-700 text-gray-700 dark:text-gray-300 px-4 sm:px-6 py-3.5 rounded-lg hover:bg-gray-100 dark:hover:bg-charcoal-800 transition-colors text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2">
+                        <button type="button" id="backToStep1Btn" class="border border-gray-300 dark:border-charcoal-700 text-gray-700 dark:text-gray-300 px-4 sm:px-6 py-3.5 rounded-lg hover:bg-gray-100 dark:hover:bg-charcoal-800 transition-colors text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
                             <span>Back</span>
                         </button>
-                        <button type="button" id="goToStep3Btn" onclick="goToStep(3)" class="bg-gold text-charcoal-900 font-semibold uppercase tracking-widest px-4 sm:px-8 py-3.5 rounded-lg hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-charcoal-900 transition-colors duration-300 text-xs sm:text-sm flex flex-1 items-center justify-center gap-2 text-center whitespace-nowrap sm:whitespace-normal">
+                        <button type="button" id="goToStep3Btn" class="bg-gold text-charcoal-900 font-semibold uppercase tracking-widest px-4 sm:px-8 py-3.5 rounded-lg hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-charcoal-900 transition-colors duration-300 text-xs sm:text-sm flex flex-1 items-center justify-center gap-2 text-center whitespace-nowrap sm:whitespace-normal">
                             <span>Continue to Summary</span>
                             <svg class="w-4 h-4 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                         </button>
@@ -1461,17 +1166,95 @@
             }
         });
 
-        // Step Navigation Event Bindings
+        // Step Navigation Logic
+        const step1 = document.getElementById('bookingStep1');
+        const step2 = document.getElementById('bookingStep2');
+        const step3 = document.getElementById('bookingStep3');
+        const progressLine = document.getElementById('progressLine');
 
-        const goToBtn2 = document.getElementById('goToStep2Btn');
-        if (goToBtn2) {
-            goToBtn2.addEventListener('click', () => { window.goToStep(2); });
+        let currentWizardStep = 1;
+
+        function updateWizardUI(stepNum) {
+            const isForward = stepNum > currentWizardStep;
+            
+            [step1, step2, step3].forEach((el, i) => {
+                if (i === stepNum - 1) {
+                    el.classList.remove('hidden', 'animate-slide-in-right', 'animate-slide-in-left');
+                    // Trigger reflow for animation restart
+                    void el.offsetWidth;
+                    el.classList.add(isForward ? 'animate-slide-in-right' : 'animate-slide-in-left');
+                }
+                else {
+                    el.classList.add('hidden');
+                }
+            });
+
+            currentWizardStep = stepNum;
+
+            // Scroll up to the top of the booking section smoothly
+            // Use setTimeout to allow the DOM to render the new step before scrolling
+            setTimeout(() => {
+                const bookingEl = document.getElementById('booking');
+                if (bookingEl) {
+                    const y = bookingEl.getBoundingClientRect().top + window.scrollY - 100;
+                    window.scrollTo({top: y, behavior: 'smooth'});
+                }
+            }, 50);
+
+            // Progress Line width
+            if (stepNum === 1) progressLine.style.width = '0%';
+            else if (stepNum === 2) progressLine.style.width = '50%';
+            else if (stepNum === 3) progressLine.style.width = '100%';
+
+            // Step dots
+            const d1 = document.getElementById('stepDot1');
+            const d2 = document.getElementById('stepDot2');
+            const d3 = document.getElementById('stepDot3');
+            const l1 = document.getElementById('stepLabel1');
+            const l2 = document.getElementById('stepLabel2');
+            const l3 = document.getElementById('stepLabel3');
+
+            d1.className = stepNum >= 1 
+                ? 'w-10 h-10 rounded-full bg-gold text-charcoal-900 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300'
+                : 'w-10 h-10 rounded-full bg-gray-300 dark:bg-charcoal-700 text-gray-600 dark:text-gray-400 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300';
+            
+            d2.className = stepNum >= 2 
+                ? 'w-10 h-10 rounded-full bg-gold text-charcoal-900 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300'
+                : 'w-10 h-10 rounded-full bg-gray-300 dark:bg-charcoal-700 text-gray-600 dark:text-gray-400 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300';
+            
+            d3.className = stepNum >= 3 
+                ? 'w-10 h-10 rounded-full bg-gold text-charcoal-900 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300'
+                : 'w-10 h-10 rounded-full bg-gray-300 dark:bg-charcoal-700 text-gray-600 dark:text-gray-400 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300';
+
+            l1.className = stepNum >= 1 ? 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-900 dark:text-white' : 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-400 dark:text-gray-500';
+            l2.className = stepNum >= 2 ? 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-900 dark:text-white' : 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-400 dark:text-gray-500';
+            l3.className = stepNum >= 3 ? 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-900 dark:text-white' : 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-400 dark:text-gray-500';
         }
 
-        const backBtn1 = document.getElementById('backToStep1Btn');
-        if (backBtn1) {
-            backBtn1.addEventListener('click', () => { window.goToStep(1); });
-        }
+        document.getElementById('goToStep2Btn').addEventListener('click', () => {
+            const barberVal = document.getElementById('barber').value;
+            const serviceVal = document.getElementById('service').value;
+
+            if (!barberVal) {
+                const msg = window.currentLang === 'nl' ? 'Selecteer eerst een kapper.' : 'Please select a barber first.';
+                showToast(msg, "error");
+                return;
+            }
+
+            if (!serviceVal) {
+                const msg = window.currentLang === 'nl' ? 'Selecteer eerst een dienst.' : 'Please select a service first.';
+                showToast(msg, "error");
+                return;
+            }
+
+            updateWizardUI(2);
+            currentCalDate = new Date();
+            renderCustomCalendar();
+        });
+
+        document.getElementById('backToStep1Btn').addEventListener('click', () => {
+            updateWizardUI(1);
+        });
 
         document.getElementById('goToStep3Btn').addEventListener('click', () => {
             const dateInput = document.getElementById('date');
@@ -1520,13 +1303,85 @@
             updateWizardUI(2);
         });
 
-        // Barber-specific slot availability fetching
+        // Time Chips Rendering
+        function renderTimeChips() {
+            const grid = document.getElementById('timeChipsGrid');
+            const selectedTime = document.getElementById('time').value;
+            const selectedDate = document.getElementById('date').value;
+            const statusText = document.getElementById('timeSlotStatusText');
 
-        // Barber-specific slot availability fetching
-        window.fetchBookedSlotsForSelectedDate = async function() {
-            const dateInput = document.getElementById('date');
-            if (!dateInput) return;
-            const dateVal = dateInput.value;
+            grid.innerHTML = '';
+
+            // ئەگەر بەروار هەڵنەبژێردرابێت، هەموو کاتژمێرەکان لەکار بخە
+            if (!selectedDate) {
+                statusText.innerText = 'Please choose a date first';
+                availableTimesList.forEach(t => {
+                    const chip = document.createElement('button');
+                    chip.type = 'button';
+                    chip.disabled = true;
+                    chip.className = 'py-1.5 sm:py-3 px-1 sm:px-2 text-[10px] sm:text-xs font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 cursor-not-allowed rounded-lg text-center opacity-50';
+                    chip.innerText = t;
+                    grid.appendChild(chip);
+                });
+                return;
+            }
+
+            if (bookedTimesList.length > 0) {
+                statusText.innerText = 'Slots updated for selected date';
+            } else {
+                statusText.innerText = 'Available time slots:';
+            }
+
+            const dateObj = new Date(selectedDate);
+            const isMonday = dateObj.getDay() === 1;
+
+            const selectedServicesStr = document.getElementById('service').value;
+            const selectedServicesCount = selectedServicesStr ? selectedServicesStr.split(',').length : 1;
+            const intervalStep = Math.max(1, selectedServicesCount);
+
+            const validTimes = availableTimesList.filter(t => {
+                if (isMonday && (t.startsWith("10:") || t.startsWith("11:"))) return false;
+                return true;
+            });
+
+            validTimes.forEach((t, i) => {
+                if (i % intervalStep !== 0) return;
+                
+                const isBooked = bookedTimesList.includes(t);
+                const isSelected = selectedTime === t;
+
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                chip.disabled = isBooked;
+
+                if (isBooked) {
+                    chip.className = 'py-3 px-2 text-xs font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 line-through cursor-not-allowed rounded-lg text-center';
+                    chip.innerHTML = `${t} <span class="block text-[10px] no-underline">Booked</span>`;
+                } else if (isSelected) {
+                    chip.className = 'time-chip-selected py-3 px-2 text-xs font-bold bg-gold text-charcoal-900 rounded-lg text-center shadow-md';
+                    chip.innerText = t;
+                } else {
+                    chip.className = 'py-3 px-2 text-xs font-medium border border-gray-300 dark:border-charcoal-700 bg-gray-50 dark:bg-charcoal-800 text-gray-800 dark:text-gray-200 hover:border-gold hover:text-gold rounded-lg text-center transition-colors';
+                    chip.innerText = t;
+                }
+
+                if (!isBooked) {
+                    chip.addEventListener('click', () => {
+                        document.getElementById('time').value = t;
+                        renderTimeChips();
+                        updateDesktopLiveSummary();
+                    });
+                }
+
+                grid.appendChild(chip);
+            });
+        }
+
+        // Date Change Event (Fetch availability)
+        document.getElementById('date').addEventListener('change', async function() {
+            const dateVal = this.value;
+            document.getElementById('time').value = "";
+
             if (!dateVal) return;
 
             const selectedDate = new Date(dateVal);
@@ -1540,21 +1395,30 @@
             maxDate.setHours(0,0,0,0);
 
             if (selectedDate < today || selectedDate > maxDate) {
-                if (typeof showToast === 'function') showToast("Booking is only available for the next 30 days.", "error");
-                dateInput.value = "";
+                showToast("Booking is only available for the next 30 days.", "error");
+                this.value = "";
                 renderTimeChips();
                 return;
             }
 
             if (selectedDate.getDay() === 0) {
-                if (typeof showToast === 'function') showToast("We are closed on Sundays. Please choose another day.", "error");
-                dateInput.value = "";
+                showToast("We are closed on Sundays. Please choose another day.", "error");
+                this.value = "";
                 renderTimeChips();
                 return;
             }
 
             const statusText = document.getElementById('timeSlotStatusText');
             if (statusText) statusText.innerText = "Checking slot availability...";
+            fetchBookedSlotsForSelectedDate();
+        });
+
+        // Barber-specific slot availability fetching
+        async function fetchBookedSlotsForSelectedDate() {
+            const dateInput = document.getElementById('date');
+            if (!dateInput) return;
+            const dateVal = dateInput.value;
+            if (!dateVal) return;
 
             const barberInput = document.getElementById('barber');
             const barberVal = barberInput ? (barberInput.value || 'Any Available').trim() : 'Any Available';
@@ -1626,16 +1490,125 @@
         }
 
         // Date Change Event (Fetch barber availability)
-        const dateEl = document.getElementById('date');
-        if (dateEl) {
-            dateEl.addEventListener('change', function() {
-                const timeEl = document.getElementById('time');
-                if (timeEl) timeEl.value = "";
-                fetchBookedSlotsForSelectedDate();
-            });
-        }
+        document.getElementById('date').addEventListener('change', function() {
+            document.getElementById('time').value = "";
+            fetchBookedSlotsForSelectedDate();
+        });
 
-        // Calendar Prev / Next Event Bindings
+        // Set date constraints & Custom Modern Calendar Logic
+        let currentCalDate = new Date();
+
+        function renderCustomCalendar() {
+            const grid = document.getElementById('calendarDaysGrid');
+            const monthYearEl = document.getElementById('calendarMonthYear');
+            if (!grid || !monthYearEl) return;
+
+            const selectedDateVal = document.getElementById('date').value;
+            
+            const year = currentCalDate.getFullYear();
+            const month = currentCalDate.getMonth();
+            
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            monthYearEl.innerText = `${monthNames[month]} ${year}`;
+            
+            grid.innerHTML = '';
+            
+            const firstDayIndex = new Date(year, month, 1).getDay();
+            const totalDays = new Date(year, month + 1, 0).getDate();
+            
+            for (let i = 0; i < firstDayIndex; i++) {
+                const emptyCell = document.createElement('div');
+                emptyCell.className = 'w-full h-10 sm:aspect-square';
+                grid.appendChild(emptyCell);
+            }
+            
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            
+            const maxDate = new Date();
+            maxDate.setDate(today.getDate() + 30);
+            maxDate.setHours(0,0,0,0);
+            
+            for (let day = 1; day <= totalDays; day++) {
+                const dateObj = new Date(year, month, day);
+                dateObj.setHours(0,0,0,0);
+                
+                const yyyy = dateObj.getFullYear();
+                const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const dd = String(dateObj.getDate()).padStart(2, '0');
+                const dateStr = `${yyyy}-${mm}-${dd}`;
+                
+                const isSelected = selectedDateVal === dateStr;
+                const isToday = today.getTime() === dateObj.getTime();
+                const isSunday = dateObj.getDay() === 0;
+                
+                const isOutOfRange = dateObj < today || dateObj > maxDate;
+                const isDisabled = isOutOfRange || isSunday;
+                
+                const dayBtn = document.createElement('button');
+                dayBtn.type = 'button';
+                dayBtn.className = 'w-full h-10 sm:aspect-square flex flex-col items-center justify-center text-xs sm:text-sm font-semibold rounded-lg sm:rounded-xl transition-all duration-200 relative select-none';
+                dayBtn.innerHTML = `<span>${day}</span>`;
+                
+                if (isDisabled) {
+                    dayBtn.disabled = true;
+                    if (isSunday) {
+                        dayBtn.className += ' text-rose-500/50 dark:text-rose-400/40 bg-rose-500/5 dark:bg-rose-500/10 cursor-not-allowed border border-transparent';
+                        dayBtn.title = 'Closed on Sundays';
+                        const dot = document.createElement('span');
+                        dot.className = 'absolute bottom-1 w-1 h-1 rounded-full bg-rose-500/40';
+                        dayBtn.appendChild(dot);
+                    } else {
+                        dayBtn.className += ' text-gray-300 dark:text-charcoal-700 bg-transparent cursor-not-allowed opacity-30';
+                    }
+                } else {
+                    if (isSelected) {
+                        dayBtn.className += ' calendar-day-selected bg-gold text-charcoal-900 font-bold shadow-lg shadow-gold/30 scale-105';
+                    } else {
+                        dayBtn.className += ' text-gray-800 dark:text-gray-200 bg-white dark:bg-charcoal-900 border border-gray-200 dark:border-charcoal-700 hover:border-gold hover:text-gold hover:scale-105 shadow-sm';
+                        if (isToday) {
+                            dayBtn.className += ' ring-2 ring-gold/60 ring-offset-1 dark:ring-offset-charcoal-800 font-bold text-gold';
+                        }
+                    }
+                    
+                    // Add availability dot for bookable days
+                    const availDot = document.createElement('span');
+                    availDot.className = 'absolute bottom-1 w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.5)]';
+                    dayBtn.appendChild(availDot);
+                    
+                    dayBtn.addEventListener('click', () => {
+                        const dateInput = document.getElementById('date');
+                        dateInput.value = dateStr;
+                        
+                        const event = new Event('change', { bubbles: true });
+                        dateInput.dispatchEvent(event);
+                        
+                        renderCustomCalendar();
+                        updateDesktopLiveSummary();
+                    });
+                }
+                
+                grid.appendChild(dayBtn);
+            }
+            
+            const lastDayOfPrevMonth = new Date(year, month, 0);
+            const calPrevBtn = document.getElementById('calPrevBtn');
+            calPrevBtn.disabled = lastDayOfPrevMonth < today;
+            if (lastDayOfPrevMonth < today) {
+                calPrevBtn.classList.add('opacity-30', 'cursor-not-allowed');
+            } else {
+                calPrevBtn.classList.remove('opacity-30', 'cursor-not-allowed');
+            }
+            
+            const nextMonthFirstDay = new Date(year, month + 1, 1);
+            const calNextBtn = document.getElementById('calNextBtn');
+            calNextBtn.disabled = nextMonthFirstDay > maxDate;
+            if (nextMonthFirstDay > maxDate) {
+                calNextBtn.classList.add('opacity-30', 'cursor-not-allowed');
+            } else {
+                calNextBtn.classList.remove('opacity-30', 'cursor-not-allowed');
+            }
+        }
 
         document.getElementById('calPrevBtn').addEventListener('click', () => {
             currentCalDate.setMonth(currentCalDate.getMonth() - 1);
