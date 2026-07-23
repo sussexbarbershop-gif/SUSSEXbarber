@@ -104,11 +104,9 @@
         .service-card.selected,
         .time-chip-selected,
         .calendar-day-selected {
-            border: 2.5px solid #d4af37 !important;
-            outline: 2.5px solid #d4af37 !important;
-            outline-offset: 2px;
+            border: 3px solid #d4af37 !important;
+            box-shadow: 0 0 0 2px #d4af37, 0 0 20px rgba(212, 175, 55, 0.45) !important;
             background-color: rgba(212, 175, 55, 0.18) !important;
-            box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.5), 0 0 20px rgba(212, 175, 55, 0.4) !important;
         }
         .barber-card.selected .check-badge,
         .service-card.selected .check-badge {
@@ -1093,12 +1091,10 @@
         window.selectBarberCard = function(card) {
             if (!card) return;
             document.querySelectorAll('#barberCardsContainer .barber-card').forEach(c => {
-                c.classList.remove('selected', 'border-2', 'border-gold', 'bg-gold/10', 'dark:bg-gold/20', 'shadow-lg');
-                c.classList.add('border', 'border-gray-200', 'dark:border-charcoal-700');
+                c.classList.remove('selected');
                 const b = c.querySelector('.check-badge');
                 if (b) b.classList.add('hidden');
             });
-            card.classList.remove('border', 'border-gray-200', 'dark:border-charcoal-700');
             card.classList.add('selected');
             const selectedBadge = card.querySelector('.check-badge');
             if (selectedBadge) selectedBadge.classList.remove('hidden');
@@ -1110,12 +1106,10 @@
         window.selectServiceCard = function(card) {
             if (!card) return;
             document.querySelectorAll('#serviceCardsContainer .service-card').forEach(c => {
-                c.classList.remove('selected', 'border-2', 'border-gold', 'bg-gold/10', 'dark:bg-gold/20', 'shadow-lg');
-                c.classList.add('border', 'border-gray-200', 'dark:border-charcoal-700');
+                c.classList.remove('selected');
                 const b = c.querySelector('.check-badge');
                 if (b) b.classList.add('hidden');
             });
-            card.classList.remove('border', 'border-gray-200', 'dark:border-charcoal-700');
             card.classList.add('selected');
             const selectedBadge = card.querySelector('.check-badge');
             if (selectedBadge) selectedBadge.classList.remove('hidden');
