@@ -98,6 +98,18 @@
             background: #d4af37;
             border-radius: 4px;
         }
+
+        /* Card Selection Visual Styles (Guaranteed) */
+        .barber-card.selected,
+        .service-card.selected {
+            border: 2px solid #d4af37 !important;
+            background-color: rgba(212, 175, 55, 0.15) !important;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.35) !important;
+        }
+        .barber-card.selected .check-badge,
+        .service-card.selected .check-badge {
+            display: flex !important;
+        }
         /* Animations for Map Effects */
         @keyframes flyPlane {
             0% { left: -20%; bottom: -20%; transform: rotate(45deg); opacity: 0; }
@@ -431,77 +443,88 @@
                     <div>
                         <label class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-3 font-semibold" data-translate="2. Choose Service">2. Choose Service</label>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="serviceCardsContainer">
-                            <div tabindex="0" data-service="Classic Haircut" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                            <div tabindex="0" data-service="Classic Haircut" onclick="selectServiceCard(this)" class="service-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
+                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
                                 <div>
                                     <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Classic Haircut">Classic Haircut</h4>
                                     <p class="text-xs text-gold mt-1 font-medium">⏱️ ~30 min</p>
                                 </div>
                                 <span class="text-gold font-serif font-bold text-lg">€28.00</span>
                             </div>
-                            <div tabindex="0" data-service="Skin Fade" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                            <div tabindex="0" data-service="Skin Fade" onclick="selectServiceCard(this)" class="service-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
+                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
                                 <div>
                                     <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Skin Fade">Skin Fade</h4>
                                     <p class="text-xs text-gold mt-1 font-medium">⏱️ ~45 min</p>
                                 </div>
                                 <span class="text-gold font-serif font-bold text-lg">€28.00</span>
                             </div>
-                            <div tabindex="0" data-service="Scissor Cut" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                            <div tabindex="0" data-service="Scissor Cut" onclick="selectServiceCard(this)" class="service-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
+                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
                                 <div>
                                     <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Scissor Cut">Scissor Cut</h4>
                                     <p class="text-xs text-gold mt-1 font-medium">⏱️ ~30 min</p>
                                 </div>
                                 <span class="text-gold font-serif font-bold text-lg">€28.00</span>
                             </div>
-                            <div tabindex="0" data-service="Wash & Haircut" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                            <div tabindex="0" data-service="Wash & Haircut" onclick="selectServiceCard(this)" class="service-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
+                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
                                 <div>
                                     <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Wash & Haircut">Wash & Haircut</h4>
                                     <p class="text-xs text-gold mt-1 font-medium">⏱️ ~45 min</p>
                                 </div>
                                 <span class="text-gold font-serif font-bold text-lg">€35.00</span>
                             </div>
-                            <div tabindex="0" data-service="Beard Trim" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                            <div tabindex="0" data-service="Beard Trim" onclick="selectServiceCard(this)" class="service-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
+                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
                                 <div>
                                     <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Beard Trim">Beard Trim</h4>
                                     <p class="text-xs text-gold mt-1 font-medium">⏱️ ~20 min</p>
                                 </div>
                                 <span class="text-gold font-serif font-bold text-lg">€20.00</span>
                             </div>
-                            <div tabindex="0" data-service="Clean Shave" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                            <div tabindex="0" data-service="Clean Shave" onclick="selectServiceCard(this)" class="service-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
+                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
                                 <div>
                                     <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Clean Shave">Clean Shave</h4>
                                     <p class="text-xs text-gold mt-1 font-medium">⏱️ ~30 min</p>
                                 </div>
                                 <span class="text-gold font-serif font-bold text-lg">€20.00</span>
                             </div>
-                            <div tabindex="0" data-service="Classic Haircut + Beard Trim" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                            <div tabindex="0" data-service="Classic Haircut + Beard Trim" onclick="selectServiceCard(this)" class="service-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
+                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
                                 <div>
                                     <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Classic Haircut + Beard Trim">Classic Haircut + Beard Trim</h4>
                                     <p class="text-xs text-gold mt-1 font-medium">⏱️ ~45 min</p>
                                 </div>
                                 <span class="text-gold font-serif font-bold text-lg">€40.00</span>
                             </div>
-                            <div tabindex="0" data-service="Skin Fade + Beard Trim" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                            <div tabindex="0" data-service="Skin Fade + Beard Trim" onclick="selectServiceCard(this)" class="service-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
+                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
                                 <div>
                                     <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Skin Fade + Beard Trim">Skin Fade + Beard Trim</h4>
                                     <p class="text-xs text-gold mt-1 font-medium">⏱️ ~60 min</p>
                                 </div>
                                 <span class="text-gold font-serif font-bold text-lg">€40.00</span>
                             </div>
-                            <div tabindex="0" data-service="One Grade Trim" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                            <div tabindex="0" data-service="One Grade Trim" onclick="selectServiceCard(this)" class="service-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
+                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
                                 <div>
                                     <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="One Grade Trim">One Grade Trim</h4>
                                     <p class="text-xs text-gold mt-1 font-medium">⏱️ ~15 min</p>
                                 </div>
                                 <span class="text-gold font-serif font-bold text-lg">€20.00</span>
                             </div>
-                            <div tabindex="0" data-service="Kids Haircut (Up to 10 Years)" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                            <div tabindex="0" data-service="Kids Haircut (Up to 10 Years)" onclick="selectServiceCard(this)" class="service-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
+                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
                                 <div>
                                     <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Kids Haircut (Up to 10 Years)">Kids Haircut (Up to 10 Years)</h4>
                                     <p class="text-xs text-gold mt-1 font-medium">⏱️ ~30 min</p>
                                 </div>
                                 <span class="text-gold font-serif font-bold text-lg">€21.00</span>
                             </div>
-                            <div tabindex="0" data-service="Kids Haircut (Up to 13 Years)" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                            <div tabindex="0" data-service="Kids Haircut (Up to 13 Years)" onclick="selectServiceCard(this)" class="service-card relative cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none">
+                                <div class="check-badge hidden absolute top-2 right-2 w-5 h-5 bg-gold text-charcoal-900 rounded-full flex items-center justify-center font-bold text-xs shadow-sm">✓</div>
                                 <div>
                                     <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Kids Haircut (Up to 13 Years)">Kids Haircut (Up to 13 Years)</h4>
                                     <p class="text-xs text-gold mt-1 font-medium">⏱️ ~30 min</p>
@@ -1064,14 +1087,15 @@
 
         // Global Selection Handler Functions
         window.selectBarberCard = function(card) {
+            if (!card) return;
             document.querySelectorAll('#barberCardsContainer .barber-card').forEach(c => {
-                c.classList.remove('border-2', 'border-gold', 'bg-gold/10', 'dark:bg-gold/20', 'shadow-lg');
+                c.classList.remove('selected', 'border-2', 'border-gold', 'bg-gold/10', 'dark:bg-gold/20', 'shadow-lg');
                 c.classList.add('border', 'border-gray-200', 'dark:border-charcoal-700');
                 const b = c.querySelector('.check-badge');
                 if (b) b.classList.add('hidden');
             });
             card.classList.remove('border', 'border-gray-200', 'dark:border-charcoal-700');
-            card.classList.add('border-2', 'border-gold', 'bg-gold/10', 'dark:bg-gold/20', 'shadow-lg');
+            card.classList.add('selected');
             const selectedBadge = card.querySelector('.check-badge');
             if (selectedBadge) selectedBadge.classList.remove('hidden');
 
@@ -1080,14 +1104,15 @@
         };
 
         window.selectServiceCard = function(card) {
+            if (!card) return;
             document.querySelectorAll('#serviceCardsContainer .service-card').forEach(c => {
-                c.classList.remove('border-2', 'border-gold', 'bg-gold/10', 'dark:bg-gold/20', 'shadow-lg');
+                c.classList.remove('selected', 'border-2', 'border-gold', 'bg-gold/10', 'dark:bg-gold/20', 'shadow-lg');
                 c.classList.add('border', 'border-gray-200', 'dark:border-charcoal-700');
                 const b = c.querySelector('.check-badge');
                 if (b) b.classList.add('hidden');
             });
             card.classList.remove('border', 'border-gray-200', 'dark:border-charcoal-700');
-            card.classList.add('border-2', 'border-gold', 'bg-gold/10', 'dark:bg-gold/20', 'shadow-lg');
+            card.classList.add('selected');
             const selectedBadge = card.querySelector('.check-badge');
             if (selectedBadge) selectedBadge.classList.remove('hidden');
 
