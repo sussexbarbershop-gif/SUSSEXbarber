@@ -46,6 +46,69 @@
                 }
             }
         }
+
+        // Global Selection Handler Functions (Early Definition)
+        window.selectBarberCard = function(card) {
+            if (!card) return;
+            document.querySelectorAll('#barberCardsContainer .barber-card').forEach(c => {
+                c.classList.remove('selected');
+                c.style.border = '';
+                c.style.boxShadow = '';
+                c.style.backgroundColor = '';
+                const b = c.querySelector('.check-badge');
+                if (b) {
+                    b.classList.add('hidden');
+                    b.style.display = 'none';
+                }
+            });
+            card.classList.add('selected');
+            card.style.border = '3px solid #d4af37';
+            card.style.boxShadow = '0 0 0 2px #d4af37, 0 0 20px rgba(212, 175, 55, 0.5)';
+            card.style.backgroundColor = 'rgba(212, 175, 55, 0.2)';
+
+            const selectedBadge = card.querySelector('.check-badge');
+            if (selectedBadge) {
+                selectedBadge.classList.remove('hidden');
+                selectedBadge.style.display = 'flex';
+            }
+
+            const input = document.getElementById('barber');
+            if (input) input.value = card.getAttribute('data-barber') || '';
+            if (typeof updateDesktopLiveSummary === 'function') updateDesktopLiveSummary();
+        };
+
+        window.selectServiceCard = function(card) {
+            if (!card) return;
+            document.querySelectorAll('#serviceCardsContainer .service-card').forEach(c => {
+                c.classList.remove('selected');
+                c.style.border = '';
+                c.style.boxShadow = '';
+                c.style.backgroundColor = '';
+                const b = c.querySelector('.check-badge');
+                if (b) {
+                    b.classList.add('hidden');
+                    b.style.display = 'none';
+                }
+            });
+            card.classList.add('selected');
+            card.style.border = '3px solid #d4af37';
+            card.style.boxShadow = '0 0 0 2px #d4af37, 0 0 20px rgba(212, 175, 55, 0.5)';
+            card.style.backgroundColor = 'rgba(212, 175, 55, 0.2)';
+
+            const selectedBadge = card.querySelector('.check-badge');
+            if (selectedBadge) {
+                selectedBadge.classList.remove('hidden');
+                selectedBadge.style.display = 'flex';
+            }
+
+            const selectedService = card.getAttribute('data-service');
+            const input = document.getElementById('service');
+            if (input) input.value = selectedService;
+            if (typeof updateDesktopLiveSummary === 'function') updateDesktopLiveSummary();
+            const dateInput = document.getElementById('date');
+            const selectedDate = dateInput ? dateInput.value : '';
+            if (selectedDate && typeof renderTimeChips === 'function') renderTimeChips();
+        };
     </script>
     <style>
         /* Custom Styles & Theme Transitions */
@@ -1087,39 +1150,18 @@
         // ===========================
         const API_URL = "https://script.google.com/macros/s/AKfycbyB3U2n2W2HRn20BxQWLi7Swjq0dSQV6_nnrSXPHRMsx53kP6xy8OpO2w9OTu9cdZvVtQ/exec";
 
-        // Global Selection Handler Functions
-        window.selectBarberCard = function(card) {
-            if (!card) return;
-            document.querySelectorAll('#barberCardsContainer .barber-card').forEach(c => {
-                c.classList.remove('selected');
-                const b = c.querySelector('.check-badge');
-                if (b) b.classList.add('hidden');
-            });
-            card.classList.add('selected');
-            const selectedBadge = card.querySelector('.check-badge');
-            if (selectedBadge) selectedBadge.classList.remove('hidden');
-
-            document.getElementById('barber').value = card.getAttribute('data-barber') || '';
-            if (typeof updateDesktopLiveSummary === 'function') updateDesktopLiveSummary();
-        };
-
-        window.selectServiceCard = function(card) {
-            if (!card) return;
-            document.querySelectorAll('#serviceCardsContainer .service-card').forEach(c => {
-                c.classList.remove('selected');
-                const b = c.querySelector('.check-badge');
-                if (b) b.classList.add('hidden');
-            });
-            card.classList.add('selected');
-            const selectedBadge = card.querySelector('.check-badge');
-            if (selectedBadge) selectedBadge.classList.remove('hidden');
-
-            const selectedService = card.getAttribute('data-service');
-            document.getElementById('service').value = selectedService;
-            if (typeof updateDesktopLiveSummary === 'function') updateDesktopLiveSummary();
-            const selectedDate = document.getElementById('date').value;
-            if (selectedDate && typeof renderTimeChips === 'function') renderTimeChips();
-        };
+        // Additional Event Delegation Backup Handler
+        document.addEventListener('DOMContentLoaded', () => {
+            const step1 = document.getElementById('bookingStep1');
+            if (step1) {
+                step1.addEventListener('click', (e) => {
+                    const barber = e.target.closest('.barber-card');
+                    if (barber) { window.selectBarberCard(barber); return; }
+                    const service = e.target.closest('.service-card');
+                    if (service) { window.selectServiceCard(service); return; }
+                });
+            }
+        });
 
         // Step Navigation Logic
         const step1 = document.getElementById('bookingStep1');
