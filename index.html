@@ -1848,8 +1848,6 @@
             'Saturday': 'Zaterdag',
             'Sunday': 'Zondag',
             'Closed': 'Gesloten',
-            'Client Testimonials': 'Klantbeoordelingen',
-            'Frequently Asked Questions': 'Veelgestelde Vragen',
             'Classic Haircut': 'Klassieke knipbeurt',
             'Skin Fade': 'Skin Fade',
             'Scissor Cut': 'Knippen met schaar',
@@ -1861,7 +1859,11 @@
             'One Grade Trim': 'Eén lengte trim (tondeuse)',
             'Kids Haircut (Up to 10 Years)': 'Kinderknipbeurt (t/m 10 jaar)',
             'Kids Haircut (Up to 13 Years)': 'Kinderknipbeurt (t/m 13 jaar)',
+            'Masterful Cuts.': 'Meesterlijke snitten.',
+            'Timeless Style.': 'Tijdloze stijl.',
             'Masterful Cuts, Exceptional Service.': 'Meesterlijke snitten, Uitzonderlijke service.',
+            'Experience premium grooming and hearty service in the heart of Wassenaar.': 'Ervaar eersteklas verzorging en hartelijke service in het hart van Wassenaar.',
+            'Experience premium grooming and hearty service in the heart of Wassenaar': 'Ervaar eersteklas verzorging en hartelijke service in het hart van Wassenaar',
             'Elevating the art of grooming in Sussex. Experience the difference.': 'Verhoging van de kunst van verzorging in Sussex. Ervaar het verschil.',
             'Precision haircuts & styling for the modern man.': 'Precisie kapsels & styling voor de moderne man.',
             'Hot towel shaves & beard styling.': 'Hot towel scheren & baard styling.',
@@ -1886,64 +1888,114 @@
             'Contact Us': 'Neem Contact Op',
             'Quick Links': 'Snelle Links',
             'Rights Reserved.': 'Alle rechten voorbehouden.',
-            'About Us': 'Over Ons',
+            'The Sussex Experience': 'De Sussex Ervaring',
+            'Service': 'Dienst',
+            'Date & Time': 'Datum & Tijd',
+            'Confirm': 'Bevestigen',
+            '1. Choose Preferred Barber': '1. Kies Voorkeurskapper',
+            '2. Choose Service': '2. Kies Dienst',
+            'Meet the experienced professionals dedicated to giving you the perfect look. Every barber at Sussex is a master of their craft.': 'Ontmoet de ervaren professionals die toegewijd zijn om u de perfecte look te geven. Elke kapper bij Sussex is een meester in zijn vak.',
+            'At Sussex Barber Shop, we blend modern styling techniques with traditional barbering values. Our space is designed to be a sanctuary for men—a place where you can unwind, enjoy a free coffee, and leave looking your absolute best.': 'Bij Sussex Barber Shop combineren we moderne stylingtechnieken met traditionele barbierswaarden. Onze ruimte is ontworpen als een rustplek voor mannen—een plek waar u kunt ontspannen, genieten van een gratis koffie en er op uw best uitziet.',
+            'With a 4.7-star rating and a reputation for precise cuts and a friendly atmosphere, our attentive barbers ensure that every haircut, beard trim, and hot towel shave is executed to perfection.': 'Met een beoordeling van 4.7 sterren en een reputatie voor nauwkeurige knipbeurten en een vriendelijke sfeer, zorgen onze aandachtige kappers ervoor dat elke knipbeurt, baardtrim en hot towel scheerbeurt tot in de perfectie wordt uitgevoerd.',
+            'Visit Us': 'Bezoek Ons',
+            'LIVE SUMMARY': 'LIVE OVERZICHT',
+            'Service:': 'Dienst:',
+            'Barber:': 'Kapper:',
+            'Date:': 'Datum:',
+            'Time:': 'Tijd:',
+            'Any Available': 'Elke Beschikbare Kapper',
+            'First available chair': 'Eerst beschikbare stoel',
+            'MASTER BARBER': 'MEESTERKAPPER',
+            'SENIOR STYLIST': 'SENIOR STYLIST',
+            'BARBER': 'KAPPER',
+            'Specialty:': 'Specialiteit:',
+            'Experience:': 'Ervaring:',
+            'Skin Fades, Beards': 'Skin Fades, Baarden',
+            'Classic Cuts, Styling': 'Klassieke Knipbeurten, Styling',
+            'Hot Towel Shaves': 'Hot Towel Scheren',
+            '5+ Years': '5+ Jaar',
+            '8+ Years': '8+ Jaar',
+            '4+ Years': '4+ Jaar',
+            'Google Maps Location': 'Locatie Google Maps',
+            'Click below to open route in Google Maps app:': 'Klik hieronder om de route te openen in Google Maps:',
+            'Open Route in Google Maps ➔': 'Open Route in Google Maps ➔',
+            'Privacy Policy': 'Privacybeleid',
+            'Terms of Service': 'Algemene Voorwaarden',
             'Book Appointment': 'Afspraak Maken',
             'Select a service': 'Selecteer een dienst',
             'Enter your full name': 'Voer uw volledige naam in',
-            'e.g. 06 1234 5678': 'bijv. 06 1234 5678'
+            'e.g. 06 1234 5678': 'bijv. 06 1234 5678',
+            'min': 'min.',
+            '~15 min': '~15 min.',
+            '~20 min': '~20 min.',
+            '~30 min': '~30 min.',
+            '~45 min': '~45 min.',
+            '~60 min': '~60 min.',
+            '⏱️ ~15 min': '⏱️ ~15 min.',
+            '⏱️ ~20 min': '⏱️ ~20 min.',
+            '⏱️ ~30 min': '⏱️ ~30 min.',
+            '⏱️ ~45 min': '⏱️ ~45 min.',
+            '⏱️ ~60 min': '⏱️ ~60 min.'
         };
 
-        let currentLang = 'en';
+        window.currentLang = 'en';
         
         function toggleLanguage() {
-            currentLang = currentLang === 'en' ? 'nl' : 'en';
+            window.currentLang = window.currentLang === 'en' ? 'nl' : 'en';
+            const lang = window.currentLang;
             
             // Update Toggle Button Text
             const langBtn = document.getElementById('langToggleBtn');
             if (langBtn) {
-                langBtn.innerHTML = currentLang === 'en' ? 'EN' : 'NL';
+                langBtn.innerHTML = lang === 'en' ? 'EN' : 'NL';
             }
+
+            // Translate data-translate elements
+            document.querySelectorAll('[data-translate]').forEach(el => {
+                const key = el.getAttribute('data-translate');
+                if (dict[key]) {
+                    el.innerText = (lang === 'nl') ? dict[key] : key;
+                }
+            });
             
-            // Walk DOM and replace text
+            // Walk DOM and replace text safely using pristine original English preservation
             const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
             let n;
             while (n = walk.nextNode()) {
                 const parent = n.parentElement;
                 if(parent && (parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE')) continue;
                 
-                let text = n.nodeValue.trim();
-                if(!text) continue;
-                
-                if(!parent.dataset.en) {
-                    if(dict[text]) {
-                        parent.dataset.en = text;
-                        parent.dataset.nl = dict[text];
-                    }
+                if (typeof n._origEn === 'undefined') {
+                    n._origEn = n.nodeValue;
                 }
-                
-                if(parent.dataset.en && parent.dataset.nl) {
-                    if (currentLang === 'nl') {
-                        n.nodeValue = n.nodeValue.replace(parent.dataset.en, parent.dataset.nl);
+
+                let key = n._origEn.trim();
+                if (key && dict[key]) {
+                    if (lang === 'nl') {
+                        n.nodeValue = n._origEn.replace(key, dict[key]);
                     } else {
-                        n.nodeValue = n.nodeValue.replace(parent.dataset.nl, parent.dataset.en);
+                        n.nodeValue = n._origEn;
                     }
                 }
             }
             
             // Translate placeholders
             document.querySelectorAll('input[placeholder], textarea[placeholder]').forEach(el => {
-                const text = el.placeholder.trim();
-                if(!el.dataset.enPlaceholder) {
-                    if(dict[text]) {
-                        el.dataset.enPlaceholder = text;
-                        el.dataset.nlPlaceholder = dict[text];
-                    }
+                if (typeof el._origPlaceholder === 'undefined') {
+                    el._origPlaceholder = el.placeholder.trim();
                 }
-                if(el.dataset.enPlaceholder && el.dataset.nlPlaceholder) {
-                    el.placeholder = currentLang === 'nl' ? el.dataset.nlPlaceholder : el.dataset.enPlaceholder;
+                const key = el._origPlaceholder;
+                if (dict[key]) {
+                    el.placeholder = lang === 'nl' ? dict[key] : el._origPlaceholder;
                 }
             });
+
+            // Re-render live status badge and desktop live summary safely
+            if (typeof updateBusinessStatus === 'function') updateBusinessStatus();
+            if (typeof updateDesktopLiveSummary === 'function') updateDesktopLiveSummary();
         }
+
+        window.toggleLanguage = toggleLanguage;
 
     </script>
 
