@@ -183,6 +183,12 @@
             if (l3) l3.className = stepNum >= 3 ? 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-900 dark:text-white' : 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-400 dark:text-gray-500';
         };
 
+        window.changeCalMonth = function(delta) {
+            if (!window.currentCalDate) window.currentCalDate = new Date();
+            window.currentCalDate.setMonth(window.currentCalDate.getMonth() + delta);
+            window.renderCustomCalendar();
+        };
+
         window.renderCustomCalendar = function() {
             const grid = document.getElementById('calendarDaysGrid');
             const monthYearEl = document.getElementById('calendarMonthYear');
@@ -213,7 +219,7 @@
             today.setHours(0,0,0,0);
             
             const maxDate = new Date();
-            maxDate.setDate(today.getDate() + 30);
+            maxDate.setDate(today.getDate() + 60);
             maxDate.setHours(0,0,0,0);
             
             for (let day = 1; day <= totalDays; day++) {
@@ -266,6 +272,9 @@
                         const dateInput = document.getElementById('date');
                         if (dateInput) dateInput.value = dateStr;
                         window.renderCustomCalendar();
+                        if (typeof window.renderTimeChips === 'function') {
+                            window.renderTimeChips();
+                        }
                         if (typeof window.fetchBookedSlotsForSelectedDate === 'function') {
                             window.fetchBookedSlotsForSelectedDate();
                         }
@@ -274,6 +283,24 @@
                 }
                 
                 grid.appendChild(dayBtn);
+            }
+
+            const calPrevBtn = document.getElementById('calPrevBtn');
+            if (calPrevBtn) {
+                const isPrevDisabled = (year < today.getFullYear()) || (year === today.getFullYear() && month <= today.getMonth());
+                calPrevBtn.disabled = isPrevDisabled;
+                if (isPrevDisabled) calPrevBtn.classList.add('opacity-30', 'cursor-not-allowed');
+                else calPrevBtn.classList.remove('opacity-30', 'cursor-not-allowed');
+            }
+
+            const calNextBtn = document.getElementById('calNextBtn');
+            if (calNextBtn) {
+                const maxMonthObj = new Date(today);
+                maxMonthObj.setDate(today.getDate() + 60);
+                const isNextDisabled = (year > maxMonthObj.getFullYear()) || (year === maxMonthObj.getFullYear() && month >= maxMonthObj.getMonth());
+                calNextBtn.disabled = isNextDisabled;
+                if (isNextDisabled) calNextBtn.classList.add('opacity-30', 'cursor-not-allowed');
+                else calNextBtn.classList.remove('opacity-30', 'cursor-not-allowed');
             }
         };
 
@@ -817,10 +844,10 @@
                                     <h4 id="calendarMonthYear" class="font-serif text-lg font-bold text-gray-900 dark:text-white">Month Year</h4>
                                 </div>
                                 <div class="flex space-x-2">
-                                    <button id="calPrevBtn" type="button" aria-label="Previous Month" class="p-2 rounded-lg border border-gray-300 dark:border-charcoal-700 text-gray-700 dark:text-gray-300 hover:bg-gold hover:text-charcoal-900 hover:border-gold transition-all flex items-center justify-center">
+                                    <button id="calPrevBtn" type="button" onclick="changeCalMonth(-1)" aria-label="Previous Month" class="p-2 rounded-lg border border-gray-300 dark:border-charcoal-700 text-gray-700 dark:text-gray-300 hover:bg-gold hover:text-charcoal-900 hover:border-gold transition-all flex items-center justify-center">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
                                     </button>
-                                    <button id="calNextBtn" type="button" aria-label="Next Month" class="p-2 rounded-lg border border-gray-300 dark:border-charcoal-700 text-gray-700 dark:text-gray-300 hover:bg-gold hover:text-charcoal-900 hover:border-gold transition-all flex items-center justify-center">
+                                    <button id="calNextBtn" type="button" onclick="changeCalMonth(1)" aria-label="Next Month" class="p-2 rounded-lg border border-gray-300 dark:border-charcoal-700 text-gray-700 dark:text-gray-300 hover:bg-gold hover:text-charcoal-900 hover:border-gold transition-all flex items-center justify-center">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
                                     </button>
                                 </div>
