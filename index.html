@@ -47,7 +47,7 @@
             }
         }
 
-        // Global State & Wizard Functions
+        // Global State & Functions
         window.currentWizardStep = 1;
         window.currentCalDate = new Date();
         window.bookedTimesList = [];
@@ -183,6 +183,82 @@
             if (l3) l3.className = stepNum >= 3 ? 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-900 dark:text-white' : 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-400 dark:text-gray-500';
         };
 
+        window.renderTimeChips = function() {
+            const grid = document.getElementById('timeChipsGrid');
+            if (!grid) return;
+            const selectedTimeInput = document.getElementById('time');
+            const selectedTime = selectedTimeInput ? selectedTimeInput.value : '';
+            const selectedDateInput = document.getElementById('date');
+            const selectedDate = selectedDateInput ? selectedDateInput.value : '';
+            const statusText = document.getElementById('timeSlotStatusText');
+
+            grid.innerHTML = '';
+
+            if (!selectedDate) {
+                if (statusText) statusText.innerText = 'Please choose a date first';
+                (window.availableTimesList || []).forEach(t => {
+                    const chip = document.createElement('button');
+                    chip.type = 'button';
+                    chip.disabled = true;
+                    chip.className = 'py-3 px-2 text-xs font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 cursor-not-allowed rounded-lg text-center opacity-50';
+                    chip.innerText = t;
+                    grid.appendChild(chip);
+                });
+                return;
+            }
+
+            if (statusText) {
+                statusText.innerText = (window.bookedTimesList && window.bookedTimesList.length > 0)
+                    ? 'Slots updated for selected date'
+                    : 'Select an available time slot';
+            }
+
+            const dateObj = new Date(selectedDate);
+            const isMonday = dateObj.getDay() === 1;
+
+            const allTimes = window.availableTimesList || [
+                "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM",
+                "12:00 PM", "12:30 PM", "01:00 PM", "01:30 PM",
+                "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM",
+                "04:00 PM", "04:30 PM", "05:00 PM", "05:30 PM"
+            ];
+
+            const validTimes = allTimes.filter(t => {
+                if (isMonday && (t.startsWith("10:") || t.startsWith("11:"))) return false;
+                return true;
+            });
+
+            validTimes.forEach(t => {
+                const isBooked = (window.bookedTimesList || []).includes(t);
+                const isSelected = selectedTime === t;
+
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                chip.disabled = isBooked;
+
+                if (isBooked) {
+                    chip.className = 'py-3 px-2 text-xs font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 line-through cursor-not-allowed rounded-lg text-center';
+                    chip.innerHTML = `${t} <span class="block text-[10px] no-underline">Booked</span>`;
+                } else if (isSelected) {
+                    chip.className = 'time-chip-selected py-3 px-2 text-xs font-bold bg-gold text-charcoal-900 rounded-lg text-center shadow-md shadow-gold/20 scale-105';
+                    chip.innerText = t;
+                } else {
+                    chip.className = 'py-3 px-2 text-xs font-medium border border-gray-300 dark:border-charcoal-700 bg-gray-50 dark:bg-charcoal-800 text-gray-800 dark:text-gray-200 hover:border-gold hover:text-gold rounded-lg text-center transition-colors cursor-pointer';
+                    chip.innerText = t;
+                }
+
+                if (!isBooked) {
+                    chip.addEventListener('click', () => {
+                        if (selectedTimeInput) selectedTimeInput.value = t;
+                        window.renderTimeChips();
+                        if (typeof updateDesktopLiveSummary === 'function') updateDesktopLiveSummary();
+                    });
+                }
+
+                grid.appendChild(chip);
+            });
+        };
+
         window.changeCalMonth = function(delta) {
             if (!window.currentCalDate) window.currentCalDate = new Date();
             window.currentCalDate.setMonth(window.currentCalDate.getMonth() + delta);
@@ -219,7 +295,7 @@
             today.setHours(0,0,0,0);
             
             const maxDate = new Date();
-            maxDate.setDate(today.getDate() + 60);
+            maxDate.setDate(today.getDate() + 90);
             maxDate.setHours(0,0,0,0);
             
             for (let day = 1; day <= totalDays; day++) {
@@ -272,9 +348,7 @@
                         const dateInput = document.getElementById('date');
                         if (dateInput) dateInput.value = dateStr;
                         window.renderCustomCalendar();
-                        if (typeof window.renderTimeChips === 'function') {
-                            window.renderTimeChips();
-                        }
+                        window.renderTimeChips();
                         if (typeof window.fetchBookedSlotsForSelectedDate === 'function') {
                             window.fetchBookedSlotsForSelectedDate();
                         }
@@ -296,7 +370,7 @@
             const calNextBtn = document.getElementById('calNextBtn');
             if (calNextBtn) {
                 const maxMonthObj = new Date(today);
-                maxMonthObj.setDate(today.getDate() + 60);
+                maxMonthObj.setDate(today.getDate() + 90);
                 const isNextDisabled = (year > maxMonthObj.getFullYear()) || (year === maxMonthObj.getFullYear() && month >= maxMonthObj.getMonth());
                 calNextBtn.disabled = isNextDisabled;
                 if (isNextDisabled) calNextBtn.classList.add('opacity-30', 'cursor-not-allowed');
@@ -328,8 +402,9 @@
             window.updateWizardUI(stepNum);
 
             if (stepNum === 2) {
-                window.currentCalDate = new Date();
+                if (!window.currentCalDate) window.currentCalDate = new Date();
                 window.renderCustomCalendar();
+                window.renderTimeChips();
             }
         };
     </script>
@@ -1445,82 +1520,7 @@
             updateWizardUI(2);
         });
 
-        // Time Chips Rendering
-        window.renderTimeChips = function() {
-            const grid = document.getElementById('timeChipsGrid');
-            if (!grid) return;
-            const selectedTimeInput = document.getElementById('time');
-            const selectedTime = selectedTimeInput ? selectedTimeInput.value : '';
-            const selectedDateInput = document.getElementById('date');
-            const selectedDate = selectedDateInput ? selectedDateInput.value : '';
-            const statusText = document.getElementById('timeSlotStatusText');
-
-            grid.innerHTML = '';
-
-            // ئەگەر بەروار هەڵنەبژێردرابێت، هەموو کاتژمێرەکان لەکار بخە
-            if (!selectedDate) {
-                statusText.innerText = 'Please choose a date first';
-                availableTimesList.forEach(t => {
-                    const chip = document.createElement('button');
-                    chip.type = 'button';
-                    chip.disabled = true;
-                    chip.className = 'py-1.5 sm:py-3 px-1 sm:px-2 text-[10px] sm:text-xs font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 cursor-not-allowed rounded-lg text-center opacity-50';
-                    chip.innerText = t;
-                    grid.appendChild(chip);
-                });
-                return;
-            }
-
-            if (bookedTimesList.length > 0) {
-                statusText.innerText = 'Slots updated for selected date';
-            } else {
-                statusText.innerText = 'Available time slots:';
-            }
-
-            const dateObj = new Date(selectedDate);
-            const isMonday = dateObj.getDay() === 1;
-
-            const selectedServicesStr = document.getElementById('service').value;
-            const selectedServicesCount = selectedServicesStr ? selectedServicesStr.split(',').length : 1;
-            const intervalStep = Math.max(1, selectedServicesCount);
-
-            const validTimes = availableTimesList.filter(t => {
-                if (isMonday && (t.startsWith("10:") || t.startsWith("11:"))) return false;
-                return true;
-            });
-
-            validTimes.forEach((t, i) => {
-                if (i % intervalStep !== 0) return;
-                
-                const isBooked = bookedTimesList.includes(t);
-                const isSelected = selectedTime === t;
-
-                const chip = document.createElement('button');
-                chip.type = 'button';
-                chip.disabled = isBooked;
-
-                if (isBooked) {
-                    chip.className = 'py-3 px-2 text-xs font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 line-through cursor-not-allowed rounded-lg text-center';
-                    chip.innerHTML = `${t} <span class="block text-[10px] no-underline">Booked</span>`;
-                } else if (isSelected) {
-                    chip.className = 'time-chip-selected py-3 px-2 text-xs font-bold bg-gold text-charcoal-900 rounded-lg text-center shadow-md';
-                    chip.innerText = t;
-                } else {
-                    chip.className = 'py-3 px-2 text-xs font-medium border border-gray-300 dark:border-charcoal-700 bg-gray-50 dark:bg-charcoal-800 text-gray-800 dark:text-gray-200 hover:border-gold hover:text-gold rounded-lg text-center transition-colors';
-                    chip.innerText = t;
-                }
-
-                if (!isBooked) {
-                    chip.addEventListener('click', () => {
-                        document.getElementById('time').value = t;
-                        renderTimeChips();
-                        updateDesktopLiveSummary();
-                    });
-                }
-
-                grid.appendChild(chip);
-            });
-        }
+        // Barber-specific slot availability fetching
 
         // Barber-specific slot availability fetching
         window.fetchBookedSlotsForSelectedDate = async function() {
