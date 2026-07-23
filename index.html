@@ -135,8 +135,8 @@
                 }
             }
 
-            if (typeof updateWizardUI === 'function') {
-                updateWizardUI(stepNum);
+            if (typeof window.updateWizardUI === 'function') {
+                window.updateWizardUI(stepNum);
             } else {
                 const s1 = document.getElementById('bookingStep1');
                 const s2 = document.getElementById('bookingStep2');
@@ -150,8 +150,12 @@
             }
 
             if (stepNum === 2) {
-                if (typeof currentCalDate !== 'undefined') currentCalDate = new Date();
-                if (typeof renderCustomCalendar === 'function') renderCustomCalendar();
+                if (typeof window.currentCalDate === 'undefined' || !window.currentCalDate) {
+                    window.currentCalDate = new Date();
+                }
+                if (typeof window.renderCustomCalendar === 'function') {
+                    window.renderCustomCalendar();
+                }
             }
         };
     </script>
@@ -1209,15 +1213,10 @@
         });
 
         // Step Navigation Logic
-        const step1 = document.getElementById('bookingStep1');
-        const step2 = document.getElementById('bookingStep2');
-        const step3 = document.getElementById('bookingStep3');
-        const progressLine = document.getElementById('progressLine');
+        window.currentWizardStep = 1;
 
-        let currentWizardStep = 1;
-
-        function updateWizardUI(stepNum) {
-            const isForward = stepNum > currentWizardStep;
+        window.updateWizardUI = function(stepNum) {
+            const isForward = stepNum > window.currentWizardStep;
             
             const s1 = document.getElementById('bookingStep1');
             const s2 = document.getElementById('bookingStep2');
@@ -1334,10 +1333,13 @@
         });
 
         // Time Chips Rendering
-        function renderTimeChips() {
+        window.renderTimeChips = function() {
             const grid = document.getElementById('timeChipsGrid');
-            const selectedTime = document.getElementById('time').value;
-            const selectedDate = document.getElementById('date').value;
+            if (!grid) return;
+            const selectedTimeInput = document.getElementById('time');
+            const selectedTime = selectedTimeInput ? selectedTimeInput.value : '';
+            const selectedDateInput = document.getElementById('date');
+            const selectedDate = selectedDateInput ? selectedDateInput.value : '';
             const statusText = document.getElementById('timeSlotStatusText');
 
             grid.innerHTML = '';
@@ -1408,7 +1410,7 @@
         }
 
         // Barber-specific slot availability fetching
-        async function fetchBookedSlotsForSelectedDate() {
+        window.fetchBookedSlotsForSelectedDate = async function() {
             const dateInput = document.getElementById('date');
             if (!dateInput) return;
             const dateVal = dateInput.value;
@@ -1521,17 +1523,18 @@
         }
 
         // Set date constraints & Custom Modern Calendar Logic
-        let currentCalDate = new Date();
+        window.currentCalDate = new Date();
 
-        function renderCustomCalendar() {
+        window.renderCustomCalendar = function() {
             const grid = document.getElementById('calendarDaysGrid');
             const monthYearEl = document.getElementById('calendarMonthYear');
             if (!grid || !monthYearEl) return;
 
-            const selectedDateVal = document.getElementById('date').value;
+            const selectedDateVal = (document.getElementById('date') || {}).value || '';
             
-            const year = currentCalDate.getFullYear();
-            const month = currentCalDate.getMonth();
+            if (!window.currentCalDate) window.currentCalDate = new Date();
+            const year = window.currentCalDate.getFullYear();
+            const month = window.currentCalDate.getMonth();
             
             const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
             monthYearEl.innerText = `${monthNames[month]} ${year}`;
