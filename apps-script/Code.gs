@@ -579,6 +579,61 @@ function formatTimeForFrontend(timeVal) {
   return String(timeVal);
 }
 
+// ---- One-click repair -------------------------------------------------
+
+/**
+ * Overwrite Settings, Gallery and Barbers with the real shop content.
+ *
+ * setupSheets() only fills a sheet that is completely empty, so a project
+ * that already ran the older script still holds its placeholder rows — a
+ * Amsterdam address, stock Unsplash photos, invented barber names. Those
+ * would replace the real content on the site. Run this once from the editor
+ * to put it right; after that, edit through the admin panel or the Sheet.
+ *
+ * Safe to re-run. It does not touch bookings.
+ */
+function fixContent() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  var settings = sheetNamed(ss, SHEET_SETTINGS);
+  var keep = {};
+  var existing = settings.getDataRange().getValues();
+  for (var i = 1; i < existing.length; i++) {
+    if (existing[i][0] === 'visit_count') keep.visit_count = existing[i][1];
+  }
+
+  settings.clear();
+  settings.appendRow(['Key', 'Value']);
+  settings.appendRow(['hero_title', 'Masterful Cuts, Exceptional Service.']);
+  settings.appendRow(['hero_subtitle', 'Experience premium grooming and hearty service in the heart of Wassenaar.']);
+  settings.appendRow(['about_text',
+    'At Sussex Barber Shop, we blend modern styling techniques with traditional barbering values. ' +
+    'Our space is designed to be a sanctuary for men—a place where you can unwind, enjoy a free coffee, ' +
+    'and leave looking your absolute best.\n' +
+    'With a 4.7-star rating and a reputation for precise cuts and a friendly atmosphere, our attentive barbers ' +
+    'ensure that every haircut, beard trim, and hot towel shave is executed to perfection.']);
+  settings.appendRow(['contact_phone', '+31 6 53730803']);
+  settings.appendRow(['contact_address', 'Van Hogendorpstraat 10, 2242 KZ Wassenaar, Netherlands']);
+  settings.appendRow(['visit_count', keep.visit_count || 0]);
+
+  var gallery = sheetNamed(ss, SHEET_GALLERY);
+  gallery.clear();
+  gallery.appendRow(['ImageURL']);
+  ['assets/IMG_8582.PNG', 'assets/IMG_8577.JPEG', 'assets/IMG_8575.JPEG',
+   'assets/IMG_8572.JPEG', 'assets/IMG_8567.JPEG', 'assets/IMG_8569.JPEG']
+    .forEach(function (src) { gallery.appendRow([src]); });
+
+  var barbers = sheetNamed(ss, SHEET_BARBERS);
+  barbers.clear();
+  barbers.appendRow(['Name', 'ImageURL']);
+  barbers.appendRow(['Any Available', '']);
+
+  Logger.log('Settings, Gallery and Barbers reset to the real shop content.');
+  Logger.log('Gallery images: 6');
+  Logger.log('Address: Van Hogendorpstraat 10, 2242 KZ Wassenaar, Netherlands');
+  Logger.log('Bookings were not touched.');
+}
+
 // ---- Run this once from the editor to check the setup ----------------
 
 function testSetup() {

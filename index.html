@@ -2078,6 +2078,20 @@
         }
 
         // ---- Free-text content managed from the admin panel ----
+        // Text from the Sheet is inserted as text nodes, never as HTML, so a
+        // stray "<" in the shop's own copy cannot break the page.
+        function setText(el, value) {
+            el.textContent = '';
+            const paragraphs = String(value).split(/\r?\n/).filter(p => p.trim() !== '');
+            paragraphs.forEach((part, i) => {
+                if (i > 0) {
+                    el.appendChild(document.createElement('br'));
+                    el.appendChild(document.createElement('br'));
+                }
+                el.appendChild(document.createTextNode(part.trim()));
+            });
+        }
+
         function renderSettings(settings) {
             if (!settings) return;
             const map = {
@@ -2087,7 +2101,7 @@
             };
             Object.keys(map).forEach(id => {
                 const el = document.getElementById(id);
-                if (el && map[id]) el.textContent = map[id];
+                if (el && map[id]) setText(el, map[id]);
             });
         }
 
