@@ -53,7 +53,12 @@
             <nav class="sidebar-nav">
                 <div class="nav-section-title">Main</div>
 
-                <button class="nav-item active" data-page="dashboard">
+                <button class="nav-item active" data-page="today">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Today
+                </button>
+
+                <button class="nav-item" data-page="dashboard">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zm0 7a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1h-4a1 1 0 01-1-1v-5zm-10-2a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1v-5z"></path></svg>
                     Dashboard
                 </button>
@@ -136,8 +141,29 @@
             <!-- Content Area -->
             <div class="content-area">
 
+                <!-- ========== TODAY ========== -->
+                <!-- The landing page. Seeing who is coming in today is the one
+                     thing the owner does many times a day; everything else here
+                     is a monthly job at most. -->
+                <div id="page-today" class="page-section active">
+                    <div class="today-header">
+                        <div>
+                            <h2 id="todayDateLabel">Today</h2>
+                            <p id="todaySummary" class="today-summary">Loading…</p>
+                        </div>
+                        <button type="button" class="btn-refresh" onclick="fetchLiveBookings()">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                            Refresh
+                        </button>
+                    </div>
+                    <div id="todayList" class="today-list"></div>
+
+                    <h3 class="today-next-title">Tomorrow</h3>
+                    <div id="tomorrowList" class="today-list"></div>
+                </div>
+
                 <!-- ========== DASHBOARD ========== -->
-                <div id="page-dashboard" class="page-section active">
+                <div id="page-dashboard" class="page-section">
                     <div class="stats-grid">
                         <div class="stat-card gold">
                             <div class="stat-icon">
