@@ -1002,20 +1002,99 @@
             return entry ? entry.open !== true : false;
         }
 
+        const ANY_BARBER = 'Any Available';
+
+        /** 'YYYY-MM-DD' for a Date, read locally so the day never shifts. */
+        function dateKey(dateObj) {
+            return dateObj.getFullYear() + '-' +
+                String(dateObj.getMonth() + 1).padStart(2, '0') + '-' +
+                String(dateObj.getDate()).padStart(2, '0');
+        }
+
+        /** The barber's own entry for a weekday, or null when they have no rota. */
+        function barberDayEntry(barberName, dateObj) {
+            const rota = (window.sussexBarberHours || {})[String(barberName).trim()];
+            if (!Array.isArray(rota)) return null;
+            const name = WEEKDAY_NAMES[dateObj.getDay()];
+            return rota.find(r => String(r.day).trim() === name) || null;
+        }
+
+        function isBarberOnLeave(barberName, dateObj) {
+            const key = dateKey(dateObj);
+            return (window.sussexTimeOff || []).some(row =>
+                String(row.barber).trim() === String(barberName).trim() &&
+                key >= row.from && key <= (row.to || row.from));
+        }
+
+        /** Is this barber on the floor at `minutes` past midnight on this date?
+         *  Their rota narrows the shop hours; it never widens them. A barber with
+         *  no rota yet works whenever the shop is open. */
+        function isBarberWorkingAt(barberName, dateObj, minutes) {
+            if (isBarberOnLeave(barberName, dateObj)) return false;
+
+            const shop = hoursForDay(dateObj);
+            if (!shop || shop.open !== true) return false;
+            const shopFrom = parseClock(shop.from);
+            const shopTo = parseClock(shop.to);
+            if (shopFrom === null || shopTo === null) return false;
+            if (minutes < shopFrom || minutes + SLOT_MINUTES > shopTo) return false;
+
+            const entry = barberDayEntry(barberName, dateObj);
+            if (!entry) return true;
+            if (entry.working !== true) return false;
+
+            const from = parseClock(entry.from);
+            const to = parseClock(entry.to);
+            if (from === null || to === null) return true;
+            if (minutes < from || minutes + SLOT_MINUTES > to) return false;
+
+            const breakFrom = parseClock(entry.breakFrom);
+            const breakTo = parseClock(entry.breakTo);
+            if (breakFrom !== null && breakTo !== null && breakTo > breakFrom) {
+                if (minutes + SLOT_MINUTES > breakFrom && minutes < breakTo) return false;
+            }
+            return true;
+        }
+
+        /** Real barbers (never ANY_BARBER) rostered at that moment. */
+        function barbersWorkingAt(dateObj, minutes) {
+            return (window.sussexBarbers || [])
+                .map(n => String(n).trim())
+                .filter(n => n && n !== ANY_BARBER)
+                .filter(n => isBarberWorkingAt(n, dateObj, minutes));
+        }
+
+        /** The barber the customer has picked, or '' for no preference. */
+        function selectedBarberName() {
+            const el = document.getElementById('barber');
+            const value = el ? String(el.value || '').trim() : '';
+            return value === ANY_BARBER ? '' : value;
+        }
+
         /** Bookable start times for a date. The last slot starts one appointment
-         *  length before closing, so an appointment never runs past closing. */
-        function slotsForDate(dateObj) {
+         *  length before closing, so an appointment never runs past closing.
+         *  With a barber chosen, only the hours that barber actually works. */
+        function slotsForDate(dateObj, barberName) {
             const entry = hoursForDay(dateObj);
             if (!entry || entry.open !== true) return [];
             const from = parseClock(entry.from);
             const to = parseClock(entry.to);
             if (from === null || to === null || to <= from) return [];
 
+            const wanted = barberName === undefined ? selectedBarberName() : barberName;
             const slots = [];
             for (let t = from; t + SLOT_MINUTES <= to; t += SLOT_MINUTES) {
-                slots.push(minutesToLabel(t));
+                const open = wanted
+                    ? isBarberWorkingAt(wanted, dateObj, t)
+                    : barbersWorkingAt(dateObj, t).length > 0;
+                if (open) slots.push(minutesToLabel(t));
             }
             return slots;
+        }
+
+        /** True when nobody the customer could book is available all day. */
+        function noSlotsOn(dateObj) {
+            return slotsForDate(dateObj).length === 0;
         }
 
         let bookedTimesList = [];
@@ -1060,6 +1139,28 @@
                 card.classList.add('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
                 document.getElementById('barber').value = card.getAttribute('data-barber');
                 updateDesktopLiveSummary();
+
+                // A different barber works different days and has different
+                // slots taken, so the calendar and the chips both go stale.
+                if (typeof renderCustomCalendar === 'function') renderCustomCalendar();
+
+                const dateField = document.getElementById('date');
+                if (dateField && dateField.value) {
+                    const picked = new Date(dateField.value);
+                    picked.setHours(0, 0, 0, 0);
+                    if (noSlotsOn(picked)) {
+                        // The date they had chosen is a day off for this barber.
+                        const who = card.getAttribute('data-barber');
+                        dateField.value = '';
+                        document.getElementById('time').value = '';
+                        bookedTimesList = [];
+                        renderTimeChips();
+                        showToast(`${who} does not work on that date. Please pick another day.`, 'error');
+                    } else {
+                        // Re-ask the backend: availability is per barber.
+                        dateField.dispatchEvent(new Event('change'));
+                    }
+                }
             };
             card.addEventListener('click', selectBarber);
             card.addEventListener('keydown', (e) => {
@@ -1230,7 +1331,10 @@
 
             const validTimes = slotsForDate(dateObj);
             if (validTimes.length === 0) {
-                statusText.innerText = 'We are closed on this day.';
+                const who = selectedBarberName();
+                statusText.innerText = (who && !isClosedOn(dateObj))
+                    ? `${who} does not work on this day.`
+                    : 'We are closed on this day.';
                 return;
             }
 
@@ -1316,7 +1420,12 @@
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 8000);
             try {
-                const response = await fetch(`${API_URL}?date=${encodeURIComponent(dateVal)}`, { signal: controller.signal, cache: 'no-store' });
+                // The barber matters: a slot taken with one barber leaves the
+                // others free, so availability is asked for per barber.
+                const wanted = selectedBarberName();
+                const url = `${API_URL}?date=${encodeURIComponent(dateVal)}` +
+                    (wanted ? `&barber=${encodeURIComponent(wanted)}` : '');
+                const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const data = await response.json();
                 bookedTimesList = Array.isArray(data) ? data : [];
@@ -1381,7 +1490,9 @@
                 
                 const isSelected = selectedDateVal === dateStr;
                 const isToday = today.getTime() === dateObj.getTime();
-                const isClosed = isClosedOn(dateObj);   // from the Hours sheet
+                // Shut either because the shop is closed, or because the chosen
+                // barber is not in that day — both should read as unbookable.
+                const isClosed = isClosedOn(dateObj) || noSlotsOn(dateObj);
 
                 const isOutOfRange = dateObj < today || dateObj > maxDate;
                 const isDisabled = isOutOfRange || isClosed;
@@ -1395,7 +1506,10 @@
                     dayBtn.disabled = true;
                     if (isClosed && !isOutOfRange) {
                         dayBtn.className += ' text-rose-500/50 dark:text-rose-400/40 bg-rose-500/5 dark:bg-rose-500/10 cursor-not-allowed border border-transparent';
-                        dayBtn.title = 'Closed on this day';
+                        const who = selectedBarberName();
+                        dayBtn.title = (who && !isClosedOn(dateObj))
+                            ? `${who} does not work on this day`
+                            : 'Closed on this day';
                         const dot = document.createElement('span');
                         dot.className = 'absolute bottom-1 w-1 h-1 rounded-full bg-rose-500/40';
                         dayBtn.appendChild(dot);
@@ -2154,6 +2268,9 @@
 
             window.sussexServices = services;   // booking submission reads prices from here
             window.sussexHours = hours;         // slots, calendar and the open/closed badge
+            window.sussexBarberHours = config.barberHours || {};  // per-barber rotas
+            window.sussexTimeOff = config.timeOff || [];          // holidays, sick days
+            window.sussexBarbers = (config.barbers || []).map(b => b.name);
 
             renderServicesList(services);
             renderServiceCards(services);

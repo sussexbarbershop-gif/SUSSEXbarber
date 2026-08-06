@@ -29,6 +29,11 @@ var SHEET_GALLERY = 'Gallery';
 var SHEET_SERVICES = 'Services';
 var SHEET_HOURS = 'Hours';
 var SHEET_CANCELED = 'CanceledBookings';
+var SHEET_BARBER_HOURS = 'BarberHours';
+var SHEET_TIME_OFF = 'TimeOff';
+
+/** The chair-agnostic barber option offered to customers with no preference. */
+var ANY_BARBER = 'Any Available';
 
 var DEFAULT_SERVICES = [
   ['Classic Haircut', 'Klassieke knipbeurt', 28, 30],
@@ -54,6 +59,26 @@ var DEFAULT_HOURS = [
   ['Saturday', 'Zaterdag', true, '10:00', '18:00'],
   ['Sunday', 'Zondag', false, '10:00', '18:00']
 ];
+
+/**
+ * The rota as the shop actually runs it today. Only used to seed a barber who
+ * has no rows yet — once the owner edits a rota in the panel, the Sheet wins
+ * and nothing here is consulted again.
+ *
+ * Everyone breaks 13:30–14:00. A barber not listed here is left off every day,
+ * because the remaining staff come in as needed rather than on fixed days;
+ * the owner turns their days on in the panel when they are scheduled.
+ */
+var DEFAULT_BREAK = ['13:30', '14:00'];
+var DEFAULT_BARBER_ROTA = {
+  'Hemen': ['Tuesday', 'Wednesday', 'Friday', 'Saturday'],
+  'Amir':  ['Tuesday', 'Thursday', 'Friday', 'Saturday'],
+  'Raman': ['Monday', 'Saturday']
+};
+var DEFAULT_BARBER_SHIFT = ['10:00', '18:00'];
+
+/** Appointment length. Must match SLOT_MINUTES in index.html. */
+var SLOT_MINUTES = 30;
 
 // ---- Helpers ----------------------------------------------------------
 
@@ -174,12 +199,70 @@ function setupSheets() {
   if (canceled.getLastRow() === 0) {
     canceled.appendRow(['Date', 'Time', 'Service', 'Barber', 'Name', 'Phone', 'Status', 'Timestamp', 'Price']);
   }
+
+  var barberHours = sheetNamed(ss, SHEET_BARBER_HOURS);
+  if (barberHours.getLastRow() === 0) {
+    barberHours.appendRow(['Barber', 'Day', 'Working', 'From', 'To', 'BreakFrom', 'BreakTo']);
+  }
+  // Barbers added before this sheet existed, or added later from the panel,
+  // start out with no rows at all. Seed them from the shop hours so an
+  // untouched barber behaves exactly as they did before per-barber rotas.
+  seedMissingBarberHours(ss, barberHours);
+
+  var timeOff = sheetNamed(ss, SHEET_TIME_OFF);
+  if (timeOff.getLastRow() === 0) {
+    timeOff.appendRow(['Barber', 'From', 'To', 'Note']);
+  }
+}
+
+/**
+ * Gives every barber a full week of rows in BarberHours unless they already
+ * have some, using DEFAULT_BARBER_ROTA. Never edits rows the owner has set, so
+ * it is safe to call on every request.
+ */
+function seedMissingBarberHours(ss, barberHoursSheet) {
+  var barbersData = ss.getSheetByName(SHEET_BARBERS).getDataRange().getValues();
+
+  var existing = {};
+  var current = barberHoursSheet.getDataRange().getValues();
+  for (var r = 1; r < current.length; r++) {
+    if (current[r][0]) existing[String(current[r][0]).trim()] = true;
+  }
+
+  var toAppend = [];
+  for (var b = 1; b < barbersData.length; b++) {
+    var name = String(barbersData[b][0] || '').trim();
+    // "Any Available" is a placeholder, not a person, so it has no rota.
+    if (!name || name === ANY_BARBER || existing[name]) continue;
+
+    var days = DEFAULT_BARBER_ROTA[name] || [];
+    for (var d = 0; d < WEEKDAY_NAMES.length; d++) {
+      var dayName = WEEKDAY_NAMES[d];
+      var works = days.indexOf(dayName) !== -1;
+      toAppend.push([
+        name, dayName, works,
+        works ? DEFAULT_BARBER_SHIFT[0] : '',
+        works ? DEFAULT_BARBER_SHIFT[1] : '',
+        works ? DEFAULT_BREAK[0] : '',
+        works ? DEFAULT_BREAK[1] : ''
+      ]);
+    }
+  }
+
+  if (toAppend.length) {
+    barberHoursSheet
+      .getRange(barberHoursSheet.getLastRow() + 1, 1, toAppend.length, 7)
+      .setValues(toAppend);
+  }
 }
 
 // ---- Reading the config ----------------------------------------------
 
 function readConfig(ss) {
-  var out = { settings: {}, barbers: [], gallery: [], services: [], hours: [] };
+  var out = {
+    settings: {}, barbers: [], gallery: [], services: [], hours: [],
+    barberHours: {}, timeOff: []
+  };
 
   var settingsData = ss.getSheetByName(SHEET_SETTINGS).getDataRange().getValues();
   for (var i = 1; i < settingsData.length; i++) {
@@ -220,7 +303,144 @@ function readConfig(ss) {
     });
   }
 
+  var barberHoursData = ss.getSheetByName(SHEET_BARBER_HOURS).getDataRange().getValues();
+  for (var p = 1; p < barberHoursData.length; p++) {
+    var who = String(barberHoursData[p][0] || '').trim();
+    if (!who || !barberHoursData[p][1]) continue;
+    if (!out.barberHours[who]) out.barberHours[who] = [];
+    out.barberHours[who].push({
+      day: String(barberHoursData[p][1]).trim(),
+      working: barberHoursData[p][2] === true ||
+        String(barberHoursData[p][2]).toLowerCase() === 'true',
+      from: formatClock(barberHoursData[p][3]),
+      to: formatClock(barberHoursData[p][4]),
+      breakFrom: formatClock(barberHoursData[p][5]),
+      breakTo: formatClock(barberHoursData[p][6])
+    });
+  }
+
+  var timeOffData = ss.getSheetByName(SHEET_TIME_OFF).getDataRange().getValues();
+  for (var q = 1; q < timeOffData.length; q++) {
+    if (!timeOffData[q][0] || !timeOffData[q][1]) continue;
+    var fromDate = formatDateTimezoneSafe(timeOffData[q][1]);
+    out.timeOff.push({
+      barber: String(timeOffData[q][0]).trim(),
+      from: fromDate,
+      // A single-day absence is the common case; let the owner leave To blank.
+      to: timeOffData[q][2] ? formatDateTimezoneSafe(timeOffData[q][2]) : fromDate,
+      note: String(timeOffData[q][3] || '')
+    });
+  }
+
   return out;
+}
+
+// ---- Who is actually on the floor -------------------------------------
+
+/** The barber's entry for a weekday, or null when they have no rota at all. */
+function barberDayEntry(config, barberName, weekdayName) {
+  var rota = config.barberHours[String(barberName).trim()];
+  if (!rota) return null;
+  for (var i = 0; i < rota.length; i++) {
+    if (rota[i].day === weekdayName) return rota[i];
+  }
+  return null;
+}
+
+function isBarberOnLeave(config, barberName, dateStr) {
+  var name = String(barberName).trim();
+  for (var i = 0; i < config.timeOff.length; i++) {
+    var row = config.timeOff[i];
+    if (row.barber !== name) continue;
+    if (dateStr >= row.from && dateStr <= row.to) return true;
+  }
+  return false;
+}
+
+/**
+ * True when the barber is rostered on that date and the time falls inside both
+ * their own hours and the shop's. A barber with no rota row for the day falls
+ * back to the shop hours, so nothing breaks before the owner fills the rota in.
+ */
+function isBarberWorkingAt(config, barberName, dateStr, minutes) {
+  if (isBarberOnLeave(config, barberName, dateStr)) return false;
+
+  var weekday = weekdayNameFor(dateStr);
+  var shop = null;
+  for (var i = 0; i < config.hours.length; i++) {
+    if (config.hours[i].day === weekday) { shop = config.hours[i]; break; }
+  }
+  if (!shop || !shop.open) return false;
+  var shopFrom = clockToMinutes(shop.from);
+  var shopTo = clockToMinutes(shop.to);
+  if (shopFrom === null || shopTo === null) return false;
+  if (minutes < shopFrom || minutes >= shopTo) return false;
+
+  var entry = barberDayEntry(config, barberName, weekday);
+  if (!entry) return true;          // no rota yet: shop hours apply
+  if (!entry.working) return false;
+
+  var from = clockToMinutes(entry.from);
+  var to = clockToMinutes(entry.to);
+  if (from === null || to === null) return true;
+  if (minutes < from || minutes >= to) return false;
+
+  // The daily break. A slot starting inside it is not bookable; a slot ending
+  // exactly as the break starts still is.
+  var breakFrom = clockToMinutes(entry.breakFrom);
+  var breakTo = clockToMinutes(entry.breakTo);
+  if (breakFrom !== null && breakTo !== null && breakTo > breakFrom) {
+    if (minutes + SLOT_MINUTES > breakFrom && minutes < breakTo) return false;
+  }
+  return true;
+}
+
+/** Every real barber (never ANY_BARBER) rostered for that date and time. */
+function barbersWorkingAt(config, dateStr, minutes) {
+  var working = [];
+  for (var i = 0; i < config.barbers.length; i++) {
+    var name = String(config.barbers[i].name).trim();
+    if (!name || name === ANY_BARBER) continue;
+    if (isBarberWorkingAt(config, name, dateStr, minutes)) working.push(name);
+  }
+  return working;
+}
+
+/**
+ * Can `wanted` still be booked at this slot, given the bookings already on it?
+ *
+ * Each booking occupies one chair. Bookings naming a barber occupy that
+ * barber's chair; bookings made without a preference occupy an unspecified one,
+ * so they only rule a named barber out once no other chair could absorb them.
+ *
+ * `wanted` empty or ANY_BARBER means "no preference".
+ */
+function isSlotFree(config, dateStr, slotLabel, holders, wanted) {
+  var minutes = clockToMinutes(slotLabel);
+  if (minutes === null) return true;
+
+  var working = barbersWorkingAt(config, dateStr, minutes);
+  if (working.length === 0) return false;   // nobody on the floor
+
+  var named = [];
+  var anonymous = 0;
+  (holders || []).forEach(function (h) {
+    var who = String(h || '').trim();
+    if (!who || who === ANY_BARBER || who === 'Any') anonymous++;
+    else if (named.indexOf(who) === -1) named.push(who);
+  });
+
+  var name = String(wanted || '').trim();
+  if (!name || name === ANY_BARBER) {
+    return (named.length + anonymous) < working.length;
+  }
+
+  if (working.indexOf(name) === -1) return false;   // not rostered
+  if (named.indexOf(name) !== -1) return false;     // already booked
+
+  // Chairs left after the explicit bookings, one of which must stay for us.
+  var uncommitted = working.filter(function (w) { return named.indexOf(w) === -1; });
+  return anonymous < uncommitted.length;
 }
 
 /** Sheets may hand back a Date for a cell like "10:00"; normalise to HH:mm. */
@@ -230,6 +450,35 @@ function formatClock(value) {
            String(value.getMinutes()).padStart(2, '0');
   }
   return String(value || '');
+}
+
+var WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday',
+                     'Friday', 'Saturday'];
+
+/** 'Monday' for a 'YYYY-MM-DD' string, read as a local date, not UTC. */
+function weekdayNameFor(dateStr) {
+  var parts = String(dateStr).split('-');
+  if (parts.length !== 3) return '';
+  var d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  return isNaN(d.getTime()) ? '' : WEEKDAY_NAMES[d.getDay()];
+}
+
+/** Minutes past midnight for '14:30' or the '02:30 PM' the booking form sends. */
+function clockToMinutes(value) {
+  var text = String(value == null ? '' : value).trim();
+  if (value instanceof Date) {
+    return value.getHours() * 60 + value.getMinutes();
+  }
+  var m = text.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+  if (!m) return null;
+  var hours = parseInt(m[1], 10);
+  var mins = parseInt(m[2], 10);
+  if (m[3]) {
+    var period = m[3].toUpperCase();
+    if (period === 'PM' && hours !== 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+  }
+  return hours * 60 + mins;
 }
 
 // ---- GET --------------------------------------------------------------
@@ -301,16 +550,35 @@ function doGet(e) {
     return json(mine);
   }
 
-  // Availability for one date.
+  // Availability for one date. Before per-barber rotas this returned every
+  // booking on the date, so one customer booking 10:00 with Hemen also closed
+  // 10:00 for Amir and Raman. A slot is now only unavailable when the barber
+  // the customer actually asked for is busy — or, for "Any Available", when
+  // every barber rostered at that time is busy.
   var dateParam = e && e.parameter ? e.parameter.date : null;
   if (dateParam && dateCol !== -1 && timeCol !== -1) {
-    var booked = [];
+    var barberParam = String((e.parameter.barber || '')).trim();
+    var barberCol = headers.indexOf('barber');
+    var takenBy = {};
+
     for (var i = 1; i < data.length; i++) {
       if (statusCol !== -1 && String(data[i][statusCol]).trim() === 'Canceled') continue;
-      if (formatDateTimezoneSafe(data[i][dateCol]) === dateParam) {
-        booked.push(formatTimeForFrontend(data[i][timeCol]));
-      }
+      if (formatDateTimezoneSafe(data[i][dateCol]) !== dateParam) continue;
+      var slot = formatTimeForFrontend(data[i][timeCol]);
+      var who = String(data[i][barberCol !== -1 ? barberCol : 3] || '').trim();
+      if (!takenBy[slot]) takenBy[slot] = [];
+      takenBy[slot].push(who);
     }
+
+    var config = readConfig(ss);
+    var booked = [];
+
+    Object.keys(takenBy).forEach(function (slot) {
+      if (!isSlotFree(config, dateParam, slot, takenBy[slot], barberParam)) {
+        booked.push(slot);
+      }
+    });
+
     return json(booked);
   }
 
@@ -371,8 +639,9 @@ function doPost(e) {
       // Two people submitting the same slot at once would otherwise both win.
       lock.waitLock(10000);
 
-      if (isSlotTaken(sheet, payload.date, payload.time)) {
-        return json({ status: 'error', message: 'That time slot has just been taken' });
+      var check = slotRefusal(ss, sheet, payload.date, payload.time, payload.barber);
+      if (check) {
+        return json({ status: 'error', message: check });
       }
 
       sheet.appendRow([
@@ -500,32 +769,85 @@ function doPost(e) {
       });
     }
 
+    if (payload.barberHours) {
+      var bh = sheetNamed(ss, SHEET_BARBER_HOURS);
+      bh.clear();
+      bh.appendRow(['Barber', 'Day', 'Working', 'From', 'To', 'BreakFrom', 'BreakTo']);
+      Object.keys(payload.barberHours).forEach(function (who) {
+        (payload.barberHours[who] || []).forEach(function (row) {
+          bh.appendRow([who, row.day, row.working === true, row.from, row.to,
+                        row.breakFrom || '', row.breakTo || '']);
+        });
+      });
+    }
+
+    if (payload.timeOff) {
+      var off = sheetNamed(ss, SHEET_TIME_OFF);
+      off.clear();
+      off.appendRow(['Barber', 'From', 'To', 'Note']);
+      payload.timeOff.forEach(function (row) {
+        off.appendRow([row.barber, row.from, row.to || row.from, row.note || '']);
+      });
+    }
+
+    // A barber added in this same save has no rota yet; give them the shop's.
+    seedMissingBarberHours(ss, sheetNamed(ss, SHEET_BARBER_HOURS));
+
     return json({ status: 'success', message: 'Saved' });
   }
 
   return json({ status: 'error', message: 'Unknown action' });
 }
 
-/** Guards against double-booking the same date and time. */
-function isSlotTaken(sheet, date, time) {
-  if (!date || !time) return false;
+/**
+ * Why this booking cannot be accepted, or '' when it can. Checked here and not
+ * only in the browser: the form is public, so the rota is not enforced until
+ * the server says so.
+ */
+function slotRefusal(ss, sheet, date, time, barber) {
+  if (!date || !time) return '';
+
+  var config = readConfig(ss);
+  var wanted = String(barber || '').trim();
+  var minutes = clockToMinutes(time);
+
+  if (wanted && wanted !== ANY_BARBER && wanted !== 'Any') {
+    if (isBarberOnLeave(config, wanted, String(date))) {
+      return wanted + ' is away on that date';
+    }
+    if (!isBarberWorkingAt(config, wanted, String(date), minutes)) {
+      return wanted + ' does not work at that time';
+    }
+  }
+
+  var holders = holdersOfSlot(sheet, date, time);
+  if (!isSlotFree(config, String(date), String(time), holders, wanted)) {
+    return 'That time slot has just been taken';
+  }
+  return '';
+}
+
+/** The barber named on every active booking sitting on this date and time. */
+function holdersOfSlot(sheet, date, time) {
   var data = sheet.getDataRange().getValues();
-  if (data.length <= 1) return false;
+  if (data.length <= 1) return [];
 
   var headers = data[0].map(function (h) { return String(h).trim().toLowerCase(); });
   var dateCol = headers.indexOf('date');
   var timeCol = headers.indexOf('time');
   var statusCol = headers.indexOf('status');
-  if (dateCol === -1 || timeCol === -1) return false;
+  var barberCol = headers.indexOf('barber');
+  if (dateCol === -1 || timeCol === -1) return [];
 
+  var holders = [];
   for (var i = 1; i < data.length; i++) {
     if (statusCol !== -1 && String(data[i][statusCol]).trim() === 'Canceled') continue;
     if (formatDateTimezoneSafe(data[i][dateCol]) === String(date) &&
         formatTimeForFrontend(data[i][timeCol]).trim() === String(time).trim()) {
-      return true;
+      holders.push(String(data[i][barberCol !== -1 ? barberCol : 3] || '').trim());
     }
   }
-  return false;
+  return holders;
 }
 
 function sortRawBookings(sheet, headers) {

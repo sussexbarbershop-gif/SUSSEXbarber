@@ -140,6 +140,8 @@ let galleryImages = [];
 let barbers = [];
 let settings = {};
 let visitCount = 0;
+let barberHours = {};   // { 'Hemen': [{ day, working, from, to, breakFrom, breakTo }] }
+let timeOff = [];       // [{ barber, from, to, note }]
 
 // ---- Init ----
 async function fetchLiveCMS() {
@@ -162,6 +164,8 @@ async function fetchLiveCMS() {
         // what customers are actually being served.
         if (data.services && data.services.length > 0) services = data.services;
         if (data.hours && data.hours.length > 0) hours = data.hours;
+        if (data.barberHours) barberHours = data.barberHours;
+        if (data.timeOff) timeOff = data.timeOff;
 
         saveData();
 
@@ -169,6 +173,7 @@ async function fetchLiveCMS() {
         if (currentPage === 'gallery') renderGallery();
         if (currentPage === 'services') renderServices();
         if (currentPage === 'hours') renderHours();
+        if (currentPage === 'rota') renderRota();
         if (currentPage === 'dashboard') renderDashboard();
         if (currentPage === 'analytics') renderAnalytics();
     } catch (e) {
@@ -351,6 +356,7 @@ function navigateTo(page) {
         bookings: 'Bookings',
         services: 'Services & Pricing',
         hours: 'Working Hours',
+        rota: 'Barber Schedules',
         gallery: 'Gallery',
         analytics: 'Analytics'
     };
@@ -367,6 +373,7 @@ function renderPage(page) {
         case 'bookings': renderBookings(); break;
         case 'services': renderServices(); break;
         case 'hours': renderHours(); break;
+        case 'rota': renderRota(); break;
         case 'gallery': renderGallery(); break;
         case 'analytics': renderAnalytics(); break;
     }
@@ -645,6 +652,193 @@ function toggleDay(index, isOpen) {
     hours[index].open = isOpen;
     saveHours();
     renderHours();
+}
+
+// ---- Barber Schedules ----
+// The shop hours above say when the door is open; these say who is behind the
+// chair. A slot is only offered when both agree.
+
+const WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+/** Real barbers only — "Any Available" is a booking option, not a person. */
+function rosterableBarbers() {
+    return barbers.map(b => String(b.name).trim())
+                  .filter(n => n && n !== 'Any Available');
+}
+
+/** A barber with no saved rota is shown as off all week, not as a blank page. */
+function rotaFor(name) {
+    if (!Array.isArray(barberHours[name])) {
+        barberHours[name] = WEEK.map(day => ({
+            day, working: false, from: '10:00', to: '18:00',
+            breakFrom: '13:30', breakTo: '14:00'
+        }));
+    }
+    // Days can be missing if the sheet was edited by hand; fill the gaps.
+    WEEK.forEach(day => {
+        if (!barberHours[name].some(r => r.day === day)) {
+            barberHours[name].push({
+                day, working: false, from: '10:00', to: '18:00',
+                breakFrom: '13:30', breakTo: '14:00'
+            });
+        }
+    });
+    return WEEK.map(day => barberHours[name].find(r => r.day === day));
+}
+
+function renderRota() {
+    const container = document.getElementById('rotaContainer');
+    if (!container) return;
+
+    const staff = rosterableBarbers();
+    if (staff.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-muted)">Add a barber on the "Our Barbers" page first.</p>';
+        renderTimeOff();
+        return;
+    }
+
+    // Handlers take the barber's index, not their name: a name with a quote in
+    // it would otherwise break out of the attribute.
+    container.innerHTML = staff.map((name, bi) => {
+        const rota = rotaFor(name);
+        const rows = rota.map(r => {
+            const i = WEEK.indexOf(r.day);
+            return `
+            <div class="hours-row">
+                <span class="day-name">${escapeHtml(r.day)}</span>
+                <div class="time-inputs">
+                    ${r.working ? `
+                        <input type="time" value="${escapeHtml(r.from || '')}"
+                               onchange="updateRota(${bi}, ${i}, 'from', this.value)">
+                        <span style="color:var(--text-muted)">—</span>
+                        <input type="time" value="${escapeHtml(r.to || '')}"
+                               onchange="updateRota(${bi}, ${i}, 'to', this.value)">
+                        <span style="color:var(--text-muted);font-size:12px;margin-left:10px">break</span>
+                        <input type="time" value="${escapeHtml(r.breakFrom || '')}"
+                               onchange="updateRota(${bi}, ${i}, 'breakFrom', this.value)">
+                        <span style="color:var(--text-muted)">—</span>
+                        <input type="time" value="${escapeHtml(r.breakTo || '')}"
+                               onchange="updateRota(${bi}, ${i}, 'breakTo', this.value)">
+                    ` : '<span class="day-closed">Off</span>'}
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" ${r.working ? 'checked' : ''}
+                           onchange="toggleRotaDay(${bi}, ${i}, this.checked)">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>`;
+        }).join('');
+
+        const daysOn = rota.filter(r => r.working).map(r => r.day.slice(0, 3));
+        return `
+        <div style="margin-bottom:28px">
+            <h4 style="color:var(--gold);margin-bottom:4px">${escapeHtml(name)}</h4>
+            <p style="color:var(--text-muted);font-size:12px;margin-bottom:10px">
+                ${daysOn.length ? daysOn.join(', ') : 'No fixed days — books only when switched on'}
+            </p>
+            ${rows}
+        </div>`;
+    }).join('');
+
+    renderTimeOff();
+}
+
+function updateRota(barberIndex, dayIndex, field, value) {
+    const name = rosterableBarbers()[barberIndex];
+    if (!name) return;
+    const row = rotaFor(name)[dayIndex];
+    row[field] = value;
+    // A shift that ends before it starts would offer no slots at all, with
+    // nothing on screen to say why.
+    if (row.from && row.to && row.to <= row.from) {
+        showToast('The end time must be after the start time', 'error');
+        renderRota();
+        return;
+    }
+    saveRota();
+}
+
+function toggleRotaDay(barberIndex, dayIndex, isWorking) {
+    const name = rosterableBarbers()[barberIndex];
+    if (!name) return;
+    rotaFor(name)[dayIndex].working = isWorking;
+    saveRota();
+    renderRota();
+}
+
+async function saveRota() {
+    // Send the whole map: the backend rewrites the sheet from it.
+    const payload = {};
+    rosterableBarbers().forEach(name => { payload[name] = rotaFor(name); });
+    if (await syncToSheet({ barberHours: payload })) {
+        showToast('Schedules updated — the booking form uses these now', 'success');
+    }
+}
+
+// ---- Time Off ----
+function renderTimeOff() {
+    const container = document.getElementById('timeOffContainer');
+    if (!container) return;
+
+    if (timeOff.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-muted)">Nobody is booked off. Add a holiday or sick day above.</p>';
+        return;
+    }
+
+    const staff = rosterableBarbers();
+    container.innerHTML = timeOff.map((row, i) => `
+        <div class="hours-row">
+            <select onchange="updateTimeOff(${i}, 'barber', this.value)"
+                    style="background:var(--bg-input,#222);color:inherit;border:1px solid var(--border,#333);border-radius:6px;padding:6px">
+                ${staff.map(n => `<option value="${escapeAttr(n)}" ${n === row.barber ? 'selected' : ''}>${escapeHtml(n)}</option>`).join('')}
+            </select>
+            <div class="time-inputs">
+                <input type="date" value="${escapeAttr(row.from || '')}" onchange="updateTimeOff(${i}, 'from', this.value)">
+                <span style="color:var(--text-muted)">—</span>
+                <input type="date" value="${escapeAttr(row.to || row.from || '')}" onchange="updateTimeOff(${i}, 'to', this.value)">
+                <input type="text" placeholder="Reason (optional)" value="${escapeAttr(row.note || '')}"
+                       onchange="updateTimeOff(${i}, 'note', this.value)"
+                       style="background:var(--bg-input,#222);color:inherit;border:1px solid var(--border,#333);border-radius:6px;padding:6px;margin-left:10px">
+            </div>
+            <button class="btn btn-danger btn-sm" onclick="removeTimeOff(${i})">Remove</button>
+        </div>
+    `).join('');
+}
+
+function addTimeOff() {
+    const staff = rosterableBarbers();
+    if (staff.length === 0) {
+        showToast('Add a barber first', 'error');
+        return;
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    timeOff.push({ barber: staff[0], from: today, to: today, note: '' });
+    renderTimeOff();
+    saveTimeOff();
+}
+
+function updateTimeOff(index, field, value) {
+    timeOff[index][field] = value;
+    // An end date before the start would silently block nothing at all.
+    if (field === 'from' && timeOff[index].to < value) timeOff[index].to = value;
+    if (field === 'to' && value < timeOff[index].from) {
+        showToast('The end date cannot be before the start date', 'error');
+        renderTimeOff();
+        return;
+    }
+    saveTimeOff();
+}
+
+function removeTimeOff(index) {
+    timeOff.splice(index, 1);
+    renderTimeOff();
+    saveTimeOff();
+}
+
+async function saveTimeOff() {
+    if (await syncToSheet({ timeOff: timeOff })) {
+        showToast('Time off updated', 'success');
+    }
 }
 
 // ---- Gallery ----
@@ -1216,6 +1410,7 @@ const ADMIN_I18N = {
         bookings: "Bookings",
         services: "Services & Pricing",
         hours: "Working Hours",
+        rota: "Barber Schedules",
         gallery: "Gallery",
         cms: "Website Text",
         barbers: "Our Barbers",
@@ -1226,6 +1421,7 @@ const ADMIN_I18N = {
         bookings: "Boekingen",
         services: "Diensten & Prijzen",
         hours: "Werktijden",
+        rota: "Kappersroosters",
         gallery: "Galerij",
         cms: "Website Teksten",
         barbers: "Onze Kappers",
@@ -1236,6 +1432,7 @@ const ADMIN_I18N = {
         bookings: "حیجزەکان",
         services: "سێرڤسەکان و نرخ",
         hours: "کاتژمێرەکانی کارکردن",
+        rota: "ڕۆژی کاری تراشەرەکان",
         gallery: "گەلەری",
         cms: "نووسینەکانی وێبسایت",
         barbers: "تراشەرەکان",
@@ -1284,6 +1481,12 @@ function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+}
+
+/** For values sitting inside a double-quoted attribute. escapeHtml() leaves
+ *  quotes alone, so a note like `back 5" late` would end the attribute early. */
+function escapeAttr(str) {
+    return escapeHtml(str).replace(/"/g, '&quot;');
 }
 
 function capitalize(str) {
