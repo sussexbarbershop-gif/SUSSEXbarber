@@ -157,6 +157,32 @@ function getRawBookingsSheet(ss) {
 
 // ---- Sheet setup ------------------------------------------------------
 
+/**
+ * Bump when setupSheets() starts creating something new, so the next request
+ * runs it once more instead of trusting the "already done" mark.
+ */
+var SCHEMA_VERSION = '4-barber-rotas';
+
+/**
+ * setupSheets() opens nine sheets and reads them to decide it has nothing to
+ * do, which it did on every single request. Apps Script charges for that in
+ * whole seconds. Run it once, then remember.
+ *
+ * Anything that can invalidate the answer — a barber added, sheets renamed —
+ * calls forgetSetup(), so this never hides a missing sheet for long.
+ */
+function ensureSheets() {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('schema_ready') === SCHEMA_VERSION) return;
+  setupSheets();
+  props.setProperty('schema_ready', SCHEMA_VERSION);
+}
+
+function forgetSetup() {
+  PropertiesService.getScriptProperties().deleteProperty('schema_ready');
+  CacheService.getScriptCache().remove('config');
+}
+
 function setupSheets() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
@@ -293,6 +319,40 @@ function seedMissingBarberHours(ss, barberHoursSheet) {
 }
 
 // ---- Reading the config ----------------------------------------------
+
+/**
+ * readConfig() reads seven sheets. Every visitor needs it and it changes only
+ * when the owner saves, so serve it from cache and drop the cache on save.
+ * Two minutes: short enough that a change feels immediate, long enough that a
+ * burst of visitors costs one read between them.
+ */
+function readConfigCached(ss) {
+  var cache = CacheService.getScriptCache();
+  var hit = cache.get('config');
+  if (hit) {
+    try { return JSON.parse(hit); } catch (ignored) {}
+  }
+
+  var config;
+  try {
+    config = readConfig(ss);
+  } catch (err) {
+    // A sheet has gone missing. ensureSheets() would normally have rebuilt it,
+    // but it now skips once the schema is marked ready — so clear that mark,
+    // rebuild, and try once more before giving up.
+    forgetSetup();
+    setupSheets();
+    PropertiesService.getScriptProperties().setProperty('schema_ready', SCHEMA_VERSION);
+    config = readConfig(ss);
+  }
+
+  try {
+    cache.put('config', JSON.stringify(config), 120);
+  } catch (ignored) {
+    // Over the 100KB cache limit; correctness does not depend on caching.
+  }
+  return config;
+}
 
 function readConfig(ss) {
   var out = {
@@ -520,14 +580,14 @@ function clockToMinutes(value) {
 // ---- GET --------------------------------------------------------------
 
 function doGet(e) {
-  setupSheets();
+  ensureSheets();
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var action = e && e.parameter ? e.parameter.action : null;
 
   // Full site configuration. `getSettings` is kept as an alias so an older
   // deployment of the front-end keeps working during a rollout.
   if (action === 'getConfig' || action === 'getSettings') {
-    var config = readConfig(ss);
+    var config = readConfigCached(ss);
     config.status = 'success';
     return json(config);
   }
@@ -606,7 +666,7 @@ function doGet(e) {
       takenBy[slot].push(who);
     }
 
-    var config = readConfig(ss);
+    var config = readConfigCached(ss);
     var booked = [];
 
     Object.keys(takenBy).forEach(function (slot) {
@@ -638,7 +698,7 @@ function doGet(e) {
 // ---- POST -------------------------------------------------------------
 
 function doPost(e) {
-  setupSheets();
+  ensureSheets();
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
   var payload;
@@ -826,8 +886,13 @@ function doPost(e) {
       });
     }
 
-    // A barber added in this same save has no rota yet; give them the shop's.
+    // A barber added in this same save has no rota yet; give them a week.
     seedMissingBarberHours(ss, sheetNamed(ss, SHEET_BARBER_HOURS));
+
+    // The panel has just changed what customers see, so the cached copy is
+    // wrong. Drop it or the owner would watch the site ignore them for two
+    // minutes and save again.
+    CacheService.getScriptCache().remove('config');
 
     return json({ status: 'success', message: 'Saved' });
   }
@@ -843,7 +908,7 @@ function doPost(e) {
 function slotRefusal(ss, sheet, date, time, barber) {
   if (!date || !time) return '';
 
-  var config = readConfig(ss);
+  var config = readConfigCached(ss);
   var wanted = String(barber || '').trim();
   var minutes = clockToMinutes(time);
 

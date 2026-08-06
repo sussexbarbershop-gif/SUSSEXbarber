@@ -142,6 +142,9 @@ let settings = {};
 let visitCount = 0;
 let barberHours = {};   // { 'Hemen': [{ day, working, from, to, breakFrom, breakTo }] }
 let timeOff = [];       // [{ barber, from, to, note }]
+// False until the Sheet has answered once, so pages can say "loading" instead
+// of drawing the placeholders as though they were the shop's real data.
+let cmsLoaded = false;
 
 // ---- Init ----
 async function fetchLiveCMS() {
@@ -167,6 +170,7 @@ async function fetchLiveCMS() {
         if (data.barberHours) barberHours = data.barberHours;
         if (data.timeOff) timeOff = data.timeOff;
 
+        cmsLoaded = true;
         saveData();
 
         if (currentPage === 'barbers') renderBarbers();
@@ -177,6 +181,12 @@ async function fetchLiveCMS() {
         if (currentPage === 'analytics') renderAnalytics();
     } catch (e) {
         console.error("Failed to fetch live CMS data", e);
+        // Let the page draw rather than sit on "Loading…" forever; the retry
+        // below is what actually fixes it.
+        cmsLoaded = true;
+        if (currentPage === 'barbers') renderBarbers();
+        showToast('Could not load from the Sheet — retrying', 'error');
+        setTimeout(fetchLiveCMS, 5000);
     }
 }
 document.addEventListener('DOMContentLoaded', () => {
@@ -185,14 +195,22 @@ document.addEventListener('DOMContentLoaded', () => {
     setupNavigation();
     setupSidebar();
     
-    // Fetch real CMS data & live bookings from server directly!
-    setTimeout(() => {
-        fetchLiveCMS();
-        fetchLiveBookings();
-    }, 500);
+    // Ask for both straight away; the 500ms wait only delayed the first paint.
+    fetchLiveCMS();
+    fetchLiveBookings();
 
-    // Auto-refresh live bookings every 10 seconds silently!
-    setInterval(fetchLiveBookings, 10000);
+    // Refresh bookings in the background. This polled every 10 seconds, but a
+    // round trip to Apps Script takes closer to ten, so the calls piled up and
+    // competed with whatever the owner was actually doing. fetchLiveBookings()
+    // now refuses to overlap itself, and a hidden tab is not worth polling.
+    setInterval(() => {
+        if (!document.hidden) fetchLiveBookings();
+    }, 30000);
+
+    // Coming back to the tab should show the current diary immediately.
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) fetchLiveBookings();
+    });
 });
 
 // ---- Auth ----
@@ -734,8 +752,16 @@ function renderBarbers() {
     const container = document.getElementById('barbersContainer');
     if (!container) return;
 
+    // The Sheet takes several seconds to answer. Say so, rather than showing an
+    // empty page that reads as "there are no barbers".
+    if (!cmsLoaded) {
+        container.innerHTML =
+            '<p style="color:var(--text-muted);grid-column:1/-1">Loading barbers…</p>';
+        return;
+    }
+
     container.innerHTML = '';
-    
+
     // Add Barber button card
     const addCard = document.createElement('div');
     addCard.className = 'gallery-item add-new';
@@ -1163,7 +1189,13 @@ function renderSimpleChart() {
 let currentWeekOffset = 0;
 let bookingViewMode = 'planner';
 
+let bookingsFetchInFlight = false;
+
 async function fetchLiveBookings() {
+    // One at a time. The backend is slow enough that a second call started
+    // before the first returns only makes both slower.
+    if (bookingsFetchInFlight) return;
+    bookingsFetchInFlight = true;
     try {
         // Never cached: the panel must show the schedule as it is right now.
         const res = await fetch(API_URL, { cache: 'no-store' });
@@ -1188,6 +1220,8 @@ async function fetchLiveBookings() {
         }
     } catch (e) {
         console.error("Failed to fetch live bookings", e);
+    } finally {
+        bookingsFetchInFlight = false;
     }
 }
 
