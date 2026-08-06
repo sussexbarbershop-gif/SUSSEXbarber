@@ -22,7 +22,7 @@ const rota = days => WEEKDAY_NAMES.map(d => days.includes(d)
 const cfg = {
   barbers: [{name:'Any Available'},{name:'Hemen'},{name:'Amir'},{name:'Raman'},{name:'Bassam'}],
   hours: WEEKDAY_NAMES.map(d => ({
-    day: d, open: d !== 'Sunday', from: d === 'Monday' ? '12:00' : '10:00', to: '18:00'
+    day: d, open: d !== 'Sunday', from: '10:00', to: '18:00'
   })),
   barberHours: {
     Hemen:  rota(['Tuesday','Wednesday','Friday','Saturday']),
@@ -61,10 +61,20 @@ ok('13:00 ok, ends at 13:30', isBarberWorkingAt(cfg,'Hemen','2026-08-18',M('13:0
 ok('13:30 blocked',           isBarberWorkingAt(cfg,'Hemen','2026-08-18',M('13:30')), false);
 ok('14:00 back on',           isBarberWorkingAt(cfg,'Hemen','2026-08-18',M('14:00')), true);
 
-console.log('--- shop hours still cap the rota ---');
-ok('Raman Mon 10:00, shop opens 12', isBarberWorkingAt(cfg,'Raman','2026-08-17',M('10:00')), false);
-ok('Raman Mon 12:00 ok',             isBarberWorkingAt(cfg,'Raman','2026-08-17',M('12:00')), true);
+ok('Raman Mon 10:00',                isBarberWorkingAt(cfg,'Raman','2026-08-17',M('10:00')), true);
 ok('Sunday: nobody',                 barbersWorkingAt(cfg,'2026-08-16',M('11:00')), []);
+
+console.log('--- shop hours cap the rota, never widen it ---');
+// A rota may say 10:00-18:00 while the door only opens at 12:00. The shop wins.
+const lateOpening = JSON.parse(JSON.stringify(cfg));
+lateOpening.hours.find(h => h.day === 'Monday').from = '12:00';
+ok('rota 10:00 but shop opens 12:00', isBarberWorkingAt(lateOpening,'Raman','2026-08-17',M('10:00')), false);
+ok('12:00 once the door opens',       isBarberWorkingAt(lateOpening,'Raman','2026-08-17',M('12:00')), true);
+
+const earlyClosing = JSON.parse(JSON.stringify(cfg));
+earlyClosing.hours.find(h => h.day === 'Monday').to = '15:00';
+ok('rota to 18:00 but shop shuts 15:00', isBarberWorkingAt(earlyClosing,'Raman','2026-08-17',M('15:00')), false);
+ok('14:30 is the last start',            isBarberWorkingAt(earlyClosing,'Raman','2026-08-17',M('14:30')), true);
 
 console.log('--- time off ---');
 ok('Amir away Tue Sep 1',  isBarberWorkingAt(cfg,'Amir','2026-09-01',M('11:00')), false);

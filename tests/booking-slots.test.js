@@ -30,7 +30,7 @@ const rota = days => WEEKDAY_NAMES.map(d => days.includes(d)
 
 global.window = {
   sussexHours: WEEKDAY_NAMES.map(d => ({
-    day: d, open: d !== 'Sunday', from: d === 'Monday' ? '12:00' : '10:00', to: '18:00'
+    day: d, open: d !== 'Sunday', from: '10:00', to: '18:00'
   })),
   sussexBarbers: ['Any Available','Hemen','Amir','Raman','Bassam'],
   sussexBarberHours: {
@@ -67,8 +67,14 @@ ok('Hemen away Sep 2 (Wed)', slotsForDate(D('2026-09-02')), []);
 
 barberFieldValue = 'Raman';
 const ramanMon = slotsForDate(D('2026-08-17'));
-ok('Raman Mon starts 12:00 (shop opens then)', ramanMon[0], '12:00 PM');
+ok('Raman Mon starts 10:00', ramanMon[0], '10:00 AM');
+ok('Raman Mon ends 17:30',   ramanMon[ramanMon.length-1], '05:30 PM');
 ok('Raman has no Tuesday',   slotsForDate(D('2026-08-18')), []);
+
+// The shop hours are the ceiling: a later opening trims the front of the list.
+window.sussexHours.find(h => h.day === 'Monday').from = '12:00';
+ok('late opening trims to 12:00', slotsForDate(D('2026-08-17'))[0], '12:00 PM');
+window.sussexHours.find(h => h.day === 'Monday').from = '10:00';
 
 barberFieldValue = 'Bassam';
 ok('Bassam off every day',   slotsForDate(D('2026-08-22')), []);

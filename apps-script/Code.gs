@@ -51,7 +51,7 @@ var DEFAULT_SERVICES = [
 
 // Must match the bookable slots on the website.
 var DEFAULT_HOURS = [
-  ['Monday', 'Maandag', true, '12:00', '18:00'],
+  ['Monday', 'Maandag', true, '10:00', '18:00'],
   ['Tuesday', 'Dinsdag', true, '10:00', '18:00'],
   ['Wednesday', 'Woensdag', true, '10:00', '18:00'],
   ['Thursday', 'Donderdag', true, '10:00', '18:00'],
