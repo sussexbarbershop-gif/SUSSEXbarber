@@ -7,6 +7,10 @@ const NAMES = ['parseClock','minutesToLabel','hoursForDay','isClosedOn','dateKey
   'barberDayEntry','isBarberOnLeave','isBarberWorkingAt','barbersWorkingAt',
   'selectedBarberName','slotsForDate','noSlotsOn'];
 
+// The barber cards are built from the sheet, so the page must not carry a
+// hardcoded person; a name the sheet has never heard of gets no rota.
+const hardcoded = [...html.matchAll(/data-barber="([^"]*)"/g)].map(m => m[1]);
+
 const src = NAMES.map(n => {
   const m = html.match(new RegExp('^        function ' + n + '\\([\\s\\S]*?^        }', 'm'));
   if (!m) throw new Error('not found in index.html: ' + n);
@@ -56,6 +60,10 @@ const ok = (label, actual, want) => {
 const D = s => new Date(s + 'T00:00:00');
 
 // Aug 2026: 16 Sun, 17 Mon, 18 Tue, 19 Wed, 20 Thu, 21 Fri, 22 Sat
+console.log('--- the barber list comes from the sheet ---');
+ok('no barber names written into the page',
+   hardcoded.filter(n => n !== 'Any Available' && !n.startsWith('$')), []);
+
 console.log('--- slot lists the customer actually sees ---');
 barberFieldValue = 'Hemen';
 const hemenWed = slotsForDate(D('2026-08-19'));
