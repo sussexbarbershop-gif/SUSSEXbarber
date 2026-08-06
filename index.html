@@ -9,7 +9,7 @@
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://fonts.googleapis.com https://fonts.gstatic.com https://script.google.com https://script.googleusercontent.com data: blob:; frame-src https://www.google.com https://maps.google.com; img-src 'self' https://maps.gstatic.com data: blob:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://fonts.googleapis.com https://fonts.gstatic.com https://script.google.com https://script.googleusercontent.com data: blob:; frame-src https://www.google.com https://maps.google.com; img-src 'self' https://maps.gstatic.com https://drive.google.com https://lh3.googleusercontent.com data: blob:;">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -334,6 +334,18 @@
 
     <!-- Booking Section (Multi-step Wizard) -->
     <section id="booking" class="py-24 bg-gray-50 dark:bg-charcoal-800 transition-colors duration-300">
+        <!-- Look up existing appointments. Bookings live in the Google Sheet,
+             not on this device, so the phone number is what identifies them. -->
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
+            <form id="myBookingsLookupForm" class="bg-white dark:bg-charcoal-900 rounded-2xl shadow-lg border border-gray-100 dark:border-charcoal-700 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-end gap-4">
+                <div class="flex-1">
+                    <label for="lookupPhone" class="block text-gray-500 dark:text-gray-400 mb-2 text-xs uppercase tracking-widest" data-translate="Check Your Booking">Check Your Booking</label>
+                    <input type="tel" id="lookupPhone" inputmode="numeric" placeholder="+31 6 12345678" class="w-full bg-gray-50 dark:bg-charcoal-800 border border-gray-300 dark:border-charcoal-700 text-gray-900 dark:text-white p-3.5 focus:outline-none focus:border-gold transition-colors rounded-lg">
+                </div>
+                <button type="submit" class="bg-charcoal-900 dark:bg-white text-white dark:text-charcoal-900 font-semibold uppercase tracking-widest px-6 py-3.5 rounded-lg hover:bg-gold hover:text-charcoal-900 dark:hover:bg-gold transition-colors text-xs sm:text-sm whitespace-nowrap" data-translate="Find My Booking">Find My Booking</button>
+            </form>
+        </div>
+
         <!-- My Bookings Section -->
         <div id="myBookingsContainer" class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-12 hidden">
             <div class="bg-white dark:bg-charcoal-800 rounded-2xl shadow-xl overflow-hidden border border-gray-100 dark:border-charcoal-700">
@@ -1262,7 +1274,7 @@
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 8000);
             try {
-                const response = await fetch(`${API_URL}?date=${encodeURIComponent(dateVal)}`, { signal: controller.signal });
+                const response = await fetch(`${API_URL}?date=${encodeURIComponent(dateVal)}`, { signal: controller.signal, cache: 'no-store' });
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const data = await response.json();
                 bookedTimesList = Array.isArray(data) ? data : [];
@@ -1424,6 +1436,27 @@
 
             const timeVal = document.getElementById('time').value;
 
+            // The phone number is the only way the shop can reach the customer,
+            // and the only key that finds this booking again later.
+            const phoneVal = document.getElementById('phoneNumber').value.trim();
+            const phoneDigits = phoneVal.replace(/\D/g, '');
+            if (phoneDigits.length < 9 || phoneDigits.length > 15) {
+                showToast('Please enter a valid phone number.', 'error');
+                document.getElementById('phoneNumber').focus();
+                submitBtn.innerText = originalText;
+                submitBtn.disabled = false;
+                return;
+            }
+
+            const nameVal = document.getElementById('fullName').value.trim();
+            if (nameVal.length < 2) {
+                showToast('Please enter your name.', 'error');
+                document.getElementById('fullName').focus();
+                submitBtn.innerText = originalText;
+                submitBtn.disabled = false;
+                return;
+            }
+
             const selectedServiceName = document.getElementById('service').value;
             let servicePrice = 0;
             try {
@@ -1440,48 +1473,45 @@
             const bookingData = {
                 date: document.getElementById('date').value,
                 time: timeVal,
-                name: document.getElementById('fullName').value,
-                phone: document.getElementById('phoneNumber').value,
+                name: nameVal,
+                phone: phoneVal,
                 service: selectedServiceName,
                 barber: document.getElementById('barber').value,
                 price: servicePrice
             };
 
             try {
-                await fetch(API_URL, {
+                // Not no-cors: the server can refuse this booking (for example
+                // when the slot was taken a second earlier), and confirming an
+                // appointment that was never made is the worst outcome here.
+                const response = await fetch(API_URL, {
                     method: 'POST',
-                    mode: 'no-cors',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify(bookingData)
                 });
-                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const result = await response.json();
+
+                if (result.status !== 'success') {
+                    showToast(result.message || 'That booking could not be completed.', 'error');
+                    // Re-check the day so the taken slot greys out.
+                    const dateEl = document.getElementById('date');
+                    if (dateEl && dateEl.value) dateEl.dispatchEvent(new Event('change'));
+                    submitBtn.innerText = originalText;
+                    submitBtn.disabled = false;
+                    return;
+                }
+
                 bookedTimesList.push(bookingData.time);
                 renderTimeChips();
 
-                // === Save booking to localStorage for Admin Panel ===
-                try {
-                    const existingBookings = JSON.parse(localStorage.getItem('sussex_bookings') || '[]');
-                    const newId = existingBookings.length > 0 ? Math.max(...existingBookings.map(b => b.id || 0)) + 1 : 1;
-                    existingBookings.push({
-                        id: newId,
-                        name: bookingData.name,
-                        phone: bookingData.phone,
-                        service: bookingData.service,
-                        barber: bookingData.barber || 'Any Available',
-                        date: bookingData.date,
-                        time: bookingData.time,
-                        price: servicePrice, // Keep real price for Admin panel
-                        status: 'pending',
-                        createdAt: new Date().toISOString()
-                    });
-                    localStorage.setItem('sussex_bookings', JSON.stringify(existingBookings));
-                    
-                    // === Save booking to localStorage for My Bookings ===
-                    const myBookings = JSON.parse(localStorage.getItem('my_personal_bookings') || '[]');
-                    myBookings.push(bookingData);
-                    localStorage.setItem('my_personal_bookings', JSON.stringify(myBookings));
-                    renderMyBookings();
-                } catch(e) { console.warn('Could not save booking to localStorage', e); }
+                // The booking lives only in the Sheet now. Pull the customer's
+                // list straight back from there so they see it immediately.
+                lastPhoneUsed = bookingData.phone;
+                rememberPhone(bookingData.phone);
+                const lookupField = document.getElementById('lookupPhone');
+                if (lookupField) lookupField.value = bookingData.phone;
+                loadMyBookings(bookingData.phone);
 
                 // Populate confirmation card
                 document.getElementById('confirmName').innerText = bookingData.name;
@@ -1679,6 +1709,9 @@
             'Book Now': 'Boek Nu',
             'My Bookings': 'Mijn Boekingen',
             'Cancel': 'Annuleren',
+            'Check Your Booking': 'Controleer Uw Boeking',
+            'Find My Booking': 'Zoek Mijn Boeking',
+            'Not you? Forget this number': 'Niet u? Vergeet dit nummer',
             'Cancel Booking': 'Boeking Annuleren',
             'Our Work': 'Ons Werk',
             'Our Master Barbers': 'Onze Meesterkappers',
@@ -1899,12 +1932,19 @@
         })();
     </script>
 
-    <!-- Admin Panel Sync: Load dynamic data from localStorage -->
+    <!-- Site content: loaded from the Google Sheet via the Apps Script -->
     <script>
     (function() {
-        // Track page visits for admin analytics
-        const visits = parseInt(localStorage.getItem('sussex_visits') || '0') + 1;
-        localStorage.setItem('sussex_visits', visits.toString());
+        // Count this page view in the Sheet, at most once per browsing session.
+        // Apps Script has a daily execution budget, and counting every reload
+        // would spend it on nothing. Fire-and-forget: a failure here must never
+        // affect what the visitor sees.
+        try {
+            if (!sessionStorage.getItem('sussex_visit_counted')) {
+                sessionStorage.setItem('sussex_visit_counted', '1');
+                fetch(`${API_URL}?action=trackVisit`).catch(() => {});
+            }
+        } catch (e) { /* private mode: skip counting rather than break the page */ }
 
         // Default data (fallback when admin hasn't set anything)
         const DEFAULT_SERVICES = [
@@ -1942,14 +1982,12 @@
             { src:'assets/IMG_8569.JPEG', name:'Gallery 6' },
         ];
 
-        // Load data
-        const services = JSON.parse(localStorage.getItem('sussex_services')) || DEFAULT_SERVICES;
-        const hours = JSON.parse(localStorage.getItem('sussex_hours')) || DEFAULT_HOURS;
-        
-        // Expose globally for booking submission
-        window.sussexServices = services;
+        // The Google Sheet is the only store. Nothing about the shop is kept on
+        // the visitor's device; the DEFAULT_* lists below are a static fallback
+        // for the first paint and for when the Sheet cannot be reached.
 
         // ---- Populate Services List (Price List Section) ----
+        function renderServicesList(services) {
         const servicesContainer = document.getElementById('servicesListContainer');
         if (servicesContainer) {
             servicesContainer.innerHTML = services.map((s, i) => {
@@ -1964,8 +2002,10 @@
                 </div>`;
             }).join('');
         }
+        }
 
         // ---- Populate Booking Service Cards ----
+        function renderServiceCards(services) {
         const serviceCardsContainer = document.getElementById('serviceCardsContainer');
         if (serviceCardsContainer) {
             serviceCardsContainer.innerHTML = services.map(s => {
@@ -2005,8 +2045,10 @@
                 });
             });
         }
+        }
 
         // ---- Populate Working Hours ----
+        function renderHoursList(hours) {
         const hoursContainer = document.getElementById('hoursListContainer');
         if (hoursContainer) {
             hoursContainer.innerHTML = hours.map((h, i) => {
@@ -2019,42 +2061,181 @@
                 }
             }).join('');
         }
+        }
 
-        // ---- Populate Gallery (only if admin uploaded new images) ----
-        const adminGallery = JSON.parse(localStorage.getItem('sussex_gallery'));
-        if (adminGallery && adminGallery.length > 0) {
-            const galleryGrid = document.querySelector('#gallery .columns-1');
-            if (galleryGrid) {
-                galleryGrid.innerHTML = adminGallery.map(img => {
-                    const src = img.src.startsWith('data:') ? img.src : img.src.replace('../', '');
-                    return `<img src="${src}" alt="${img.name || 'Gallery Image'}" class="w-full h-64 object-cover filter brightness-90 contrast-125 dark:brightness-75 hover:brightness-110 dark:hover:brightness-100 transition-all duration-500 cursor-pointer" onclick="openLightbox(this.src)">`;
-                }).join('');
+        // ---- Populate Gallery ----
+        function renderGalleryGrid(gallery) {
+            if (!gallery || gallery.length === 0) return;   // keep the markup defaults
+            const galleryGrid = document.getElementById('cms-gallery-grid');
+            if (!galleryGrid) return;
+            galleryGrid.innerHTML = gallery.map(img => {
+                const raw = typeof img === 'string' ? img : img.src;
+                if (!raw) return '';
+                const src = raw.startsWith('data:') ? raw : raw.replace('../', '');
+                const name = (typeof img === 'object' && img.name) ? img.name : 'Gallery Image';
+                return `<img src="${src}" alt="${name}" class="w-full h-64 object-cover filter brightness-90 contrast-125 dark:brightness-75 hover:brightness-110 dark:hover:brightness-100 transition-all duration-500 cursor-pointer" onclick="openLightbox(this.src)">`;
+            }).join('');
+        }
+
+        // ---- Free-text content managed from the admin panel ----
+        // Text from the Sheet is inserted as text nodes, never as HTML, so a
+        // stray "<" in the shop's own copy cannot break the page.
+        function setText(el, value) {
+            el.textContent = '';
+            const paragraphs = String(value).split(/\r?\n/).filter(p => p.trim() !== '');
+            paragraphs.forEach((part, i) => {
+                if (i > 0) {
+                    el.appendChild(document.createElement('br'));
+                    el.appendChild(document.createElement('br'));
+                }
+                el.appendChild(document.createTextNode(part.trim()));
+            });
+        }
+
+        function renderSettings(settings) {
+            if (!settings) return;
+            const map = {
+                'cms-hero-subtitle': settings.hero_subtitle,
+                'cms-about-text': settings.about_text,
+                'cms-contact-address': settings.contact_address
+            };
+            Object.keys(map).forEach(id => {
+                const el = document.getElementById(id);
+                if (el && map[id]) setText(el, map[id]);
+            });
+        }
+
+        /** Paint everything from one config object. */
+        function applyConfig(config) {
+            const services = (config.services && config.services.length) ? config.services : DEFAULT_SERVICES;
+            const hours = (config.hours && config.hours.length) ? config.hours : DEFAULT_HOURS;
+
+            window.sussexServices = services;   // booking submission reads prices from here
+
+            renderServicesList(services);
+            renderServiceCards(services);
+            renderHoursList(hours);
+            renderGalleryGrid(config.gallery);
+            renderSettings(config.settings);
+
+            // Newly injected markup is English; restore the active language.
+            if (typeof applyLanguage === 'function') applyLanguage(window.currentLang || 'en');
+        }
+
+        // 1. Paint the static defaults so the page is never blank while loading.
+        applyConfig({ services: DEFAULT_SERVICES, hours: DEFAULT_HOURS, gallery: null });
+
+        // 2. Replace them with whatever the Sheet says.
+        //    cache: 'no-store' everywhere below is deliberate. Apps Script
+        //    responses are cacheable, and a cached copy means the owner
+        //    changes a price and customers keep seeing the old one.
+        async function fetchCMS() {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+            try {
+                const res = await fetch(`${API_URL}?action=getConfig`, { signal: controller.signal, cache: 'no-store' });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const config = await res.json();
+                if (config.status !== 'success') throw new Error(config.message || 'bad response');
+                applyConfig(config);
+            } catch (err) {
+                // The defaults from step 1 stay on screen.
+                console.warn('Could not load live site config:', err);
+            } finally {
+                clearTimeout(timeoutId);
             }
         }
+
+        window.fetchCMS = fetchCMS;
     })();
-    // --- 11. My Bookings System ---
+    // --- 11. My Bookings: looked up from the Sheet by phone number ---
+    // Nothing is stored on the device, so a customer can check or cancel an
+    // appointment from any browser, not just the one they booked on.
+    let myBookingsCache = [];
+    let lastPhoneUsed = '';
+
+    // Only the customer's phone number is kept on the device, as a key to look
+    // themselves up again. The appointments themselves always come from the
+    // Sheet, so what they see is never a stale local copy.
+    const PHONE_KEY = 'sussex_customer_phone';
+
+    function rememberPhone(phone) {
+        try { localStorage.setItem(PHONE_KEY, phone); } catch (e) {}
+    }
+
+    function forgetPhone() {
+        try { localStorage.removeItem(PHONE_KEY); } catch (e) {}
+        myBookingsCache = [];
+        lastPhoneUsed = '';
+        const field = document.getElementById('lookupPhone');
+        if (field) field.value = '';
+        renderMyBookings();
+        showToast('This device will no longer remember your number.', 'success');
+    }
+    window.forgetPhone = forgetPhone;
+
+    /** Same rule the Apps Script uses. Comparing the last 9 digits makes the
+     *  Dutch local and international forms of one number match:
+     *  "06 1234 5678", "+31 6 1234 5678" and "0031612345678" are all equal. */
+    function normalisePhone(value) {
+        const digits = String(value || '').replace(/\D/g, '');
+        return digits.length > 9 ? digits.slice(-9) : digits;
+    }
+
+    async function loadMyBookings(phone, silent = false) {
+        const container = document.getElementById('myBookingsContainer');
+        const listEl = document.getElementById('myBookingsList');
+        if (!container || !listEl) return;
+
+        const digits = normalisePhone(phone);
+        if (!digits) {
+            if (!silent) showToast('Please enter your phone number.', 'error');
+            return;
+        }
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        try {
+            const res = await fetch(`${API_URL}?action=myBookings&phone=${encodeURIComponent(phone)}`, { signal: controller.signal, cache: 'no-store' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            // Filter by phone here as well as server-side. An older deployment
+            // of the Apps Script ignores `action=myBookings` and answers with
+            // every active booking; without this guard those would be shown to
+            // whoever asked.
+            myBookingsCache = (Array.isArray(data) ? data : [])
+                .filter(b => b && normalisePhone(b.phone) === digits);
+        } catch (err) {
+            console.warn('Could not load bookings for that number:', err);
+            if (!silent) showToast('Could not reach the server. Please try again.', 'error');
+            return;
+        } finally {
+            clearTimeout(timeoutId);
+        }
+
+        lastPhoneUsed = phone;
+        if (myBookingsCache.length > 0) rememberPhone(phone);
+        renderMyBookings();
+
+        // Silent on an automatic lookup — an empty result there just means the
+        // last appointment has passed, which is not worth an error toast.
+        if (myBookingsCache.length === 0 && !silent) {
+            showToast('No upcoming appointments found for that number.', 'error');
+        }
+    }
+
     function renderMyBookings() {
         const container = document.getElementById('myBookingsContainer');
         const listEl = document.getElementById('myBookingsList');
         if (!container || !listEl) return;
 
-        let myBookings = [];
-        try {
-            myBookings = JSON.parse(localStorage.getItem('my_personal_bookings') || '[]');
-        } catch(e) {}
-
-        // Filter out past bookings automatically
-        const today = new Date().toISOString().split('T')[0];
-        myBookings = myBookings.filter(b => b.date >= today);
-        localStorage.setItem('my_personal_bookings', JSON.stringify(myBookings));
-
-        if (myBookings.length === 0) {
+        if (myBookingsCache.length === 0) {
             container.classList.add('hidden');
             return;
         }
 
         container.classList.remove('hidden');
-        listEl.innerHTML = myBookings.map((b, index) => `
+        listEl.innerHTML = myBookingsCache.map((b, index) => `
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-gray-50 dark:bg-charcoal-900 p-4 rounded-xl border border-gray-100 dark:border-charcoal-700 gap-4">
                 <div class="flex-1">
                     <div class="font-bold text-gray-900 dark:text-white text-lg">${b.service}</div>
@@ -2069,7 +2250,11 @@
                     <span data-translate="Cancel">Cancel</span>
                 </button>
             </div>
-        `).join('');
+        `).join('') + `
+            <p class="text-xs text-gray-400 dark:text-gray-500 pt-2 text-center">
+                <button type="button" onclick="forgetPhone()" class="underline hover:text-gold transition-colors" data-translate="Not you? Forget this number">Not you? Forget this number</button>
+            </p>
+        `;
         // Newly injected markup is English; re-apply the active language to it.
         if (typeof applyLanguage === 'function') applyLanguage(window.currentLang || 'en');
     }
@@ -2077,48 +2262,65 @@
     async function cancelMyBooking(index) {
         const msg = currentLang === 'nl' ? 'Weet je zeker dat je deze boeking wilt annuleren?' : 'Are you sure you want to cancel this booking?';
         if (!confirm(msg)) return;
-        
+
+        const b = myBookingsCache[index];
+        if (!b) return;
+
         try {
-            const myBookings = JSON.parse(localStorage.getItem('my_personal_bookings') || '[]');
-            const b = myBookings[index];
-            if (!b) return;
-
-            // Send cancel request
-            await fetch(API_URL, {
+            // Not no-cors: the reply has to be readable so a failed cancel is
+            // not reported to the customer as a success.
+            const res = await fetch(API_URL, {
                 method: 'POST',
-                mode: 'no-cors',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({
-                    action: 'cancel',
-                    phone: b.phone,
-                    date: b.date,
-                    time: b.time
-                })
+                body: JSON.stringify({ action: 'cancel', phone: b.phone, date: b.date, time: b.time })
             });
+            const result = await res.json();
 
-            // Remove from local storage
-            myBookings.splice(index, 1);
-            localStorage.setItem('my_personal_bookings', JSON.stringify(myBookings));
-            renderMyBookings();
-            const toastMsg = currentLang === 'nl' ? 'Boeking succesvol geannuleerd' : 'Booking cancelled successfully';
-            showToast(toastMsg, 'success');
-            
-            // Also refresh time chips if looking at the same date
-            if (document.getElementById('date') && document.getElementById('date').value === b.date) {
-                document.getElementById('date').dispatchEvent(new Event('change'));
+            if (result.status !== 'success') {
+                showToast(result.message || 'Could not cancel that booking', 'error');
+                return;
             }
 
+            const toastMsg = currentLang === 'nl' ? 'Boeking succesvol geannuleerd' : 'Booking cancelled successfully';
+            showToast(toastMsg, 'success');
+
+            await loadMyBookings(b.phone);
+
+            // Free the slot up in the picker if that date is on screen.
+            const dateEl = document.getElementById('date');
+            if (dateEl && dateEl.value === b.date) {
+                dateEl.dispatchEvent(new Event('change'));
+            }
         } catch (err) {
             console.error(err);
             showToast('Error cancelling booking', 'error');
         }
     }
 
-    // Render my bookings on load
-    // Content is populated synchronously from localStorage by the admin-sync block above,
-    // so there is no separate CMS fetch to run here.
-    document.addEventListener('DOMContentLoaded', renderMyBookings);
-    if (document.readyState !== 'loading') renderMyBookings();
+    function setupMyBookingsLookup() {
+        const form = document.getElementById('myBookingsLookupForm');
+        if (!form) return;
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            loadMyBookings(document.getElementById('lookupPhone').value.trim());
+        });
+
+        // Returning visitor: look them up straight away so their appointments
+        // are on screen without typing anything.
+        let saved = '';
+        try { saved = localStorage.getItem(PHONE_KEY) || ''; } catch (e) {}
+        if (saved) {
+            document.getElementById('lookupPhone').value = saved;
+            loadMyBookings(saved, true);
+        }
+    }
+
+    function bootSite() {
+        setupMyBookingsLookup();
+        if (typeof fetchCMS === 'function') fetchCMS();   // content comes from the Sheet
+    }
+    document.addEventListener('DOMContentLoaded', bootSite);
+    if (document.readyState !== 'loading') bootSite();
 
     </script>
 </body>

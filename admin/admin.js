@@ -19,27 +19,116 @@ const DEFAULT_SERVICES = [
     { id: 11, nameEN: 'Kids Haircut (Up to 13 Years)', nameNL: 'Kinderknipbeurt (t/m 13 jaar)', price: 23, duration: 30 },
 ];
 
+// Placeholder only, shown for the instant before the Sheet answers. Kept in
+// step with the site's bookable slots so the two never contradict each other.
 const DEFAULT_HOURS = [
-    { day: 'Monday', dayNL: 'Maandag', open: true, from: '09:00', to: '18:00' },
-    { day: 'Tuesday', dayNL: 'Dinsdag', open: true, from: '09:00', to: '18:00' },
-    { day: 'Wednesday', dayNL: 'Woensdag', open: true, from: '09:00', to: '18:00' },
-    { day: 'Thursday', dayNL: 'Donderdag', open: true, from: '09:00', to: '18:00' },
-    { day: 'Friday', dayNL: 'Vrijdag', open: true, from: '09:00', to: '18:00' },
-    { day: 'Saturday', dayNL: 'Zaterdag', open: true, from: '09:00', to: '17:00' },
-    { day: 'Sunday', dayNL: 'Zondag', open: false, from: '09:00', to: '17:00' },
+    { day: 'Monday', dayNL: 'Maandag', open: true, from: '12:00', to: '18:00' },
+    { day: 'Tuesday', dayNL: 'Dinsdag', open: true, from: '10:00', to: '18:00' },
+    { day: 'Wednesday', dayNL: 'Woensdag', open: true, from: '10:00', to: '18:00' },
+    { day: 'Thursday', dayNL: 'Donderdag', open: true, from: '10:00', to: '18:00' },
+    { day: 'Friday', dayNL: 'Vrijdag', open: true, from: '10:00', to: '18:00' },
+    { day: 'Saturday', dayNL: 'Zaterdag', open: true, from: '10:00', to: '18:00' },
+    { day: 'Sunday', dayNL: 'Zondag', open: false, from: '10:00', to: '18:00' },
 ];
 
-// SHA-256 hash of 'Sussex2025!' — password is not stored in plain text
-const ADMIN_PASSWORD_HASH = '0e2d20e4ac506a073cc916acb700223d42a2c6cf986c4a503eb2aff08c621fdb';
 const ADMIN_USERNAME = 'admin';
 
-// Hash function for password verification
-async function hashPassword(password) {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(password);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+// The password is never stored here. It lives in the Apps Script project
+// (Script Properties > ADMIN_PASSWORD) and is checked server-side, so reading
+// this file tells an attacker nothing. It is held in memory for the session
+// only, because every write to the Sheet has to be signed with it.
+let adminPassword = sessionStorage.getItem('sussex_admin_pw') || '';
+
+/** POST a JSON action and read the reply. Apps Script allows this as a
+ *  "simple" cross-origin request as long as the type stays text/plain. */
+async function apiPost(payload) {
+    const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+}
+
+/** Shrink an image in the browser before it ever leaves the machine.
+ *  Gallery photos off a phone are several megabytes; at that size the upload
+ *  is slow and Drive fills up for no visual benefit on a 400px-wide card. */
+function shrinkImage(file, maxEdge = 1600, quality = 0.82) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('Could not read that file'));
+        reader.onload = () => {
+            const img = new Image();
+            img.onerror = () => reject(new Error('That file is not a readable image'));
+            img.onload = () => {
+                let { width, height } = img;
+                if (width > maxEdge || height > maxEdge) {
+                    const scale = maxEdge / Math.max(width, height);
+                    width = Math.round(width * scale);
+                    height = Math.round(height * scale);
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+/** Shrink, upload to Drive, and hand back a URL fit to store in the Sheet. */
+async function uploadImage(file) {
+    if (!adminPassword) {
+        showToast('Session expired — please sign in again', 'error');
+        return null;
+    }
+    showToast('Uploading image...', 'info');
+    try {
+        const dataUrl = await shrinkImage(file);
+        const result = await apiPost({
+            action: 'uploadImage',
+            password: adminPassword,
+            filename: file.name,
+            dataUrl: dataUrl
+        });
+        if (result.status !== 'success' || !result.url) {
+            showToast(result.message || 'Upload failed', 'error');
+            return null;
+        }
+        return result.url;
+    } catch (err) {
+        console.error('Upload failed', err);
+        showToast('Could not upload that image', 'error');
+        return null;
+    }
+}
+
+/** Push the current content to the Sheet so customers actually see it. */
+async function syncToSheet(partial) {
+    if (!adminPassword) {
+        showToast('Session expired — please sign in again', 'error');
+        return false;
+    }
+    try {
+        const result = await apiPost(Object.assign({
+            action: 'saveCMS',
+            password: adminPassword
+        }, partial));
+
+        if (result.status !== 'success') {
+            showToast(result.message || 'Server refused the change', 'error');
+            return false;
+        }
+        return true;
+    } catch (err) {
+        console.error('Sync failed', err);
+        showToast('Could not reach the server — change saved locally only', 'error');
+        return false;
+    }
 }
 
 // ---- State ----
@@ -55,20 +144,36 @@ let visitCount = 0;
 // ---- Init ----
 async function fetchLiveCMS() {
     try {
-        const res = await fetch(API_URL + "?action=getSettings");
+        const res = await fetch(API_URL + "?action=getConfig", { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        if(data.status === 'success') {
-            if(data.settings) settings = data.settings;
-            if(data.barbers && data.barbers.length > 0) barbers = data.barbers;
-            if(data.gallery && data.gallery.length > 0) {
-                galleryImages = data.gallery.map((g, i) => ({id: i+1, src: g, name: 'Img '+(i+1)}));
-            }
-            saveData(); // update local storage cache with live data
-            if(currentPage === 'cms') renderCMSForm();
-            if(currentPage === 'barbers') renderBarbers();
-            if(currentPage === 'gallery') renderGallery();
+        if (data.status !== 'success') throw new Error(data.message || 'bad response');
+
+        if (data.settings) {
+            settings = data.settings;
+            // The visit counter is a row in the Settings sheet now.
+            visitCount = parseInt(settings.visit_count || '0', 10) || 0;
         }
-    } catch(e) { console.error("Failed to fetch live CMS data", e); }
+        if (data.barbers && data.barbers.length > 0) barbers = data.barbers;
+        if (data.gallery && data.gallery.length > 0) {
+            galleryImages = data.gallery.map((g, i) => ({ id: i + 1, src: g, name: 'Img ' + (i + 1) }));
+        }
+        // Services and hours now live in the Sheet too, so the panel shows
+        // what customers are actually being served.
+        if (data.services && data.services.length > 0) services = data.services;
+        if (data.hours && data.hours.length > 0) hours = data.hours;
+
+        saveData();
+
+        if (currentPage === 'barbers') renderBarbers();
+        if (currentPage === 'gallery') renderGallery();
+        if (currentPage === 'services') renderServices();
+        if (currentPage === 'hours') renderHours();
+        if (currentPage === 'dashboard') renderDashboard();
+        if (currentPage === 'analytics') renderAnalytics();
+    } catch (e) {
+        console.error("Failed to fetch live CMS data", e);
+    }
 }
 document.addEventListener('DOMContentLoaded', () => {
     loadData();
@@ -112,51 +217,97 @@ async function handleLogin(e) {
     const username = document.getElementById('loginUsername').value.trim();
     const password = document.getElementById('loginPassword').value;
     const errorEl = document.getElementById('loginError');
+    const submitBtn = e.target.querySelector('button[type="submit"]');
 
-    const passwordHash = await hashPassword(password);
-    if (username === ADMIN_USERNAME && passwordHash === ADMIN_PASSWORD_HASH) {
-        sessionStorage.setItem('sussex_admin_auth', 'true');
-        errorEl.style.display = 'none';
-        showAdmin();
-        showToast('Welcome back, Admin!', 'success');
-    } else {
+    const fail = (message) => {
         errorEl.style.display = 'block';
-        errorEl.textContent = 'Invalid username or password';
+        errorEl.textContent = message;
         document.getElementById('loginPassword').value = '';
+    };
+
+    if (username !== ADMIN_USERNAME) { fail('Invalid username or password'); return; }
+
+    const originalLabel = submitBtn ? submitBtn.textContent : '';
+    if (submitBtn) { submitBtn.textContent = 'Signing in...'; submitBtn.disabled = true; }
+
+    try {
+        // Verified by the Apps Script, not here.
+        const result = await apiPost({ action: 'adminLogin', password: password });
+
+        if (result.status === 'success') {
+            adminPassword = password;
+            sessionStorage.setItem('sussex_admin_auth', 'true');
+            sessionStorage.setItem('sussex_admin_pw', password);
+            errorEl.style.display = 'none';
+            showAdmin();
+            showToast('Welcome back, Admin!', 'success');
+        } else {
+            fail(result.message || 'Invalid username or password');
+        }
+    } catch (err) {
+        console.error('Login failed', err);
+        fail('Could not reach the server. Check your connection and try again.');
+    } finally {
+        if (submitBtn) { submitBtn.textContent = originalLabel; submitBtn.disabled = false; }
     }
 }
 
 function handleLogout() {
+    adminPassword = '';
     sessionStorage.removeItem('sussex_admin_auth');
+    sessionStorage.removeItem('sussex_admin_pw');
     showLogin();
 }
 
 // ---- Data Management ----
 function loadData() {
-    services = JSON.parse(localStorage.getItem('sussex_services')) || [...DEFAULT_SERVICES];
-    hours = JSON.parse(localStorage.getItem('sussex_hours')) || [...DEFAULT_HOURS];
-    bookings = JSON.parse(localStorage.getItem('sussex_bookings')) || generateSampleBookings();
-    galleryImages = JSON.parse(localStorage.getItem('sussex_gallery')) || getDefaultGallery();
-    visitCount = parseInt(localStorage.getItem('sussex_visits') || '0');
+    // Placeholders only. fetchLiveCMS() and fetchLiveBookings() replace all of
+    // these with the Sheet's contents a moment after load; nothing about the
+    // shop is persisted on this device.
+    services = [...DEFAULT_SERVICES];
+    hours = [...DEFAULT_HOURS];
+    bookings = [];
+    galleryImages = getDefaultGallery();
+    visitCount = 0;
     // Do NOT increment visit counter here — only the main site should track visits
 }
 
-function saveServices() {
-    localStorage.setItem('sussex_services', JSON.stringify(services));
-    showToast('Services updated successfully', 'success');
+/** Kept as a no-op seam. The panel calls this from several places after
+ *  mutating its in-memory state; persistence is the Sheet's job now, done by
+ *  the syncToSheet() calls below. It was missing entirely before, which made
+ *  fetchLiveCMS() and all the barber editing throw. */
+function saveData() {
+    /* nothing is stored locally */
 }
 
-function saveHours() {
-    localStorage.setItem('sussex_hours', JSON.stringify(hours));
-    showToast('Working hours updated', 'success');
+async function saveServices() {
+    if (await syncToSheet({ services: services })) {
+        showToast('Services updated — customers see this now', 'success');
+    }
+}
+
+async function saveHours() {
+    if (await syncToSheet({ hours: hours })) {
+        showToast('Working hours updated — customers see this now', 'success');
+    }
 }
 
 function saveBookings() {
-    localStorage.setItem('sussex_bookings', JSON.stringify(bookings));
+    // Bookings are owned by the Sheet; fetchLiveBookings() refreshes them.
 }
 
-function saveGallery() {
-    localStorage.setItem('sussex_gallery', JSON.stringify(galleryImages));
+async function saveGallery() {
+    // The Sheet stores plain URLs, not the panel's {id, src, name} shape.
+    if (await syncToSheet({ gallery: galleryImages.map(g => g.src) })) {
+        showToast('Gallery updated — customers see this now', 'success');
+    }
+}
+
+async function saveBarbers() {
+    saveData();
+    if (await syncToSheet({ barbers: barbers })) {
+        showToast('Barbers updated — customers see this now', 'success');
+    }
 }
 
 function getDefaultGallery() {
@@ -168,31 +319,6 @@ function getDefaultGallery() {
         { id: 5, src: '../assets/IMG_8567.JPEG', name: 'Gallery 5' },
         { id: 6, src: '../assets/IMG_8569.JPEG', name: 'Gallery 6' },
     ];
-}
-
-function generateSampleBookings() {
-    const names = ['Ahmad K.', 'Raman H.', 'Hemen S.', 'Jan de Vries', 'Mohammed A.', 'Pieter B.'];
-    const phones = ['06 5373 0803', '06 1234 5678', '06 9876 5432', '06 5555 1234', '06 4444 7890', '06 3333 2222'];
-    const statuses = ['confirmed', 'pending', 'pending', 'confirmed', 'cancelled', 'confirmed'];
-    const sampleBookings = [];
-    const today = new Date();
-
-    for (let i = 0; i < 6; i++) {
-        const d = new Date(today);
-        d.setDate(d.getDate() - Math.floor(Math.random() * 7));
-        const hour = 9 + Math.floor(Math.random() * 8);
-        sampleBookings.push({
-            id: i + 1,
-            name: names[i],
-            phone: phones[i],
-            service: services[Math.floor(Math.random() * services.length)].nameEN,
-            date: d.toISOString().split('T')[0],
-            time: `${hour.toString().padStart(2, '0')}:${Math.random() > 0.5 ? '00' : '30'}`,
-            status: statuses[i],
-            createdAt: d.toISOString()
-        });
-    }
-    return sampleBookings;
 }
 
 // ---- Navigation ----
@@ -544,23 +670,18 @@ function renderGallery() {
     container.innerHTML = html;
 }
 
-function handleGalleryUpload(input) {
+async function handleGalleryUpload(input) {
     const file = input.files[0];
     if (!file) return;
+    input.value = '';   // let the same file be picked again after a failure
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const newId = galleryImages.length > 0 ? Math.max(...galleryImages.map(g => g.id)) + 1 : 1;
-        galleryImages.push({
-            id: newId,
-            src: e.target.result,
-            name: file.name
-        });
-        saveGallery();
-        renderGallery();
-        showToast('Image uploaded successfully', 'success');
-    };
-    reader.readAsDataURL(file);
+    const url = await uploadImage(file);
+    if (!url) return;
+
+    const newId = galleryImages.length > 0 ? Math.max(...galleryImages.map(g => g.id)) + 1 : 1;
+    galleryImages.push({ id: newId, src: url, name: file.name });
+    renderGallery();
+    saveGallery();
 }
 
 function deleteGalleryImage(id) {
@@ -611,22 +732,19 @@ function openBarberModal(index) {
             const input = document.createElement('input');
             input.type = 'file';
             input.accept = 'image/*';
-            input.onchange = (e) => {
+            input.onchange = async (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    b.image = ev.target.result;
-                    saveData();
-                    renderBarbers();
-                    showToast('Barber image updated! Click Save to Website.', 'success');
-                };
-                reader.readAsDataURL(file);
+                const url = await uploadImage(file);
+                if (!url) return;
+                b.image = url;
+                renderBarbers();
+                saveBarbers();
             };
             input.click();
         } else {
-            saveData();
             renderBarbers();
+            saveBarbers();
         }
     }
 }
@@ -638,18 +756,15 @@ function addBarber() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            const newId = barbers.length > 0 ? Math.max(...barbers.map(g => g.id || 0)) + 1 : 1;
-            barbers.push({ id: newId, name: name, image: ev.target.result });
-            saveData();
-            renderBarbers();
-            showToast('Barber added! Click Save to Website.', 'success');
-        };
-        reader.readAsDataURL(file);
+        const url = await uploadImage(file);
+        if (!url) return;
+        const newId = barbers.length > 0 ? Math.max(...barbers.map(g => g.id || 0)) + 1 : 1;
+        barbers.push({ id: newId, name: name, image: url });
+        renderBarbers();
+        saveBarbers();
     };
     input.click();
 }
@@ -657,8 +772,8 @@ function addBarber() {
 function deleteBarber(id) {
     if (confirm('Delete this barber?')) {
         barbers = barbers.filter(g => g.id !== id);
-        saveData();
         renderBarbers();
+        saveBarbers();
     }
 }
 
@@ -738,7 +853,8 @@ let bookingViewMode = 'planner';
 
 async function fetchLiveBookings() {
     try {
-        const res = await fetch(API_URL);
+        // Never cached: the panel must show the schedule as it is right now.
+        const res = await fetch(API_URL, { cache: 'no-store' });
         const data = await res.json();
         if (Array.isArray(data)) {
             bookings = data.map((b, idx) => ({
@@ -947,23 +1063,25 @@ async function cancelLiveBookingFromPlanner(date, time, phone) {
     renderDashboard();
 
     try {
-        await fetch(API_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({
-                action: 'cancelBooking',
-                date: date,
-                time: time,
-                phone: phone
-            })
+        const result = await apiPost({
+            action: 'cancelBooking',
+            date: date,
+            time: time,
+            phone: phone
         });
-        showToast('Booking canceled successfully!', 'success');
-        setTimeout(fetchLiveBookings, 1500); // Re-sync after server process
+
+        if (result.status === 'success') {
+            showToast('Booking canceled successfully!', 'success');
+        } else {
+            // The optimistic removal above was wrong — put the real list back.
+            showToast(result.message || 'Could not cancel that booking', 'error');
+        }
     } catch (e) {
         console.error("Cancel failed", e);
-        showToast('Booking canceled locally', 'success');
-        setTimeout(fetchLiveBookings, 1500);
+        showToast('Could not reach the server — nothing was canceled', 'error');
+    } finally {
+        // Always re-sync: the Sheet decides what the schedule really is.
+        fetchLiveBookings();
     }
 }
 
