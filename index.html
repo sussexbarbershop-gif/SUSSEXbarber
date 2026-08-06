@@ -1274,7 +1274,7 @@
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 8000);
             try {
-                const response = await fetch(`${API_URL}?date=${encodeURIComponent(dateVal)}`, { signal: controller.signal });
+                const response = await fetch(`${API_URL}?date=${encodeURIComponent(dateVal)}`, { signal: controller.signal, cache: 'no-store' });
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const data = await response.json();
                 bookedTimesList = Array.isArray(data) ? data : [];
@@ -2126,11 +2126,14 @@
         applyConfig({ services: DEFAULT_SERVICES, hours: DEFAULT_HOURS, gallery: null });
 
         // 2. Replace them with whatever the Sheet says.
+        //    cache: 'no-store' everywhere below is deliberate. Apps Script
+        //    responses are cacheable, and a cached copy means the owner
+        //    changes a price and customers keep seeing the old one.
         async function fetchCMS() {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 8000);
             try {
-                const res = await fetch(`${API_URL}?action=getConfig`, { signal: controller.signal });
+                const res = await fetch(`${API_URL}?action=getConfig`, { signal: controller.signal, cache: 'no-store' });
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const config = await res.json();
                 if (config.status !== 'success') throw new Error(config.message || 'bad response');
@@ -2193,7 +2196,7 @@
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000);
         try {
-            const res = await fetch(`${API_URL}?action=myBookings&phone=${encodeURIComponent(phone)}`, { signal: controller.signal });
+            const res = await fetch(`${API_URL}?action=myBookings&phone=${encodeURIComponent(phone)}`, { signal: controller.signal, cache: 'no-store' });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
             // Filter by phone here as well as server-side. An older deployment

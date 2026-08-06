@@ -144,7 +144,7 @@ let visitCount = 0;
 // ---- Init ----
 async function fetchLiveCMS() {
     try {
-        const res = await fetch(API_URL + "?action=getConfig");
+        const res = await fetch(API_URL + "?action=getConfig", { cache: 'no-store' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (data.status !== 'success') throw new Error(data.message || 'bad response');
@@ -853,7 +853,8 @@ let bookingViewMode = 'planner';
 
 async function fetchLiveBookings() {
     try {
-        const res = await fetch(API_URL);
+        // Never cached: the panel must show the schedule as it is right now.
+        const res = await fetch(API_URL, { cache: 'no-store' });
         const data = await res.json();
         if (Array.isArray(data)) {
             bookings = data.map((b, idx) => ({
