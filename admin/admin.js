@@ -209,7 +209,7 @@ function showLogin() {
 function showAdmin() {
     document.getElementById('loginWrapper').style.display = 'none';
     document.getElementById('adminLayout').classList.add('active');
-    navigateTo('dashboard');
+    navigateTo('today');
 }
 
 async function handleLogin(e) {
@@ -346,6 +346,7 @@ function navigateTo(page) {
 
     // Update topbar title
     const titles = {
+        today: 'Today',
         dashboard: 'Dashboard',
         bookings: 'Bookings',
         services: 'Services & Pricing',
@@ -361,6 +362,7 @@ function navigateTo(page) {
 
 function renderPage(page) {
     switch (page) {
+        case 'today': renderToday(); break;
         case 'dashboard': renderDashboard(); break;
         case 'bookings': renderBookings(); break;
         case 'services': renderServices(); break;
@@ -777,6 +779,81 @@ function deleteBarber(id) {
     }
 }
 
+// ---- Today ----
+
+/** Minutes since midnight, for sorting and for "next up". */
+function minutesOf(timeStr) {
+    const m = String(timeStr || '').match(/(\d+):(\d+)\s*(AM|PM)?/i);
+    if (!m) return 0;
+    let h = parseInt(m[1], 10);
+    const min = parseInt(m[2], 10);
+    const period = (m[3] || '').toUpperCase();
+    if (period === 'PM' && h < 12) h += 12;
+    if (period === 'AM' && h === 12) h = 0;
+    return h * 60 + min;
+}
+
+function bookingsOn(dateStr) {
+    return bookings
+        .filter(b => b.date === dateStr)
+        .sort((a, b) => minutesOf(a.time) - minutesOf(b.time));
+}
+
+function renderToday() {
+    const listEl = document.getElementById('todayList');
+    const tomorrowEl = document.getElementById('tomorrowList');
+    if (!listEl || !tomorrowEl) return;
+
+    const now = new Date();
+    const todayStr = formatDateISO(now);
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = formatDateISO(tomorrow);
+
+    document.getElementById('todayDateLabel').textContent =
+        now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+
+    const todays = bookingsOn(todayStr);
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const upcoming = todays.filter(b => minutesOf(b.time) >= nowMinutes);
+
+    const summary = document.getElementById('todaySummary');
+    if (todays.length === 0) {
+        summary.textContent = 'No appointments booked.';
+    } else {
+        summary.textContent = `${todays.length} appointment${todays.length === 1 ? '' : 's'}` +
+            (upcoming.length ? ` · next at ${upcoming[0].time}` : ' · all done for today');
+    }
+
+    listEl.innerHTML = renderDayList(todays, nowMinutes);
+    tomorrowEl.innerHTML = renderDayList(bookingsOn(tomorrowStr), null);
+}
+
+function renderDayList(list, nowMinutes) {
+    if (list.length === 0) {
+        return '<div class="today-empty">Nothing booked.</div>';
+    }
+    return list.map(b => {
+        // Grey out what has already happened so the eye lands on what is next.
+        const past = nowMinutes !== null && minutesOf(b.time) < nowMinutes;
+        return `
+            <div class="today-row${past ? ' is-past' : ''}">
+                <div class="today-time">${escapeHtml(b.time)}</div>
+                <div class="today-who">
+                    <div class="today-name">${escapeHtml(b.customerName)}</div>
+                    <div class="today-service">${escapeHtml(b.serviceName)}${b.barberName ? ' · ' + escapeHtml(b.barberName) : ''}</div>
+                </div>
+                <div class="today-actions">
+                    ${b.customerPhone ? `<a class="today-call" href="tel:${encodeURIComponent(b.customerPhone)}" title="Call ${escapeHtml(b.customerName)}">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                        ${escapeHtml(b.customerPhone)}
+                    </a>` : ''}
+                    <button type="button" class="today-cancel" onclick="cancelLiveBookingFromPlanner('${b.date}','${b.time}','${b.customerPhone}')">Cancel</button>
+                </div>
+            </div>`;
+    }).join('');
+}
+
 // ---- Analytics ----
 function renderAnalytics() {
     document.getElementById('analyticsTotalVisits').textContent = visitCount;
@@ -869,6 +946,7 @@ async function fetchLiveBookings() {
                 status: 'Confirmed'
             }));
             saveBookings();
+            renderToday();
             renderDashboard();
             renderBookings();
             renderWeeklyPlannerGrid();

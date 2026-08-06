@@ -286,3 +286,79 @@ tbody tr:last-child td { border-bottom: none; }
 
 /* Table responsive wrapper */
 .table-responsive { overflow-x: auto; }
+
+/* ---- Today ----------------------------------------------------------- */
+/* The landing page. Optimised for a glance on a phone between customers. */
+
+.today-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+}
+.today-header h2 { font-size: 1.4rem; margin: 0 0 .25rem; }
+.today-summary { margin: 0; color: var(--text-muted, #9ca3af); font-size: .9rem; }
+
+.btn-refresh {
+    display: inline-flex; align-items: center; gap: .5rem;
+    padding: .55rem .9rem; border-radius: .5rem; cursor: pointer;
+    border: 1px solid var(--border, #2a2a2a);
+    background: transparent; color: inherit; font-size: .85rem;
+}
+.btn-refresh:hover { border-color: #d4af37; color: #d4af37; }
+
+.today-list { display: flex; flex-direction: column; gap: .6rem; }
+
+.today-row {
+    display: flex; align-items: center; gap: 1rem;
+    padding: .85rem 1rem; border-radius: .65rem;
+    border: 1px solid var(--border, #2a2a2a);
+    background: var(--card, #1a1a1a);
+}
+.today-row.is-past { opacity: .45; }
+
+.today-time {
+    font-weight: 700; font-size: 1rem; color: #d4af37;
+    min-width: 5.5rem; flex-shrink: 0;
+}
+.today-who { flex: 1; min-width: 0; }
+.today-name { font-weight: 600; }
+.today-service { font-size: .82rem; color: var(--text-muted, #9ca3af); }
+
+.today-actions { display: flex; align-items: center; gap: .5rem; flex-shrink: 0; }
+
+.today-call {
+    display: inline-flex; align-items: center; gap: .4rem;
+    padding: .45rem .75rem; border-radius: .5rem; font-size: .82rem;
+    text-decoration: none; color: inherit;
+    border: 1px solid var(--border, #2a2a2a);
+}
+.today-call:hover { border-color: #d4af37; color: #d4af37; }
+
+.today-cancel {
+    padding: .45rem .75rem; border-radius: .5rem; font-size: .82rem;
+    cursor: pointer; background: transparent;
+    border: 1px solid rgba(244, 63, 94, .35); color: #fb7185;
+}
+.today-cancel:hover { background: rgba(244, 63, 94, .12); }
+
+.today-empty {
+    padding: 1.5rem; text-align: center; border-radius: .65rem;
+    border: 1px dashed var(--border, #2a2a2a);
+    color: var(--text-muted, #9ca3af); font-size: .9rem;
+}
+
+.today-next-title {
+    margin: 2rem 0 .75rem; font-size: 1rem;
+    color: var(--text-muted, #9ca3af); font-weight: 600;
+}
+
+/* On a phone the row would otherwise squash; stack it instead. */
+@media (max-width: 560px) {
+    .today-row { flex-wrap: wrap; gap: .5rem 1rem; }
+    .today-time { min-width: auto; }
+    .today-who { flex-basis: 100%; order: 3; }
+    .today-actions { margin-left: auto; }
+}
