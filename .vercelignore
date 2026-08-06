@@ -1,0 +1,7 @@
+# The admin panel authenticates entirely in the browser (see admin/admin.js),
+# so publishing it would let anyone read the credentials out of the source and
+# sign in. Keep it out of the deployment; run it locally instead.
+admin/
+
+# Source photos that are already duplicated into assets/
+photo susex/
