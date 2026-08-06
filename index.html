@@ -1460,13 +1460,27 @@
             };
 
             try {
-                await fetch(API_URL, {
+                // Not no-cors: the server can refuse this booking (for example
+                // when the slot was taken a second earlier), and confirming an
+                // appointment that was never made is the worst outcome here.
+                const response = await fetch(API_URL, {
                     method: 'POST',
-                    mode: 'no-cors',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify(bookingData)
                 });
-                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const result = await response.json();
+
+                if (result.status !== 'success') {
+                    showToast(result.message || 'That booking could not be completed.', 'error');
+                    // Re-check the day so the taken slot greys out.
+                    const dateEl = document.getElementById('date');
+                    if (dateEl && dateEl.value) dateEl.dispatchEvent(new Event('change'));
+                    submitBtn.innerText = originalText;
+                    submitBtn.disabled = false;
+                    return;
+                }
+
                 bookedTimesList.push(bookingData.time);
                 renderTimeChips();
 

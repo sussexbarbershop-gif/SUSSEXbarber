@@ -1038,23 +1038,25 @@ async function cancelLiveBookingFromPlanner(date, time, phone) {
     renderDashboard();
 
     try {
-        await fetch(API_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({
-                action: 'cancelBooking',
-                date: date,
-                time: time,
-                phone: phone
-            })
+        const result = await apiPost({
+            action: 'cancelBooking',
+            date: date,
+            time: time,
+            phone: phone
         });
-        showToast('Booking canceled successfully!', 'success');
-        setTimeout(fetchLiveBookings, 1500); // Re-sync after server process
+
+        if (result.status === 'success') {
+            showToast('Booking canceled successfully!', 'success');
+        } else {
+            // The optimistic removal above was wrong — put the real list back.
+            showToast(result.message || 'Could not cancel that booking', 'error');
+        }
     } catch (e) {
         console.error("Cancel failed", e);
-        showToast('Booking canceled locally', 'success');
-        setTimeout(fetchLiveBookings, 1500);
+        showToast('Could not reach the server — nothing was canceled', 'error');
+    } finally {
+        // Always re-sync: the Sheet decides what the schedule really is.
+        fetchLiveBookings();
     }
 }
 
