@@ -374,6 +374,8 @@ function navigateTo(page) {
         services: 'Services & Pricing',
         hours: 'Working Hours',
         gallery: 'Gallery',
+        cms: 'Website Text',
+        barbers: 'Our Barbers',
         analytics: 'Analytics'
     };
     document.getElementById('pageTitle').textContent = titles[page] || page;
@@ -390,6 +392,10 @@ function renderPage(page) {
         case 'services': renderServices(); break;
         case 'hours': renderHours(); break;
         case 'gallery': renderGallery(); break;
+        // Missing, so Our Barbers only ever painted when the config happened to
+        // arrive while the page was already open. That took seconds before the
+        // backend was sped up, which is why it looked like it worked.
+        case 'barbers': renderBarbers(); break;
         case 'analytics': renderAnalytics(); break;
     }
 }
