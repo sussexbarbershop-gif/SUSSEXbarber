@@ -2002,8 +2002,9 @@
             { id:11, nameEN:'Kids Haircut (Up to 13 Years)', nameNL:'Kinderknipbeurt (t/m 13 jaar)', price:23, duration:30 },
         ];
 
-        // Must stay in sync with updateBusinessStatus() and availableTimesList,
-        // otherwise the displayed hours contradict the bookable slots.
+        // Only a placeholder for the moment before the Sheet answers. The real
+        // hours come from there, and slots, the calendar and the open/closed
+        // badge are all derived from them, so they cannot drift apart.
         const DEFAULT_HOURS = [
             { day:'Monday', dayNL:'Maandag', open:true, from:'12:00', to:'18:00' },
             { day:'Tuesday', dayNL:'Dinsdag', open:true, from:'10:00', to:'18:00' },
