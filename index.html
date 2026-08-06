@@ -117,7 +117,11 @@
             <div class="flex justify-between items-center h-20">
                 <div class="flex items-center space-x-3">
                     <a href="#" class="flex items-center transition-transform duration-300 hover:scale-105">
-                        <img src="assets/logo.jpg" alt="Sussex Barber Shop Logo" class="h-16 w-auto object-contain mix-blend-multiply grayscale contrast-[1.2] brightness-[1.1] dark:invert dark:mix-blend-screen transition-all duration-300" style="margin-top: -10px; margin-bottom: -10px;">
+                        <!-- Transparent PNG. This used to be a JPG whose white background was
+                             hidden with mix-blend-multiply, but the nav is translucent, so the
+                             blend resolved against the hero photo behind it and drew a pale box
+                             around the mark. dark:invert keeps it legible on the dark theme. -->
+                        <img src="assets/logo.png" alt="Sussex Barber Shop Logo" width="50" height="64" class="h-16 w-auto object-contain dark:invert transition-all duration-300" style="margin-top: -10px; margin-bottom: -10px;">
                     </a>
                     <!-- Live Working Hours Status Badge -->
                     <div id="statusBadge" class="hidden sm:inline-block"></div>
@@ -350,21 +354,21 @@
                 <div class="md:col-span-12">
                     <!-- Step Progress Indicator -->
                     <div class="flex justify-between items-center max-w-md mx-auto mb-10 relative px-4 sticky top-20 z-40 bg-gray-50/90 dark:bg-charcoal-800/90 backdrop-blur py-4 rounded-xl border border-gray-100 dark:border-charcoal-700 shadow-sm">
-                        <div class="absolute top-1/2 left-9 right-9 h-0.5 bg-gray-300 dark:bg-charcoal-700 -translate-y-1/2 z-0">
+                        <div class="absolute top-[2.25rem] left-[calc(1rem_+_(100%_-_2rem)/6)] right-[calc(1rem_+_(100%_-_2rem)/6)] h-0.5 bg-gray-300 dark:bg-charcoal-700 z-0">
                             <div id="progressLine" class="h-full bg-gold transition-all duration-500 ease-out" style="width: 0%"></div>
                         </div>
 
-                        <div class="relative z-10 flex flex-col items-center">
+                        <div class="relative z-10 flex flex-col items-center flex-1 basis-0">
                             <div id="stepDot1" class="w-10 h-10 rounded-full bg-gold text-charcoal-900 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300">1</div>
-                            <span id="stepLabel1" class="text-xs uppercase tracking-wider mt-2 font-medium text-gray-900 dark:text-white">Barber &amp; Service</span>
+                            <span id="stepLabel1" class="text-xs uppercase tracking-wider mt-2 font-medium text-center px-1 text-gray-900 dark:text-white">Barber &amp; Service</span>
                         </div>
-                        <div class="relative z-10 flex flex-col items-center">
+                        <div class="relative z-10 flex flex-col items-center flex-1 basis-0">
                             <div id="stepDot2" class="w-10 h-10 rounded-full bg-gray-300 dark:bg-charcoal-700 text-gray-600 dark:text-gray-400 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300">2</div>
-                            <span id="stepLabel2" class="text-xs uppercase tracking-wider mt-2 font-medium text-gray-400 dark:text-gray-500">Date & Time</span>
+                            <span id="stepLabel2" class="text-xs uppercase tracking-wider mt-2 font-medium text-center px-1 text-gray-400 dark:text-gray-500">Date & Time</span>
                         </div>
-                        <div class="relative z-10 flex flex-col items-center">
+                        <div class="relative z-10 flex flex-col items-center flex-1 basis-0">
                             <div id="stepDot3" class="w-10 h-10 rounded-full bg-gray-300 dark:bg-charcoal-700 text-gray-600 dark:text-gray-400 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300">3</div>
-                            <span id="stepLabel3" class="text-xs uppercase tracking-wider mt-2 font-medium text-gray-400 dark:text-gray-500">Confirm</span>
+                            <span id="stepLabel3" class="text-xs uppercase tracking-wider mt-2 font-medium text-center px-1 text-gray-400 dark:text-gray-500">Confirm</span>
                         </div>
                     </div>
 
@@ -1123,9 +1127,12 @@
                 ? 'w-10 h-10 rounded-full bg-gold text-charcoal-900 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300'
                 : 'w-10 h-10 rounded-full bg-gray-300 dark:bg-charcoal-700 text-gray-600 dark:text-gray-400 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300';
 
-            l1.className = stepNum >= 1 ? 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-900 dark:text-white' : 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-400 dark:text-gray-500';
-            l2.className = stepNum >= 2 ? 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-900 dark:text-white' : 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-400 dark:text-gray-500';
-            l3.className = stepNum >= 3 ? 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-900 dark:text-white' : 'text-xs uppercase tracking-wider mt-2 font-medium text-gray-400 dark:text-gray-500';
+            const labelBase = 'text-xs uppercase tracking-wider mt-2 font-medium text-center px-1 ';
+            const labelOn = labelBase + 'text-gray-900 dark:text-white';
+            const labelOff = labelBase + 'text-gray-400 dark:text-gray-500';
+            l1.className = stepNum >= 1 ? labelOn : labelOff;
+            l2.className = stepNum >= 2 ? labelOn : labelOff;
+            l3.className = stepNum >= 3 ? labelOn : labelOff;
         }
 
         document.getElementById('goToStep2Btn').addEventListener('click', () => {
