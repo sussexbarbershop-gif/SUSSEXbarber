@@ -9,7 +9,7 @@
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://fonts.googleapis.com https://fonts.gstatic.com https://script.google.com https://script.googleusercontent.com data: blob:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://fonts.googleapis.com https://fonts.gstatic.com https://script.google.com https://script.googleusercontent.com data: blob:; frame-src https://www.google.com https://maps.google.com; img-src 'self' https://maps.gstatic.com data: blob:;">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -931,82 +931,7 @@
 
         document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
-        // --- 5. Testimonials Carousel Slider ---
-        const testimonials = [
-            {
-                quote: `"Awesome haircut, modern style and hearty service."`,
-                author: "Anonymous Client",
-                initial: "A",
-                color: "bg-gray-600"
-            },
-            {
-                quote: `"Myself and my two teenage sons - who are quite particular - went here and were delighted with our haircuts and the friendly atmosphere. I would have no hesitation in recommending this barber shop."`,
-                author: "Michael Bride",
-                initial: "M",
-                color: "bg-green-800"
-            },
-            {
-                quote: `"Always receive great haircuts and the place itself is well kept. Good price/quality, great location and attentive employees."`,
-                author: "Verified Client",
-                initial: "P",
-                color: "bg-blue-800"
-            }
-        ];
-
-        let currentTestimonialIndex = 0;
-        const slideContainer = document.getElementById('testimonialSlideContent');
-        const dotsContainer = document.getElementById('carouselDots');
-
-        function renderTestimonial(index) {
-            const item = testimonials[index];
-            slideContainer.style.opacity = 0;
-
-            setTimeout(() => {
-                slideContainer.innerHTML = `
-                    <p class="text-gray-700 dark:text-gray-300 font-light italic text-base sm:text-lg mb-6 leading-relaxed">
-                        ${item.quote}
-                    </p>
-                    <div class="flex items-center">
-                        <div class="w-11 h-11 rounded-full ${item.color} flex items-center justify-center text-white font-serif font-bold text-lg">
-                            ${item.initial}
-                        </div>
-                        <div class="ml-4">
-                            <h4 class="text-gray-900 dark:text-white font-medium text-sm sm:text-base">${item.author}</h4>
-                            <p class="text-gold text-xs">★★★★★</p>
-                        </div>
-                    </div>
-                `;
-                slideContainer.style.opacity = 1;
-            }, 200);
-
-            // Update Dots
-            dotsContainer.innerHTML = testimonials.map((_, i) => `
-                <button type="button" aria-label="Go to slide ${i+1}" onclick="goToTestimonial(${i})" class="w-2.5 h-2.5 rounded-full transition-all ${
-                    i === index ? 'bg-gold w-6' : 'bg-gray-300 dark:bg-charcoal-700'
-                }"></button>
-            `).join('');
-        }
-
-        function nextTestimonial() {
-            currentTestimonialIndex = (currentTestimonialIndex + 1) % testimonials.length;
-            renderTestimonial(currentTestimonialIndex);
-        }
-
-        function prevTestimonial() {
-            currentTestimonialIndex = (currentTestimonialIndex - 1 + testimonials.length) % testimonials.length;
-            renderTestimonial(currentTestimonialIndex);
-        }
-
-        function goToTestimonial(index) {
-            currentTestimonialIndex = index;
-            renderTestimonial(currentTestimonialIndex);
-        }
-
-        document.getElementById('nextTestimonialBtn').addEventListener('click', nextTestimonial);
-        document.getElementById('prevTestimonialBtn').addEventListener('click', prevTestimonial);
-
-        renderTestimonial(0);
-        setInterval(nextTestimonial, 6000);
+        // --- 5. (Testimonials carousel removed along with its section) ---
 
         // --- 6. Floating Quick Contact Menu ---
         const quickContactBtn = document.getElementById('quickContactBtn');
@@ -1223,7 +1148,7 @@
 
             grid.innerHTML = '';
 
-            // ئەگەر بەروار هەڵنەبژێردرابێت، هەموو کاتژمێرەکان لەکار بخە
+            // No date picked yet: show every slot in a disabled state.
             if (!selectedDate) {
                 statusText.innerText = 'Please choose a date first';
                 availableTimesList.forEach(t => {
@@ -1332,15 +1257,29 @@
                 grid.appendChild(skeleton);
             }
 
+            // Never let a slow/unreachable backend leave the user stuck on skeletons.
+            let lookupFailed = false;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
             try {
-                const response = await fetch(`${API_URL}?date=${dateVal}`);
-                bookedTimesList = await response.json();
+                const response = await fetch(`${API_URL}?date=${encodeURIComponent(dateVal)}`, { signal: controller.signal });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                bookedTimesList = Array.isArray(data) ? data : [];
             } catch (error) {
                 console.error("Error fetching booked slots:", error);
                 bookedTimesList = [];
+                lookupFailed = true;
+            } finally {
+                clearTimeout(timeoutId);
             }
 
             renderTimeChips();
+
+            if (lookupFailed) {
+                statusText.innerText = "Could not check availability — all slots shown.";
+                showToast("Could not load live availability. Your slot will be confirmed by phone.", "error");
+            }
         });
 
         // Set date constraints & Custom Modern Calendar Logic
@@ -1586,7 +1525,8 @@
         });
 
         // --- 11. Gallery Lightbox Logic ---
-        const galleryImages = Array.from(document.querySelectorAll('.gallery-img'));
+        // Read the grid live: the admin sync script can replace these images after load.
+        const getGalleryImages = () => Array.from(document.querySelectorAll('#cms-gallery-grid img'));
         const lightbox = document.getElementById('lightbox');
         const lightboxImg = document.getElementById('lightboxImg');
         const closeLightboxBtn = document.getElementById('closeLightboxBtn');
@@ -1594,9 +1534,18 @@
         const nextLightboxBtn = document.getElementById('nextLightboxBtn');
         let currentLightboxIndex = 0;
 
-        function openLightbox(index) {
-            currentLightboxIndex = index;
-            lightboxImg.src = galleryImages[index].src;
+        // Accepts either a grid index or an image src (inline onclick handlers pass this.src).
+        function openLightbox(target) {
+            const images = getGalleryImages();
+            if (typeof target === 'string') {
+                const found = images.findIndex(img => img.src === target);
+                currentLightboxIndex = found === -1 ? 0 : found;
+            } else {
+                currentLightboxIndex = target;
+            }
+            if (!images[currentLightboxIndex]) return;
+
+            lightboxImg.src = images[currentLightboxIndex].src;
             lightbox.classList.remove('hidden');
             lightbox.classList.add('flex');
             // Trigger reflow
@@ -1616,22 +1565,25 @@
             }, 300);
         }
 
-        galleryImages.forEach((img, idx) => {
-            img.addEventListener('click', () => openLightbox(idx));
-        });
+        window.openLightbox = openLightbox;
 
         closeLightboxBtn.addEventListener('click', closeLightbox);
-        
+
+        function stepLightbox(delta) {
+            const images = getGalleryImages();
+            if (images.length === 0) return;
+            currentLightboxIndex = (currentLightboxIndex + delta + images.length) % images.length;
+            lightboxImg.src = images[currentLightboxIndex].src;
+        }
+
         prevLightboxBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            currentLightboxIndex = (currentLightboxIndex - 1 + galleryImages.length) % galleryImages.length;
-            lightboxImg.src = galleryImages[currentLightboxIndex].src;
+            stepLightbox(-1);
         });
 
         nextLightboxBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            currentLightboxIndex = (currentLightboxIndex + 1) % galleryImages.length;
-            lightboxImg.src = galleryImages[currentLightboxIndex].src;
+            stepLightbox(1);
         });
 
         // Keyboard and Touch Support for Lightbox
@@ -1704,14 +1656,14 @@
 
             if (isApple) {
                 // Generate ICS for Apple Calendar
-                const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Sussex Barber Shop//Booking//EN\nBEGIN:VEVENT\nUID:${Date.now()}@sussexbarber.com\nDTSTAMP:${formatCalDateUTC(new Date())}\nDTSTART:${formatCalDateUTC(dateObj)}\nDTEND:${formatCalDateUTC(endDate)}\nSUMMARY:Haircut at Sussex Barber Shop\nDESCRIPTION:Appointment for ${b.service}.\nLOCATION:Van Hogendorpstraat 80, 2242 VN Wassenaar, Netherlands\nEND:VEVENT\nEND:VCALENDAR`;
+                const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Sussex Barber Shop//Booking//EN\nBEGIN:VEVENT\nUID:${Date.now()}@sussexbarber.com\nDTSTAMP:${formatCalDateUTC(new Date())}\nDTSTART:${formatCalDateUTC(dateObj)}\nDTEND:${formatCalDateUTC(endDate)}\nSUMMARY:Haircut at Sussex Barber Shop\nDESCRIPTION:Appointment for ${b.service}.\nLOCATION:Van Hogendorpstraat 10, 2242 KZ Wassenaar, Netherlands\nEND:VEVENT\nEND:VCALENDAR`;
                 // Opening data URI directly in iOS triggers the native "Add Event" sheet
                 window.location.assign('data:text/calendar;charset=utf8,' + encodeURIComponent(icsContent));
             } else {
                 // Use Google Calendar for Android and Windows
                 const title = encodeURIComponent("Haircut at Sussex Barber Shop");
                 const details = encodeURIComponent(`Appointment for: ${b.service}`);
-                const location = encodeURIComponent("Van Hogendorpstraat 80, 2242 VN Wassenaar, Netherlands");
+                const location = encodeURIComponent("Van Hogendorpstraat 10, 2242 KZ Wassenaar, Netherlands");
                 const dates = `${formatCalDateUTC(dateObj)}/${formatCalDateUTC(endDate)}`;
                 const googleCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}&location=${location}`;
                 window.open(googleCalUrl, '_blank');
@@ -1726,6 +1678,7 @@
             'Contact': 'Contact',
             'Book Now': 'Boek Nu',
             'My Bookings': 'Mijn Boekingen',
+            'Cancel': 'Annuleren',
             'Cancel Booking': 'Boeking Annuleren',
             'Our Work': 'Ons Werk',
             'Our Master Barbers': 'Onze Meesterkappers',
@@ -1849,11 +1802,15 @@
         };
 
         window.currentLang = 'en';
-        
+
         function toggleLanguage() {
-            window.currentLang = window.currentLang === 'en' ? 'nl' : 'en';
-            const lang = window.currentLang;
-            
+            applyLanguage(window.currentLang === 'en' ? 'nl' : 'en');
+        }
+
+        function applyLanguage(lang) {
+            window.currentLang = lang;
+            document.documentElement.setAttribute('lang', lang);
+
             // Update Toggle Button Text
             const langBtn = document.getElementById('langToggleBtn');
             if (langBtn) {
@@ -1906,6 +1863,7 @@
         }
 
         window.toggleLanguage = toggleLanguage;
+        window.applyLanguage = applyLanguage;
 
     </script>
 
@@ -1963,14 +1921,16 @@
             { id:11, nameEN:'Kids Haircut (Up to 13 Years)', nameNL:'Kinderknipbeurt (t/m 13 jaar)', price:23, duration:30 },
         ];
 
+        // Must stay in sync with updateBusinessStatus() and availableTimesList,
+        // otherwise the displayed hours contradict the bookable slots.
         const DEFAULT_HOURS = [
-            { day:'Monday', dayNL:'Maandag', open:true, from:'09:00', to:'18:00' },
-            { day:'Tuesday', dayNL:'Dinsdag', open:true, from:'09:00', to:'18:00' },
-            { day:'Wednesday', dayNL:'Woensdag', open:true, from:'09:00', to:'18:00' },
-            { day:'Thursday', dayNL:'Donderdag', open:true, from:'09:00', to:'18:00' },
-            { day:'Friday', dayNL:'Vrijdag', open:true, from:'09:00', to:'18:00' },
-            { day:'Saturday', dayNL:'Zaterdag', open:true, from:'09:00', to:'17:00' },
-            { day:'Sunday', dayNL:'Zondag', open:false, from:'09:00', to:'17:00' },
+            { day:'Monday', dayNL:'Maandag', open:true, from:'12:00', to:'18:00' },
+            { day:'Tuesday', dayNL:'Dinsdag', open:true, from:'10:00', to:'18:00' },
+            { day:'Wednesday', dayNL:'Woensdag', open:true, from:'10:00', to:'18:00' },
+            { day:'Thursday', dayNL:'Donderdag', open:true, from:'10:00', to:'18:00' },
+            { day:'Friday', dayNL:'Vrijdag', open:true, from:'10:00', to:'18:00' },
+            { day:'Saturday', dayNL:'Zaterdag', open:true, from:'10:00', to:'18:00' },
+            { day:'Sunday', dayNL:'Zondag', open:false, from:'10:00', to:'18:00' },
         ];
 
         const DEFAULT_GALLERY = [
@@ -2106,11 +2066,12 @@
                 </div>
                 <button onclick="cancelMyBooking(${index})" class="w-full sm:w-auto px-4 py-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-sm font-medium rounded-lg transition-colors border border-rose-200 dark:border-rose-500/20 flex items-center justify-center gap-2">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                    <span data-translate="Cancel">لابردن</span>
+                    <span data-translate="Cancel">Cancel</span>
                 </button>
             </div>
         `).join('');
-        if (typeof applyTranslations === 'function') applyTranslations();
+        // Newly injected markup is English; re-apply the active language to it.
+        if (typeof applyLanguage === 'function') applyLanguage(window.currentLang || 'en');
     }
 
     async function cancelMyBooking(index) {
@@ -2154,10 +2115,10 @@
     }
 
     // Render my bookings on load
-    document.addEventListener('DOMContentLoaded', () => {
-        fetchCMS();
-        renderMyBookings();
-    });
+    // Content is populated synchronously from localStorage by the admin-sync block above,
+    // so there is no separate CMS fetch to run here.
+    document.addEventListener('DOMContentLoaded', renderMyBookings);
+    if (document.readyState !== 'loading') renderMyBookings();
 
     </script>
 </body>
