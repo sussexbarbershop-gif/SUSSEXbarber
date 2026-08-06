@@ -390,31 +390,6 @@
                                 <h5 class="font-medium text-sm text-gray-900 dark:text-white">Any Available</h5>
                                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">First available chair</p>
                             </div>
-                            <div tabindex="0" data-barber="Hemen" class="barber-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
-                                <div class="w-12 h-12 mx-auto rounded-full bg-gray-200 dark:bg-charcoal-800 flex items-center justify-center text-gray-700 dark:text-gray-300 mb-2 font-serif font-bold">H</div>
-                                <h5 class="font-medium text-sm text-gray-900 dark:text-white">Hemen</h5>
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Barber</p>
-                            </div>
-                            <div tabindex="0" data-barber="Amir" class="barber-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
-                                <div class="w-12 h-12 mx-auto rounded-full bg-gray-200 dark:bg-charcoal-800 flex items-center justify-center text-gray-700 dark:text-gray-300 mb-2 font-serif font-bold">A</div>
-                                <h5 class="font-medium text-sm text-gray-900 dark:text-white">Amir</h5>
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Barber</p>
-                            </div>
-                            <div tabindex="0" data-barber="Raman" class="barber-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
-                                <div class="w-12 h-12 mx-auto rounded-full bg-gray-200 dark:bg-charcoal-800 flex items-center justify-center text-gray-700 dark:text-gray-300 mb-2 font-serif font-bold">R</div>
-                                <h5 class="font-medium text-sm text-gray-900 dark:text-white">Raman</h5>
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Barber</p>
-                            </div>
-                            <div tabindex="0" data-barber="Bassam" class="barber-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
-                                <div class="w-12 h-12 mx-auto rounded-full bg-gray-200 dark:bg-charcoal-800 flex items-center justify-center text-gray-700 dark:text-gray-300 mb-2 font-serif font-bold">B</div>
-                                <h5 class="font-medium text-sm text-gray-900 dark:text-white">Bassam</h5>
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Barber</p>
-                            </div>
-                            <div tabindex="0" data-barber="Saan" class="barber-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
-                                <div class="w-12 h-12 mx-auto rounded-full bg-gray-200 dark:bg-charcoal-800 flex items-center justify-center text-gray-700 dark:text-gray-300 mb-2 font-serif font-bold">S</div>
-                                <h5 class="font-medium text-sm text-gray-900 dark:text-white">Saan</h5>
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Barber</p>
-                            </div>
                         </div>
                     </div>
 
@@ -1002,20 +977,99 @@
             return entry ? entry.open !== true : false;
         }
 
+        const ANY_BARBER = 'Any Available';
+
+        /** 'YYYY-MM-DD' for a Date, read locally so the day never shifts. */
+        function dateKey(dateObj) {
+            return dateObj.getFullYear() + '-' +
+                String(dateObj.getMonth() + 1).padStart(2, '0') + '-' +
+                String(dateObj.getDate()).padStart(2, '0');
+        }
+
+        /** The barber's own entry for a weekday, or null when they have no rota. */
+        function barberDayEntry(barberName, dateObj) {
+            const rota = (window.sussexBarberHours || {})[String(barberName).trim()];
+            if (!Array.isArray(rota)) return null;
+            const name = WEEKDAY_NAMES[dateObj.getDay()];
+            return rota.find(r => String(r.day).trim() === name) || null;
+        }
+
+        function isBarberOnLeave(barberName, dateObj) {
+            const key = dateKey(dateObj);
+            return (window.sussexTimeOff || []).some(row =>
+                String(row.barber).trim() === String(barberName).trim() &&
+                key >= row.from && key <= (row.to || row.from));
+        }
+
+        /** Is this barber on the floor at `minutes` past midnight on this date?
+         *  Their rota narrows the shop hours; it never widens them. A barber with
+         *  no rota yet works whenever the shop is open. */
+        function isBarberWorkingAt(barberName, dateObj, minutes) {
+            if (isBarberOnLeave(barberName, dateObj)) return false;
+
+            const shop = hoursForDay(dateObj);
+            if (!shop || shop.open !== true) return false;
+            const shopFrom = parseClock(shop.from);
+            const shopTo = parseClock(shop.to);
+            if (shopFrom === null || shopTo === null) return false;
+            if (minutes < shopFrom || minutes + SLOT_MINUTES > shopTo) return false;
+
+            const entry = barberDayEntry(barberName, dateObj);
+            if (!entry) return true;
+            if (entry.working !== true) return false;
+
+            const from = parseClock(entry.from);
+            const to = parseClock(entry.to);
+            if (from === null || to === null) return true;
+            if (minutes < from || minutes + SLOT_MINUTES > to) return false;
+
+            const breakFrom = parseClock(entry.breakFrom);
+            const breakTo = parseClock(entry.breakTo);
+            if (breakFrom !== null && breakTo !== null && breakTo > breakFrom) {
+                if (minutes + SLOT_MINUTES > breakFrom && minutes < breakTo) return false;
+            }
+            return true;
+        }
+
+        /** Real barbers (never ANY_BARBER) rostered at that moment. */
+        function barbersWorkingAt(dateObj, minutes) {
+            return (window.sussexBarbers || [])
+                .map(n => String(n).trim())
+                .filter(n => n && n !== ANY_BARBER)
+                .filter(n => isBarberWorkingAt(n, dateObj, minutes));
+        }
+
+        /** The barber the customer has picked, or '' for no preference. */
+        function selectedBarberName() {
+            const el = document.getElementById('barber');
+            const value = el ? String(el.value || '').trim() : '';
+            return value === ANY_BARBER ? '' : value;
+        }
+
         /** Bookable start times for a date. The last slot starts one appointment
-         *  length before closing, so an appointment never runs past closing. */
-        function slotsForDate(dateObj) {
+         *  length before closing, so an appointment never runs past closing.
+         *  With a barber chosen, only the hours that barber actually works. */
+        function slotsForDate(dateObj, barberName) {
             const entry = hoursForDay(dateObj);
             if (!entry || entry.open !== true) return [];
             const from = parseClock(entry.from);
             const to = parseClock(entry.to);
             if (from === null || to === null || to <= from) return [];
 
+            const wanted = barberName === undefined ? selectedBarberName() : barberName;
             const slots = [];
             for (let t = from; t + SLOT_MINUTES <= to; t += SLOT_MINUTES) {
-                slots.push(minutesToLabel(t));
+                const open = wanted
+                    ? isBarberWorkingAt(wanted, dateObj, t)
+                    : barbersWorkingAt(dateObj, t).length > 0;
+                if (open) slots.push(minutesToLabel(t));
             }
             return slots;
+        }
+
+        /** True when nobody the customer could book is available all day. */
+        function noSlotsOn(dateObj) {
+            return slotsForDate(dateObj).length === 0;
         }
 
         let bookedTimesList = [];
@@ -1049,7 +1103,9 @@
             });
         });
 
-        // Barber Cards Selection
+        // Barber Cards Selection. Called again after renderBarberCards()
+        // replaces the markup, since the old listeners go with the old nodes.
+        function bindBarberCards() {
         document.querySelectorAll('#barberCardsContainer .barber-card').forEach(card => {
             const selectBarber = () => {
                 document.querySelectorAll('#barberCardsContainer .barber-card').forEach(c => {
@@ -1060,12 +1116,36 @@
                 card.classList.add('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
                 document.getElementById('barber').value = card.getAttribute('data-barber');
                 updateDesktopLiveSummary();
+
+                // A different barber works different days and has different
+                // slots taken, so the calendar and the chips both go stale.
+                if (typeof renderCustomCalendar === 'function') renderCustomCalendar();
+
+                const dateField = document.getElementById('date');
+                if (dateField && dateField.value) {
+                    const picked = new Date(dateField.value);
+                    picked.setHours(0, 0, 0, 0);
+                    if (noSlotsOn(picked)) {
+                        // The date they had chosen is a day off for this barber.
+                        const who = card.getAttribute('data-barber');
+                        dateField.value = '';
+                        document.getElementById('time').value = '';
+                        bookedTimesList = [];
+                        renderTimeChips();
+                        showToast(`${who} does not work on that date. Please pick another day.`, 'error');
+                    } else {
+                        // Re-ask the backend: availability is per barber.
+                        dateField.dispatchEvent(new Event('change'));
+                    }
+                }
             };
             card.addEventListener('click', selectBarber);
             card.addEventListener('keydown', (e) => {
                 if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectBarber(); }
             });
         });
+        }
+        bindBarberCards();
 
         // Step Navigation Logic
         const step1 = document.getElementById('bookingStep1');
@@ -1230,7 +1310,10 @@
 
             const validTimes = slotsForDate(dateObj);
             if (validTimes.length === 0) {
-                statusText.innerText = 'We are closed on this day.';
+                const who = selectedBarberName();
+                statusText.innerText = (who && !isClosedOn(dateObj))
+                    ? `${who} does not work on this day.`
+                    : 'We are closed on this day.';
                 return;
             }
 
@@ -1316,7 +1399,12 @@
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 8000);
             try {
-                const response = await fetch(`${API_URL}?date=${encodeURIComponent(dateVal)}`, { signal: controller.signal, cache: 'no-store' });
+                // The barber matters: a slot taken with one barber leaves the
+                // others free, so availability is asked for per barber.
+                const wanted = selectedBarberName();
+                const url = `${API_URL}?date=${encodeURIComponent(dateVal)}` +
+                    (wanted ? `&barber=${encodeURIComponent(wanted)}` : '');
+                const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const data = await response.json();
                 bookedTimesList = Array.isArray(data) ? data : [];
@@ -1381,7 +1469,9 @@
                 
                 const isSelected = selectedDateVal === dateStr;
                 const isToday = today.getTime() === dateObj.getTime();
-                const isClosed = isClosedOn(dateObj);   // from the Hours sheet
+                // Shut either because the shop is closed, or because the chosen
+                // barber is not in that day — both should read as unbookable.
+                const isClosed = isClosedOn(dateObj) || noSlotsOn(dateObj);
 
                 const isOutOfRange = dateObj < today || dateObj > maxDate;
                 const isDisabled = isOutOfRange || isClosed;
@@ -1395,7 +1485,10 @@
                     dayBtn.disabled = true;
                     if (isClosed && !isOutOfRange) {
                         dayBtn.className += ' text-rose-500/50 dark:text-rose-400/40 bg-rose-500/5 dark:bg-rose-500/10 cursor-not-allowed border border-transparent';
-                        dayBtn.title = 'Closed on this day';
+                        const who = selectedBarberName();
+                        dayBtn.title = (who && !isClosedOn(dateObj))
+                            ? `${who} does not work on this day`
+                            : 'Closed on this day';
                         const dot = document.createElement('span');
                         dot.className = 'absolute bottom-1 w-1 h-1 rounded-full bg-rose-500/40';
                         dayBtn.appendChild(dot);
@@ -2047,6 +2140,57 @@
         }
 
         // ---- Populate Booking Service Cards ----
+        /** Build the barber cards from the Barbers sheet.
+         *
+         *  These used to be six <div>s written into the page, so a barber added
+         *  or removed in the panel never reached the booking form, and a name
+         *  the sheet had never heard of got no rota and was bookable whenever
+         *  the shop was open. The list comes from the Sheet now. */
+        function renderBarberCards(list) {
+            const container = document.getElementById('barberCardsContainer');
+            if (!container) return;
+
+            const names = (list || []).map(b => String(b.name).trim()).filter(Boolean);
+            // "Any Available" always leads, whether or not the sheet lists it.
+            const others = names.filter(n => n !== ANY_BARBER);
+
+            const anyCard = `
+                <div tabindex="0" data-barber="${ANY_BARBER}" class="barber-card cursor-pointer p-3 sm:p-4 border-2 border-gold bg-gold/5 dark:bg-gold/10 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                    <div class="w-12 h-12 mx-auto rounded-full bg-gold/20 flex items-center justify-center text-gold mb-2">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    </div>
+                    <h5 class="font-medium text-sm text-gray-900 dark:text-white" data-translate="Any Available">Any Available</h5>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5" data-translate="First available chair">First available chair</p>
+                </div>`;
+
+            container.innerHTML = anyCard + others.map(name => `
+                <div tabindex="0" data-barber="${escapeAttribute(name)}" class="barber-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                    <div class="w-12 h-12 mx-auto rounded-full bg-gray-200 dark:bg-charcoal-800 flex items-center justify-center text-gray-700 dark:text-gray-300 mb-2 font-serif font-bold">${escapeText(name.charAt(0).toUpperCase())}</div>
+                    <h5 class="font-medium text-sm text-gray-900 dark:text-white">${escapeText(name)}</h5>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5" data-translate="Barber">Barber</p>
+                </div>`).join('');
+
+            bindBarberCards();
+
+            // The card that was selected may no longer exist.
+            const chosen = document.getElementById('barber');
+            if (chosen && !names.includes(String(chosen.value).trim())) {
+                chosen.value = ANY_BARBER;
+            }
+        }
+
+        function escapeText(str) {
+            const div = document.createElement('div');
+            div.textContent = String(str == null ? '' : str);
+            return div.innerHTML;
+        }
+
+        /** For a value inside a double-quoted attribute; escapeText leaves
+         *  quotes alone, and a name is free text from the panel. */
+        function escapeAttribute(str) {
+            return escapeText(str).replace(/"/g, '&quot;');
+        }
+
         function renderServiceCards(services) {
         const serviceCardsContainer = document.getElementById('serviceCardsContainer');
         if (serviceCardsContainer) {
@@ -2154,9 +2298,13 @@
 
             window.sussexServices = services;   // booking submission reads prices from here
             window.sussexHours = hours;         // slots, calendar and the open/closed badge
+            window.sussexBarberHours = config.barberHours || {};  // per-barber rotas
+            window.sussexTimeOff = config.timeOff || [];          // holidays, sick days
+            window.sussexBarbers = (config.barbers || []).map(b => b.name);
 
             renderServicesList(services);
             renderServiceCards(services);
+            renderBarberCards(config.barbers);
             renderHoursList(hours);
             renderGalleryGrid(config.gallery);
             renderSettings(config.settings);

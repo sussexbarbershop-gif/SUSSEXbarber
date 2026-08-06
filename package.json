@@ -5,7 +5,8 @@
   "description": "Static site for Sussex Barber Shop, Wassenaar",
   "scripts": {
     "build:css": "tailwindcss -i ./src/input.css -o ./assets/tailwind.css --minify",
-    "watch:css": "tailwindcss -i ./src/input.css -o ./assets/tailwind.css --watch"
+    "watch:css": "tailwindcss -i ./src/input.css -o ./assets/tailwind.css --watch",
+    "test": "node tests/rota.test.js && node tests/booking-slots.test.js && node tests/barber-cards.test.js && node tests/barber-panel.test.js"
   },
   "devDependencies": {
     "tailwindcss": "^3.4.0"

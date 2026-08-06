@@ -1,8 +1,11 @@
 # NOTE: admin/ is deployed on purpose — the shop owner works from it.
-# Its sign-in is currently client-side only, which is tolerable while the
-# panel just edits localStorage (a break-in changes only the attacker's own
-# browser). Once the panel writes to the shared Google Sheet, the password
-# check MUST move server-side into the Apps Script.
+# The password is not in this bundle: it lives in the Apps Script's Script
+# Properties (ADMIN_PASSWORD) and every write is re-checked there, so the
+# panel shipping to the browser gives an attacker nothing.
 
-# Source photos that are already duplicated into assets/
+# Source photos. hero_bg_shop.png and the gallery are copied into assets/,
+# which is what the site actually loads.
 photo susex/
+
+# Node-only checks for the booking rules; the browser never loads them.
+tests/

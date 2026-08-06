@@ -140,6 +140,11 @@ let galleryImages = [];
 let barbers = [];
 let settings = {};
 let visitCount = 0;
+let barberHours = {};   // { 'Hemen': [{ day, working, from, to, breakFrom, breakTo }] }
+let timeOff = [];       // [{ barber, from, to, note }]
+// False until the Sheet has answered once, so pages can say "loading" instead
+// of drawing the placeholders as though they were the shop's real data.
+let cmsLoaded = false;
 
 // ---- Init ----
 async function fetchLiveCMS() {
@@ -162,7 +167,10 @@ async function fetchLiveCMS() {
         // what customers are actually being served.
         if (data.services && data.services.length > 0) services = data.services;
         if (data.hours && data.hours.length > 0) hours = data.hours;
+        if (data.barberHours) barberHours = data.barberHours;
+        if (data.timeOff) timeOff = data.timeOff;
 
+        cmsLoaded = true;
         saveData();
 
         if (currentPage === 'barbers') renderBarbers();
@@ -173,6 +181,12 @@ async function fetchLiveCMS() {
         if (currentPage === 'analytics') renderAnalytics();
     } catch (e) {
         console.error("Failed to fetch live CMS data", e);
+        // Let the page draw rather than sit on "Loading…" forever; the retry
+        // below is what actually fixes it.
+        cmsLoaded = true;
+        if (currentPage === 'barbers') renderBarbers();
+        showToast('Could not load from the Sheet — retrying', 'error');
+        setTimeout(fetchLiveCMS, 5000);
     }
 }
 document.addEventListener('DOMContentLoaded', () => {
@@ -181,14 +195,22 @@ document.addEventListener('DOMContentLoaded', () => {
     setupNavigation();
     setupSidebar();
     
-    // Fetch real CMS data & live bookings from server directly!
-    setTimeout(() => {
-        fetchLiveCMS();
-        fetchLiveBookings();
-    }, 500);
+    // Ask for both straight away; the 500ms wait only delayed the first paint.
+    fetchLiveCMS();
+    fetchLiveBookings();
 
-    // Auto-refresh live bookings every 10 seconds silently!
-    setInterval(fetchLiveBookings, 10000);
+    // Refresh bookings in the background. This polled every 10 seconds, but a
+    // round trip to Apps Script takes closer to ten, so the calls piled up and
+    // competed with whatever the owner was actually doing. fetchLiveBookings()
+    // now refuses to overlap itself, and a hidden tab is not worth polling.
+    setInterval(() => {
+        if (!document.hidden) fetchLiveBookings();
+    }, 30000);
+
+    // Coming back to the tab should show the current diary immediately.
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) fetchLiveBookings();
+    });
 });
 
 // ---- Auth ----
@@ -647,6 +669,34 @@ function toggleDay(index, isOpen) {
     renderHours();
 }
 
+// ---- Barber Schedules ----
+// The shop hours above say when the door is open; these say who is behind the
+// chair. A slot is only offered when both agree. Editing lives in the barber
+// dialog on the Our Barbers page.
+
+const WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+/** A barber with no saved rota reads as off all week, not as a blank page. */
+function rotaFor(name) {
+    if (!Array.isArray(barberHours[name])) {
+        barberHours[name] = WEEK.map(day => ({
+            day, working: false, from: '10:00', to: '18:00',
+            breakFrom: '13:30', breakTo: '14:00'
+        }));
+    }
+    // Days can be missing if the sheet was edited by hand; fill the gaps.
+    WEEK.forEach(day => {
+        if (!barberHours[name].some(r => r.day === day)) {
+            barberHours[name].push({
+                day, working: false, from: '10:00', to: '18:00',
+                breakFrom: '13:30', breakTo: '14:00'
+            });
+        }
+    });
+    return WEEK.map(day => barberHours[name].find(r => r.day === day));
+}
+
+
 // ---- Gallery ----
 function renderGallery() {
     const container = document.getElementById('galleryContainer');
@@ -702,8 +752,16 @@ function renderBarbers() {
     const container = document.getElementById('barbersContainer');
     if (!container) return;
 
+    // The Sheet takes several seconds to answer. Say so, rather than showing an
+    // empty page that reads as "there are no barbers".
+    if (!cmsLoaded) {
+        container.innerHTML =
+            '<p style="color:var(--text-muted);grid-column:1/-1">Loading barbers…</p>';
+        return;
+    }
+
     container.innerHTML = '';
-    
+
     // Add Barber button card
     const addCard = document.createElement('div');
     addCard.className = 'gallery-item add-new';
@@ -712,49 +770,182 @@ function renderBarbers() {
     container.appendChild(addCard);
 
     barbers.forEach((b, index) => {
+        const name = String(b.name).trim();
+        const isPlaceholder = name === 'Any Available';
+
+        // Show the week at a glance, so the owner can see who covers which day
+        // without opening every barber in turn.
+        let summary;
+        if (isPlaceholder) {
+            summary = 'Booking option';
+        } else {
+            const on = rotaFor(name).filter(r => r.working).map(r => r.day.slice(0, 3));
+            summary = on.length ? on.join(' · ') : 'No days set';
+        }
+
         const item = document.createElement('div');
         item.className = 'gallery-item';
         item.style.position = 'relative';
+        item.style.cursor = 'pointer';
         item.innerHTML = `
-            <img src="${b.image}" style="width:100%;height:100%;object-fit:cover;border-radius:4px;">
-            <div style="position:absolute;bottom:0;background:rgba(0,0,0,0.8);color:var(--gold);width:100%;text-align:center;padding:8px;font-size:14px;font-weight:bold;">${b.name}</div>
+            ${b.image
+                ? `<img src="${escapeAttr(b.image)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:4px;">`
+                : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--bg-input);border-radius:4px;color:var(--text-muted);font-size:32px;font-weight:600">${escapeHtml(name.charAt(0).toUpperCase())}</div>`}
+            <div style="position:absolute;bottom:0;background:rgba(0,0,0,0.82);width:100%;padding:8px;text-align:center">
+                <div style="color:var(--gold);font-size:14px;font-weight:bold">${escapeHtml(name)}</div>
+                <div style="color:#bbb;font-size:11px;margin-top:2px">${escapeHtml(summary)}</div>
+            </div>
         `;
         item.onclick = () => openBarberModal(index);
         container.appendChild(item);
     });
 }
 
+// ---- One barber, one dialog ----
+// Name, photo, the week they work and their time off are all edited here, so
+// there is one place to look after a barber rather than three pages.
+
+// Which barber the open dialog is editing, and a working copy of their rota so
+// Close throws the edits away rather than half-applying them.
+let editingBarberIndex = -1;
+let draftRota = null;
+let draftTimeOff = null;
+let draftImage = '';
+
 function openBarberModal(index) {
     const b = barbers[index];
-    const newName = prompt(`Edit name for ${b.name}:`, b.name);
-    if(newName !== null) {
-        b.name = newName;
-        
-        if(confirm(`Do you want to change the image for ${b.name}?`)) {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'image/*';
-            input.onchange = async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                const url = await uploadImage(file);
-                if (!url) return;
-                b.image = url;
-                renderBarbers();
-                saveBarbers();
-            };
-            input.click();
-        } else {
-            renderBarbers();
-            saveBarbers();
-        }
+    if (!b) return;
+    editingBarberIndex = index;
+    draftImage = b.image || '';
+    // Deep copies: edits must not touch the live state until Save.
+    draftRota = JSON.parse(JSON.stringify(rotaFor(b.name)));
+    draftTimeOff = JSON.parse(JSON.stringify(timeOff.filter(t => t.barber === b.name)));
+
+    document.getElementById('barberModalTitle').textContent = b.name || 'Edit Barber';
+    document.getElementById('barberModalName').value = b.name || '';
+    setBarberModalPhoto(draftImage);
+
+    // "Any Available" is the no-preference option, not a person on the rota.
+    const isPlaceholder = String(b.name).trim() === 'Any Available';
+    document.getElementById('barberModalRota').style.display = isPlaceholder ? 'none' : '';
+    document.getElementById('barberModalTimeOff').style.display = isPlaceholder ? 'none' : '';
+
+    renderModalRota();
+    renderModalTimeOff();
+    document.getElementById('barberModal').classList.add('active');
+}
+
+function setBarberModalPhoto(url) {
+    const img = document.getElementById('barberModalPhoto');
+    if (!img) return;
+    img.src = url || '';
+    img.style.visibility = url ? 'visible' : 'hidden';
+}
+
+function closeBarberModal() {
+    document.getElementById('barberModal').classList.remove('active');
+    editingBarberIndex = -1;
+    draftRota = null;
+    draftTimeOff = null;
+}
+
+function renderModalRota() {
+    const container = document.getElementById('barberModalRota');
+    if (!container || !draftRota) return;
+
+    container.innerHTML = draftRota.map((r, i) => `
+        <div class="hours-row">
+            <span class="day-name">${escapeHtml(r.day)}</span>
+            <div class="time-inputs">
+                ${r.working ? `
+                    <input type="time" value="${escapeAttr(r.from || '')}"
+                           onchange="updateDraftRota(${i}, 'from', this.value)">
+                    <span style="color:var(--text-muted)">—</span>
+                    <input type="time" value="${escapeAttr(r.to || '')}"
+                           onchange="updateDraftRota(${i}, 'to', this.value)">
+                    <span style="color:var(--text-muted);font-size:12px;margin-left:10px">break</span>
+                    <input type="time" value="${escapeAttr(r.breakFrom || '')}"
+                           onchange="updateDraftRota(${i}, 'breakFrom', this.value)">
+                    <span style="color:var(--text-muted)">—</span>
+                    <input type="time" value="${escapeAttr(r.breakTo || '')}"
+                           onchange="updateDraftRota(${i}, 'breakTo', this.value)">
+                ` : '<span class="day-closed">Off</span>'}
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" ${r.working ? 'checked' : ''}
+                       onchange="toggleDraftRotaDay(${i}, this.checked)">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    `).join('');
+}
+
+function updateDraftRota(dayIndex, field, value) {
+    const row = draftRota[dayIndex];
+    row[field] = value;
+    // A shift ending before it starts offers nothing, with nothing on screen
+    // to explain why.
+    if (row.from && row.to && row.to <= row.from) {
+        showToast('The end time must be after the start time', 'error');
+        row[field] = field === 'to' ? '' : row[field];
+        renderModalRota();
     }
 }
 
-function addBarber() {
-    const name = prompt("Enter barber name:");
-    if(!name) return;
-    
+function toggleDraftRotaDay(dayIndex, isWorking) {
+    const row = draftRota[dayIndex];
+    row.working = isWorking;
+    // Switching a day on with empty times would silently offer no slots.
+    if (isWorking && !row.from) { row.from = '10:00'; row.to = '18:00'; }
+    renderModalRota();
+}
+
+function renderModalTimeOff() {
+    const container = document.getElementById('barberModalTimeOff');
+    if (!container || !draftTimeOff) return;
+
+    if (draftTimeOff.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-muted);font-size:13px">No time off booked.</p>';
+        return;
+    }
+    container.innerHTML = draftTimeOff.map((row, i) => `
+        <div class="hours-row">
+            <div class="time-inputs">
+                <input type="date" value="${escapeAttr(row.from || '')}" onchange="updateDraftTimeOff(${i}, 'from', this.value)">
+                <span style="color:var(--text-muted)">—</span>
+                <input type="date" value="${escapeAttr(row.to || row.from || '')}" onchange="updateDraftTimeOff(${i}, 'to', this.value)">
+                <input type="text" placeholder="Reason (optional)" value="${escapeAttr(row.note || '')}"
+                       onchange="updateDraftTimeOff(${i}, 'note', this.value)"
+                       style="background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);border-radius:6px;padding:6px;margin-left:10px">
+            </div>
+            <button class="btn btn-danger btn-sm" onclick="removeDraftTimeOff(${i})">Remove</button>
+        </div>
+    `).join('');
+}
+
+function addTimeOffFor() {
+    const today = new Date().toISOString().slice(0, 10);
+    draftTimeOff.push({ barber: barbers[editingBarberIndex].name, from: today, to: today, note: '' });
+    renderModalTimeOff();
+}
+
+function updateDraftTimeOff(index, field, value) {
+    const row = draftTimeOff[index];
+    row[field] = value;
+    if (field === 'from' && row.to && row.to < value) row.to = value;
+    if (field === 'to' && value < row.from) {
+        showToast('The end date cannot be before the start date', 'error');
+        row.to = row.from;
+        renderModalTimeOff();
+    }
+}
+
+function removeDraftTimeOff(index) {
+    draftTimeOff.splice(index, 1);
+    renderModalTimeOff();
+}
+
+function changeBarberPhoto() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -763,19 +954,89 @@ function addBarber() {
         if (!file) return;
         const url = await uploadImage(file);
         if (!url) return;
-        const newId = barbers.length > 0 ? Math.max(...barbers.map(g => g.id || 0)) + 1 : 1;
-        barbers.push({ id: newId, name: name, image: url });
-        renderBarbers();
-        saveBarbers();
+        draftImage = url;
+        setBarberModalPhoto(url);
     };
     input.click();
 }
 
-function deleteBarber(id) {
-    if (confirm('Delete this barber?')) {
-        barbers = barbers.filter(g => g.id !== id);
-        renderBarbers();
-        saveBarbers();
+async function saveBarberModal() {
+    const b = barbers[editingBarberIndex];
+    if (!b) return;
+
+    const newName = document.getElementById('barberModalName').value.trim();
+    if (!newName) {
+        showToast('A barber needs a name', 'error');
+        return;
+    }
+    const clash = barbers.some((other, i) => i !== editingBarberIndex &&
+        String(other.name).trim().toLowerCase() === newName.toLowerCase());
+    if (clash) {
+        showToast('Another barber already has that name', 'error');
+        return;
+    }
+
+    const oldName = String(b.name).trim();
+    if (newName !== oldName) {
+        // The rota and time off are keyed by name, so carry them across or
+        // they would be orphaned and the barber would fall back to shop hours.
+        delete barberHours[oldName];
+        timeOff.forEach(t => { if (t.barber === oldName) t.barber = newName; });
+        draftTimeOff.forEach(t => { t.barber = newName; });
+    }
+
+    b.name = newName;
+    b.image = draftImage;
+    barberHours[newName] = draftRota;
+    timeOff = timeOff.filter(t => t.barber !== newName).concat(draftTimeOff);
+
+    closeBarberModal();
+    renderBarbers();
+
+    if (await syncToSheet({ barbers, barberHours, timeOff })) {
+        showToast(`${newName} updated — customers see this now`, 'success');
+    }
+}
+
+async function deleteBarberFromModal() {
+    const b = barbers[editingBarberIndex];
+    if (!b) return;
+    if (!confirm(`Remove ${b.name}? Existing bookings are not affected.`)) return;
+
+    const name = String(b.name).trim();
+    barbers = barbers.filter((_, i) => i !== editingBarberIndex);
+    delete barberHours[name];
+    timeOff = timeOff.filter(t => t.barber !== name);
+
+    closeBarberModal();
+    renderBarbers();
+
+    if (await syncToSheet({ barbers, barberHours, timeOff })) {
+        showToast(`${name} removed`, 'success');
+    }
+}
+
+async function addBarber() {
+    const name = prompt('Name of the new barber:');
+    if (!name || !name.trim()) return;
+    const clean = name.trim();
+    if (barbers.some(b => String(b.name).trim().toLowerCase() === clean.toLowerCase())) {
+        showToast('That barber is already on the list', 'error');
+        return;
+    }
+
+    barbers.push({ name: clean, image: '' });
+    // Every day off to start: a new barber is offered no appointments until
+    // their week is filled in, rather than silently taking the shop's hours.
+    barberHours[clean] = WEEK.map(day => ({
+        day, working: false, from: '10:00', to: '18:00',
+        breakFrom: '13:30', breakTo: '14:00'
+    }));
+
+    renderBarbers();
+    if (await syncToSheet({ barbers, barberHours })) {
+        showToast(`${clean} added — set their working days`, 'success');
+        openBarberModal(barbers.length - 1);
     }
 }
 
@@ -928,7 +1189,13 @@ function renderSimpleChart() {
 let currentWeekOffset = 0;
 let bookingViewMode = 'planner';
 
+let bookingsFetchInFlight = false;
+
 async function fetchLiveBookings() {
+    // One at a time. The backend is slow enough that a second call started
+    // before the first returns only makes both slower.
+    if (bookingsFetchInFlight) return;
+    bookingsFetchInFlight = true;
     try {
         // Never cached: the panel must show the schedule as it is right now.
         const res = await fetch(API_URL, { cache: 'no-store' });
@@ -953,6 +1220,8 @@ async function fetchLiveBookings() {
         }
     } catch (e) {
         console.error("Failed to fetch live bookings", e);
+    } finally {
+        bookingsFetchInFlight = false;
     }
 }
 
@@ -1284,6 +1553,12 @@ function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+}
+
+/** For values sitting inside a double-quoted attribute. escapeHtml() leaves
+ *  quotes alone, so a note like `back 5" late` would end the attribute early. */
+function escapeAttr(str) {
+    return escapeHtml(str).replace(/"/g, '&quot;');
 }
 
 function capitalize(str) {
