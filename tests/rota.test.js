@@ -83,6 +83,16 @@ lateOpening.hours.find(h => h.day === 'Tuesday').from = '11:00';
 ok('rota 10:00 but shop opens 11:00',    isBarberWorkingAt(lateOpening,'Hemen','2026-08-18',M('10:00')), false);
 ok('11:00 once the door opens',          isBarberWorkingAt(lateOpening,'Hemen','2026-08-18',M('11:00')), true);
 
+console.log('--- a barber with no rota at all ---');
+// Deliberate: before the owner fills a rota in, a barber works whenever the
+// shop is open, so nothing is hidden. But this is why every barber the booking
+// form offers must exist in the Barbers sheet — Hemen with no rows was
+// bookable on a Monday he does not work.
+const noRota = JSON.parse(JSON.stringify(cfg));
+delete noRota.barberHours.Hemen;
+ok('no rota -> shop hours apply', isBarberWorkingAt(noRota,'Hemen','2026-08-17',M('13:00')), true);
+ok('rota present -> Monday off',  isBarberWorkingAt(cfg,'Hemen','2026-08-17',M('13:00')), false);
+
 console.log('--- time off ---');
 ok('Amir away Tue Sep 1',  isBarberWorkingAt(cfg,'Amir','2026-09-01',M('11:00')), false);
 ok('Amir away Sat Sep 5',  isBarberWorkingAt(cfg,'Amir','2026-09-05',M('11:00')), false);

@@ -79,6 +79,10 @@ var DEFAULT_BARBER_ROTA = {
   'Raman': { Monday: MONDAY_LATE, Saturday: FULL_DAY }
 };
 
+/** Everyone the booking form can offer, in the order the cards appear.
+ *  Anyone here but missing from the Barbers sheet is added on next request. */
+var KNOWN_BARBERS = [ANY_BARBER, 'Hemen', 'Amir', 'Raman', 'Bassam', 'Saan'];
+
 /** Appointment length. Must match SLOT_MINUTES in index.html. */
 var SLOT_MINUTES = 30;
 
@@ -174,8 +178,11 @@ function setupSheets() {
   var barbers = sheetNamed(ss, SHEET_BARBERS);
   if (barbers.getLastRow() === 0) {
     barbers.appendRow(['Name', 'ImageURL']);
-    barbers.appendRow(['Any Available', '']);
   }
+  // The booking form offers these five by name. Until they exist here they
+  // have no rota, and a barber with no rota falls back to the shop's hours —
+  // which is why Hemen was bookable on a Monday he does not work.
+  addMissingBarbers(barbers);
 
   var gallery = sheetNamed(ss, SHEET_GALLERY);
   if (gallery.getLastRow() === 0) {
@@ -214,6 +221,33 @@ function setupSheets() {
   var timeOff = sheetNamed(ss, SHEET_TIME_OFF);
   if (timeOff.getLastRow() === 0) {
     timeOff.appendRow(['Barber', 'From', 'To', 'Note']);
+  }
+}
+
+/**
+ * Adds any KNOWN_BARBERS row the sheet is missing. Names the owner has already
+ * added, renamed or deleted are left exactly as they are — this only fills
+ * gaps, so a barber removed on purpose does not come back.
+ */
+function addMissingBarbers(barbersSheet) {
+  var data = barbersSheet.getDataRange().getValues();
+  var present = {};
+  for (var r = 1; r < data.length; r++) {
+    if (data[r][0]) present[String(data[r][0]).trim()] = true;
+  }
+
+  // Only seed on a sheet nobody has curated yet: once a real barber is in
+  // there, the sheet is the owner's list and we stop adding to it.
+  var hasRealBarber = Object.keys(present).some(function (n) { return n !== ANY_BARBER; });
+  if (hasRealBarber) return;
+
+  var toAppend = [];
+  KNOWN_BARBERS.forEach(function (name) {
+    if (!present[name]) toAppend.push([name, '']);
+  });
+  if (toAppend.length) {
+    barbersSheet.getRange(barbersSheet.getLastRow() + 1, 1, toAppend.length, 2)
+                .setValues(toAppend);
   }
 }
 
