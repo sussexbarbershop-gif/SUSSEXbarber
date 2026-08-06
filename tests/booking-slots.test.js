@@ -23,21 +23,25 @@ global.document = { getElementById: id => (id === 'barber' ? { value: barberFiel
 
 eval(src);
 
-const shift = { from:'10:00', to:'18:00', breakFrom:'13:30', breakTo:'14:00' };
-const rota = days => WEEKDAY_NAMES.map(d => days.includes(d)
-  ? Object.assign({ day:d, working:true }, shift)
+const FULL_DAY = { from:'10:00', to:'18:00', breakFrom:'13:30', breakTo:'14:00' };
+// Monday is Raman's alone: noon start, no break.
+const MONDAY_LATE = { from:'12:00', to:'18:00', breakFrom:'', breakTo:'' };
+
+/** `shifts` maps weekday -> hours; days left out are days off. */
+const rota = shifts => WEEKDAY_NAMES.map(d => shifts[d]
+  ? Object.assign({ day:d, working:true }, shifts[d])
   : { day:d, working:false, from:'', to:'', breakFrom:'', breakTo:'' });
 
 global.window = {
   sussexHours: WEEKDAY_NAMES.map(d => ({
-    day: d, open: d !== 'Sunday', from: '10:00', to: '18:00'
+    day: d, open: d !== 'Sunday', from: d === 'Monday' ? '12:00' : '10:00', to: '18:00'
   })),
   sussexBarbers: ['Any Available','Hemen','Amir','Raman','Bassam'],
   sussexBarberHours: {
-    Hemen:  rota(['Tuesday','Wednesday','Friday','Saturday']),
-    Amir:   rota(['Tuesday','Thursday','Friday','Saturday']),
-    Raman:  rota(['Monday','Saturday']),
-    Bassam: rota([])
+    Hemen:  rota({ Tuesday:FULL_DAY, Wednesday:FULL_DAY, Friday:FULL_DAY, Saturday:FULL_DAY }),
+    Amir:   rota({ Tuesday:FULL_DAY, Thursday:FULL_DAY, Friday:FULL_DAY, Saturday:FULL_DAY }),
+    Raman:  rota({ Monday:MONDAY_LATE, Saturday:FULL_DAY }),
+    Bassam: rota({})
   },
   sussexTimeOff: [{ barber:'Hemen', from:'2026-09-02', to:'2026-09-04', note:'holiday' }]
 };
@@ -67,14 +71,19 @@ ok('Hemen away Sep 2 (Wed)', slotsForDate(D('2026-09-02')), []);
 
 barberFieldValue = 'Raman';
 const ramanMon = slotsForDate(D('2026-08-17'));
-ok('Raman Mon starts 10:00', ramanMon[0], '10:00 AM');
+ok('Raman Mon starts 12:00', ramanMon[0], '12:00 PM');
 ok('Raman Mon ends 17:30',   ramanMon[ramanMon.length-1], '05:30 PM');
+ok('Raman Mon has no break', ramanMon.includes('01:30 PM'), true);
+ok('Raman Mon slot count',   ramanMon.length, 12);
+ok('Raman Sat starts 10:00', slotsForDate(D('2026-08-22'))[0], '10:00 AM');
+ok('Raman Sat does break',   slotsForDate(D('2026-08-22')).includes('01:30 PM'), false);
 ok('Raman has no Tuesday',   slotsForDate(D('2026-08-18')), []);
 
-// The shop hours are the ceiling: a later opening trims the front of the list.
-window.sussexHours.find(h => h.day === 'Monday').from = '12:00';
-ok('late opening trims to 12:00', slotsForDate(D('2026-08-17'))[0], '12:00 PM');
-window.sussexHours.find(h => h.day === 'Monday').from = '10:00';
+// The shop hours are the ceiling: an earlier closing trims the tail.
+window.sussexHours.find(h => h.day === 'Monday').to = '15:00';
+const trimmed = slotsForDate(D('2026-08-17'));
+ok('early closing trims to 14:30', trimmed[trimmed.length-1], '02:30 PM');
+window.sussexHours.find(h => h.day === 'Monday').to = '18:00';
 
 barberFieldValue = 'Bassam';
 ok('Bassam off every day',   slotsForDate(D('2026-08-22')), []);

@@ -22,7 +22,7 @@ const DEFAULT_SERVICES = [
 // Placeholder only, shown for the instant before the Sheet answers. Kept in
 // step with the site's bookable slots so the two never contradict each other.
 const DEFAULT_HOURS = [
-    { day: 'Monday', dayNL: 'Maandag', open: true, from: '10:00', to: '18:00' },
+    { day: 'Monday', dayNL: 'Maandag', open: true, from: '12:00', to: '18:00' },
     { day: 'Tuesday', dayNL: 'Dinsdag', open: true, from: '10:00', to: '18:00' },
     { day: 'Wednesday', dayNL: 'Woensdag', open: true, from: '10:00', to: '18:00' },
     { day: 'Thursday', dayNL: 'Donderdag', open: true, from: '10:00', to: '18:00' },

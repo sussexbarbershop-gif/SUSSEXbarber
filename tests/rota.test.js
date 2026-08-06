@@ -14,21 +14,25 @@ function grab(name) {
 eval(['weekdayNameFor','clockToMinutes','barberDayEntry','isBarberOnLeave',
  'isBarberWorkingAt','barbersWorkingAt','isSlotFree'].map(grab).join('\n'));
 
-const shift = { from:'10:00', to:'18:00', breakFrom:'13:30', breakTo:'14:00' };
-const rota = days => WEEKDAY_NAMES.map(d => days.includes(d)
-  ? Object.assign({ day:d, working:true }, shift)
+const FULL_DAY = { from:'10:00', to:'18:00', breakFrom:'13:30', breakTo:'14:00' };
+// Monday is Raman's alone: noon start, no break.
+const MONDAY_LATE = { from:'12:00', to:'18:00', breakFrom:'', breakTo:'' };
+
+/** `shifts` maps weekday -> hours; days left out are days off. */
+const rota = shifts => WEEKDAY_NAMES.map(d => shifts[d]
+  ? Object.assign({ day:d, working:true }, shifts[d])
   : { day:d, working:false, from:'', to:'', breakFrom:'', breakTo:'' });
 
 const cfg = {
   barbers: [{name:'Any Available'},{name:'Hemen'},{name:'Amir'},{name:'Raman'},{name:'Bassam'}],
   hours: WEEKDAY_NAMES.map(d => ({
-    day: d, open: d !== 'Sunday', from: '10:00', to: '18:00'
+    day: d, open: d !== 'Sunday', from: d === 'Monday' ? '12:00' : '10:00', to: '18:00'
   })),
   barberHours: {
-    Hemen:  rota(['Tuesday','Wednesday','Friday','Saturday']),
-    Amir:   rota(['Tuesday','Thursday','Friday','Saturday']),
-    Raman:  rota(['Monday','Saturday']),
-    Bassam: rota([])
+    Hemen:  rota({ Tuesday:FULL_DAY, Wednesday:FULL_DAY, Friday:FULL_DAY, Saturday:FULL_DAY }),
+    Amir:   rota({ Tuesday:FULL_DAY, Thursday:FULL_DAY, Friday:FULL_DAY, Saturday:FULL_DAY }),
+    Raman:  rota({ Monday:MONDAY_LATE, Saturday:FULL_DAY }),
+    Bassam: rota({})
   },
   // Sep 1 2026 is a Tuesday, a day Amir normally works.
   timeOff: [{ barber:'Amir', from:'2026-09-01', to:'2026-09-05', note:'holiday' }]
@@ -52,7 +56,7 @@ ok('Hemen off Mon',         isBarberWorkingAt(cfg,'Hemen','2026-08-17',M('13:00'
 ok('Amir works Thu',        isBarberWorkingAt(cfg,'Amir','2026-08-20',M('11:00')), true);
 ok('Amir off Wed',          isBarberWorkingAt(cfg,'Amir','2026-08-19',M('11:00')), false);
 ok('Raman works Mon',       isBarberWorkingAt(cfg,'Raman','2026-08-17',M('13:00')), true);
-ok('Raman works Sat',       isBarberWorkingAt(cfg,'Raman','2026-08-22',M('11:00')), true);
+ok('Raman works Sat 11:00', isBarberWorkingAt(cfg,'Raman','2026-08-22',M('11:00')), true);
 ok('Raman off Tue',         isBarberWorkingAt(cfg,'Raman','2026-08-18',M('11:00')), false);
 ok('Bassam off by default', isBarberWorkingAt(cfg,'Bassam','2026-08-18',M('11:00')), false);
 
@@ -61,20 +65,23 @@ ok('13:00 ok, ends at 13:30', isBarberWorkingAt(cfg,'Hemen','2026-08-18',M('13:0
 ok('13:30 blocked',           isBarberWorkingAt(cfg,'Hemen','2026-08-18',M('13:30')), false);
 ok('14:00 back on',           isBarberWorkingAt(cfg,'Hemen','2026-08-18',M('14:00')), true);
 
-ok('Raman Mon 10:00',                isBarberWorkingAt(cfg,'Raman','2026-08-17',M('10:00')), true);
+ok('Raman Mon 11:00 too early',        isBarberWorkingAt(cfg,'Raman','2026-08-17',M('11:00')), false);
+ok('Raman Mon 12:00 on',               isBarberWorkingAt(cfg,'Raman','2026-08-17',M('12:00')), true);
+ok('Raman Mon has no break at 13:30',  isBarberWorkingAt(cfg,'Raman','2026-08-17',M('13:30')), true);
+ok('Raman Sat does break at 13:30',    isBarberWorkingAt(cfg,'Raman','2026-08-22',M('13:30')), false);
 ok('Sunday: nobody',                 barbersWorkingAt(cfg,'2026-08-16',M('11:00')), []);
 
 console.log('--- shop hours cap the rota, never widen it ---');
-// A rota may say 10:00-18:00 while the door only opens at 12:00. The shop wins.
-const lateOpening = JSON.parse(JSON.stringify(cfg));
-lateOpening.hours.find(h => h.day === 'Monday').from = '12:00';
-ok('rota 10:00 but shop opens 12:00', isBarberWorkingAt(lateOpening,'Raman','2026-08-17',M('10:00')), false);
-ok('12:00 once the door opens',       isBarberWorkingAt(lateOpening,'Raman','2026-08-17',M('12:00')), true);
-
+// A rota may run past closing; the shop hours are the ceiling either way.
 const earlyClosing = JSON.parse(JSON.stringify(cfg));
-earlyClosing.hours.find(h => h.day === 'Monday').to = '15:00';
-ok('rota to 18:00 but shop shuts 15:00', isBarberWorkingAt(earlyClosing,'Raman','2026-08-17',M('15:00')), false);
-ok('14:30 is the last start',            isBarberWorkingAt(earlyClosing,'Raman','2026-08-17',M('14:30')), true);
+earlyClosing.hours.find(h => h.day === 'Tuesday').to = '15:00';
+ok('rota to 18:00 but shop shuts 15:00', isBarberWorkingAt(earlyClosing,'Hemen','2026-08-18',M('15:00')), false);
+ok('14:30 is the last start',            isBarberWorkingAt(earlyClosing,'Hemen','2026-08-18',M('14:30')), true);
+
+const lateOpening = JSON.parse(JSON.stringify(cfg));
+lateOpening.hours.find(h => h.day === 'Tuesday').from = '11:00';
+ok('rota 10:00 but shop opens 11:00',    isBarberWorkingAt(lateOpening,'Hemen','2026-08-18',M('10:00')), false);
+ok('11:00 once the door opens',          isBarberWorkingAt(lateOpening,'Hemen','2026-08-18',M('11:00')), true);
 
 console.log('--- time off ---');
 ok('Amir away Tue Sep 1',  isBarberWorkingAt(cfg,'Amir','2026-09-01',M('11:00')), false);
@@ -82,7 +89,10 @@ ok('Amir away Sat Sep 5',  isBarberWorkingAt(cfg,'Amir','2026-09-05',M('11:00'))
 ok('Amir back Tue Sep 8',  isBarberWorkingAt(cfg,'Amir','2026-09-08',M('11:00')), true);
 
 console.log('--- who is on the floor ---');
-ok('Sat 11:00', barbersWorkingAt(cfg,'2026-08-22',M('11:00')), ['Hemen','Amir','Raman']);
+ok('Sat 11:00, all three',   barbersWorkingAt(cfg,'2026-08-22',M('11:00')), ['Hemen','Amir','Raman']);
+ok('Sat 13:30, all on break',barbersWorkingAt(cfg,'2026-08-22',M('13:30')), []);
+ok('Mon 13:30, Raman has no break',
+   barbersWorkingAt(cfg,'2026-08-17',M('13:30')), ['Raman']);
 ok('Wed 11:00', barbersWorkingAt(cfg,'2026-08-19',M('11:00')), ['Hemen']);
 ok('Mon 13:00', barbersWorkingAt(cfg,'2026-08-17',M('13:00')), ['Raman']);
 ok('Thu 11:00',             barbersWorkingAt(cfg,'2026-08-20',M('11:00')), ['Amir']);
@@ -93,6 +103,7 @@ ok('Wed: Hemen booked -> Hemen busy',  isSlotFree(cfg,'2026-08-19','11:00 AM',['
 ok('Sat: Hemen booked -> Amir free',   isSlotFree(cfg,'2026-08-22','11:00 AM',['Hemen'],'Amir'), true);
 ok('Sat: 2 of 3 booked -> Any free',   isSlotFree(cfg,'2026-08-22','11:00 AM',['Hemen','Amir'],''), true);
 ok('Sat: all 3 booked -> Any full',    isSlotFree(cfg,'2026-08-22','11:00 AM',['Hemen','Amir','Raman'],''), false);
+ok('Mon: Raman is the only chair',     isSlotFree(cfg,'2026-08-17','01:00 PM',['Raman'],''), false);
 ok('Wed: only Hemen works, booked',    isSlotFree(cfg,'2026-08-19','11:00 AM',['Hemen'],''), false);
 ok('Wed: Amir not rostered',           isSlotFree(cfg,'2026-08-19','11:00 AM',[],'Amir'), false);
 ok('Sat: 2 anon bookings, Raman free', isSlotFree(cfg,'2026-08-22','11:00 AM',['Any Available','Any Available'],'Raman'), true);

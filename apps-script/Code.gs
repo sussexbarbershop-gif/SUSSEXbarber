@@ -51,7 +51,7 @@ var DEFAULT_SERVICES = [
 
 // Must match the bookable slots on the website.
 var DEFAULT_HOURS = [
-  ['Monday', 'Maandag', true, '10:00', '18:00'],
+  ['Monday', 'Maandag', true, '12:00', '18:00'],
   ['Tuesday', 'Dinsdag', true, '10:00', '18:00'],
   ['Wednesday', 'Woensdag', true, '10:00', '18:00'],
   ['Thursday', 'Donderdag', true, '10:00', '18:00'],
@@ -65,17 +65,19 @@ var DEFAULT_HOURS = [
  * has no rows yet — once the owner edits a rota in the panel, the Sheet wins
  * and nothing here is consulted again.
  *
- * Everyone breaks 13:30–14:00. A barber not listed here is left off every day,
- * because the remaining staff come in as needed rather than on fixed days;
- * the owner turns their days on in the panel when they are scheduled.
+ * A barber not listed here is left off every day, because the remaining staff
+ * come in as needed rather than on fixed days; the owner turns their days on in
+ * the panel when they are scheduled.
  */
-var DEFAULT_BREAK = ['13:30', '14:00'];
+var FULL_DAY = { from: '10:00', to: '18:00', breakFrom: '13:30', breakTo: '14:00' };
+// Monday is Raman's alone: he comes in at noon and works straight through.
+var MONDAY_LATE = { from: '12:00', to: '18:00', breakFrom: '', breakTo: '' };
+
 var DEFAULT_BARBER_ROTA = {
-  'Hemen': ['Tuesday', 'Wednesday', 'Friday', 'Saturday'],
-  'Amir':  ['Tuesday', 'Thursday', 'Friday', 'Saturday'],
-  'Raman': ['Monday', 'Saturday']
+  'Hemen': { Tuesday: FULL_DAY, Wednesday: FULL_DAY, Friday: FULL_DAY, Saturday: FULL_DAY },
+  'Amir':  { Tuesday: FULL_DAY, Thursday: FULL_DAY, Friday: FULL_DAY, Saturday: FULL_DAY },
+  'Raman': { Monday: MONDAY_LATE, Saturday: FULL_DAY }
 };
-var DEFAULT_BARBER_SHIFT = ['10:00', '18:00'];
 
 /** Appointment length. Must match SLOT_MINUTES in index.html. */
 var SLOT_MINUTES = 30;
@@ -235,16 +237,16 @@ function seedMissingBarberHours(ss, barberHoursSheet) {
     // "Any Available" is a placeholder, not a person, so it has no rota.
     if (!name || name === ANY_BARBER || existing[name]) continue;
 
-    var days = DEFAULT_BARBER_ROTA[name] || [];
+    var rota = DEFAULT_BARBER_ROTA[name] || {};
     for (var d = 0; d < WEEKDAY_NAMES.length; d++) {
       var dayName = WEEKDAY_NAMES[d];
-      var works = days.indexOf(dayName) !== -1;
+      var shift = rota[dayName];
       toAppend.push([
-        name, dayName, works,
-        works ? DEFAULT_BARBER_SHIFT[0] : '',
-        works ? DEFAULT_BARBER_SHIFT[1] : '',
-        works ? DEFAULT_BREAK[0] : '',
-        works ? DEFAULT_BREAK[1] : ''
+        name, dayName, !!shift,
+        shift ? shift.from : '',
+        shift ? shift.to : '',
+        shift ? (shift.breakFrom || '') : '',
+        shift ? (shift.breakTo || '') : ''
       ]);
     }
   }
