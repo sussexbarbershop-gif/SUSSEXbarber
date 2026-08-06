@@ -90,6 +90,20 @@ function isAuthorized(payload) {
   return diff === 0;
 }
 
+/** Back off after each wrong password, up to 8 seconds. Guessing a decent
+ *  password at one attempt every few seconds is not a realistic attack, and
+ *  the Apps Script execution budget caps the total anyway. */
+function throttleFailedLogin() {
+  var cache = CacheService.getScriptCache();
+  var failures = parseInt(cache.get('login_failures') || '0', 10) + 1;
+  cache.put('login_failures', String(failures), 900);   // 15 minutes
+  Utilities.sleep(Math.min(8000, 500 * Math.pow(2, Math.min(failures, 4))));
+}
+
+function resetLoginFailures() {
+  CacheService.getScriptCache().remove('login_failures');
+}
+
 function getRawBookingsSheet(ss) {
   var sheet = ss.getSheetByName(SHEET_BOOKINGS);
   if (sheet) return sheet;
@@ -338,9 +352,15 @@ function doPost(e) {
     if (!PropertiesService.getScriptProperties().getProperty('ADMIN_PASSWORD')) {
       return json({ status: 'error', message: 'No ADMIN_PASSWORD set in Script Properties' });
     }
-    return isAuthorized(payload)
-      ? json({ status: 'success' })
-      : json({ status: 'error', message: 'Invalid username or password' });
+    if (isAuthorized(payload)) {
+      resetLoginFailures();
+      return json({ status: 'success' });
+    }
+    // Slow guessing down. Deliberately a delay and not a lockout: a lockout
+    // would let anyone lock the owner out of their own panel just by
+    // submitting wrong passwords.
+    throttleFailedLogin();
+    return json({ status: 'error', message: 'Invalid username or password' });
   }
 
   // --- New booking (public).

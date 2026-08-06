@@ -321,31 +321,6 @@ function getDefaultGallery() {
     ];
 }
 
-function generateSampleBookings() {
-    const names = ['Ahmad K.', 'Raman H.', 'Hemen S.', 'Jan de Vries', 'Mohammed A.', 'Pieter B.'];
-    const phones = ['06 5373 0803', '06 1234 5678', '06 9876 5432', '06 5555 1234', '06 4444 7890', '06 3333 2222'];
-    const statuses = ['confirmed', 'pending', 'pending', 'confirmed', 'cancelled', 'confirmed'];
-    const sampleBookings = [];
-    const today = new Date();
-
-    for (let i = 0; i < 6; i++) {
-        const d = new Date(today);
-        d.setDate(d.getDate() - Math.floor(Math.random() * 7));
-        const hour = 9 + Math.floor(Math.random() * 8);
-        sampleBookings.push({
-            id: i + 1,
-            name: names[i],
-            phone: phones[i],
-            service: services[Math.floor(Math.random() * services.length)].nameEN,
-            date: d.toISOString().split('T')[0],
-            time: `${hour.toString().padStart(2, '0')}:${Math.random() > 0.5 ? '00' : '30'}`,
-            status: statuses[i],
-            createdAt: d.toISOString()
-        });
-    }
-    return sampleBookings;
-}
-
 // ---- Navigation ----
 function setupNavigation() {
     document.querySelectorAll('.nav-item[data-page]').forEach(item => {

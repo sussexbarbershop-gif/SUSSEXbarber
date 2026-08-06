@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /admin/
+
+# The admin panel is protected by a server-side password in the Apps Script.
+# This only keeps it out of search results; it is not a security control.
