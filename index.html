@@ -1473,6 +1473,7 @@
                 // The booking lives only in the Sheet now. Pull the customer's
                 // list straight back from there so they see it immediately.
                 lastPhoneUsed = bookingData.phone;
+                rememberPhone(bookingData.phone);
                 const lookupField = document.getElementById('lookupPhone');
                 if (lookupField) lookupField.value = bookingData.phone;
                 loadMyBookings(bookingData.phone);
@@ -1675,6 +1676,7 @@
             'Cancel': 'Annuleren',
             'Check Your Booking': 'Controleer Uw Boeking',
             'Find My Booking': 'Zoek Mijn Boeking',
+            'Not you? Forget this number': 'Niet u? Vergeet dit nummer',
             'Cancel Booking': 'Boeking Annuleren',
             'Our Work': 'Ons Werk',
             'Our Master Barbers': 'Onze Meesterkappers',
@@ -2093,6 +2095,26 @@
     let myBookingsCache = [];
     let lastPhoneUsed = '';
 
+    // Only the customer's phone number is kept on the device, as a key to look
+    // themselves up again. The appointments themselves always come from the
+    // Sheet, so what they see is never a stale local copy.
+    const PHONE_KEY = 'sussex_customer_phone';
+
+    function rememberPhone(phone) {
+        try { localStorage.setItem(PHONE_KEY, phone); } catch (e) {}
+    }
+
+    function forgetPhone() {
+        try { localStorage.removeItem(PHONE_KEY); } catch (e) {}
+        myBookingsCache = [];
+        lastPhoneUsed = '';
+        const field = document.getElementById('lookupPhone');
+        if (field) field.value = '';
+        renderMyBookings();
+        showToast('This device will no longer remember your number.', 'success');
+    }
+    window.forgetPhone = forgetPhone;
+
     /** Same rule the Apps Script uses. Comparing the last 9 digits makes the
      *  Dutch local and international forms of one number match:
      *  "06 1234 5678", "+31 6 1234 5678" and "0031612345678" are all equal. */
@@ -2101,14 +2123,14 @@
         return digits.length > 9 ? digits.slice(-9) : digits;
     }
 
-    async function loadMyBookings(phone) {
+    async function loadMyBookings(phone, silent = false) {
         const container = document.getElementById('myBookingsContainer');
         const listEl = document.getElementById('myBookingsList');
         if (!container || !listEl) return;
 
         const digits = normalisePhone(phone);
         if (!digits) {
-            showToast('Please enter your phone number.', 'error');
+            if (!silent) showToast('Please enter your phone number.', 'error');
             return;
         }
 
@@ -2126,16 +2148,19 @@
                 .filter(b => b && normalisePhone(b.phone) === digits);
         } catch (err) {
             console.warn('Could not load bookings for that number:', err);
-            showToast('Could not reach the server. Please try again.', 'error');
+            if (!silent) showToast('Could not reach the server. Please try again.', 'error');
             return;
         } finally {
             clearTimeout(timeoutId);
         }
 
         lastPhoneUsed = phone;
+        if (myBookingsCache.length > 0) rememberPhone(phone);
         renderMyBookings();
 
-        if (myBookingsCache.length === 0) {
+        // Silent on an automatic lookup — an empty result there just means the
+        // last appointment has passed, which is not worth an error toast.
+        if (myBookingsCache.length === 0 && !silent) {
             showToast('No upcoming appointments found for that number.', 'error');
         }
     }
@@ -2166,7 +2191,11 @@
                     <span data-translate="Cancel">Cancel</span>
                 </button>
             </div>
-        `).join('');
+        `).join('') + `
+            <p class="text-xs text-gray-400 dark:text-gray-500 pt-2 text-center">
+                <button type="button" onclick="forgetPhone()" class="underline hover:text-gold transition-colors" data-translate="Not you? Forget this number">Not you? Forget this number</button>
+            </p>
+        `;
         // Newly injected markup is English; re-apply the active language to it.
         if (typeof applyLanguage === 'function') applyLanguage(window.currentLang || 'en');
     }
@@ -2216,6 +2245,15 @@
             e.preventDefault();
             loadMyBookings(document.getElementById('lookupPhone').value.trim());
         });
+
+        // Returning visitor: look them up straight away so their appointments
+        // are on screen without typing anything.
+        let saved = '';
+        try { saved = localStorage.getItem(PHONE_KEY) || ''; } catch (e) {}
+        if (saved) {
+            document.getElementById('lookupPhone').value = saved;
+            loadMyBookings(saved, true);
+        }
     }
 
     function bootSite() {
