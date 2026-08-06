@@ -81,11 +81,6 @@
                     Working Hours
                 </button>
 
-                <button class="nav-item" data-page="rota">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                    Barber Schedules
-                </button>
-
                 <button class="nav-item" data-page="gallery">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                     Gallery
@@ -319,25 +314,6 @@
                     </div>
                 </div>
 
-                <!-- ========== BARBER ROTAS ========== -->
-                <div id="page-rota" class="page-section">
-                    <div class="data-card">
-                        <div class="data-card-header">
-                            <h3>Barber Schedules</h3>
-                            <span style="font-size:13px;color:var(--text-muted)">Which days each barber works, and their break</span>
-                        </div>
-                        <div style="padding: 20px" id="rotaContainer"></div>
-                    </div>
-
-                    <div class="data-card" style="margin-top:20px">
-                        <div class="data-card-header">
-                            <h3>Time Off</h3>
-                            <button class="btn btn-primary" onclick="addTimeOff()">+ Add Time Off</button>
-                        </div>
-                        <div style="padding: 20px" id="timeOffContainer"></div>
-                    </div>
-                </div>
-
                 <!-- ========== GALLERY ========== -->
                 <div id="page-gallery" class="page-section">
                     <div class="data-card">
@@ -402,7 +378,10 @@
                 <div id="page-barbers" class="page-section">
                     <div class="data-card">
                         <div class="data-card-header">
-                            <h3>Our Barbers</h3>
+                            <div>
+                                <h3>Our Barbers</h3>
+                                <span style="font-size:13px;color:var(--text-muted)">Click a barber to set their working days, hours and time off</span>
+                            </div>
                             <div>
                                 <button class="btn btn-outline" onclick="addBarber()">+ Add Barber</button>
                                 <button class="btn btn-primary" onclick="saveCMSData()">Save to Website</button>
@@ -462,6 +441,52 @@
     </div>
 
     <!-- SERVICE MODAL -->
+    <!-- One barber: name, photo, the week they work, and their time off. -->
+    <div class="modal-overlay" id="barberModal">
+        <div class="modal" style="max-width:720px">
+            <div class="modal-header">
+                <h3 id="barberModalTitle">Edit Barber</h3>
+                <button class="modal-close" onclick="closeBarberModal()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div style="display:flex;gap:20px;align-items:flex-start;margin-bottom:24px;flex-wrap:wrap">
+                    <div style="text-align:center">
+                        <img id="barberModalPhoto" alt="" style="width:88px;height:88px;object-fit:cover;border-radius:50%;border:2px solid var(--border-color);background:var(--bg-input)">
+                        <button class="btn btn-outline btn-sm" style="margin-top:8px;display:block;width:100%" onclick="changeBarberPhoto()">Photo</button>
+                    </div>
+                    <div class="form-group" style="flex:1;min-width:200px;margin-bottom:0">
+                        <label>Name</label>
+                        <input type="text" id="barberModalName" placeholder="e.g. Hemen">
+                        <p style="color:var(--text-muted);font-size:12px;margin-top:8px">
+                            This is the name customers pick on the booking form.
+                        </p>
+                    </div>
+                </div>
+
+                <h4 style="color:var(--gold);font-size:13px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Working Days</h4>
+                <p style="color:var(--text-muted);font-size:12px;margin-bottom:12px">
+                    Switch a day on, then set the hours and the break. Days left off
+                    are never offered to customers.
+                </p>
+                <div id="barberModalRota"></div>
+
+                <h4 style="color:var(--gold);font-size:13px;text-transform:uppercase;letter-spacing:1px;margin:24px 0 4px">Time Off</h4>
+                <p style="color:var(--text-muted);font-size:12px;margin-bottom:12px">
+                    Holidays and sick days. These close the dates even on a working day.
+                </p>
+                <div id="barberModalTimeOff"></div>
+                <button class="btn btn-outline btn-sm" style="margin-top:10px" onclick="addTimeOffFor()">+ Add Time Off</button>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" onclick="deleteBarberFromModal()">Delete Barber</button>
+                <button class="btn btn-outline" onclick="closeBarberModal()">Close</button>
+                <button class="btn btn-primary" onclick="saveBarberModal()">Save</button>
+            </div>
+        </div>
+    </div>
+
     <div class="modal-overlay" id="serviceModal">
         <div class="modal">
             <div class="modal-header">
