@@ -226,6 +226,20 @@ function doGet(e) {
     return json(config);
   }
 
+  // Page-view counter. Lives here so the site keeps nothing locally.
+  if (action === 'trackVisit') {
+    var counterSheet = sheetNamed(ss, SHEET_SETTINGS);
+    var rows = counterSheet.getDataRange().getValues();
+    var found = -1;
+    for (var v = 1; v < rows.length; v++) {
+      if (String(rows[v][0]) === 'visit_count') { found = v + 1; break; }
+    }
+    var current = found === -1 ? 0 : (Number(rows[found - 1][1]) || 0);
+    if (found === -1) counterSheet.appendRow(['visit_count', 1]);
+    else counterSheet.getRange(found, 2).setValue(current + 1);
+    return json({ status: 'success', visits: current + 1 });
+  }
+
   var rawSheet = getRawBookingsSheet(ss);
   if (!rawSheet) return json([]);
 
@@ -236,6 +250,35 @@ function doGet(e) {
   var dateCol = headers.indexOf('date');
   var timeCol = headers.indexOf('time');
   var statusCol = headers.indexOf('status');
+
+  // A customer looking up their own bookings by phone number. Replaces the
+  // per-device list the site used to keep, so it works from any device.
+  if (action === 'myBookings') {
+    var wantedPhone = normalisePhone(e.parameter.phone);
+    if (!wantedPhone) return json([]);
+
+    var phoneCol = headers.indexOf('phone');
+    var mine = [];
+    var todayStr = formatDateTimezoneSafe(new Date());
+
+    for (var b = 1; b < data.length; b++) {
+      if (statusCol !== -1 && String(data[b][statusCol]).trim() === 'Canceled') continue;
+      if (normalisePhone(data[b][phoneCol !== -1 ? phoneCol : 5]) !== wantedPhone) continue;
+
+      var bookingDate = formatDateTimezoneSafe(data[b][dateCol]);
+      if (bookingDate < todayStr) continue;   // past appointments are not actionable
+
+      mine.push({
+        date: bookingDate,
+        time: formatTimeForFrontend(data[b][timeCol]),
+        service: data[b][headers.indexOf('service') !== -1 ? headers.indexOf('service') : 2],
+        barber: data[b][headers.indexOf('barber') !== -1 ? headers.indexOf('barber') : 3],
+        name: data[b][headers.indexOf('name') !== -1 ? headers.indexOf('name') : 4],
+        phone: String(data[b][phoneCol !== -1 ? phoneCol : 5])
+      });
+    }
+    return json(mine);
+  }
 
   // Availability for one date.
   var dateParam = e && e.parameter ? e.parameter.date : null;
@@ -456,6 +499,14 @@ function formatDateTimezoneSafe(dateVal) {
   return dateObj.getFullYear() + '-' +
          String(dateObj.getMonth() + 1).padStart(2, '0') + '-' +
          String(dateObj.getDate()).padStart(2, '0');
+}
+
+/** Compare phone numbers by their last 9 digits, so the Dutch local and
+ *  international forms of one number match: "06 1234 5678",
+ *  "+31 6 1234 5678" and "0031612345678" all identify the same customer. */
+function normalisePhone(value) {
+  var digits = String(value || '').replace(/\D/g, '');
+  return digits.length > 9 ? digits.slice(-9) : digits;
 }
 
 function formatTimeForFrontend(timeVal) {

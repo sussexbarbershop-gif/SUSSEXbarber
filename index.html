@@ -334,6 +334,18 @@
 
     <!-- Booking Section (Multi-step Wizard) -->
     <section id="booking" class="py-24 bg-gray-50 dark:bg-charcoal-800 transition-colors duration-300">
+        <!-- Look up existing appointments. Bookings live in the Google Sheet,
+             not on this device, so the phone number is what identifies them. -->
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
+            <form id="myBookingsLookupForm" class="bg-white dark:bg-charcoal-900 rounded-2xl shadow-lg border border-gray-100 dark:border-charcoal-700 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-end gap-4">
+                <div class="flex-1">
+                    <label for="lookupPhone" class="block text-gray-500 dark:text-gray-400 mb-2 text-xs uppercase tracking-widest" data-translate="Check Your Booking">Check Your Booking</label>
+                    <input type="tel" id="lookupPhone" inputmode="numeric" placeholder="+31 6 12345678" class="w-full bg-gray-50 dark:bg-charcoal-800 border border-gray-300 dark:border-charcoal-700 text-gray-900 dark:text-white p-3.5 focus:outline-none focus:border-gold transition-colors rounded-lg">
+                </div>
+                <button type="submit" class="bg-charcoal-900 dark:bg-white text-white dark:text-charcoal-900 font-semibold uppercase tracking-widest px-6 py-3.5 rounded-lg hover:bg-gold hover:text-charcoal-900 dark:hover:bg-gold transition-colors text-xs sm:text-sm whitespace-nowrap" data-translate="Find My Booking">Find My Booking</button>
+            </form>
+        </div>
+
         <!-- My Bookings Section -->
         <div id="myBookingsContainer" class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-12 hidden">
             <div class="bg-white dark:bg-charcoal-800 rounded-2xl shadow-xl overflow-hidden border border-gray-100 dark:border-charcoal-700">
@@ -1458,30 +1470,12 @@
                 bookedTimesList.push(bookingData.time);
                 renderTimeChips();
 
-                // === Save booking to localStorage for Admin Panel ===
-                try {
-                    const existingBookings = JSON.parse(localStorage.getItem('sussex_bookings') || '[]');
-                    const newId = existingBookings.length > 0 ? Math.max(...existingBookings.map(b => b.id || 0)) + 1 : 1;
-                    existingBookings.push({
-                        id: newId,
-                        name: bookingData.name,
-                        phone: bookingData.phone,
-                        service: bookingData.service,
-                        barber: bookingData.barber || 'Any Available',
-                        date: bookingData.date,
-                        time: bookingData.time,
-                        price: servicePrice, // Keep real price for Admin panel
-                        status: 'pending',
-                        createdAt: new Date().toISOString()
-                    });
-                    localStorage.setItem('sussex_bookings', JSON.stringify(existingBookings));
-                    
-                    // === Save booking to localStorage for My Bookings ===
-                    const myBookings = JSON.parse(localStorage.getItem('my_personal_bookings') || '[]');
-                    myBookings.push(bookingData);
-                    localStorage.setItem('my_personal_bookings', JSON.stringify(myBookings));
-                    renderMyBookings();
-                } catch(e) { console.warn('Could not save booking to localStorage', e); }
+                // The booking lives only in the Sheet now. Pull the customer's
+                // list straight back from there so they see it immediately.
+                lastPhoneUsed = bookingData.phone;
+                const lookupField = document.getElementById('lookupPhone');
+                if (lookupField) lookupField.value = bookingData.phone;
+                loadMyBookings(bookingData.phone);
 
                 // Populate confirmation card
                 document.getElementById('confirmName').innerText = bookingData.name;
@@ -1679,6 +1673,8 @@
             'Book Now': 'Boek Nu',
             'My Bookings': 'Mijn Boekingen',
             'Cancel': 'Annuleren',
+            'Check Your Booking': 'Controleer Uw Boeking',
+            'Find My Booking': 'Zoek Mijn Boeking',
             'Cancel Booking': 'Boeking Annuleren',
             'Our Work': 'Ons Werk',
             'Our Master Barbers': 'Onze Meesterkappers',
@@ -1899,12 +1895,12 @@
         })();
     </script>
 
-    <!-- Admin Panel Sync: Load dynamic data from localStorage -->
+    <!-- Site content: loaded from the Google Sheet via the Apps Script -->
     <script>
     (function() {
-        // Track page visits for admin analytics
-        const visits = parseInt(localStorage.getItem('sussex_visits') || '0') + 1;
-        localStorage.setItem('sussex_visits', visits.toString());
+        // Count this page view in the Sheet. Fire-and-forget: a failure here
+        // must never affect what the visitor sees.
+        fetch(`${API_URL}?action=trackVisit`).catch(() => {});
 
         // Default data (fallback when admin hasn't set anything)
         const DEFAULT_SERVICES = [
@@ -1942,14 +1938,9 @@
             { src:'assets/IMG_8569.JPEG', name:'Gallery 6' },
         ];
 
-        // The Google Sheet is the source of truth. localStorage is only a cache
-        // so the page can paint instantly and still work if the network fails.
-        function readCache(key, fallback) {
-            try {
-                const raw = JSON.parse(localStorage.getItem(key));
-                return (Array.isArray(raw) && raw.length > 0) ? raw : fallback;
-            } catch (e) { return fallback; }
-        }
+        // The Google Sheet is the only store. Nothing about the shop is kept on
+        // the visitor's device; the DEFAULT_* lists below are a static fallback
+        // for the first paint and for when the Sheet cannot be reached.
 
         // ---- Populate Services List (Price List Section) ----
         function renderServicesList(services) {
@@ -2073,14 +2064,10 @@
             if (typeof applyLanguage === 'function') applyLanguage(window.currentLang || 'en');
         }
 
-        // 1. Paint immediately from the cache so the page is never empty.
-        applyConfig({
-            services: readCache('sussex_services', DEFAULT_SERVICES),
-            hours: readCache('sussex_hours', DEFAULT_HOURS),
-            gallery: readCache('sussex_gallery', null)
-        });
+        // 1. Paint the static defaults so the page is never blank while loading.
+        applyConfig({ services: DEFAULT_SERVICES, hours: DEFAULT_HOURS, gallery: null });
 
-        // 2. Then refresh from the Sheet, which is authoritative.
+        // 2. Replace them with whatever the Sheet says.
         async function fetchCMS() {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 8000);
@@ -2089,23 +2076,9 @@
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const config = await res.json();
                 if (config.status !== 'success') throw new Error(config.message || 'bad response');
-
                 applyConfig(config);
-
-                // Refresh the cache for the next visit.
-                if (config.services && config.services.length) {
-                    localStorage.setItem('sussex_services', JSON.stringify(config.services));
-                }
-                if (config.hours && config.hours.length) {
-                    localStorage.setItem('sussex_hours', JSON.stringify(config.hours));
-                }
-                if (config.gallery && config.gallery.length) {
-                    localStorage.setItem('sussex_gallery', JSON.stringify(
-                        config.gallery.map((src, i) => ({ id: i + 1, src: src, name: 'Gallery ' + (i + 1) }))
-                    ));
-                }
             } catch (err) {
-                // The cached render from step 1 stays on screen.
+                // The defaults from step 1 stay on screen.
                 console.warn('Could not load live site config:', err);
             } finally {
                 clearTimeout(timeoutId);
@@ -2114,29 +2087,71 @@
 
         window.fetchCMS = fetchCMS;
     })();
-    // --- 11. My Bookings System ---
+    // --- 11. My Bookings: looked up from the Sheet by phone number ---
+    // Nothing is stored on the device, so a customer can check or cancel an
+    // appointment from any browser, not just the one they booked on.
+    let myBookingsCache = [];
+    let lastPhoneUsed = '';
+
+    /** Same rule the Apps Script uses. Comparing the last 9 digits makes the
+     *  Dutch local and international forms of one number match:
+     *  "06 1234 5678", "+31 6 1234 5678" and "0031612345678" are all equal. */
+    function normalisePhone(value) {
+        const digits = String(value || '').replace(/\D/g, '');
+        return digits.length > 9 ? digits.slice(-9) : digits;
+    }
+
+    async function loadMyBookings(phone) {
+        const container = document.getElementById('myBookingsContainer');
+        const listEl = document.getElementById('myBookingsList');
+        if (!container || !listEl) return;
+
+        const digits = normalisePhone(phone);
+        if (!digits) {
+            showToast('Please enter your phone number.', 'error');
+            return;
+        }
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        try {
+            const res = await fetch(`${API_URL}?action=myBookings&phone=${encodeURIComponent(phone)}`, { signal: controller.signal });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            // Filter by phone here as well as server-side. An older deployment
+            // of the Apps Script ignores `action=myBookings` and answers with
+            // every active booking; without this guard those would be shown to
+            // whoever asked.
+            myBookingsCache = (Array.isArray(data) ? data : [])
+                .filter(b => b && normalisePhone(b.phone) === digits);
+        } catch (err) {
+            console.warn('Could not load bookings for that number:', err);
+            showToast('Could not reach the server. Please try again.', 'error');
+            return;
+        } finally {
+            clearTimeout(timeoutId);
+        }
+
+        lastPhoneUsed = phone;
+        renderMyBookings();
+
+        if (myBookingsCache.length === 0) {
+            showToast('No upcoming appointments found for that number.', 'error');
+        }
+    }
+
     function renderMyBookings() {
         const container = document.getElementById('myBookingsContainer');
         const listEl = document.getElementById('myBookingsList');
         if (!container || !listEl) return;
 
-        let myBookings = [];
-        try {
-            myBookings = JSON.parse(localStorage.getItem('my_personal_bookings') || '[]');
-        } catch(e) {}
-
-        // Filter out past bookings automatically
-        const today = new Date().toISOString().split('T')[0];
-        myBookings = myBookings.filter(b => b.date >= today);
-        localStorage.setItem('my_personal_bookings', JSON.stringify(myBookings));
-
-        if (myBookings.length === 0) {
+        if (myBookingsCache.length === 0) {
             container.classList.add('hidden');
             return;
         }
 
         container.classList.remove('hidden');
-        listEl.innerHTML = myBookings.map((b, index) => `
+        listEl.innerHTML = myBookingsCache.map((b, index) => `
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-gray-50 dark:bg-charcoal-900 p-4 rounded-xl border border-gray-100 dark:border-charcoal-700 gap-4">
                 <div class="flex-1">
                     <div class="font-bold text-gray-900 dark:text-white text-lg">${b.service}</div>
@@ -2159,47 +2174,53 @@
     async function cancelMyBooking(index) {
         const msg = currentLang === 'nl' ? 'Weet je zeker dat je deze boeking wilt annuleren?' : 'Are you sure you want to cancel this booking?';
         if (!confirm(msg)) return;
-        
+
+        const b = myBookingsCache[index];
+        if (!b) return;
+
         try {
-            const myBookings = JSON.parse(localStorage.getItem('my_personal_bookings') || '[]');
-            const b = myBookings[index];
-            if (!b) return;
-
-            // Send cancel request
-            await fetch(API_URL, {
+            // Not no-cors: the reply has to be readable so a failed cancel is
+            // not reported to the customer as a success.
+            const res = await fetch(API_URL, {
                 method: 'POST',
-                mode: 'no-cors',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({
-                    action: 'cancel',
-                    phone: b.phone,
-                    date: b.date,
-                    time: b.time
-                })
+                body: JSON.stringify({ action: 'cancel', phone: b.phone, date: b.date, time: b.time })
             });
+            const result = await res.json();
 
-            // Remove from local storage
-            myBookings.splice(index, 1);
-            localStorage.setItem('my_personal_bookings', JSON.stringify(myBookings));
-            renderMyBookings();
-            const toastMsg = currentLang === 'nl' ? 'Boeking succesvol geannuleerd' : 'Booking cancelled successfully';
-            showToast(toastMsg, 'success');
-            
-            // Also refresh time chips if looking at the same date
-            if (document.getElementById('date') && document.getElementById('date').value === b.date) {
-                document.getElementById('date').dispatchEvent(new Event('change'));
+            if (result.status !== 'success') {
+                showToast(result.message || 'Could not cancel that booking', 'error');
+                return;
             }
 
+            const toastMsg = currentLang === 'nl' ? 'Boeking succesvol geannuleerd' : 'Booking cancelled successfully';
+            showToast(toastMsg, 'success');
+
+            await loadMyBookings(b.phone);
+
+            // Free the slot up in the picker if that date is on screen.
+            const dateEl = document.getElementById('date');
+            if (dateEl && dateEl.value === b.date) {
+                dateEl.dispatchEvent(new Event('change'));
+            }
         } catch (err) {
             console.error(err);
             showToast('Error cancelling booking', 'error');
         }
     }
 
-    // Render my bookings on load
+    function setupMyBookingsLookup() {
+        const form = document.getElementById('myBookingsLookupForm');
+        if (!form) return;
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            loadMyBookings(document.getElementById('lookupPhone').value.trim());
+        });
+    }
+
     function bootSite() {
-        renderMyBookings();
-        if (typeof fetchCMS === 'function') fetchCMS();   // refresh content from the Sheet
+        setupMyBookingsLookup();
+        if (typeof fetchCMS === 'function') fetchCMS();   // content comes from the Sheet
     }
     document.addEventListener('DOMContentLoaded', bootSite);
     if (document.readyState !== 'loading') bootSite();

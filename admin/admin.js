@@ -91,7 +91,11 @@ async function fetchLiveCMS() {
         const data = await res.json();
         if (data.status !== 'success') throw new Error(data.message || 'bad response');
 
-        if (data.settings) settings = data.settings;
+        if (data.settings) {
+            settings = data.settings;
+            // The visit counter is a row in the Settings sheet now.
+            visitCount = parseInt(settings.visit_count || '0', 10) || 0;
+        }
         if (data.barbers && data.barbers.length > 0) barbers = data.barbers;
         if (data.gallery && data.gallery.length > 0) {
             galleryImages = data.gallery.map((g, i) => ({ id: i + 1, src: g, name: 'Img ' + (i + 1) }));
@@ -107,6 +111,8 @@ async function fetchLiveCMS() {
         if (currentPage === 'gallery') renderGallery();
         if (currentPage === 'services') renderServices();
         if (currentPage === 'hours') renderHours();
+        if (currentPage === 'dashboard') renderDashboard();
+        if (currentPage === 'analytics') renderAnalytics();
     } catch (e) {
         console.error("Failed to fetch live CMS data", e);
     }
@@ -197,44 +203,42 @@ function handleLogout() {
 
 // ---- Data Management ----
 function loadData() {
-    services = JSON.parse(localStorage.getItem('sussex_services')) || [...DEFAULT_SERVICES];
-    hours = JSON.parse(localStorage.getItem('sussex_hours')) || [...DEFAULT_HOURS];
-    bookings = JSON.parse(localStorage.getItem('sussex_bookings')) || generateSampleBookings();
-    galleryImages = JSON.parse(localStorage.getItem('sussex_gallery')) || getDefaultGallery();
-    visitCount = parseInt(localStorage.getItem('sussex_visits') || '0');
+    // Placeholders only. fetchLiveCMS() and fetchLiveBookings() replace all of
+    // these with the Sheet's contents a moment after load; nothing about the
+    // shop is persisted on this device.
+    services = [...DEFAULT_SERVICES];
+    hours = [...DEFAULT_HOURS];
+    bookings = [];
+    galleryImages = getDefaultGallery();
+    visitCount = 0;
     // Do NOT increment visit counter here — only the main site should track visits
 }
 
-/** Write every cached collection back to localStorage.
- *  Referenced throughout the panel; it was missing entirely, which made
+/** Kept as a no-op seam. The panel calls this from several places after
+ *  mutating its in-memory state; persistence is the Sheet's job now, done by
+ *  the syncToSheet() calls below. It was missing entirely before, which made
  *  fetchLiveCMS() and all the barber editing throw. */
 function saveData() {
-    localStorage.setItem('sussex_services', JSON.stringify(services));
-    localStorage.setItem('sussex_hours', JSON.stringify(hours));
-    localStorage.setItem('sussex_bookings', JSON.stringify(bookings));
-    localStorage.setItem('sussex_gallery', JSON.stringify(galleryImages));
+    /* nothing is stored locally */
 }
 
 async function saveServices() {
-    localStorage.setItem('sussex_services', JSON.stringify(services));
     if (await syncToSheet({ services: services })) {
         showToast('Services updated — customers see this now', 'success');
     }
 }
 
 async function saveHours() {
-    localStorage.setItem('sussex_hours', JSON.stringify(hours));
     if (await syncToSheet({ hours: hours })) {
         showToast('Working hours updated — customers see this now', 'success');
     }
 }
 
 function saveBookings() {
-    localStorage.setItem('sussex_bookings', JSON.stringify(bookings));
+    // Bookings are owned by the Sheet; fetchLiveBookings() refreshes them.
 }
 
 async function saveGallery() {
-    localStorage.setItem('sussex_gallery', JSON.stringify(galleryImages));
     // The Sheet stores plain URLs, not the panel's {id, src, name} shape.
     if (await syncToSheet({ gallery: galleryImages.map(g => g.src) })) {
         showToast('Gallery updated — customers see this now', 'success');
