@@ -1942,14 +1942,17 @@
             { src:'assets/IMG_8569.JPEG', name:'Gallery 6' },
         ];
 
-        // Load data
-        const services = JSON.parse(localStorage.getItem('sussex_services')) || DEFAULT_SERVICES;
-        const hours = JSON.parse(localStorage.getItem('sussex_hours')) || DEFAULT_HOURS;
-        
-        // Expose globally for booking submission
-        window.sussexServices = services;
+        // The Google Sheet is the source of truth. localStorage is only a cache
+        // so the page can paint instantly and still work if the network fails.
+        function readCache(key, fallback) {
+            try {
+                const raw = JSON.parse(localStorage.getItem(key));
+                return (Array.isArray(raw) && raw.length > 0) ? raw : fallback;
+            } catch (e) { return fallback; }
+        }
 
         // ---- Populate Services List (Price List Section) ----
+        function renderServicesList(services) {
         const servicesContainer = document.getElementById('servicesListContainer');
         if (servicesContainer) {
             servicesContainer.innerHTML = services.map((s, i) => {
@@ -1964,8 +1967,10 @@
                 </div>`;
             }).join('');
         }
+        }
 
         // ---- Populate Booking Service Cards ----
+        function renderServiceCards(services) {
         const serviceCardsContainer = document.getElementById('serviceCardsContainer');
         if (serviceCardsContainer) {
             serviceCardsContainer.innerHTML = services.map(s => {
@@ -2005,8 +2010,10 @@
                 });
             });
         }
+        }
 
         // ---- Populate Working Hours ----
+        function renderHoursList(hours) {
         const hoursContainer = document.getElementById('hoursListContainer');
         if (hoursContainer) {
             hoursContainer.innerHTML = hours.map((h, i) => {
@@ -2019,18 +2026,93 @@
                 }
             }).join('');
         }
+        }
 
-        // ---- Populate Gallery (only if admin uploaded new images) ----
-        const adminGallery = JSON.parse(localStorage.getItem('sussex_gallery'));
-        if (adminGallery && adminGallery.length > 0) {
-            const galleryGrid = document.querySelector('#gallery .columns-1');
-            if (galleryGrid) {
-                galleryGrid.innerHTML = adminGallery.map(img => {
-                    const src = img.src.startsWith('data:') ? img.src : img.src.replace('../', '');
-                    return `<img src="${src}" alt="${img.name || 'Gallery Image'}" class="w-full h-64 object-cover filter brightness-90 contrast-125 dark:brightness-75 hover:brightness-110 dark:hover:brightness-100 transition-all duration-500 cursor-pointer" onclick="openLightbox(this.src)">`;
-                }).join('');
+        // ---- Populate Gallery ----
+        function renderGalleryGrid(gallery) {
+            if (!gallery || gallery.length === 0) return;   // keep the markup defaults
+            const galleryGrid = document.getElementById('cms-gallery-grid');
+            if (!galleryGrid) return;
+            galleryGrid.innerHTML = gallery.map(img => {
+                const raw = typeof img === 'string' ? img : img.src;
+                if (!raw) return '';
+                const src = raw.startsWith('data:') ? raw : raw.replace('../', '');
+                const name = (typeof img === 'object' && img.name) ? img.name : 'Gallery Image';
+                return `<img src="${src}" alt="${name}" class="w-full h-64 object-cover filter brightness-90 contrast-125 dark:brightness-75 hover:brightness-110 dark:hover:brightness-100 transition-all duration-500 cursor-pointer" onclick="openLightbox(this.src)">`;
+            }).join('');
+        }
+
+        // ---- Free-text content managed from the admin panel ----
+        function renderSettings(settings) {
+            if (!settings) return;
+            const map = {
+                'cms-hero-subtitle': settings.hero_subtitle,
+                'cms-about-text': settings.about_text,
+                'cms-contact-address': settings.contact_address
+            };
+            Object.keys(map).forEach(id => {
+                const el = document.getElementById(id);
+                if (el && map[id]) el.textContent = map[id];
+            });
+        }
+
+        /** Paint everything from one config object. */
+        function applyConfig(config) {
+            const services = (config.services && config.services.length) ? config.services : DEFAULT_SERVICES;
+            const hours = (config.hours && config.hours.length) ? config.hours : DEFAULT_HOURS;
+
+            window.sussexServices = services;   // booking submission reads prices from here
+
+            renderServicesList(services);
+            renderServiceCards(services);
+            renderHoursList(hours);
+            renderGalleryGrid(config.gallery);
+            renderSettings(config.settings);
+
+            // Newly injected markup is English; restore the active language.
+            if (typeof applyLanguage === 'function') applyLanguage(window.currentLang || 'en');
+        }
+
+        // 1. Paint immediately from the cache so the page is never empty.
+        applyConfig({
+            services: readCache('sussex_services', DEFAULT_SERVICES),
+            hours: readCache('sussex_hours', DEFAULT_HOURS),
+            gallery: readCache('sussex_gallery', null)
+        });
+
+        // 2. Then refresh from the Sheet, which is authoritative.
+        async function fetchCMS() {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+            try {
+                const res = await fetch(`${API_URL}?action=getConfig`, { signal: controller.signal });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const config = await res.json();
+                if (config.status !== 'success') throw new Error(config.message || 'bad response');
+
+                applyConfig(config);
+
+                // Refresh the cache for the next visit.
+                if (config.services && config.services.length) {
+                    localStorage.setItem('sussex_services', JSON.stringify(config.services));
+                }
+                if (config.hours && config.hours.length) {
+                    localStorage.setItem('sussex_hours', JSON.stringify(config.hours));
+                }
+                if (config.gallery && config.gallery.length) {
+                    localStorage.setItem('sussex_gallery', JSON.stringify(
+                        config.gallery.map((src, i) => ({ id: i + 1, src: src, name: 'Gallery ' + (i + 1) }))
+                    ));
+                }
+            } catch (err) {
+                // The cached render from step 1 stays on screen.
+                console.warn('Could not load live site config:', err);
+            } finally {
+                clearTimeout(timeoutId);
             }
         }
+
+        window.fetchCMS = fetchCMS;
     })();
     // --- 11. My Bookings System ---
     function renderMyBookings() {
@@ -2115,10 +2197,12 @@
     }
 
     // Render my bookings on load
-    // Content is populated synchronously from localStorage by the admin-sync block above,
-    // so there is no separate CMS fetch to run here.
-    document.addEventListener('DOMContentLoaded', renderMyBookings);
-    if (document.readyState !== 'loading') renderMyBookings();
+    function bootSite() {
+        renderMyBookings();
+        if (typeof fetchCMS === 'function') fetchCMS();   // refresh content from the Sheet
+    }
+    document.addEventListener('DOMContentLoaded', bootSite);
+    if (document.readyState !== 'loading') bootSite();
 
     </script>
 </body>

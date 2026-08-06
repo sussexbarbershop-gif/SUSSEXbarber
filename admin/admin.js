@@ -29,17 +29,48 @@ const DEFAULT_HOURS = [
     { day: 'Sunday', dayNL: 'Zondag', open: false, from: '09:00', to: '17:00' },
 ];
 
-// SHA-256 hash of 'Sussex2025!' — password is not stored in plain text
-const ADMIN_PASSWORD_HASH = '0e2d20e4ac506a073cc916acb700223d42a2c6cf986c4a503eb2aff08c621fdb';
 const ADMIN_USERNAME = 'admin';
 
-// Hash function for password verification
-async function hashPassword(password) {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(password);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+// The password is never stored here. It lives in the Apps Script project
+// (Script Properties > ADMIN_PASSWORD) and is checked server-side, so reading
+// this file tells an attacker nothing. It is held in memory for the session
+// only, because every write to the Sheet has to be signed with it.
+let adminPassword = sessionStorage.getItem('sussex_admin_pw') || '';
+
+/** POST a JSON action and read the reply. Apps Script allows this as a
+ *  "simple" cross-origin request as long as the type stays text/plain. */
+async function apiPost(payload) {
+    const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+}
+
+/** Push the current content to the Sheet so customers actually see it. */
+async function syncToSheet(partial) {
+    if (!adminPassword) {
+        showToast('Session expired — please sign in again', 'error');
+        return false;
+    }
+    try {
+        const result = await apiPost(Object.assign({
+            action: 'saveCMS',
+            password: adminPassword
+        }, partial));
+
+        if (result.status !== 'success') {
+            showToast(result.message || 'Server refused the change', 'error');
+            return false;
+        }
+        return true;
+    } catch (err) {
+        console.error('Sync failed', err);
+        showToast('Could not reach the server — change saved locally only', 'error');
+        return false;
+    }
 }
 
 // ---- State ----
@@ -55,20 +86,30 @@ let visitCount = 0;
 // ---- Init ----
 async function fetchLiveCMS() {
     try {
-        const res = await fetch(API_URL + "?action=getSettings");
+        const res = await fetch(API_URL + "?action=getConfig");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        if(data.status === 'success') {
-            if(data.settings) settings = data.settings;
-            if(data.barbers && data.barbers.length > 0) barbers = data.barbers;
-            if(data.gallery && data.gallery.length > 0) {
-                galleryImages = data.gallery.map((g, i) => ({id: i+1, src: g, name: 'Img '+(i+1)}));
-            }
-            saveData(); // update local storage cache with live data
-            if(currentPage === 'cms') renderCMSForm();
-            if(currentPage === 'barbers') renderBarbers();
-            if(currentPage === 'gallery') renderGallery();
+        if (data.status !== 'success') throw new Error(data.message || 'bad response');
+
+        if (data.settings) settings = data.settings;
+        if (data.barbers && data.barbers.length > 0) barbers = data.barbers;
+        if (data.gallery && data.gallery.length > 0) {
+            galleryImages = data.gallery.map((g, i) => ({ id: i + 1, src: g, name: 'Img ' + (i + 1) }));
         }
-    } catch(e) { console.error("Failed to fetch live CMS data", e); }
+        // Services and hours now live in the Sheet too, so the panel shows
+        // what customers are actually being served.
+        if (data.services && data.services.length > 0) services = data.services;
+        if (data.hours && data.hours.length > 0) hours = data.hours;
+
+        saveData();
+
+        if (currentPage === 'barbers') renderBarbers();
+        if (currentPage === 'gallery') renderGallery();
+        if (currentPage === 'services') renderServices();
+        if (currentPage === 'hours') renderHours();
+    } catch (e) {
+        console.error("Failed to fetch live CMS data", e);
+    }
 }
 document.addEventListener('DOMContentLoaded', () => {
     loadData();
@@ -112,22 +153,45 @@ async function handleLogin(e) {
     const username = document.getElementById('loginUsername').value.trim();
     const password = document.getElementById('loginPassword').value;
     const errorEl = document.getElementById('loginError');
+    const submitBtn = e.target.querySelector('button[type="submit"]');
 
-    const passwordHash = await hashPassword(password);
-    if (username === ADMIN_USERNAME && passwordHash === ADMIN_PASSWORD_HASH) {
-        sessionStorage.setItem('sussex_admin_auth', 'true');
-        errorEl.style.display = 'none';
-        showAdmin();
-        showToast('Welcome back, Admin!', 'success');
-    } else {
+    const fail = (message) => {
         errorEl.style.display = 'block';
-        errorEl.textContent = 'Invalid username or password';
+        errorEl.textContent = message;
         document.getElementById('loginPassword').value = '';
+    };
+
+    if (username !== ADMIN_USERNAME) { fail('Invalid username or password'); return; }
+
+    const originalLabel = submitBtn ? submitBtn.textContent : '';
+    if (submitBtn) { submitBtn.textContent = 'Signing in...'; submitBtn.disabled = true; }
+
+    try {
+        // Verified by the Apps Script, not here.
+        const result = await apiPost({ action: 'adminLogin', password: password });
+
+        if (result.status === 'success') {
+            adminPassword = password;
+            sessionStorage.setItem('sussex_admin_auth', 'true');
+            sessionStorage.setItem('sussex_admin_pw', password);
+            errorEl.style.display = 'none';
+            showAdmin();
+            showToast('Welcome back, Admin!', 'success');
+        } else {
+            fail(result.message || 'Invalid username or password');
+        }
+    } catch (err) {
+        console.error('Login failed', err);
+        fail('Could not reach the server. Check your connection and try again.');
+    } finally {
+        if (submitBtn) { submitBtn.textContent = originalLabel; submitBtn.disabled = false; }
     }
 }
 
 function handleLogout() {
+    adminPassword = '';
     sessionStorage.removeItem('sussex_admin_auth');
+    sessionStorage.removeItem('sussex_admin_pw');
     showLogin();
 }
 
@@ -141,22 +205,47 @@ function loadData() {
     // Do NOT increment visit counter here — only the main site should track visits
 }
 
-function saveServices() {
+/** Write every cached collection back to localStorage.
+ *  Referenced throughout the panel; it was missing entirely, which made
+ *  fetchLiveCMS() and all the barber editing throw. */
+function saveData() {
     localStorage.setItem('sussex_services', JSON.stringify(services));
-    showToast('Services updated successfully', 'success');
+    localStorage.setItem('sussex_hours', JSON.stringify(hours));
+    localStorage.setItem('sussex_bookings', JSON.stringify(bookings));
+    localStorage.setItem('sussex_gallery', JSON.stringify(galleryImages));
 }
 
-function saveHours() {
+async function saveServices() {
+    localStorage.setItem('sussex_services', JSON.stringify(services));
+    if (await syncToSheet({ services: services })) {
+        showToast('Services updated — customers see this now', 'success');
+    }
+}
+
+async function saveHours() {
     localStorage.setItem('sussex_hours', JSON.stringify(hours));
-    showToast('Working hours updated', 'success');
+    if (await syncToSheet({ hours: hours })) {
+        showToast('Working hours updated — customers see this now', 'success');
+    }
 }
 
 function saveBookings() {
     localStorage.setItem('sussex_bookings', JSON.stringify(bookings));
 }
 
-function saveGallery() {
+async function saveGallery() {
     localStorage.setItem('sussex_gallery', JSON.stringify(galleryImages));
+    // The Sheet stores plain URLs, not the panel's {id, src, name} shape.
+    if (await syncToSheet({ gallery: galleryImages.map(g => g.src) })) {
+        showToast('Gallery updated — customers see this now', 'success');
+    }
+}
+
+async function saveBarbers() {
+    saveData();
+    if (await syncToSheet({ barbers: barbers })) {
+        showToast('Barbers updated — customers see this now', 'success');
+    }
 }
 
 function getDefaultGallery() {
@@ -617,16 +706,15 @@ function openBarberModal(index) {
                 const reader = new FileReader();
                 reader.onload = (ev) => {
                     b.image = ev.target.result;
-                    saveData();
                     renderBarbers();
-                    showToast('Barber image updated! Click Save to Website.', 'success');
+                    saveBarbers();
                 };
                 reader.readAsDataURL(file);
             };
             input.click();
         } else {
-            saveData();
             renderBarbers();
+            saveBarbers();
         }
     }
 }
@@ -645,9 +733,8 @@ function addBarber() {
         reader.onload = (ev) => {
             const newId = barbers.length > 0 ? Math.max(...barbers.map(g => g.id || 0)) + 1 : 1;
             barbers.push({ id: newId, name: name, image: ev.target.result });
-            saveData();
             renderBarbers();
-            showToast('Barber added! Click Save to Website.', 'success');
+            saveBarbers();
         };
         reader.readAsDataURL(file);
     };
@@ -657,8 +744,8 @@ function addBarber() {
 function deleteBarber(id) {
     if (confirm('Delete this barber?')) {
         barbers = barbers.filter(g => g.id !== id);
-        saveData();
         renderBarbers();
+        saveBarbers();
     }
 }
 
