@@ -19,14 +19,16 @@ const DEFAULT_SERVICES = [
     { id: 11, nameEN: 'Kids Haircut (Up to 13 Years)', nameNL: 'Kinderknipbeurt (t/m 13 jaar)', price: 23, duration: 30 },
 ];
 
+// Placeholder only, shown for the instant before the Sheet answers. Kept in
+// step with the site's bookable slots so the two never contradict each other.
 const DEFAULT_HOURS = [
-    { day: 'Monday', dayNL: 'Maandag', open: true, from: '09:00', to: '18:00' },
-    { day: 'Tuesday', dayNL: 'Dinsdag', open: true, from: '09:00', to: '18:00' },
-    { day: 'Wednesday', dayNL: 'Woensdag', open: true, from: '09:00', to: '18:00' },
-    { day: 'Thursday', dayNL: 'Donderdag', open: true, from: '09:00', to: '18:00' },
-    { day: 'Friday', dayNL: 'Vrijdag', open: true, from: '09:00', to: '18:00' },
-    { day: 'Saturday', dayNL: 'Zaterdag', open: true, from: '09:00', to: '17:00' },
-    { day: 'Sunday', dayNL: 'Zondag', open: false, from: '09:00', to: '17:00' },
+    { day: 'Monday', dayNL: 'Maandag', open: true, from: '12:00', to: '18:00' },
+    { day: 'Tuesday', dayNL: 'Dinsdag', open: true, from: '10:00', to: '18:00' },
+    { day: 'Wednesday', dayNL: 'Woensdag', open: true, from: '10:00', to: '18:00' },
+    { day: 'Thursday', dayNL: 'Donderdag', open: true, from: '10:00', to: '18:00' },
+    { day: 'Friday', dayNL: 'Vrijdag', open: true, from: '10:00', to: '18:00' },
+    { day: 'Saturday', dayNL: 'Zaterdag', open: true, from: '10:00', to: '18:00' },
+    { day: 'Sunday', dayNL: 'Zondag', open: false, from: '10:00', to: '18:00' },
 ];
 
 const ADMIN_USERNAME = 'admin';
@@ -47,6 +49,62 @@ async function apiPost(payload) {
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
+}
+
+/** Shrink an image in the browser before it ever leaves the machine.
+ *  Gallery photos off a phone are several megabytes; at that size the upload
+ *  is slow and Drive fills up for no visual benefit on a 400px-wide card. */
+function shrinkImage(file, maxEdge = 1600, quality = 0.82) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('Could not read that file'));
+        reader.onload = () => {
+            const img = new Image();
+            img.onerror = () => reject(new Error('That file is not a readable image'));
+            img.onload = () => {
+                let { width, height } = img;
+                if (width > maxEdge || height > maxEdge) {
+                    const scale = maxEdge / Math.max(width, height);
+                    width = Math.round(width * scale);
+                    height = Math.round(height * scale);
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+/** Shrink, upload to Drive, and hand back a URL fit to store in the Sheet. */
+async function uploadImage(file) {
+    if (!adminPassword) {
+        showToast('Session expired — please sign in again', 'error');
+        return null;
+    }
+    showToast('Uploading image...', 'info');
+    try {
+        const dataUrl = await shrinkImage(file);
+        const result = await apiPost({
+            action: 'uploadImage',
+            password: adminPassword,
+            filename: file.name,
+            dataUrl: dataUrl
+        });
+        if (result.status !== 'success' || !result.url) {
+            showToast(result.message || 'Upload failed', 'error');
+            return null;
+        }
+        return result.url;
+    } catch (err) {
+        console.error('Upload failed', err);
+        showToast('Could not upload that image', 'error');
+        return null;
+    }
 }
 
 /** Push the current content to the Sheet so customers actually see it. */
@@ -637,23 +695,18 @@ function renderGallery() {
     container.innerHTML = html;
 }
 
-function handleGalleryUpload(input) {
+async function handleGalleryUpload(input) {
     const file = input.files[0];
     if (!file) return;
+    input.value = '';   // let the same file be picked again after a failure
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const newId = galleryImages.length > 0 ? Math.max(...galleryImages.map(g => g.id)) + 1 : 1;
-        galleryImages.push({
-            id: newId,
-            src: e.target.result,
-            name: file.name
-        });
-        saveGallery();
-        renderGallery();
-        showToast('Image uploaded successfully', 'success');
-    };
-    reader.readAsDataURL(file);
+    const url = await uploadImage(file);
+    if (!url) return;
+
+    const newId = galleryImages.length > 0 ? Math.max(...galleryImages.map(g => g.id)) + 1 : 1;
+    galleryImages.push({ id: newId, src: url, name: file.name });
+    renderGallery();
+    saveGallery();
 }
 
 function deleteGalleryImage(id) {
@@ -704,16 +757,14 @@ function openBarberModal(index) {
             const input = document.createElement('input');
             input.type = 'file';
             input.accept = 'image/*';
-            input.onchange = (e) => {
+            input.onchange = async (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    b.image = ev.target.result;
-                    renderBarbers();
-                    saveBarbers();
-                };
-                reader.readAsDataURL(file);
+                const url = await uploadImage(file);
+                if (!url) return;
+                b.image = url;
+                renderBarbers();
+                saveBarbers();
             };
             input.click();
         } else {
@@ -730,17 +781,15 @@ function addBarber() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            const newId = barbers.length > 0 ? Math.max(...barbers.map(g => g.id || 0)) + 1 : 1;
-            barbers.push({ id: newId, name: name, image: ev.target.result });
-            renderBarbers();
-            saveBarbers();
-        };
-        reader.readAsDataURL(file);
+        const url = await uploadImage(file);
+        if (!url) return;
+        const newId = barbers.length > 0 ? Math.max(...barbers.map(g => g.id || 0)) + 1 : 1;
+        barbers.push({ id: newId, name: name, image: url });
+        renderBarbers();
+        saveBarbers();
     };
     input.click();
 }

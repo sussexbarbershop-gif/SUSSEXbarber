@@ -69,6 +69,13 @@ function sheetNamed(ss, name) {
   return ss.getSheetByName(name) || ss.insertSheet(name);
 }
 
+/** Drive folder that holds gallery and barber photos. Created on first use. */
+function getImageFolder() {
+  var name = 'Sussex Barber Site Images';
+  var existing = DriveApp.getFoldersByName(name);
+  return existing.hasNext() ? existing.next() : DriveApp.createFolder(name);
+}
+
 /** True when the supplied password matches the stored one. */
 function isAuthorized(payload) {
   var expected = PropertiesService.getScriptProperties().getProperty('ADMIN_PASSWORD');
@@ -394,6 +401,36 @@ function doPost(e) {
       }
     }
     return json({ status: 'error', message: 'Booking not found' });
+  }
+
+  // --- Image upload. A Sheet cell holds at most 50,000 characters, so an
+  //     image can never be stored inline as base64; put the file in Drive and
+  //     keep only its URL. The panel shrinks the image before sending it.
+  if (action === 'uploadImage') {
+    if (!isAuthorized(payload)) {
+      return json({ status: 'error', message: 'Unauthorized' });
+    }
+    try {
+      var folder = getImageFolder();
+      var parts = String(payload.dataUrl || '').split(',');
+      if (parts.length !== 2) {
+        return json({ status: 'error', message: 'Malformed image data' });
+      }
+      var contentType = (parts[0].match(/data:([^;]+)/) || [])[1] || 'image/jpeg';
+      var bytes = Utilities.base64Decode(parts[1]);
+      var blob = Utilities.newBlob(bytes, contentType, payload.filename || ('image-' + Date.now() + '.jpg'));
+
+      var file = folder.createFile(blob);
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+      // This form renders inside an <img>; the /file/d/ share link does not.
+      return json({
+        status: 'success',
+        url: 'https://drive.google.com/thumbnail?id=' + file.getId() + '&sz=w1600'
+      });
+    } catch (err) {
+      return json({ status: 'error', message: String(err) });
+    }
   }
 
   // --- Everything below changes site content and requires the password. ---
