@@ -161,7 +161,7 @@ function getRawBookingsSheet(ss) {
  * Bump when setupSheets() starts creating something new, so the next request
  * runs it once more instead of trusting the "already done" mark.
  */
-var SCHEMA_VERSION = '4-barber-rotas';
+var SCHEMA_VERSION = '5-dedupe-rotas';
 
 /**
  * setupSheets() opens nine sheets and reads them to decide it has nothing to
@@ -239,6 +239,7 @@ function setupSheets() {
   if (barberHours.getLastRow() === 0) {
     barberHours.appendRow(['Barber', 'Day', 'Working', 'From', 'To', 'BreakFrom', 'BreakTo']);
   }
+  dedupeBarberHours(barberHours);
   // Barbers added before this sheet existed, or added later from the panel,
   // start out with no rows at all. Seed them from the shop hours so an
   // untouched barber behaves exactly as they did before per-barber rotas.
@@ -248,6 +249,35 @@ function setupSheets() {
   if (timeOff.getLastRow() === 0) {
     timeOff.appendRow(['Barber', 'From', 'To', 'Note']);
   }
+}
+
+/**
+ * Removes duplicate (barber, day) rows, keeping the first — which is the one
+ * the owner last edited, since the copies were appended after it.
+ *
+ * A save used to rewrite this sheet and then read it back without flushing, so
+ * the seeding pass saw an empty sheet and appended a second full rota. That is
+ * fixed at the source; this clears up sheets it already damaged, and is a
+ * no-op once they are clean.
+ */
+function dedupeBarberHours(sheet) {
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 2) return;
+
+  var seen = {};
+  var kept = [data[0]];
+  for (var r = 1; r < data.length; r++) {
+    if (!data[r][0]) continue;
+    var key = String(data[r][0]).trim() + '|' + String(data[r][1]).trim();
+    if (seen[key]) continue;
+    seen[key] = true;
+    kept.push(data[r]);
+  }
+  if (kept.length === data.length) return;   // nothing to do
+
+  sheet.clear();
+  sheet.getRange(1, 1, kept.length, kept[0].length).setValues(kept);
+  SpreadsheetApp.flush();
 }
 
 /**
@@ -400,9 +430,16 @@ function readConfig(ss) {
   }
 
   var barberHoursData = ss.getSheetByName(SHEET_BARBER_HOURS).getDataRange().getValues();
+  var seenDay = {};
   for (var p = 1; p < barberHoursData.length; p++) {
     var who = String(barberHoursData[p][0] || '').trim();
     if (!who || !barberHoursData[p][1]) continue;
+    // Ignore a repeated day even if the sheet somehow holds one: two rows for
+    // the same Tuesday would otherwise put the barber on the rota twice and
+    // let one slot be booked twice over.
+    var dayKey = who + '|' + String(barberHoursData[p][1]).trim();
+    if (seenDay[dayKey]) continue;
+    seenDay[dayKey] = true;
     if (!out.barberHours[who]) out.barberHours[who] = [];
     out.barberHours[who].push({
       day: String(barberHoursData[p][1]).trim(),
@@ -867,14 +904,22 @@ function doPost(e) {
 
     if (payload.barberHours) {
       var bh = sheetNamed(ss, SHEET_BARBER_HOURS);
-      bh.clear();
-      bh.appendRow(['Barber', 'Day', 'Working', 'From', 'To', 'BreakFrom', 'BreakTo']);
+      var rows = [['Barber', 'Day', 'Working', 'From', 'To', 'BreakFrom', 'BreakTo']];
       Object.keys(payload.barberHours).forEach(function (who) {
         (payload.barberHours[who] || []).forEach(function (row) {
-          bh.appendRow([who, row.day, row.working === true, row.from, row.to,
-                        row.breakFrom || '', row.breakTo || '']);
+          rows.push([who, row.day, row.working === true, row.from, row.to,
+                     row.breakFrom || '', row.breakTo || '']);
         });
       });
+      bh.clear();
+      // One write instead of a call per row: a full rota is 42 appendRow()
+      // round trips, and that is most of what made saving slow.
+      bh.getRange(1, 1, rows.length, 7).setValues(rows);
+      // seedMissingBarberHours() reads this sheet back in a moment. Apps Script
+      // buffers writes, so without this it sees the sheet as it was before the
+      // clear, decides every barber is missing, and appends a second copy of
+      // the whole rota.
+      SpreadsheetApp.flush();
     }
 
     if (payload.timeOff) {

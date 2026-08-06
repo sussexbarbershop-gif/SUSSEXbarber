@@ -83,6 +83,15 @@ lateOpening.hours.find(h => h.day === 'Tuesday').from = '11:00';
 ok('rota 10:00 but shop opens 11:00',    isBarberWorkingAt(lateOpening,'Hemen','2026-08-18',M('10:00')), false);
 ok('11:00 once the door opens',          isBarberWorkingAt(lateOpening,'Hemen','2026-08-18',M('11:00')), true);
 
+console.log('--- a duplicated day must not double the chair ---');
+// A save once rewrote BarberHours and read it back before the write landed,
+// so the seeding pass appended a second copy of the whole rota. Two rows for
+// the same Tuesday would list the barber twice and let one slot be sold twice.
+const doubled = JSON.parse(JSON.stringify(cfg));
+doubled.barberHours.Hemen = doubled.barberHours.Hemen.concat(doubled.barberHours.Hemen);
+ok('barber listed once', barbersWorkingAt(doubled,'2026-08-19',M('11:00')), ['Hemen']);
+ok('booked once is full', isSlotFree(doubled,'2026-08-19','11:00 AM',['Hemen'],''), false);
+
 console.log('--- a barber with no rota at all ---');
 // Deliberate: before the owner fills a rota in, a barber works whenever the
 // shop is open, so nothing is hidden. But this is why every barber the booking
