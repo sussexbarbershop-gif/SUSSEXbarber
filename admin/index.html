@@ -177,7 +177,7 @@
                                 <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                             </div>
                             <div class="stat-value" id="statPending">0</div>
-                            <div class="stat-label">Pending</div>
+                            <div class="stat-label">Upcoming</div>
                         </div>
                         <div class="stat-card green">
                             <div class="stat-icon">
@@ -268,7 +268,7 @@
                                     <button class="filter-tab active" data-filter="all" onclick="setBookingFilter('all')">All</button>
                                     <button class="filter-tab" data-filter="today" onclick="setBookingFilter('today')">Today</button>
                                     <button class="filter-tab" data-filter="week" onclick="setBookingFilter('week')">This Week</button>
-                                    <button class="filter-tab" data-filter="pending" onclick="setBookingFilter('pending')">Pending</button>
+                                    <button class="filter-tab" data-filter="upcoming" onclick="setBookingFilter('upcoming')">Upcoming</button>
                                 </div>
                             </div>
                             <div class="table-responsive">
@@ -319,10 +319,10 @@
                     <div class="data-card">
                         <div class="data-card-header">
                             <h3>Gallery Management</h3>
-                            <button class="btn btn-primary" onclick="saveCMSData()">Save to Website</button>
+                            <span style="font-size:13px;color:var(--text-muted)">Changes save as you make them</span>
                         </div>
                         <div style="padding: 20px">
-                            <p style="margin-bottom:15px;font-size:13px;color:var(--text-muted);">Upload images by clicking the +, and click an image to remove it. Remember to click "Save to Website"!</p>
+                            <p style="margin-bottom:15px;font-size:13px;color:var(--text-muted);">Add an image with the +, or click one to remove it. Each change is saved to the website straight away.</p>
                             <div class="gallery-grid" id="galleryContainer"></div>
                         </div>
                     </div>
@@ -382,10 +382,7 @@
                                 <h3>Our Barbers</h3>
                                 <span style="font-size:13px;color:var(--text-muted)">Click a barber to set their working days, hours and time off</span>
                             </div>
-                            <div>
-                                <button class="btn btn-outline" onclick="addBarber()">+ Add Barber</button>
-                                <button class="btn btn-primary" onclick="saveCMSData()">Save to Website</button>
-                            </div>
+                            <button class="btn btn-primary" onclick="addBarber()">+ Add Barber</button>
                         </div>
                         <div style="padding: 20px">
                             <div class="gallery-grid" id="barbersContainer"></div>
@@ -415,14 +412,14 @@
                                 <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                             </div>
                             <div class="stat-value" id="analyticsConfirmed">0</div>
-                            <div class="stat-label">Confirmed Bookings</div>
+                            <div class="stat-label">Upcoming Bookings</div>
                         </div>
                         <div class="stat-card orange">
                             <div class="stat-icon">
                                 <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
                             </div>
                             <div class="stat-value" id="analyticsConversion">0%</div>
-                            <div class="stat-label">Confirmation Rate</div>
+                            <div class="stat-label">Visits That Booked</div>
                         </div>
                     </div>
 

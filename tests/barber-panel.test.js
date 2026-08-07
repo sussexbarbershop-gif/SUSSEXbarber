@@ -14,6 +14,7 @@ function grab(name) {
 }
 
 const WEEK = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const ANY_BARBER = 'Any Available';
 
 // --- state the functions read and write -------------------------------
 let barbers, barberHours, timeOff;
