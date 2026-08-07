@@ -117,11 +117,14 @@
             <div class="flex justify-between items-center h-20">
                 <div class="flex items-center space-x-3">
                     <a href="#" class="flex items-center transition-transform duration-300 hover:scale-105">
-                        <!-- Transparent PNG. This used to be a JPG whose white background was
-                             hidden with mix-blend-multiply, but the nav is translucent, so the
-                             blend resolved against the hero photo behind it and drew a pale box
-                             around the mark. dark:invert keeps it legible on the dark theme. -->
-                        <img src="assets/logo.png" alt="Sussex Barber Shop Logo" width="50" height="64" class="h-16 w-auto object-contain dark:invert transition-all duration-300" style="margin-top: -10px; margin-bottom: -10px;">
+                        <!-- One flat colour per theme rather than one image inverted.
+                             The source logo is full colour on cream paper: inverting it
+                             for the dark theme turned the paper muddy and left a pale
+                             fringe on every edge. These two are the same artwork reduced
+                             to black ink and to white ink, both on transparency, so
+                             neither carries a background to show. -->
+                        <img src="assets/logo-black.png" alt="Sussex Barber Shop Logo" width="50" height="64" class="h-16 w-auto object-contain dark:hidden" style="margin-top: -10px; margin-bottom: -10px;">
+                        <img src="assets/logo-white.png" alt="" aria-hidden="true" width="50" height="64" class="h-16 w-auto object-contain hidden dark:block" style="margin-top: -10px; margin-bottom: -10px;">
                     </a>
                     <!-- Live Working Hours Status Badge -->
                     <div id="statusBadge" class="hidden sm:inline-block"></div>
@@ -210,23 +213,27 @@
     </script>
 
     <!-- Hero Section -->
-    <section id="hero" class="h-screen flex items-center justify-center text-center px-4 relative overflow-hidden hero-bg">
+    <!-- min-h-[100svh], not h-screen: 100vh on a phone is the viewport with the
+         address bar hidden, so the hero overflowed by the height of the bar and
+         the section jumped as the bar slid away while scrolling. svh is the
+         small viewport - the one that is always visible. -->
+    <section id="hero" class="min-h-[100svh] flex items-center justify-center text-center px-4 relative overflow-hidden hero-bg">
         <div class="absolute inset-0 bg-black/30 z-10"></div>
         <div class="max-w-3xl reveal active relative z-20">
-            <h1 id="cms-hero-title" class="font-serif text-5xl md:text-7xl mb-6 text-white leading-tight">Masterful Cuts.<br><span class="text-gold italic">Timeless Style.</span></h1>
-            <p id="cms-hero-subtitle" class="text-gray-300 text-lg md:text-xl mb-10 font-light tracking-wide">Experience premium grooming and hearty service in the heart of Wassenaar.</p>
+            <h1 id="cms-hero-title" class="font-serif text-3xl sm:text-4xl sm:text-5xl md:text-7xl mb-4 sm:mb-6 text-white leading-tight">Masterful Cuts.<br><span class="text-gold italic">Timeless Style.</span></h1>
+            <p id="cms-hero-subtitle" class="text-gray-300 text-base sm:text-lg md:text-xl mb-8 sm:mb-10 font-light tracking-wide">Experience premium grooming and hearty service in the heart of Wassenaar.</p>
             <a href="#booking" class="border border-gold text-gold hover:bg-gold hover:text-charcoal-900 px-8 py-4 text-sm font-semibold tracking-wider uppercase transition-all duration-300 inline-block">Reserve Your Chair</a>
         </div>
     </section>
 
     <!-- About Section with Parallax effect -->
-    <section id="about" class="py-24 bg-gray-50 dark:bg-charcoal-800 transition-colors duration-300 relative">
+    <section id="about" class="py-14 sm:py-24 bg-gray-50 dark:bg-charcoal-800 transition-colors duration-300 relative">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center gap-16 reveal">
             <div class="w-full md:w-1/2">
                 <img src="assets/sussex_experience_1783438070840.jpg" alt="Barber Tools" class="grayscale hover:grayscale-0 transition-all duration-700 shadow-2xl shadow-black/20 dark:shadow-black/50 rounded-xl">
             </div>
             <div class="w-full md:w-1/2">
-                <h2 class="font-serif text-4xl mb-6 text-gray-900 dark:text-white">The Sussex <span class="text-gold">Experience</span></h2>
+                <h2 class="font-serif text-3xl sm:text-4xl mb-6 text-gray-900 dark:text-white">The Sussex <span class="text-gold">Experience</span></h2>
                 <p id="cms-about-text" class="text-gray-600 dark:text-gray-400 font-light leading-relaxed mb-6">
                     At Sussex Barber Shop, we blend modern styling techniques with traditional barbering values. Our space is designed to be a sanctuary for men—a place where you can unwind, enjoy a free coffee, and leave looking your absolute best.<br><br>
                     With a 4.7-star rating and a reputation for precise cuts and a friendly atmosphere, our attentive barbers ensure that every haircut, beard trim, and hot towel shave is executed to perfection.
@@ -236,10 +243,10 @@
     </section>
 
     <!-- Our Barbers Section -->
-    <section id="team" class="py-24 bg-white dark:bg-charcoal-900 transition-colors duration-300">
+    <section id="team" class="py-14 sm:py-24 bg-white dark:bg-charcoal-900 transition-colors duration-300">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 reveal">
             <div class="text-center mb-16">
-                <h2 class="font-serif text-4xl text-gray-900 dark:text-white mb-4">Our Master Barbers</h2>
+                <h2 class="font-serif text-3xl sm:text-4xl text-gray-900 dark:text-white mb-4">Our Master Barbers</h2>
                 <div class="w-16 h-px bg-gold mx-auto"></div>
                 <p class="text-gray-600 dark:text-gray-400 mt-6 font-light max-w-2xl mx-auto">Meet the experienced professionals dedicated to giving you the perfect look. Every barber at Sussex is a master of their craft.</p>
             </div>
@@ -297,13 +304,13 @@
     </section>
 
     <!-- Services Section -->
-    <section id="services" class="py-24 bg-white dark:bg-charcoal-900 transition-colors duration-300">
+    <section id="services" class="py-14 sm:py-24 bg-white dark:bg-charcoal-900 transition-colors duration-300">
         <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 reveal">
             <div class="text-center mb-16">
-                <h2 class="font-serif text-4xl text-gray-900 dark:text-white mb-4">Our Services</h2>
+                <h2 class="font-serif text-3xl sm:text-4xl text-gray-900 dark:text-white mb-4">Our Services</h2>
                 <div class="w-16 h-px bg-gold mx-auto"></div>
             </div>
-            <div class="space-y-6" id="servicesListContainer">
+            <div class="space-y-3 sm:space-y-6" id="servicesListContainer">
                 <!-- Dynamically populated from admin panel data -->
             </div>
         </div>
@@ -312,7 +319,7 @@
 
 
     <!-- Booking Section (Multi-step Wizard) -->
-    <section id="booking" class="py-24 bg-gray-50 dark:bg-charcoal-800 transition-colors duration-300">
+    <section id="booking" class="py-14 sm:py-24 bg-gray-50 dark:bg-charcoal-800 transition-colors duration-300">
         <!-- Look up existing appointments. Bookings live in the Google Sheet,
              not on this device, so the phone number is what identifies them. -->
         <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
@@ -346,7 +353,7 @@
         </div>
 
         <div class="max-w-4xl mx-auto bg-white dark:bg-charcoal-800 rounded-2xl md:rounded-3xl shadow-2xl p-4 sm:p-6 md:p-10 lg:p-12 border border-gray-100 dark:border-charcoal-700 relative">
-            <h2 class="font-serif text-4xl text-gray-900 dark:text-white mb-3 text-center">Book an Appointment</h2>
+            <h2 class="font-serif text-3xl sm:text-4xl text-gray-900 dark:text-white mb-3 text-center">Book an Appointment</h2>
             <p class="text-gray-600 dark:text-gray-400 mb-10 font-light text-center">Select your preferred service, barber, date, and time slot.</p>
             
             <div class="md:grid md:grid-cols-12 md:gap-8 md:items-start text-left">
@@ -395,83 +402,21 @@
 
                     <div>
                         <label class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-3 font-semibold">2. Choose Service</label>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="serviceCardsContainer">
-                            <div tabindex="0" data-service="Classic Haircut" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
-                                <div>
-                                    <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Classic Haircut">Classic Haircut</h4>
-                                    <p class="text-xs text-gold mt-1 font-medium">⏱️ ~30 min</p>
+                        <!-- Eleven services stacked one per row pushed "Next Step" off
+                             the bottom of a phone, so the list scrolls within itself
+                             below sm: and the button stays where the thumb expects it.
+                             On a wider screen the whole list fits and there is no cap. -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[46vh] overflow-y-auto pr-1 -mr-1 sm:max-h-none sm:overflow-visible sm:pr-0 sm:mr-0" id="serviceCardsContainer">
+                            <!-- One card so the form is not empty for the instant before
+                                 the Sheet answers. renderServiceCards() replaces the lot;
+                                 the other ten were a second copy of the price list to keep
+                                 in step, and nobody ever saw them. -->
+                            <div tabindex="0" data-service="Classic Haircut" class="service-card cursor-pointer px-3 py-2.5 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center gap-3 transition-all duration-300 sm:hover:-translate-y-1 sm:hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                                <div class="min-w-0">
+                                    <h4 class="font-medium text-gray-900 dark:text-white text-sm sm:text-base leading-snug" data-translate="Classic Haircut">Classic Haircut</h4>
+                                    <p class="text-xs text-gold mt-0.5 sm:mt-1 font-medium">⏱️ ~30 min</p>
                                 </div>
-                                <span class="text-gold font-serif font-bold text-lg">€28.00</span>
-                            </div>
-                            <div tabindex="0" data-service="Skin Fade" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
-                                <div>
-                                    <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Skin Fade">Skin Fade</h4>
-                                    <p class="text-xs text-gold mt-1 font-medium">⏱️ ~45 min</p>
-                                </div>
-                                <span class="text-gold font-serif font-bold text-lg">€28.00</span>
-                            </div>
-                            <div tabindex="0" data-service="Scissor Cut" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
-                                <div>
-                                    <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Scissor Cut">Scissor Cut</h4>
-                                    <p class="text-xs text-gold mt-1 font-medium">⏱️ ~30 min</p>
-                                </div>
-                                <span class="text-gold font-serif font-bold text-lg">€28.00</span>
-                            </div>
-                            <div tabindex="0" data-service="Wash & Haircut" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
-                                <div>
-                                    <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Wash & Haircut">Wash & Haircut</h4>
-                                    <p class="text-xs text-gold mt-1 font-medium">⏱️ ~45 min</p>
-                                </div>
-                                <span class="text-gold font-serif font-bold text-lg">€35.00</span>
-                            </div>
-                            <div tabindex="0" data-service="Beard Trim" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
-                                <div>
-                                    <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Beard Trim">Beard Trim</h4>
-                                    <p class="text-xs text-gold mt-1 font-medium">⏱️ ~20 min</p>
-                                </div>
-                                <span class="text-gold font-serif font-bold text-lg">€20.00</span>
-                            </div>
-                            <div tabindex="0" data-service="Clean Shave" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
-                                <div>
-                                    <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Clean Shave">Clean Shave</h4>
-                                    <p class="text-xs text-gold mt-1 font-medium">⏱️ ~30 min</p>
-                                </div>
-                                <span class="text-gold font-serif font-bold text-lg">€20.00</span>
-                            </div>
-                            <div tabindex="0" data-service="Classic Haircut + Beard Trim" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
-                                <div>
-                                    <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Classic Haircut + Beard Trim">Classic Haircut + Beard Trim</h4>
-                                    <p class="text-xs text-gold mt-1 font-medium">⏱️ ~45 min</p>
-                                </div>
-                                <span class="text-gold font-serif font-bold text-lg">€40.00</span>
-                            </div>
-                            <div tabindex="0" data-service="Skin Fade + Beard Trim" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
-                                <div>
-                                    <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Skin Fade + Beard Trim">Skin Fade + Beard Trim</h4>
-                                    <p class="text-xs text-gold mt-1 font-medium">⏱️ ~60 min</p>
-                                </div>
-                                <span class="text-gold font-serif font-bold text-lg">€40.00</span>
-                            </div>
-                            <div tabindex="0" data-service="One Grade Trim" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
-                                <div>
-                                    <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="One Grade Trim">One Grade Trim</h4>
-                                    <p class="text-xs text-gold mt-1 font-medium">⏱️ ~15 min</p>
-                                </div>
-                                <span class="text-gold font-serif font-bold text-lg">€20.00</span>
-                            </div>
-                            <div tabindex="0" data-service="Kids Haircut (Up to 10 Years)" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
-                                <div>
-                                    <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Kids Haircut (Up to 10 Years)">Kids Haircut (Up to 10 Years)</h4>
-                                    <p class="text-xs text-gold mt-1 font-medium">⏱️ ~30 min</p>
-                                </div>
-                                <span class="text-gold font-serif font-bold text-lg">€21.00</span>
-                            </div>
-                            <div tabindex="0" data-service="Kids Haircut (Up to 13 Years)" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
-                                <div>
-                                    <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="Kids Haircut (Up to 13 Years)">Kids Haircut (Up to 13 Years)</h4>
-                                    <p class="text-xs text-gold mt-1 font-medium">⏱️ ~30 min</p>
-                                </div>
-                                <span class="text-gold font-serif font-bold text-lg">€23.00</span>
+                                <span class="text-gold font-serif font-bold text-base sm:text-lg shrink-0">€28.00</span>
                             </div>
                         </div>
                     </div>
@@ -621,10 +566,10 @@
     </section>
 
     <!-- Gallery Section -->
-    <section id="gallery" class="py-24 bg-white dark:bg-charcoal-900 transition-colors duration-300">
+    <section id="gallery" class="py-14 sm:py-24 bg-white dark:bg-charcoal-900 transition-colors duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 reveal">
             <div class="text-center mb-16">
-                <h2 class="font-serif text-4xl text-gray-900 dark:text-white mb-4">Our Work</h2>
+                <h2 class="font-serif text-3xl sm:text-4xl text-gray-900 dark:text-white mb-4">Our Work</h2>
                 <div class="w-16 h-px bg-gold mx-auto"></div>
             </div>
             <!-- Masonry Grid -->
@@ -656,11 +601,11 @@
 
 
     <!-- Contact Section -->
-    <section id="contact" class="py-24 bg-white dark:bg-charcoal-900 border-t border-gray-200 dark:border-charcoal-700 transition-colors duration-300">
+    <section id="contact" class="py-14 sm:py-24 bg-white dark:bg-charcoal-900 border-t border-gray-200 dark:border-charcoal-700 transition-colors duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 reveal">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-16">
                 <div>
-                    <h2 class="font-serif text-4xl text-gray-900 dark:text-white mb-10">Visit Us</h2>
+                    <h2 class="font-serif text-3xl sm:text-4xl text-gray-900 dark:text-white mb-10">Visit Us</h2>
                     
                     <div class="mb-8">
                         <h3 class="text-gold uppercase tracking-widest text-sm mb-3">Location</h3>
@@ -1289,7 +1234,9 @@
                     const chip = document.createElement('button');
                     chip.type = 'button';
                     chip.disabled = true;
-                    chip.className = 'py-2 sm:py-3 px-1 sm:px-2 text-xs font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 cursor-not-allowed rounded-lg text-center opacity-50';
+                    // Same height as a real chip, so the grid does not resize
+                    // under the thumb the moment a date is picked.
+                    chip.className = 'min-h-[44px] flex items-center justify-center px-1.5 sm:px-2 text-xs leading-tight font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 cursor-not-allowed rounded-lg text-center opacity-50';
                     chip.innerText = t;
                     grid.appendChild(chip);
                 });
@@ -1328,14 +1275,20 @@
                 chip.type = 'button';
                 chip.disabled = isBooked;
 
+                // A fixed height on every state: py-3 alone left a thumb about
+                // 40px to aim at, under the 44px a touch target wants, and the
+                // "Booked" chips ran to two lines so the rows came out ragged.
+                const chipBase = 'min-h-[44px] flex flex-col items-center justify-center ' +
+                    'px-1.5 sm:px-2 text-xs leading-tight rounded-lg text-center';
+
                 if (isBooked) {
-                    chip.className = 'py-3 px-2 text-xs font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 line-through cursor-not-allowed rounded-lg text-center';
-                    chip.innerHTML = `${t} <span class="block text-[10px] no-underline">Booked</span>`;
+                    chip.className = `${chipBase} font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 cursor-not-allowed`;
+                    chip.innerHTML = `<span class="line-through">${t}</span><span class="block text-[10px]">Booked</span>`;
                 } else if (isSelected) {
-                    chip.className = 'py-3 px-2 text-xs font-semibold border-2 border-gold bg-gold text-charcoal-900 rounded-lg text-center shadow-md';
+                    chip.className = `${chipBase} font-semibold border-2 border-gold bg-gold text-charcoal-900 shadow-md`;
                     chip.innerText = t;
                 } else {
-                    chip.className = 'py-3 px-2 text-xs font-medium border border-gray-300 dark:border-charcoal-700 bg-gray-50 dark:bg-charcoal-800 text-gray-800 dark:text-gray-200 hover:border-gold hover:text-gold rounded-lg text-center transition-colors';
+                    chip.className = `${chipBase} font-medium border border-gray-300 dark:border-charcoal-700 bg-gray-50 dark:bg-charcoal-800 text-gray-800 dark:text-gray-200 hover:border-gold hover:text-gold transition-colors`;
                     chip.innerText = t;
                 }
 
@@ -1390,7 +1343,7 @@
             grid.innerHTML = '';
             for(let i=0; i<8; i++) {
                 const skeleton = document.createElement('div');
-                skeleton.className = 'py-5 px-2 bg-gray-200 dark:bg-charcoal-700 animate-pulse rounded-lg';
+                skeleton.className = 'min-h-[44px] bg-gray-200 dark:bg-charcoal-700 animate-pulse rounded-lg';
                 grid.appendChild(skeleton);
             }
 
@@ -1447,7 +1400,7 @@
             
             for (let i = 0; i < firstDayIndex; i++) {
                 const emptyCell = document.createElement('div');
-                emptyCell.className = 'w-full aspect-[5/4] sm:aspect-square';
+                emptyCell.className = 'w-full min-h-[44px] aspect-[5/4] sm:aspect-square';
                 grid.appendChild(emptyCell);
             }
             
@@ -1478,7 +1431,7 @@
                 
                 const dayBtn = document.createElement('button');
                 dayBtn.type = 'button';
-                dayBtn.className = 'w-full aspect-[5/4] sm:aspect-square flex flex-col items-center justify-center text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 relative select-none';
+                dayBtn.className = 'w-full min-h-[44px] aspect-[5/4] sm:aspect-square flex flex-col items-center justify-center text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 relative select-none';
                 dayBtn.innerHTML = `<span>${day}</span>`;
                 
                 if (isDisabled) {
@@ -2125,15 +2078,18 @@
         function renderServicesList(services) {
         const servicesContainer = document.getElementById('servicesListContainer');
         if (servicesContainer) {
+            // Eleven services at the desktop rhythm is about a metre of
+            // scrolling on a phone, so the type and the gaps tighten below sm:
+            // and the duration sits next to the name instead of under it.
             servicesContainer.innerHTML = services.map((s, i) => {
                 const isLast = i === services.length - 1;
                 const borderClass = isLast ? '' : 'border-b border-gray-200 dark:border-charcoal-700';
-                return `<div class="flex justify-between items-end ${borderClass} pb-4">
-                    <div>
-                        <h3 class="text-xl text-gray-900 dark:text-white font-medium" data-translate="${s.nameEN}">${s.nameEN}</h3>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">⏱️ ~${s.duration} min</p>
+                return `<div class="flex justify-between items-baseline gap-3 ${borderClass} pb-2.5 sm:pb-4">
+                    <div class="min-w-0">
+                        <h3 class="text-base sm:text-xl text-gray-900 dark:text-white font-medium truncate sm:whitespace-normal" data-translate="${s.nameEN}">${s.nameEN}</h3>
+                        <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5 sm:mt-1">⏱️ ~${s.duration} min</p>
                     </div>
-                    <span class="text-gold text-xl font-serif">€${s.price}</span>
+                    <span class="text-gold text-lg sm:text-xl font-serif shrink-0">€${s.price}</span>
                 </div>`;
             }).join('');
         }
@@ -2142,8 +2098,8 @@
         // ---- Populate Booking Service Cards ----
         /** Build the barber cards from the Barbers sheet.
          *
-         *  These used to be six <div>s written into the page, so a barber added
-         *  or removed in the panel never reached the booking form, and a name
+         *  These used to be six elements written into the page, so a barber
+         *  added or removed in the panel never reached the booking form, and a name
          *  the sheet had never heard of got no rota and was bookable whenever
          *  the shop was open. The list comes from the Sheet now. */
         function renderBarberCards(list) {
@@ -2195,12 +2151,14 @@
         const serviceCardsContainer = document.getElementById('serviceCardsContainer');
         if (serviceCardsContainer) {
             serviceCardsContainer.innerHTML = services.map(s => {
-                return `<div tabindex="0" data-service="${s.nameEN}" class="service-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
-                    <div>
-                        <h4 class="font-medium text-gray-900 dark:text-white text-base" data-translate="${s.nameEN}">${s.nameEN}</h4>
-                        <p class="text-xs text-gold mt-1 font-medium">⏱️ ~${s.duration} min</p>
+                // Tighter on a phone: eleven of these is the longest list in
+                // the form, and hover lift does nothing on a touchscreen.
+                return `<div tabindex="0" data-service="${s.nameEN}" class="service-card cursor-pointer px-3 py-2.5 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center gap-3 transition-all duration-300 sm:hover:-translate-y-1 sm:hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                    <div class="min-w-0">
+                        <h4 class="font-medium text-gray-900 dark:text-white text-sm sm:text-base leading-snug" data-translate="${s.nameEN}">${s.nameEN}</h4>
+                        <p class="text-xs text-gold mt-0.5 sm:mt-1 font-medium">⏱️ ~${s.duration} min</p>
                     </div>
-                    <span class="text-gold font-serif font-bold text-lg">€${s.price.toFixed(2)}</span>
+                    <span class="text-gold font-serif font-bold text-base sm:text-lg shrink-0">€${s.price.toFixed(2)}</span>
                 </div>`;
             }).join('');
 

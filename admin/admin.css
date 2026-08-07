@@ -92,10 +92,17 @@ input, textarea, select { -webkit-user-select: auto; user-select: auto; }
     animation: fadeInUp 0.6s ease-out;
 }
 
+/* Two flat versions of the mark instead of one inverted image: inverting the
+   colour original muddied it and left a pale fringe on every edge. The login
+   card follows the theme, so it swaps; the sidebar is dark in both themes, so
+   it is always the white one. */
 .login-card .logo-img {
     width: 120px; height: auto; margin: 0 auto 24px;
-    filter: invert(1) brightness(1.1); display: block;
+    display: block;
 }
+.login-card .logo-light { display: none; }
+body.admin-light-mode .login-card .logo-dark { display: none; }
+body.admin-light-mode .login-card .logo-light { display: block; }
 
 .login-card h1 { font-family: 'Playfair Display', serif; font-size: 28px; margin-bottom: 8px; }
 .login-card p { color: var(--text-secondary); font-size: 14px; margin-bottom: 32px; }
@@ -119,7 +126,7 @@ input, textarea, select { -webkit-user-select: auto; user-select: auto; }
 
 .sidebar { width: 260px; background: var(--bg-sidebar); border-right: 1px solid var(--border-color); height: 100vh; position: fixed; left: 0; top: 0; z-index: 40; display: flex; flex-direction: column; transition: transform 0.3s ease; }
 .sidebar-header { padding: 24px 20px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 12px; }
-.sidebar-header img { width: 44px; height: auto; filter: invert(1) brightness(1.1); }
+.sidebar-header img { width: 44px; height: auto; }
 .sidebar-header .brand { display: flex; flex-direction: column; }
 .sidebar-header .brand-name { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 600; }
 .sidebar-header .brand-sub { font-size: 11px; color: var(--gold); text-transform: uppercase; letter-spacing: 2px; }
