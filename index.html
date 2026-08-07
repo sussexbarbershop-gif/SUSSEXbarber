@@ -360,48 +360,58 @@
                 <!-- Left Column: Form -->
                 <div class="md:col-span-12">
                     <!-- Step Progress Indicator -->
-                    <div class="flex justify-between items-center max-w-md mx-auto mb-10 relative px-4 sticky top-20 z-40 bg-gray-50/90 dark:bg-charcoal-800/90 backdrop-blur py-4 rounded-xl border border-gray-100 dark:border-charcoal-700 shadow-sm">
-                        <div class="absolute top-[2.25rem] left-[calc(1rem_+_(100%_-_2rem)/6)] right-[calc(1rem_+_(100%_-_2rem)/6)] h-0.5 bg-gray-300 dark:bg-charcoal-700 z-0">
+                    <!-- On a phone this was 40px discs with "Barber & Service"
+                         wrapping under them, so the header alone took a fifth of
+                         the screen before the form began. Smaller discs, one-word
+                         labels on a single line, full labels from sm: up. -->
+                    <div class="flex justify-between items-start max-w-md mx-auto mb-5 sm:mb-10 relative px-3 sm:px-4 sticky top-16 sm:top-20 z-40 bg-gray-50/90 dark:bg-charcoal-800/90 backdrop-blur py-2.5 sm:py-4 rounded-xl border border-gray-100 dark:border-charcoal-700 shadow-sm">
+                        <div class="absolute top-[1.6rem] sm:top-[2.25rem] left-[calc(0.75rem_+_(100%_-_1.5rem)/6)] right-[calc(0.75rem_+_(100%_-_1.5rem)/6)] sm:left-[calc(1rem_+_(100%_-_2rem)/6)] sm:right-[calc(1rem_+_(100%_-_2rem)/6)] h-0.5 bg-gray-300 dark:bg-charcoal-700 z-0">
                             <div id="progressLine" class="h-full bg-gold transition-all duration-500 ease-out" style="width: 0%"></div>
                         </div>
 
                         <div class="relative z-10 flex flex-col items-center flex-1 basis-0">
-                            <div id="stepDot1" class="w-10 h-10 rounded-full bg-gold text-charcoal-900 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300">1</div>
-                            <span id="stepLabel1" class="text-xs uppercase tracking-wider mt-2 font-medium text-center px-1 text-gray-900 dark:text-white">Barber &amp; Service</span>
+                            <div id="stepDot1" class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gold text-charcoal-900 font-bold flex items-center justify-center text-xs sm:text-sm shadow-md transition-all duration-300">1</div>
+                            <span id="stepLabel1" class="text-[10px] sm:text-xs uppercase tracking-wide sm:tracking-wider mt-1.5 sm:mt-2 font-medium text-center whitespace-nowrap text-gray-900 dark:text-white">
+                                <span class="sm:hidden">Service</span>
+                                <span class="hidden sm:inline">Barber &amp; Service</span>
+                            </span>
                         </div>
                         <div class="relative z-10 flex flex-col items-center flex-1 basis-0">
-                            <div id="stepDot2" class="w-10 h-10 rounded-full bg-gray-300 dark:bg-charcoal-700 text-gray-600 dark:text-gray-400 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300">2</div>
-                            <span id="stepLabel2" class="text-xs uppercase tracking-wider mt-2 font-medium text-center px-1 text-gray-400 dark:text-gray-500">Date & Time</span>
+                            <div id="stepDot2" class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-300 dark:bg-charcoal-700 text-gray-600 dark:text-gray-400 font-bold flex items-center justify-center text-xs sm:text-sm shadow-md transition-all duration-300">2</div>
+                            <span id="stepLabel2" class="text-[10px] sm:text-xs uppercase tracking-wide sm:tracking-wider mt-1.5 sm:mt-2 font-medium text-center whitespace-nowrap text-gray-400 dark:text-gray-500">
+                                <span class="sm:hidden">Time</span>
+                                <span class="hidden sm:inline">Date &amp; Time</span>
+                            </span>
                         </div>
                         <div class="relative z-10 flex flex-col items-center flex-1 basis-0">
-                            <div id="stepDot3" class="w-10 h-10 rounded-full bg-gray-300 dark:bg-charcoal-700 text-gray-600 dark:text-gray-400 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300">3</div>
-                            <span id="stepLabel3" class="text-xs uppercase tracking-wider mt-2 font-medium text-center px-1 text-gray-400 dark:text-gray-500">Confirm</span>
+                            <div id="stepDot3" class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-300 dark:bg-charcoal-700 text-gray-600 dark:text-gray-400 font-bold flex items-center justify-center text-xs sm:text-sm shadow-md transition-all duration-300">3</div>
+                            <span id="stepLabel3" class="text-[10px] sm:text-xs uppercase tracking-wide sm:tracking-wider mt-1.5 sm:mt-2 font-medium text-center whitespace-nowrap text-gray-400 dark:text-gray-500">Confirm</span>
                         </div>
                     </div>
 
                     <!-- Multi-step Form -->
-                    <form id="bookingForm" class="bg-white dark:bg-charcoal-900 p-6 sm:p-10 shadow-xl text-left border border-gray-200 dark:border-charcoal-700 transition-colors duration-300 rounded-lg relative z-30">
+                    <form id="bookingForm" class="bg-white dark:bg-charcoal-900 p-4 sm:p-10 shadow-xl text-left border border-gray-200 dark:border-charcoal-700 transition-colors duration-300 rounded-lg relative z-30">
                 <input type="hidden" id="service" value="Classic Haircut">
                 <input type="hidden" id="barber" value="Any Available">
                 <input type="hidden" id="time" value="">
 
                 <!-- STEP 1: Select Service & Barber -->
-                <div id="bookingStep1" class="space-y-8">
+                <div id="bookingStep1" class="space-y-4 sm:space-y-8">
                     <div>
-                        <label class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-3 font-semibold">1. Choose Preferred Barber</label>
+                        <label class="block text-xs sm:text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2 sm:mb-3 font-semibold">1. Choose Preferred Barber</label>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="barberCardsContainer">
-                            <div tabindex="0" data-barber="Any Available" class="barber-card cursor-pointer p-3 sm:p-4 border-2 border-gold bg-gold/5 dark:bg-gold/10 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
-                                <div class="w-12 h-12 mx-auto rounded-full bg-gold/20 flex items-center justify-center text-gold mb-2">
-                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                            <div tabindex="0" data-barber="Any Available" class="barber-card cursor-pointer p-2 sm:p-4 border-2 border-gold bg-gold/5 dark:bg-gold/10 rounded-lg text-center transition-all duration-300 sm:hover:-translate-y-1 sm:hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                                <div class="w-9 h-9 sm:w-12 sm:h-12 mx-auto rounded-full bg-gold/20 flex items-center justify-center text-gold mb-1 sm:mb-2">
+                                    <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                                 </div>
-                                <h5 class="font-medium text-sm text-gray-900 dark:text-white">Any Available</h5>
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">First available chair</p>
+                                <h5 class="font-medium text-xs sm:text-sm text-gray-900 dark:text-white leading-tight">Any Available</h5>
+                                <p class="hidden sm:block text-xs text-gray-500 dark:text-gray-400 mt-0.5">First available chair</p>
                             </div>
                         </div>
                     </div>
 
                     <div>
-                        <label class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-3 font-semibold">2. Choose Service</label>
+                        <label class="block text-xs sm:text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2 sm:mb-3 font-semibold">2. Choose Service</label>
                         <!-- Eleven services stacked one per row pushed "Next Step" off
                              the bottom of a phone, so the list scrolls within itself
                              below sm: and the button stays where the thumb expects it.
@@ -411,28 +421,31 @@
                                  the Sheet answers. renderServiceCards() replaces the lot;
                                  the other ten were a second copy of the price list to keep
                                  in step, and nobody ever saw them. -->
-                            <div tabindex="0" data-service="Classic Haircut" class="service-card cursor-pointer px-3 py-2.5 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center gap-3 transition-all duration-300 sm:hover:-translate-y-1 sm:hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
-                                <div class="min-w-0">
-                                    <h4 class="font-medium text-gray-900 dark:text-white text-sm sm:text-base leading-snug" data-translate="Classic Haircut">Classic Haircut</h4>
-                                    <p class="text-xs text-gold mt-0.5 sm:mt-1 font-medium">⏱️ ~30 min</p>
+                            <div tabindex="0" data-service="Classic Haircut" class="service-card cursor-pointer px-3 py-2 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center gap-2 transition-all duration-300 sm:hover:-translate-y-1 sm:hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                                <div class="min-w-0 flex items-baseline gap-2 sm:block">
+                                    <h4 class="font-medium text-gray-900 dark:text-white text-sm sm:text-base leading-snug truncate sm:whitespace-normal" data-translate="Classic Haircut">Classic Haircut</h4>
+                                    <p class="text-[11px] sm:text-xs text-gold sm:mt-1 font-medium whitespace-nowrap shrink-0">~30m<span class="hidden sm:inline">in</span></p>
                                 </div>
-                                <span class="text-gold font-serif font-bold text-base sm:text-lg shrink-0">€28.00</span>
+                                <span class="text-gold font-serif font-bold text-sm sm:text-lg shrink-0">€28<span class="hidden sm:inline">.00</span></span>
                             </div>
                         </div>
                     </div>
 
-                    <div class="pt-4 flex justify-end">
-                        <button type="button" id="goToStep2Btn" class="bg-gold text-charcoal-900 font-semibold uppercase tracking-widest px-8 py-3.5 rounded-lg hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-charcoal-900 transition-colors duration-300 text-sm flex items-center gap-2">
-                            <span>Continue to Date & Time</span>
+                    <!-- Full width on a phone, the way a primary action behaves in
+                         an app; back to a right-aligned button from sm: up. -->
+                    <div class="pt-2 sm:pt-4 flex justify-stretch sm:justify-end">
+                        <button type="button" id="goToStep2Btn" class="w-full sm:w-auto bg-gold text-charcoal-900 font-semibold uppercase tracking-widest px-6 sm:px-8 py-3.5 rounded-lg hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-charcoal-900 transition-colors duration-300 text-xs sm:text-sm flex items-center justify-center gap-2">
+                            <span class="sm:hidden">Continue</span>
+                            <span class="hidden sm:inline">Continue to Date &amp; Time</span>
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                         </button>
                     </div>
                 </div>
 
                 <!-- STEP 2: Select Date & Time Chips -->
-                <div id="bookingStep2" class="space-y-8 hidden">
+                <div id="bookingStep2" class="space-y-4 sm:space-y-8 hidden">
                     <div>
-                        <label class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-3 font-semibold">1. Select Date</label>
+                        <label class="block text-xs sm:text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2 sm:mb-3 font-semibold">1. Select Date</label>
                         <input type="hidden" id="date" required>
                         
                         <!-- Custom Modern Calendar UI -->
@@ -1140,19 +1153,19 @@
             const l2 = document.getElementById('stepLabel2');
             const l3 = document.getElementById('stepLabel3');
 
-            d1.className = stepNum >= 1 
-                ? 'w-10 h-10 rounded-full bg-gold text-charcoal-900 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300'
-                : 'w-10 h-10 rounded-full bg-gray-300 dark:bg-charcoal-700 text-gray-600 dark:text-gray-400 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300';
-            
-            d2.className = stepNum >= 2 
-                ? 'w-10 h-10 rounded-full bg-gold text-charcoal-900 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300'
-                : 'w-10 h-10 rounded-full bg-gray-300 dark:bg-charcoal-700 text-gray-600 dark:text-gray-400 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300';
-            
-            d3.className = stepNum >= 3 
-                ? 'w-10 h-10 rounded-full bg-gold text-charcoal-900 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300'
-                : 'w-10 h-10 rounded-full bg-gray-300 dark:bg-charcoal-700 text-gray-600 dark:text-gray-400 font-bold flex items-center justify-center text-sm shadow-md transition-all duration-300';
+            // These rewrite className outright, so they carry the responsive
+            // sizes too — spelling out only the desktop ones here undid the
+            // phone layout the moment the first step was drawn.
+            const dotBase = 'w-8 h-8 sm:w-10 sm:h-10 rounded-full font-bold flex items-center ' +
+                'justify-center text-xs sm:text-sm shadow-md transition-all duration-300 ';
+            const dotOn = dotBase + 'bg-gold text-charcoal-900';
+            const dotOff = dotBase + 'bg-gray-300 dark:bg-charcoal-700 text-gray-600 dark:text-gray-400';
+            d1.className = stepNum >= 1 ? dotOn : dotOff;
+            d2.className = stepNum >= 2 ? dotOn : dotOff;
+            d3.className = stepNum >= 3 ? dotOn : dotOff;
 
-            const labelBase = 'text-xs uppercase tracking-wider mt-2 font-medium text-center px-1 ';
+            const labelBase = 'text-[10px] sm:text-xs uppercase tracking-wide sm:tracking-wider ' +
+                'mt-1.5 sm:mt-2 font-medium text-center whitespace-nowrap ';
             const labelOn = labelBase + 'text-gray-900 dark:text-white';
             const labelOff = labelBase + 'text-gray-400 dark:text-gray-500';
             l1.className = stepNum >= 1 ? labelOn : labelOff;
@@ -2110,20 +2123,27 @@
             // "Any Available" always leads, whether or not the sheet lists it.
             const others = names.filter(n => n !== ANY_BARBER);
 
+            // Smaller avatars and no second line on a phone: six of these at
+            // the desktop size filled the screen before the services began.
+            const cardBase = 'barber-card cursor-pointer p-2 sm:p-4 rounded-lg text-center ' +
+                'transition-all duration-300 sm:hover:-translate-y-1 sm:hover:shadow-lg active:scale-95 ' +
+                'focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900';
+            const avatarBase = 'w-9 h-9 sm:w-12 sm:h-12 mx-auto rounded-full flex items-center justify-center mb-1 sm:mb-2';
+
             const anyCard = `
-                <div tabindex="0" data-barber="${ANY_BARBER}" class="barber-card cursor-pointer p-3 sm:p-4 border-2 border-gold bg-gold/5 dark:bg-gold/10 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
-                    <div class="w-12 h-12 mx-auto rounded-full bg-gold/20 flex items-center justify-center text-gold mb-2">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                <div tabindex="0" data-barber="${ANY_BARBER}" class="${cardBase} border-2 border-gold bg-gold/5 dark:bg-gold/10">
+                    <div class="${avatarBase} bg-gold/20 text-gold">
+                        <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                     </div>
-                    <h5 class="font-medium text-sm text-gray-900 dark:text-white" data-translate="Any Available">Any Available</h5>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5" data-translate="First available chair">First available chair</p>
+                    <h5 class="font-medium text-xs sm:text-sm text-gray-900 dark:text-white leading-tight" data-translate="Any Available">Any Available</h5>
+                    <p class="hidden sm:block text-xs text-gray-500 dark:text-gray-400 mt-0.5" data-translate="First available chair">First available chair</p>
                 </div>`;
 
             container.innerHTML = anyCard + others.map(name => `
-                <div tabindex="0" data-barber="${escapeAttribute(name)}" class="barber-card cursor-pointer p-3 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
-                    <div class="w-12 h-12 mx-auto rounded-full bg-gray-200 dark:bg-charcoal-800 flex items-center justify-center text-gray-700 dark:text-gray-300 mb-2 font-serif font-bold">${escapeText(name.charAt(0).toUpperCase())}</div>
-                    <h5 class="font-medium text-sm text-gray-900 dark:text-white">${escapeText(name)}</h5>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5" data-translate="Barber">Barber</p>
+                <div tabindex="0" data-barber="${escapeAttribute(name)}" class="${cardBase} border border-gray-200 dark:border-charcoal-700 hover:border-gold/50">
+                    <div class="${avatarBase} bg-gray-200 dark:bg-charcoal-800 text-gray-700 dark:text-gray-300 font-serif font-bold text-sm sm:text-base">${escapeText(name.charAt(0).toUpperCase())}</div>
+                    <h5 class="font-medium text-xs sm:text-sm text-gray-900 dark:text-white leading-tight truncate">${escapeText(name)}</h5>
+                    <p class="hidden sm:block text-xs text-gray-500 dark:text-gray-400 mt-0.5" data-translate="Barber">Barber</p>
                 </div>`).join('');
 
             bindBarberCards();
@@ -2151,14 +2171,16 @@
         const serviceCardsContainer = document.getElementById('serviceCardsContainer');
         if (serviceCardsContainer) {
             serviceCardsContainer.innerHTML = services.map(s => {
-                // Tighter on a phone: eleven of these is the longest list in
-                // the form, and hover lift does nothing on a touchscreen.
-                return `<div tabindex="0" data-service="${s.nameEN}" class="service-card cursor-pointer px-3 py-2.5 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center gap-3 transition-all duration-300 sm:hover:-translate-y-1 sm:hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
-                    <div class="min-w-0">
-                        <h4 class="font-medium text-gray-900 dark:text-white text-sm sm:text-base leading-snug" data-translate="${s.nameEN}">${s.nameEN}</h4>
-                        <p class="text-xs text-gold mt-0.5 sm:mt-1 font-medium">⏱️ ~${s.duration} min</p>
+                // On a phone the name and the duration sit on one line, so a
+                // card is a row rather than a block: eleven of them fit in half
+                // the height they used to. From sm: the duration drops under
+                // the name again, where there is room for it.
+                return `<div tabindex="0" data-service="${s.nameEN}" class="service-card cursor-pointer px-3 py-2 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center gap-2 transition-all duration-300 sm:hover:-translate-y-1 sm:hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                    <div class="min-w-0 flex items-baseline gap-2 sm:block">
+                        <h4 class="font-medium text-gray-900 dark:text-white text-sm sm:text-base leading-snug truncate sm:whitespace-normal" data-translate="${s.nameEN}">${s.nameEN}</h4>
+                        <p class="text-[11px] sm:text-xs text-gold sm:mt-1 font-medium whitespace-nowrap shrink-0">~${s.duration}m<span class="hidden sm:inline">in</span></p>
                     </div>
-                    <span class="text-gold font-serif font-bold text-base sm:text-lg shrink-0">€${s.price.toFixed(2)}</span>
+                    <span class="text-gold font-serif font-bold text-sm sm:text-lg shrink-0">€${s.price.toFixed(0)}<span class="hidden sm:inline">.00</span></span>
                 </div>`;
             }).join('');
 
