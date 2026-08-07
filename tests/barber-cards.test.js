@@ -11,10 +11,13 @@ function grab(name) {
 const ANY_BARBER = 'Any Available';
 const barberField = { value: '' };
 const container = { innerHTML: '' };
+const teamContainer = { innerHTML: '' };
 
 global.document = {
   getElementById: id => id === 'barberCardsContainer' ? container
-                      : id === 'barber' ? barberField : null,
+                      : id === 'barber' ? barberField
+                      : id === 'cms-barbers-grid' ? teamContainer
+                      : null,
   createElement: () => ({
     set textContent(v) { this._t = String(v == null ? '' : v); },
     get innerHTML() { return this._t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
@@ -22,8 +25,9 @@ global.document = {
   querySelectorAll: () => []
 };
 function bindBarberCards() {}
+global.window = { sussexBarberHours: {} };
 
-eval(['renderBarberCards', 'escapeText', 'escapeAttribute'].map(grab).join('\n'));
+eval(['renderBarberCards', 'renderTeamGrid', 'escapeText', 'escapeAttribute'].map(grab).join('\n'));
 
 let failed = 0;
 const ok = (label, actual, want) => {
@@ -63,6 +67,36 @@ ok('markup in a name not injected', container.innerHTML.includes('<img'), false)
 
 renderBarberCards([]);
 ok('empty sheet still offers Any', cardNames(), ['Any Available']);
+
+console.log('--- Our Master Barbers: no hardcoded staff ---');
+// This used to be three cards written into the page: fixed names, invented
+// ratings, and a photo captioned with someone else's name. None of that
+// tracked the Barbers sheet, so adding or removing staff never showed here.
+ok('no barber names left in the page source',
+   /Hemen|Amir|Raman|Bassam|Saan/.test(html.replace(/<script[\s\S]*?<\/script>/g, '')),
+   false);
+ok('the grid starts empty, built only by renderTeamGrid()',
+   /id="cms-barbers-grid"[^>]*>\s*<\/div>/.test(html), true);
+
+const teamNames = () => [...teamContainer.innerHTML.matchAll(/<h3[^>]*>([^<]*)<\/h3>/g)].map(m => m[1]);
+
+renderTeamGrid([{ name: 'Any Available' }, { name: 'Hemen', image: 'h.jpg' }, { name: 'Amir' }]);
+ok('team grid: Any Available is not staff', teamNames().includes('Any Available'), false);
+ok('team grid: real barbers shown', teamNames(), ['Hemen', 'Amir']);
+ok('team grid: a barber with a photo gets an <img>', teamContainer.innerHTML.includes('h.jpg'), true);
+ok('team grid: a barber with no photo gets an initial, not a broken <img>',
+   /<img[^>]*src="\s*"/.test(teamContainer.innerHTML), false);
+
+window.sussexBarberHours = {
+  Hemen: [{ day: 'Tuesday', working: true }, { day: 'Friday', working: true },
+          { day: 'Wednesday', working: false }]
+};
+renderTeamGrid([{ name: 'Hemen' }]);
+ok('team grid: shows real working days, not a rating', teamContainer.innerHTML.includes('Tue · Fri'), true);
+ok('team grid: no invented star rating', teamContainer.innerHTML.includes('★'), false);
+
+renderTeamGrid([]);
+ok('team grid: empty sheet renders nothing, not stale cards', teamContainer.innerHTML, '');
 
 console.log(failed === 0 ? '\nAll card tests passed.' : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);

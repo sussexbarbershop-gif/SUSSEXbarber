@@ -251,55 +251,12 @@
                 <p class="text-gray-600 dark:text-gray-400 mt-6 font-light max-w-2xl mx-auto">Meet the experienced professionals dedicated to giving you the perfect look. Every barber at Sussex is a master of their craft.</p>
             </div>
             
-            <div id="cms-barbers-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <!-- Barber 1 -->
-                <div class="bg-gray-50 dark:bg-charcoal-800 rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-charcoal-700 hover:-translate-y-2 transition-transform duration-300">
-                    <img src="assets/barber_1_1783434973367.jpg" alt="Amir" class="w-full h-80 object-cover filter brightness-90 contrast-125 dark:brightness-75 transition-transform duration-700 group-hover:scale-110">
-                    <div class="p-6">
-                        <div class="flex justify-between items-center mb-2">
-                            <h3 class="text-xl font-medium text-gray-900 dark:text-white">Hemen</h3>
-                            <div class="text-gold text-sm">★★★★★ 4.9</div>
-                        </div>
-                        <p class="text-gold text-xs uppercase tracking-widest mb-4">Master Barber</p>
-                        <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-2 mb-6">
-                            <li><span class="font-semibold text-gray-800 dark:text-gray-200">Specialty:</span> Skin Fades, Beards</li>
-                            <li><span class="font-semibold text-gray-800 dark:text-gray-200">Experience:</span> 5+ Years</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <!-- Barber 2 -->
-                <div class="bg-gray-50 dark:bg-charcoal-800 rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-charcoal-700 hover:-translate-y-2 transition-transform duration-300">
-                    <img src="assets/barber_2_1783434982938.jpg" alt="Raman" class="w-full h-80 object-cover filter brightness-90 contrast-125 dark:brightness-75 transition-transform duration-700 group-hover:scale-110">
-                    <div class="p-6">
-                        <div class="flex justify-between items-center mb-2">
-                            <h3 class="text-xl font-medium text-gray-900 dark:text-white">Amir</h3>
-                            <div class="text-gold text-sm">★★★★★ 4.8</div>
-                        </div>
-                        <p class="text-gold text-xs uppercase tracking-widest mb-4">Senior Stylist</p>
-                        <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-2 mb-6">
-                            <li><span class="font-semibold text-gray-800 dark:text-gray-200">Specialty:</span> Classic Cuts, Styling</li>
-                            <li><span class="font-semibold text-gray-800 dark:text-gray-200">Experience:</span> 8+ Years</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <!-- Barber 3 -->
-                <div class="bg-gray-50 dark:bg-charcoal-800 rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-charcoal-700 hover:-translate-y-2 transition-transform duration-300">
-                    <img src="assets/barber_3_1783435001784.jpg" alt="Bassam" class="w-full h-80 object-cover filter brightness-90 contrast-125 dark:brightness-75 transition-transform duration-700 group-hover:scale-110">
-                    <div class="p-6">
-                        <div class="flex justify-between items-center mb-2">
-                            <h3 class="text-xl font-medium text-gray-900 dark:text-white">Raman</h3>
-                            <div class="text-gold text-sm">★★★★★ 4.9</div>
-                        </div>
-                        <p class="text-gold text-xs uppercase tracking-widest mb-4">Barber</p>
-                        <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-2 mb-6">
-                            <li><span class="font-semibold text-gray-800 dark:text-gray-200">Specialty:</span> Hot Towel Shaves</li>
-                            <li><span class="font-semibold text-gray-800 dark:text-gray-200">Experience:</span> 4+ Years</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
+            <!-- Built by renderTeamGrid() from the Barbers sheet. This used to be
+                 three cards written into the page — fixed names, invented ratings
+                 and specialties — so a barber added or removed in the panel never
+                 reached it. Two columns on a phone keeps six staff to a screen or
+                 two instead of one wide card each. -->
+            <div id="cms-barbers-grid" class="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6 lg:gap-8"></div>
         </div>
     </section>
 
@@ -2155,6 +2112,45 @@
             }
         }
 
+        /** "Our Master Barbers" showcase. Three cards used to be written
+         *  straight into the page: fixed names, invented ratings and
+         *  specialties, disconnected from the Barbers sheet. Adding Bassam or
+         *  Saan never showed them here, removing a barber never took them
+         *  down, and "Amir"'s photo was captioned "Hemen". This builds the
+         *  section from the same list the booking form uses, and shows their
+         *  actual working days instead of a made-up rating. */
+        function renderTeamGrid(barbers) {
+            const container = document.getElementById('cms-barbers-grid');
+            if (!container) return;
+
+            const staff = (barbers || []).filter(b => String(b.name).trim() && String(b.name).trim() !== ANY_BARBER);
+            if (staff.length === 0) { container.innerHTML = ''; return; }
+
+            const dayShort = { Monday:'Mon', Tuesday:'Tue', Wednesday:'Wed', Thursday:'Thu',
+                                Friday:'Fri', Saturday:'Sat', Sunday:'Sun' };
+
+            container.innerHTML = staff.map(b => {
+                const name = String(b.name).trim();
+                const rota = (window.sussexBarberHours || {})[name] || [];
+                const days = rota.filter(r => r.working).map(r => dayShort[r.day] || r.day);
+                const schedule = days.length ? days.join(' · ') : 'By appointment';
+
+                const photo = b.image
+                    ? `<img src="${escapeAttribute(b.image)}" alt="${escapeAttribute(name)}" class="w-full h-full object-cover filter brightness-90 contrast-125 dark:brightness-75 transition-transform duration-700 group-hover:scale-110">`
+                    : `<div class="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-charcoal-700 text-gray-500 dark:text-gray-400 font-serif font-bold text-3xl sm:text-5xl">${escapeText(name.charAt(0).toUpperCase())}</div>`;
+
+                return `
+                <div class="group bg-gray-50 dark:bg-charcoal-800 rounded-lg sm:rounded-xl overflow-hidden shadow-md sm:shadow-lg border border-gray-200 dark:border-charcoal-700 sm:hover:-translate-y-2 transition-transform duration-300">
+                    <div class="w-full aspect-square sm:aspect-[3/4] overflow-hidden">${photo}</div>
+                    <div class="p-2.5 sm:p-6">
+                        <h3 class="text-sm sm:text-xl font-medium text-gray-900 dark:text-white truncate">${escapeText(name)}</h3>
+                        <p class="text-gold text-[10px] sm:text-xs uppercase tracking-wide sm:tracking-widest mt-0.5 sm:mt-2 mb-1 sm:mb-4" data-translate="Barber">Barber</p>
+                        <p class="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400 truncate sm:whitespace-normal">${escapeText(schedule)}</p>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
         function escapeText(str) {
             const div = document.createElement('div');
             div.textContent = String(str == null ? '' : str);
@@ -2285,6 +2281,7 @@
             renderServicesList(services);
             renderServiceCards(services);
             renderBarberCards(config.barbers);
+            renderTeamGrid(config.barbers);
             renderHoursList(hours);
             renderGalleryGrid(config.gallery);
             renderSettings(config.settings);
