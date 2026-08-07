@@ -96,7 +96,7 @@ var SLOT_MINUTES = 30;
  * reaches the site when someone pastes it in and redeploys, and forgetting
  * that has been the cause of every "I changed it but nothing happened".
  */
-var BACKEND_VERSION = '6-private-diary';
+var BACKEND_VERSION = '7-settings-as-text';
 
 // ---- Helpers ----------------------------------------------------------
 
@@ -110,6 +110,22 @@ function json(obj) {
 
 function sheetNamed(ss, name) {
   return ss.getSheetByName(name) || ss.insertSheet(name);
+}
+
+/**
+ * Replace the Settings sheet with `pairs` — [[key, value], ...].
+ *
+ * The value column is set to plain text first. A phone number written as
+ * "+31 6 53730803" begins with a plus, which Sheets parses as a formula, and
+ * the cell ends up holding #ERROR! — which the website then displays where the
+ * number should be. The same trap catches anything starting with =, -, @ or +.
+ */
+function writeSettings(sheet, pairs) {
+  var rows = [['Key', 'Value']].concat(pairs);
+  sheet.clear();
+  sheet.getRange(1, 2, rows.length, 1).setNumberFormat('@');
+  sheet.getRange(1, 1, rows.length, 2).setValues(rows);
+  SpreadsheetApp.flush();
 }
 
 /** Drive folder that holds gallery and barber photos. Created on first use. */
@@ -173,7 +189,7 @@ function getRawBookingsSheet(ss) {
  * Bump when setupSheets() starts creating something new, so the next request
  * runs it once more instead of trusting the "already done" mark.
  */
-var SCHEMA_VERSION = '5-dedupe-rotas';
+var SCHEMA_VERSION = '6-settings-as-text';
 
 /**
  * setupSheets() opens nine sheets and reads them to decide it has nothing to
@@ -205,13 +221,15 @@ function setupSheets() {
 
   var settings = sheetNamed(ss, SHEET_SETTINGS);
   if (settings.getLastRow() === 0) {
-    settings.appendRow(['Key', 'Value']);
-    settings.appendRow(['hero_title', 'Masterful Cuts, Exceptional Service.']);
-    settings.appendRow(['hero_subtitle', 'Elevating the art of grooming in Sussex. Experience the difference.']);
-    settings.appendRow(['about_text', 'With years of experience, our master barbers provide the finest cuts, shaves, and grooming services in Sussex.']);
-    settings.appendRow(['contact_phone', '+31 123 456 789']);
-    settings.appendRow(['contact_address', 'Van Hogendorpstraat 10, 2242 KZ Wassenaar, Netherlands']);
+    writeSettings(settings, [
+      ['hero_title', 'Masterful Cuts, Exceptional Service.'],
+      ['hero_subtitle', 'Elevating the art of grooming in Sussex. Experience the difference.'],
+      ['about_text', 'With years of experience, our master barbers provide the finest cuts, shaves, and grooming services in Sussex.'],
+      ['contact_phone', '+31 123 456 789'],
+      ['contact_address', 'Van Hogendorpstraat 10, 2242 KZ Wassenaar, Netherlands']
+    ]);
   }
+  repairSettingErrors(settings);
 
   var barbers = sheetNamed(ss, SHEET_BARBERS);
   if (barbers.getLastRow() === 0) {
@@ -260,6 +278,39 @@ function setupSheets() {
   var timeOff = sheetNamed(ss, SHEET_TIME_OFF);
   if (timeOff.getLastRow() === 0) {
     timeOff.appendRow(['Barber', 'From', 'To', 'Note']);
+  }
+}
+
+/**
+ * Puts back any Settings value that has become a formula error.
+ *
+ * contact_phone was written with appendRow() as "+31 6 53730803"; Sheets read
+ * the leading plus as a formula and stored #ERROR!, and the site had no number
+ * to show. Writing is fixed at the source, but the broken cell is already in
+ * the sheet and setupSheets() only fills a sheet that is completely empty.
+ * A no-op once the values are clean.
+ */
+function repairSettingErrors(sheet) {
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return;
+
+  var replacements = {
+    contact_phone: '+31 6 53730803',
+    contact_address: 'Van Hogendorpstraat 10, 2242 KZ Wassenaar, Netherlands'
+  };
+
+  var fixed = false;
+  for (var r = 1; r < data.length; r++) {
+    var key = String(data[r][0]).trim();
+    var value = String(data[r][1]);
+    if (value.indexOf('#') !== 0) continue;      // not an error cell
+    if (!replacements[key]) continue;            // nothing sensible to restore
+    sheet.getRange(r + 1, 2).setNumberFormat('@').setValue(replacements[key]);
+    fixed = true;
+  }
+  if (fixed) {
+    SpreadsheetApp.flush();
+    CacheService.getScriptCache().remove('config');
   }
 }
 
@@ -907,12 +958,10 @@ function doPost(e) {
     }
 
     if (payload.settings) {
-      var st = ss.getSheetByName(SHEET_SETTINGS);
-      st.clear();
-      st.appendRow(['Key', 'Value']);
-      Object.keys(payload.settings).forEach(function (key) {
-        st.appendRow([key, payload.settings[key]]);
-      });
+      writeSettings(ss.getSheetByName(SHEET_SETTINGS),
+        Object.keys(payload.settings).map(function (key) {
+          return [key, payload.settings[key]];
+        }));
     }
 
     if (payload.barbers) {
@@ -1143,19 +1192,22 @@ function fixContent() {
     if (existing[i][0] === 'visit_count') keep.visit_count = existing[i][1];
   }
 
-  settings.clear();
-  settings.appendRow(['Key', 'Value']);
-  settings.appendRow(['hero_title', 'Masterful Cuts, Exceptional Service.']);
-  settings.appendRow(['hero_subtitle', 'Experience premium grooming and hearty service in the heart of Wassenaar.']);
-  settings.appendRow(['about_text',
-    'At Sussex Barber Shop, we blend modern styling techniques with traditional barbering values. ' +
-    'Our space is designed to be a sanctuary for men—a place where you can unwind, enjoy a free coffee, ' +
-    'and leave looking your absolute best.\n' +
-    'With a 4.7-star rating and a reputation for precise cuts and a friendly atmosphere, our attentive barbers ' +
-    'ensure that every haircut, beard trim, and hot towel shave is executed to perfection.']);
-  settings.appendRow(['contact_phone', '+31 6 53730803']);
-  settings.appendRow(['contact_address', 'Van Hogendorpstraat 10, 2242 KZ Wassenaar, Netherlands']);
-  settings.appendRow(['visit_count', keep.visit_count || 0]);
+  // appendRow() is what put "#ERROR!" in contact_phone: the number starts with
+  // a plus, so Sheets took it for a formula. writeSettings() sets the column to
+  // plain text first.
+  writeSettings(settings, [
+    ['hero_title', 'Masterful Cuts, Exceptional Service.'],
+    ['hero_subtitle', 'Experience premium grooming and hearty service in the heart of Wassenaar.'],
+    ['about_text',
+      'At Sussex Barber Shop, we blend modern styling techniques with traditional barbering values. ' +
+      'Our space is designed to be a sanctuary for men—a place where you can unwind, enjoy a free coffee, ' +
+      'and leave looking your absolute best.\n' +
+      'With a 4.7-star rating and a reputation for precise cuts and a friendly atmosphere, our attentive barbers ' +
+      'ensure that every haircut, beard trim, and hot towel shave is executed to perfection.'],
+    ['contact_phone', '+31 6 53730803'],
+    ['contact_address', 'Van Hogendorpstraat 10, 2242 KZ Wassenaar, Netherlands'],
+    ['visit_count', keep.visit_count || 0]
+  ]);
 
   var gallery = sheetNamed(ss, SHEET_GALLERY);
   gallery.clear();

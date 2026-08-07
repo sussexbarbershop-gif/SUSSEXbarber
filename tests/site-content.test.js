@@ -74,5 +74,11 @@ ok('phone dial link built', phoneLink.getAttribute('href'), 'tel:+31611112222');
 renderSettings({ contact_phone: '' });
 ok('a blank phone does not erase the one on the page', phoneText.textContent, '+31 6 11112222');
 
+// A Sheet cell can hold a formula error, and the live one does.
+['#ERROR!', '#REF!', '#N/A', 'call us'].forEach(bad => {
+  renderSettings({ contact_phone: bad });
+  ok(`"${bad}" is not printed as the phone number`, phoneText.textContent, '+31 6 11112222');
+});
+
 console.log(failed === 0 ? '\nAll site content tests passed.' : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);

@@ -2304,8 +2304,12 @@
             // The phone number appears in four places and was written into all
             // of them. The panel has a "Contact Phone Number" box that nothing
             // read, so changing it there did nothing at all.
+            // A Sheet cell can hold a formula error — #ERROR!, #REF!, #N/A —
+            // and this one currently does. Printing that where the number goes
+            // is worse than leaving the number already on the page, so a value
+            // with no digits in it is ignored.
             const phone = String(settings.contact_phone || '').trim();
-            if (phone) {
+            if (phone && /\d/.test(phone) && !phone.startsWith('#')) {
                 const dialled = 'tel:' + phone.replace(/[^\d+]/g, '');
                 document.querySelectorAll('.cms-contact-phone').forEach(el => {
                     el.textContent = phone;
