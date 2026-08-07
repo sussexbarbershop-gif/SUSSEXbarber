@@ -89,6 +89,13 @@ var KNOWN_BARBERS = [ANY_BARBER, 'Hemen', 'Amir', 'Raman', 'Bassam', 'Saan'];
 /** Appointment length. Must match SLOT_MINUTES in index.html. */
 var SLOT_MINUTES = 30;
 
+// Where the site points before anyone edits them in the panel. These used to
+// be written into index.html in six places between them, so moving premises or
+// changing the handle meant editing the source.
+var DEFAULT_INSTAGRAM = 'https://www.instagram.com/sussexbarbershop';
+var DEFAULT_MAPS_URL = 'https://maps.app.goo.gl/vhDfYkHsUg5vzWHB8';
+var DEFAULT_MAPS_EMBED = 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2449.610582236528!2d4.394628212130325!3d52.1412030656041!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47c5b736b4421bfd%3A0xc6c4293e50ab52e4!2sVan%20Hogendorpstraat%2010%2C%202242%20KZ%20Wassenaar%2C%20Netherlands!5e0!3m2!1sen!2sus!4v1715690000000!5m2!1sen!2sus';
+
 /**
  * Bumped whenever this file changes in a way the site depends on. It is
  * returned with the config so `npm run check:backend` can tell whether the
@@ -96,7 +103,7 @@ var SLOT_MINUTES = 30;
  * reaches the site when someone pastes it in and redeploys, and forgetting
  * that has been the cause of every "I changed it but nothing happened".
  */
-var BACKEND_VERSION = '7-settings-as-text';
+var BACKEND_VERSION = '8-link-settings';
 
 // ---- Helpers ----------------------------------------------------------
 
@@ -189,7 +196,7 @@ function getRawBookingsSheet(ss) {
  * Bump when setupSheets() starts creating something new, so the next request
  * runs it once more instead of trusting the "already done" mark.
  */
-var SCHEMA_VERSION = '6-settings-as-text';
+var SCHEMA_VERSION = '7-link-settings';
 
 /**
  * setupSheets() opens nine sheets and reads them to decide it has nothing to
@@ -226,10 +233,14 @@ function setupSheets() {
       ['hero_subtitle', 'Elevating the art of grooming in Sussex. Experience the difference.'],
       ['about_text', 'With years of experience, our master barbers provide the finest cuts, shaves, and grooming services in Sussex.'],
       ['contact_phone', '+31 123 456 789'],
-      ['contact_address', 'Van Hogendorpstraat 10, 2242 KZ Wassenaar, Netherlands']
+      ['contact_address', 'Van Hogendorpstraat 10, 2242 KZ Wassenaar, Netherlands'],
+      ['instagram_url', DEFAULT_INSTAGRAM],
+      ['maps_url', DEFAULT_MAPS_URL],
+      ['maps_embed_url', DEFAULT_MAPS_EMBED]
     ]);
   }
   repairSettingErrors(settings);
+  addMissingSettings(settings);
 
   var barbers = sheetNamed(ss, SHEET_BARBERS);
   if (barbers.getLastRow() === 0) {
@@ -312,6 +323,34 @@ function repairSettingErrors(sheet) {
     SpreadsheetApp.flush();
     CacheService.getScriptCache().remove('config');
   }
+}
+
+/**
+ * Adds Settings keys the sheet has never held. setupSheets() only fills a
+ * sheet that is completely empty, so a project that predates a new setting
+ * would never get one and the panel would show an empty box for it.
+ * Existing values are untouched.
+ */
+function addMissingSettings(sheet) {
+  var data = sheet.getDataRange().getValues();
+  var present = {};
+  for (var r = 1; r < data.length; r++) {
+    if (data[r][0]) present[String(data[r][0]).trim()] = true;
+  }
+
+  var wanted = [
+    ['instagram_url', DEFAULT_INSTAGRAM],
+    ['maps_url', DEFAULT_MAPS_URL],
+    ['maps_embed_url', DEFAULT_MAPS_EMBED]
+  ];
+  var toAppend = wanted.filter(function (pair) { return !present[pair[0]]; });
+  if (toAppend.length === 0) return;
+
+  var start = sheet.getLastRow() + 1;
+  sheet.getRange(start, 2, toAppend.length, 1).setNumberFormat('@');
+  sheet.getRange(start, 1, toAppend.length, 2).setValues(toAppend);
+  SpreadsheetApp.flush();
+  CacheService.getScriptCache().remove('config');
 }
 
 /**
@@ -1206,6 +1245,9 @@ function fixContent() {
       'ensure that every haircut, beard trim, and hot towel shave is executed to perfection.'],
     ['contact_phone', '+31 6 53730803'],
     ['contact_address', 'Van Hogendorpstraat 10, 2242 KZ Wassenaar, Netherlands'],
+    ['instagram_url', DEFAULT_INSTAGRAM],
+    ['maps_url', DEFAULT_MAPS_URL],
+    ['maps_embed_url', DEFAULT_MAPS_EMBED],
     ['visit_count', keep.visit_count || 0]
   ]);
 

@@ -41,15 +41,22 @@ const el = (id) => (nodes[id] || (nodes[id] = {
   getAttribute(k) { return this._attrs[k]; }
 }));
 
-const phoneText = { tagName: 'SPAN', textContent: '', _attrs: {},
-  setAttribute(k, v) { this._attrs[k] = v; }, getAttribute(k) { return this._attrs[k]; } };
-const phoneLink = { tagName: 'A', textContent: '', _attrs: {},
-  setAttribute(k, v) { this._attrs[k] = v; }, getAttribute(k) { return this._attrs[k]; } };
+const node = (tagName) => ({ tagName, textContent: '', _attrs: {},
+  setAttribute(k, v) { this._attrs[k] = v; }, getAttribute(k) { return this._attrs[k]; } });
+
+const phoneText = node('SPAN');
+const phoneLink = node('A');
+const igLink = node('A');
+const igHandle = node('SPAN');
+const mapsLink = node('A');
 
 global.document = {
   getElementById: el,
   querySelectorAll: sel => sel === '.cms-contact-phone' ? [phoneText]
-                        : sel === '.cms-contact-phone-link' ? [phoneLink] : []
+                        : sel === '.cms-contact-phone-link' ? [phoneLink]
+                        : sel === '[data-cms-link="instagram"]' ? [igLink]
+                        : sel === '.cms-instagram-handle' ? [igHandle]
+                        : sel === '[data-cms-link="maps"]' ? [mapsLink] : []
 };
 function setText(node, value) { node.innerHTML = value; }
 
@@ -60,7 +67,10 @@ renderSettings({
   hero_subtitle: 'New Subtitle',
   about_text: 'New About',
   contact_address: 'New Address',
-  contact_phone: '+31 6 11112222'
+  contact_phone: '+31 6 11112222',
+  instagram_url: 'https://www.instagram.com/newhandle',
+  maps_url: 'https://maps.app.goo.gl/abc123',
+  maps_embed_url: 'https://www.google.com/maps/embed?pb=NEW'
 });
 
 ok('hero title applied',    el('cms-hero-title').innerHTML, 'New Headline');
@@ -79,6 +89,22 @@ ok('a blank phone does not erase the one on the page', phoneText.textContent, '+
   renderSettings({ contact_phone: bad });
   ok(`"${bad}" is not printed as the phone number`, phoneText.textContent, '+31 6 11112222');
 });
+
+console.log('--- links that used to be written into the page ---');
+ok('instagram link repointed', igLink.getAttribute('href'), 'https://www.instagram.com/newhandle');
+ok('handle read off the URL',  igHandle.textContent, '@newhandle');
+ok('directions link repointed', mapsLink.getAttribute('href'), 'https://maps.app.goo.gl/abc123');
+ok('embedded map repointed',    el('mapIframe').getAttribute('src'), 'https://www.google.com/maps/embed?pb=NEW');
+
+// These become an href and an iframe src. A Sheet the owner shares, or an
+// account that gets taken over, must not be able to run script in a visitor's
+// browser or point the map at another site.
+renderSettings({ instagram_url: 'javascript:alert(1)' });
+ok('javascript: URL refused for the link', igLink.getAttribute('href'), 'https://www.instagram.com/newhandle');
+renderSettings({ maps_url: 'javascript:alert(1)' });
+ok('javascript: URL refused for directions', mapsLink.getAttribute('href'), 'https://maps.app.goo.gl/abc123');
+renderSettings({ maps_embed_url: 'https://evil.example.com/page' });
+ok('only a real Google embed is accepted', el('mapIframe').getAttribute('src'), 'https://www.google.com/maps/embed?pb=NEW');
 
 console.log(failed === 0 ? '\nAll site content tests passed.' : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);

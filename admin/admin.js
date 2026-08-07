@@ -676,7 +676,10 @@ const CMS_FIELDS = {
     cms_hero_subtitle: 'hero_subtitle',
     cms_about_text: 'about_text',
     cms_contact_phone: 'contact_phone',
-    cms_contact_address: 'contact_address'
+    cms_contact_address: 'contact_address',
+    cms_instagram_url: 'instagram_url',
+    cms_maps_url: 'maps_url',
+    cms_maps_embed_url: 'maps_embed_url'
 };
 
 function renderCms() {

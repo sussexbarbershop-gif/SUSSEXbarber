@@ -28,15 +28,18 @@ for (const m of html.matchAll(/class="([^"]*)"/g)) {
 
 // Names that are hooks for JavaScript or for the page's own <style>, not
 // Tailwind utilities, so the compiled sheet is right not to carry them.
+// Anything starting cms- is a querySelectorAll target filled in from the
+// Sheet; they are named that way precisely so this list does not have to grow
+// every time a new one appears.
 const structural = new Set([
   'group', 'peer', 'dark', 'reveal', 'active',
-  'mobile-link',            // querySelectorAll target for the mobile menu
-  'cms-contact-phone',      // text filled in from the Sheet
-  'cms-contact-phone-link'  // href filled in from the Sheet
+  'mobile-link'             // querySelectorAll target for the mobile menu
 ]);
+const isCmsHook = cls => cls.startsWith('cms-');
 
 const missing = [...used].filter(cls =>
   !structural.has(cls) &&
+  !isCmsHook(cls) &&
   !ownStyles.has(cls) &&
   !css.includes(selectorFor(cls))
 ).sort();
