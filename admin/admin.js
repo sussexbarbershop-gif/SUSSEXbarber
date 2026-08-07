@@ -33,6 +33,11 @@ const DEFAULT_HOURS = [
 
 const ADMIN_USERNAME = 'admin';
 
+// The booking form's "no preference" option. It sits in the Barbers sheet so
+// the site can offer it, but it is not a person: it has no rota and no leave.
+// Must match ANY_BARBER in Code.gs and index.html.
+const ANY_BARBER = 'Any Available';
+
 // The password is never stored here. It lives in the Apps Script project
 // (Script Properties > ADMIN_PASSWORD) and is checked server-side, so reading
 // this file tells an attacker nothing. It is held in memory for the session
@@ -173,18 +178,15 @@ async function fetchLiveCMS() {
         cmsLoaded = true;
         saveData();
 
-        if (currentPage === 'barbers') renderBarbers();
-        if (currentPage === 'gallery') renderGallery();
-        if (currentPage === 'services') renderServices();
-        if (currentPage === 'hours') renderHours();
-        if (currentPage === 'dashboard') renderDashboard();
-        if (currentPage === 'analytics') renderAnalytics();
+        // Redraw whatever is open. This was a list of pages to remember to
+        // add to, and Website Text was never on it.
+        renderPage(currentPage);
     } catch (e) {
         console.error("Failed to fetch live CMS data", e);
         // Let the page draw rather than sit on "Loading…" forever; the retry
         // below is what actually fixes it.
         cmsLoaded = true;
-        if (currentPage === 'barbers') renderBarbers();
+        renderPage(currentPage);
         showToast('Could not load from the Sheet — retrying', 'error');
         setTimeout(fetchLiveCMS, 5000);
     }
@@ -232,6 +234,9 @@ function showAdmin() {
     document.getElementById('loginWrapper').style.display = 'none';
     document.getElementById('adminLayout').classList.add('active');
     navigateTo('today');
+    // The diary needs the password, so it can only be asked for once we have
+    // one. On a fresh sign-in that is now, not at page load.
+    fetchLiveBookings();
 }
 
 async function handleLogin(e) {
@@ -325,12 +330,8 @@ async function saveGallery() {
     }
 }
 
-async function saveBarbers() {
-    saveData();
-    if (await syncToSheet({ barbers: barbers })) {
-        showToast('Barbers updated — customers see this now', 'success');
-    }
-}
+// Barbers are saved from the dialog on Our Barbers, which writes the rota and
+// time off in the same call; a barbers-only save would leave those behind.
 
 function getDefaultGallery() {
     return [
@@ -396,6 +397,7 @@ function renderPage(page) {
         // arrive while the page was already open. That took seconds before the
         // backend was sped up, which is why it looked like it worked.
         case 'barbers': renderBarbers(); break;
+        case 'cms': renderCms(); break;
         case 'analytics': renderAnalytics(); break;
     }
 }
@@ -422,29 +424,31 @@ function closeSidebar() {
 function renderDashboard() {
     const today = new Date().toISOString().split('T')[0];
     const todayBookings = bookings.filter(b => b.date === today);
-    const pendingBookings = bookings.filter(b => b.status === 'pending');
-    const confirmedToday = todayBookings.filter(b => b.status === 'confirmed');
+    const upcoming = bookings.filter(b => b.date >= today);
 
-    // Revenue — use stored price from booking if available, fallback to service lookup
-    const totalRevenue = bookings.filter(b => b.status === 'confirmed').reduce((sum, b) => {
-        if (b.price !== undefined && b.price !== null && b.price > 0) {
-            return sum + parseFloat(b.price);
-        }
-        // Fallback for old bookings without price field
-        const svc = services.find(s => s.nameEN === b.service);
+    // Every booking in the sheet is a booking; there is no pending state and
+    // no lowercase 'confirmed'. Filtering on those matched nothing, so this
+    // total was always €0 and the Pending tile always read zero.
+    const totalRevenue = bookings.reduce((sum, b) => {
+        const stored = parseFloat(b.price);
+        if (!isNaN(stored) && stored > 0) return sum + stored;
+        // Older rows were written before the price was stored with them.
+        const svc = services.find(s => s.nameEN === b.serviceName ||
+                                       s.nameNL === b.serviceName);
         return sum + (svc ? svc.price : 0);
     }, 0);
 
     document.getElementById('statTodayBookings').textContent = todayBookings.length;
-    document.getElementById('statPending').textContent = pendingBookings.length;
-    document.getElementById('statRevenue').textContent = `€${totalRevenue}`;
+    document.getElementById('statPending').textContent = upcoming.length;
+    document.getElementById('statRevenue').textContent = `€${Math.round(totalRevenue)}`;
     document.getElementById('statVisits').textContent = visitCount;
 
-    // Update badge
+    // The sidebar badge counts what is still to come, which is the number the
+    // owner actually wants at a glance.
     const badge = document.getElementById('pendingBadge');
     if (badge) {
-        badge.textContent = pendingBookings.length;
-        badge.style.display = pendingBookings.length > 0 ? 'inline' : 'none';
+        badge.textContent = upcoming.length;
+        badge.style.display = upcoming.length > 0 ? 'inline' : 'none';
     }
 
     // Recent bookings
@@ -460,18 +464,17 @@ function renderRecentBookings(list) {
         return;
     }
 
+    // Same field-name mismatch as the bookings table: b.name, b.service and
+    // b.barber do not exist, so these columns were blank.
     tbody.innerHTML = list.map(b => `
         <tr>
-            <td style="color:var(--text-primary);font-weight:500">${escapeHtml(b.name)}</td>
-            <td>${escapeHtml(b.service)}</td>
-            <td>${escapeHtml(b.barber || 'Any')}</td>
-            <td>${b.time}</td>
-            <td><span class="status-badge ${b.status}">● ${capitalize(b.status)}</span></td>
+            <td style="color:var(--text-primary);font-weight:500">${escapeHtml(b.customerName)}</td>
+            <td>${escapeHtml(b.serviceName)}</td>
+            <td>${escapeHtml(b.barberName || 'Any')}</td>
+            <td>${escapeHtml(b.time)}</td>
+            <td><span class="status-badge confirmed">● Booked</span></td>
             <td>
-                ${b.status === 'pending' ? `
-                    <button class="btn btn-success btn-sm" onclick="updateBookingStatus(${b.id}, 'confirmed')">✓</button>
-                    <button class="btn btn-danger btn-sm" onclick="updateBookingStatus(${b.id}, 'cancelled')">✕</button>
-                ` : '—'}
+                <button class="btn btn-danger btn-sm" onclick="cancelBookingById('${escapeAttr(b.id)}')" title="Cancel this booking">Cancel</button>
             </td>
         </tr>
     `).join('');
@@ -490,8 +493,8 @@ function renderBookings() {
         filtered = filtered.filter(b => b.date === today);
     } else if (bookingFilter === 'week') {
         filtered = filtered.filter(b => b.date >= weekAgo);
-    } else if (bookingFilter === 'pending') {
-        filtered = filtered.filter(b => b.status === 'pending');
+    } else if (bookingFilter === 'upcoming') {
+        filtered = filtered.filter(b => b.date >= today);
     }
 
     // Sort by date desc
@@ -505,23 +508,24 @@ function renderBookings() {
         return;
     }
 
+    // The fields are customerName/customerPhone/serviceName/barberName — this
+    // read b.name, b.phone, b.service and b.barber, so every one of those four
+    // columns rendered blank.
     tbody.innerHTML = filtered.map(b => `
         <tr>
-            <td style="color:var(--text-primary);font-weight:500">${escapeHtml(b.name)}</td>
-            <td>${escapeHtml(b.phone || '')}</td>
-            <td>${escapeHtml(b.service)}</td>
-            <td>${escapeHtml(b.barber || 'Any')}</td>
-            <td>${b.date}</td>
-            <td>${b.time}</td>
-            <td><span class="status-badge ${b.status}">● ${capitalize(b.status)}</span></td>
+            <td style="color:var(--text-primary);font-weight:500">${escapeHtml(b.customerName)}</td>
+            <td>${b.customerPhone
+                    ? `<a href="tel:${encodeURIComponent(b.customerPhone)}" style="color:#60a5fa;text-decoration:none">${escapeHtml(b.customerPhone)}</a>`
+                    : '—'}</td>
+            <td>${escapeHtml(b.serviceName)}</td>
+            <td>${escapeHtml(b.barberName || 'Any')}</td>
+            <td>${escapeHtml(b.date)}</td>
+            <td>${escapeHtml(b.time)}</td>
+            <td>${b.date < today
+                    ? '<span style="color:var(--text-muted)">Past</span>'
+                    : '<span class="status-badge confirmed">● Booked</span>'}</td>
             <td>
-                <div style="display:flex;gap:4px">
-                    ${b.status === 'pending' ? `
-                        <button class="btn btn-success btn-sm" onclick="updateBookingStatus(${b.id}, 'confirmed')" title="Confirm">✓</button>
-                        <button class="btn btn-danger btn-sm" onclick="updateBookingStatus(${b.id}, 'cancelled')" title="Cancel">✕</button>
-                    ` : ''}
-                    <button class="btn btn-danger btn-sm" onclick="deleteBooking(${b.id})" title="Delete">🗑</button>
-                </div>
+                <button class="btn btn-danger btn-sm" onclick="cancelBookingById('${escapeAttr(b.id)}')" title="Cancel this booking">Cancel</button>
             </td>
         </tr>
     `).join('');
@@ -537,24 +541,11 @@ function setBookingFilter(filter) {
     renderBookings();
 }
 
-function updateBookingStatus(id, status) {
-    const booking = bookings.find(b => b.id === id);
-    if (booking) {
-        booking.status = status;
-        saveBookings();
-        renderPage(currentPage);
-        showToast(`Booking ${status}`, status === 'confirmed' ? 'success' : 'info');
-    }
-}
-
-function deleteBooking(id) {
-    if (confirm('Are you sure you want to delete this booking?')) {
-        bookings = bookings.filter(b => b.id !== id);
-        saveBookings();
-        renderPage(currentPage);
-        showToast('Booking deleted', 'info');
-    }
-}
+// updateBookingStatus() and deleteBooking() lived here. A booking has no
+// pending state — one arrives booked — so the confirm and reject buttons
+// never appeared, and both only edited the local array while the Sheet kept
+// the row, so a "deleted" booking came back on the next refresh. Cancelling
+// goes through cancelBookingById(), which tells the server.
 
 // ---- Services ----
 function renderServices() {
@@ -675,6 +666,43 @@ function toggleDay(index, isOpen) {
     renderHours();
 }
 
+// ---- Website Text ----
+// The five boxes on the Website Text page and the Settings rows they write.
+// The page had the boxes and a "Save to Website" button, but nothing ever
+// filled them in and saveCMSData() did not exist, so the owner could type into
+// them and lose it on the next click.
+const CMS_FIELDS = {
+    cms_hero_title: 'hero_title',
+    cms_hero_subtitle: 'hero_subtitle',
+    cms_about_text: 'about_text',
+    cms_contact_phone: 'contact_phone',
+    cms_contact_address: 'contact_address'
+};
+
+function renderCms() {
+    Object.keys(CMS_FIELDS).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = settings[CMS_FIELDS[id]] || '';
+    });
+}
+
+async function saveCMSData() {
+    const next = Object.assign({}, settings);
+    Object.keys(CMS_FIELDS).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) next[CMS_FIELDS[id]] = el.value;
+    });
+
+    // saveCMS rewrites the whole Settings sheet from what it is sent, so the
+    // visit counter has to travel with it or it resets to zero.
+    if (settings.visit_count !== undefined) next.visit_count = settings.visit_count;
+
+    if (await syncToSheet({ settings: next })) {
+        settings = next;
+        showToast('Website text updated — customers see this now', 'success');
+    }
+}
+
 // ---- Barber Schedules ----
 // The shop hours above say when the door is open; these say who is behind the
 // chair. A slot is only offered when both agree. Editing lives in the barber
@@ -777,7 +805,7 @@ function renderBarbers() {
 
     barbers.forEach((b, index) => {
         const name = String(b.name).trim();
-        const isPlaceholder = name === 'Any Available';
+        const isPlaceholder = name === ANY_BARBER;
 
         // Show the week at a glance, so the owner can see who covers which day
         // without opening every barber in turn.
@@ -832,7 +860,7 @@ function openBarberModal(index) {
     setBarberModalPhoto(draftImage);
 
     // "Any Available" is the no-preference option, not a person on the rota.
-    const isPlaceholder = String(b.name).trim() === 'Any Available';
+    const isPlaceholder = String(b.name).trim() === ANY_BARBER;
     document.getElementById('barberModalRota').style.display = isPlaceholder ? 'none' : '';
     document.getElementById('barberModalTimeOff').style.display = isPlaceholder ? 'none' : '';
 
@@ -1103,6 +1131,10 @@ function renderDayList(list, nowMinutes) {
     return list.map(b => {
         // Grey out what has already happened so the eye lands on what is next.
         const past = nowMinutes !== null && minutesOf(b.time) < nowMinutes;
+        // Cancel takes the booking's id, not its details. A phone number is
+        // typed by the customer, and pasting one into a quoted onclick let it
+        // close the quote and run whatever followed — inside the owner's
+        // signed-in panel.
         return `
             <div class="today-row${past ? ' is-past' : ''}">
                 <div class="today-time">${escapeHtml(b.time)}</div>
@@ -1111,11 +1143,11 @@ function renderDayList(list, nowMinutes) {
                     <div class="today-service">${escapeHtml(b.serviceName)}${b.barberName ? ' · ' + escapeHtml(b.barberName) : ''}</div>
                 </div>
                 <div class="today-actions">
-                    ${b.customerPhone ? `<a class="today-call" href="tel:${encodeURIComponent(b.customerPhone)}" title="Call ${escapeHtml(b.customerName)}">
+                    ${b.customerPhone ? `<a class="today-call" href="tel:${encodeURIComponent(b.customerPhone)}" title="Call ${escapeAttr(b.customerName)}">
                         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
                         ${escapeHtml(b.customerPhone)}
                     </a>` : ''}
-                    <button type="button" class="today-cancel" onclick="cancelLiveBookingFromPlanner('${b.date}','${b.time}','${b.customerPhone}')">Cancel</button>
+                    <button type="button" class="today-cancel" onclick="cancelBookingById('${escapeAttr(b.id)}')">Cancel</button>
                 </div>
             </div>`;
     }).join('');
@@ -1125,14 +1157,18 @@ function renderDayList(list, nowMinutes) {
 function renderAnalytics() {
     document.getElementById('analyticsTotalVisits').textContent = visitCount;
 
+    // A booking in the sheet is a booking — there is no confirmed/cancelled
+    // split to count, and counting one gave 0 and a 0% rate on every screen.
+    // What the owner can act on is how much is still to come, and how many
+    // visits turn into an appointment.
+    const today = new Date().toISOString().split('T')[0];
     const totalBookings = bookings.length;
-    const confirmedBookings = bookings.filter(b => b.status === 'confirmed').length;
-    const cancelledBookings = bookings.filter(b => b.status === 'cancelled').length;
-    const conversionRate = totalBookings > 0 ? Math.round((confirmedBookings / totalBookings) * 100) : 0;
+    const upcoming = bookings.filter(b => b.date >= today).length;
+    const bookedShare = visitCount > 0 ? Math.round((totalBookings / visitCount) * 100) : 0;
 
     document.getElementById('analyticsTotalBookings').textContent = totalBookings;
-    document.getElementById('analyticsConfirmed').textContent = confirmedBookings;
-    document.getElementById('analyticsConversion').textContent = conversionRate + '%';
+    document.getElementById('analyticsConfirmed').textContent = upcoming;
+    document.getElementById('analyticsConversion').textContent = bookedShare + '%';
 
     // Simple bar chart
     renderSimpleChart();
@@ -1201,11 +1237,19 @@ async function fetchLiveBookings() {
     // One at a time. The backend is slow enough that a second call started
     // before the first returns only makes both slower.
     if (bookingsFetchInFlight) return;
+    // The diary carries every customer's name and phone number, so the server
+    // only hands it over with the password. Nothing to ask for until sign-in.
+    if (!adminPassword) return;
     bookingsFetchInFlight = true;
     try {
-        // Never cached: the panel must show the schedule as it is right now.
-        const res = await fetch(API_URL, { cache: 'no-store' });
-        const data = await res.json();
+        const data = await apiPost({ action: 'allBookings', password: adminPassword });
+        if (data && data.status === 'error') {
+            console.error('Bookings refused:', data.message);
+            showToast(data.message === 'Unauthorized'
+                ? 'Session expired — please sign in again'
+                : 'Could not load bookings', 'error');
+            return;
+        }
         if (Array.isArray(data)) {
             bookings = data.map((b, idx) => ({
                 id: 'BK-' + (100 + idx),
@@ -1381,7 +1425,7 @@ function renderWeeklyPlannerGrid() {
                     <div class="planner-card" style="background:var(--bg-card); border:1px solid var(--border-color); border-left:3px solid var(--gold); border-radius:6px; padding:10px; font-size:12px; transition:transform 0.2s ease;">
                         <div style="font-weight:700; color:var(--gold); font-size:13px; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
                             <span>⏰ ${escapeHtml(b.time)}</span>
-                            <button onclick="cancelLiveBookingFromPlanner('${escapeHtml(b.date)}', '${escapeHtml(b.time)}', '${escapeHtml(b.customerPhone)}')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:12px; padding:0 4px;" title="Cancel Booking">✕</button>
+                            <button onclick="cancelBookingById('${escapeAttr(b.id)}')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:12px; padding:0 4px;" title="Cancel Booking">✕</button>
                         </div>
                         <div style="font-weight:600; color:#fff; margin-bottom:2px;">👤 ${escapeHtml(b.customerName)}</div>
                         ${b.customerPhone ? `<div style="margin-bottom:2px;"><a href="tel:${escapeHtml(b.customerPhone)}" style="color:#60a5fa; text-decoration:none;">📞 ${escapeHtml(b.customerPhone)}</a></div>` : ''}
@@ -1404,13 +1448,21 @@ function renderWeeklyPlannerGrid() {
     if (revEl) revEl.textContent = `€${totalEstRev}`;
 }
 
-async function cancelLiveBookingFromPlanner(date, time, phone) {
-    if (!confirm(`Are you sure you want to cancel the booking on ${date} at ${time}?`)) return;
+/** Cancel by the id the panel gave the booking, so no customer-typed text is
+ *  ever spliced into an onclick attribute. */
+async function cancelBookingById(id) {
+    const b = bookings.find(x => x.id === id);
+    if (!b) return;
+
+    const who = b.customerName || 'this booking';
+    if (!confirm(`Cancel ${who} on ${b.date} at ${b.time}?`)) return;
 
     showToast('Canceling booking...', 'info');
 
-    // Optimistically remove from local array for instant UI update
-    bookings = bookings.filter(b => !(b.date === date && b.time === time && b.customerPhone === phone));
+    // Drop it locally first so the grid reacts at once; the re-sync below is
+    // what makes it true.
+    bookings = bookings.filter(x => x.id !== id);
+    renderToday();
     renderWeeklyPlannerGrid();
     renderBookings();
     renderDashboard();
@@ -1418,9 +1470,9 @@ async function cancelLiveBookingFromPlanner(date, time, phone) {
     try {
         const result = await apiPost({
             action: 'cancelBooking',
-            date: date,
-            time: time,
-            phone: phone
+            date: b.date,
+            time: b.time,
+            phone: b.customerPhone
         });
 
         if (result.status === 'success') {

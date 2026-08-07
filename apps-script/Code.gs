@@ -1,23 +1,26 @@
 /**
- * Sussex Barber Shop — Google Apps Script backend (v3)
+ * Sussex Barber Shop — Google Apps Script backend
  *
  * Paste this over the contents of Code.gs in the Apps Script project, then
  * redeploy the Web App (Deploy > Manage deployments > edit > New version).
+ * Nothing here reaches the site until that redeploy happens.
  *
  * SET THE ADMIN PASSWORD BEFORE DEPLOYING:
  *   Project Settings > Script Properties > Add script property
  *   Property: ADMIN_PASSWORD   Value: <the password you want>
  * The password lives only here, never in the website source.
  *
- * What changed from v2:
- *   - Services and Hours are stored in the Sheet, so the admin panel can
- *     actually change what customers see.
- *   - Every write is authenticated. In v2 `saveCMS` accepted any request,
- *     which let anyone who knew the URL rewrite the site content.
- *   - Removed the `.setHeaders()` calls. ContentService has no such method,
- *     so those lines threw *after* the booking had been written. Apps Script
- *     sets the CORS header itself, so nothing is lost.
- *   - Deploy as: Execute as = Me, Who has access = Anyone.
+ * Deploy as: Execute as = Me, Who has access = Anyone.
+ *
+ * "Anyone" is what lets a customer book without a Google account, so every
+ * endpoint below decides for itself what it will hand out:
+ *   - public:   the site config, availability for a date, a booking, and a
+ *               customer's own appointments looked up by their phone number
+ *   - password: the full diary (names and phone numbers), image uploads,
+ *               and every write that changes what the site shows
+ *
+ * The Sheet is the only store. The site and the panel keep nothing locally,
+ * so what the owner sees and what customers are offered cannot drift apart.
  */
 
 // ---- Configuration ----------------------------------------------------
@@ -85,6 +88,15 @@ var KNOWN_BARBERS = [ANY_BARBER, 'Hemen', 'Amir', 'Raman', 'Bassam', 'Saan'];
 
 /** Appointment length. Must match SLOT_MINUTES in index.html. */
 var SLOT_MINUTES = 30;
+
+/**
+ * Bumped whenever this file changes in a way the site depends on. It is
+ * returned with the config so `npm run check:backend` can tell whether the
+ * deployed Web App is still the version in the repository — this file only
+ * reaches the site when someone pastes it in and redeploys, and forgetting
+ * that has been the cause of every "I changed it but nothing happened".
+ */
+var BACKEND_VERSION = '6-private-diary';
 
 // ---- Helpers ----------------------------------------------------------
 
@@ -205,9 +217,9 @@ function setupSheets() {
   if (barbers.getLastRow() === 0) {
     barbers.appendRow(['Name', 'ImageURL']);
   }
-  // The booking form offers these five by name. Until they exist here they
-  // have no rota, and a barber with no rota falls back to the shop's hours —
-  // which is why Hemen was bookable on a Monday he does not work.
+  // The booking form offers these by name. Until they exist here they have no
+  // rota, and a barber with no rota falls back to the shop's hours — which is
+  // why Hemen was bookable on a Monday he does not work.
   addMissingBarbers(barbers);
 
   var gallery = sheetNamed(ss, SHEET_GALLERY);
@@ -241,8 +253,8 @@ function setupSheets() {
   }
   dedupeBarberHours(barberHours);
   // Barbers added before this sheet existed, or added later from the panel,
-  // start out with no rows at all. Seed them from the shop hours so an
-  // untouched barber behaves exactly as they did before per-barber rotas.
+  // start out with no rows at all. Give them a week from DEFAULT_BARBER_ROTA,
+  // which is every day off for anyone that map does not name.
   seedMissingBarberHours(ss, barberHours);
 
   var timeOff = sheetNamed(ss, SHEET_TIME_OFF);
@@ -507,7 +519,10 @@ function isBarberWorkingAt(config, barberName, dateStr, minutes) {
   var shopFrom = clockToMinutes(shop.from);
   var shopTo = clockToMinutes(shop.to);
   if (shopFrom === null || shopTo === null) return false;
-  if (minutes < shopFrom || minutes >= shopTo) return false;
+  // The appointment has to finish by closing, not merely start before it.
+  // This said `minutes >= shopTo`, which the website never agreed with, so a
+  // hand-made POST could book an appointment running past the shutters.
+  if (minutes < shopFrom || minutes + SLOT_MINUTES > shopTo) return false;
 
   var entry = barberDayEntry(config, barberName, weekday);
   if (!entry) return true;          // no rota yet: shop hours apply
@@ -516,7 +531,7 @@ function isBarberWorkingAt(config, barberName, dateStr, minutes) {
   var from = clockToMinutes(entry.from);
   var to = clockToMinutes(entry.to);
   if (from === null || to === null) return true;
-  if (minutes < from || minutes >= to) return false;
+  if (minutes < from || minutes + SLOT_MINUTES > to) return false;
 
   // The daily break. A slot starting inside it is not bookable; a slot ending
   // exactly as the break starts still is.
@@ -626,6 +641,9 @@ function doGet(e) {
   if (action === 'getConfig' || action === 'getSettings') {
     var config = readConfigCached(ss);
     config.status = 'success';
+    // Not cached with the rest: the cache outlives a redeploy, and a stale
+    // version number here would defeat the point of reporting it.
+    config.backendVersion = BACKEND_VERSION;
     return json(config);
   }
 
@@ -715,21 +733,11 @@ function doGet(e) {
     return json(booked);
   }
 
-  // Otherwise: every active booking.
-  var result = [];
-  for (var r = 1; r < data.length; r++) {
-    var status = statusCol !== -1 ? String(data[r][statusCol]).trim() : 'Active';
-    if (status !== 'Active' && status !== '') continue;
-    result.push({
-      date: formatDateTimezoneSafe(data[r][dateCol !== -1 ? dateCol : 0]),
-      time: formatTimeForFrontend(data[r][timeCol !== -1 ? timeCol : 1]),
-      service: data[r][headers.indexOf('service') !== -1 ? headers.indexOf('service') : 2],
-      barber: data[r][headers.indexOf('barber') !== -1 ? headers.indexOf('barber') : 3],
-      name: data[r][headers.indexOf('name') !== -1 ? headers.indexOf('name') : 4],
-      phone: data[r][headers.indexOf('phone') !== -1 ? headers.indexOf('phone') : 5]
-    });
-  }
-  return json(result);
+  // Nothing else is public. A bare GET used to return every booking in the
+  // shop — customer names and phone numbers included — to anyone who had the
+  // URL, and the URL is in the page source of a public website. The panel now
+  // asks for that list by POST with the password (action: 'allBookings').
+  return json([]);
 }
 
 // ---- POST -------------------------------------------------------------
@@ -764,6 +772,43 @@ function doPost(e) {
     return json({ status: 'error', message: 'Invalid username or password' });
   }
 
+  // --- The whole diary, for the panel. Behind the password: it carries every
+  //     customer's name and phone number.
+  if (action === 'allBookings') {
+    if (!isAuthorized(payload)) {
+      throttleFailedLogin();
+      return json({ status: 'error', message: 'Unauthorized' });
+    }
+
+    var diarySheet = getRawBookingsSheet(ss);
+    if (!diarySheet) return json([]);
+    var diary = diarySheet.getDataRange().getValues();
+    if (diary.length <= 1) return json([]);
+
+    var head2 = diary[0].map(function (h) { return String(h).trim().toLowerCase(); });
+    var col = function (name, fallback) {
+      var idx = head2.indexOf(name);
+      return idx === -1 ? fallback : idx;
+    };
+    var statusIdx = head2.indexOf('status');
+
+    var diaryOut = [];
+    for (var d2 = 1; d2 < diary.length; d2++) {
+      var st = statusIdx !== -1 ? String(diary[d2][statusIdx]).trim() : 'Active';
+      if (st !== 'Active' && st !== '') continue;
+      diaryOut.push({
+        date: formatDateTimezoneSafe(diary[d2][col('date', 0)]),
+        time: formatTimeForFrontend(diary[d2][col('time', 1)]),
+        service: diary[d2][col('service', 2)],
+        barber: diary[d2][col('barber', 3)],
+        name: diary[d2][col('name', 4)],
+        phone: diary[d2][col('phone', 5)],
+        price: diary[d2][col('price', 8)]
+      });
+    }
+    return json(diaryOut);
+  }
+
   // --- New booking (public).
   if (!action || action === 'addBooking') {
     var sheet = getRawBookingsSheet(ss);
@@ -772,7 +817,7 @@ function doPost(e) {
       // Two people submitting the same slot at once would otherwise both win.
       lock.waitLock(10000);
 
-      var check = slotRefusal(ss, sheet, payload.date, payload.time, payload.barber);
+      var check = slotRefusal(ss, sheet, payload);
       if (check) {
         return json({ status: 'error', message: check });
       }
@@ -872,9 +917,16 @@ function doPost(e) {
 
     if (payload.barbers) {
       var bs = ss.getSheetByName(SHEET_BARBERS);
+      var barberRows = [['Name', 'ImageURL']];
+      payload.barbers.forEach(function (b) {
+        if (String(b.name || '').trim()) barberRows.push([b.name, b.image || '']);
+      });
       bs.clear();
-      bs.appendRow(['Name', 'ImageURL']);
-      payload.barbers.forEach(function (b) { bs.appendRow([b.name, b.image || '']); });
+      bs.getRange(1, 1, barberRows.length, 2).setValues(barberRows);
+      // seedMissingBarberHours() reads this sheet at the end of the save. Apps
+      // Script buffers writes, so without this it works from the old list: a
+      // barber just added gets no rota and silently falls back to shop hours.
+      SpreadsheetApp.flush();
     }
 
     if (payload.gallery) {
@@ -950,12 +1002,33 @@ function doPost(e) {
  * only in the browser: the form is public, so the rota is not enforced until
  * the server says so.
  */
-function slotRefusal(ss, sheet, date, time, barber) {
-  if (!date || !time) return '';
+function slotRefusal(ss, sheet, payload) {
+  var date = payload.date;
+  var time = payload.time;
+
+  // This used to return '' — accept — for a booking with no date or time, so a
+  // malformed request wrote a blank row into the diary.
+  if (!date || !time) return 'Please choose a date and a time';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date))) return 'That date is not valid';
+
+  var minutes = clockToMinutes(time);
+  if (minutes === null) return 'That time is not valid';
+
+  var name = String(payload.name || '').trim();
+  var phone = String(payload.phone || '').trim();
+  if (!name) return 'Please give a name for the booking';
+  if (normalisePhone(phone).length < 6) return 'Please give a phone number we can reach you on';
+  // Nothing legitimate is this long; a cell holds 50,000 characters and the
+  // diary is read by a person.
+  if (name.length > 100 || phone.length > 40) return 'That name or number is too long';
+
+  // The diary is only useful for appointments that have not happened yet, and
+  // the site itself only offers the next 30 days.
+  var today = formatDateTimezoneSafe(new Date());
+  if (String(date) < today) return 'That date has already passed';
 
   var config = readConfigCached(ss);
-  var wanted = String(barber || '').trim();
-  var minutes = clockToMinutes(time);
+  var wanted = String(payload.barber || '').trim();
 
   if (wanted && wanted !== ANY_BARBER && wanted !== 'Any') {
     if (isBarberOnLeave(config, wanted, String(date))) {
@@ -1091,15 +1164,15 @@ function fixContent() {
    'assets/IMG_8572.JPEG', 'assets/IMG_8567.JPEG', 'assets/IMG_8569.JPEG']
     .forEach(function (src) { gallery.appendRow([src]); });
 
-  var barbers = sheetNamed(ss, SHEET_BARBERS);
-  barbers.clear();
-  barbers.appendRow(['Name', 'ImageURL']);
-  barbers.appendRow(['Any Available', '']);
+  // Barbers are deliberately left alone. This used to reset the sheet to just
+  // "Any Available", which would delete the staff, strand every rota keyed to
+  // their names, and leave the booking form offering one option.
+  CacheService.getScriptCache().remove('config');
 
-  Logger.log('Settings, Gallery and Barbers reset to the real shop content.');
+  Logger.log('Settings and Gallery reset to the real shop content.');
   Logger.log('Gallery images: 6');
   Logger.log('Address: Van Hogendorpstraat 10, 2242 KZ Wassenaar, Netherlands');
-  Logger.log('Bookings were not touched.');
+  Logger.log('Barbers, rotas and bookings were not touched.');
 }
 
 // ---- Run this once from the editor to check the setup ----------------
