@@ -6,7 +6,7 @@
   "scripts": {
     "build:css": "tailwindcss -i ./src/input.css -o ./assets/tailwind.css --minify",
     "watch:css": "tailwindcss -i ./src/input.css -o ./assets/tailwind.css --watch",
-    "test": "node tests/rota.test.js && node tests/booking-slots.test.js && node tests/booking-refusal.test.js && node tests/barber-cards.test.js && node tests/barber-panel.test.js && node tests/admin-pages.test.js && node tests/admin-wiring.test.js && node tests/tailwind-build.test.js",
+    "test": "node tests/rota.test.js && node tests/booking-slots.test.js && node tests/booking-refusal.test.js && node tests/barber-cards.test.js && node tests/barber-panel.test.js && node tests/admin-pages.test.js && node tests/admin-wiring.test.js && node tests/site-content.test.js && node tests/tailwind-build.test.js",
     "check:backend": "node tests/check-backend.js"
   },
   "devDependencies": {

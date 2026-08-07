@@ -30,8 +30,9 @@ for (const m of html.matchAll(/class="([^"]*)"/g)) {
 // Tailwind utilities, so the compiled sheet is right not to carry them.
 const structural = new Set([
   'group', 'peer', 'dark', 'reveal', 'active',
-  'mobile-link',          // querySelectorAll target for the mobile menu
-  'cms-contact-phone'     // filled in from the Sheet
+  'mobile-link',            // querySelectorAll target for the mobile menu
+  'cms-contact-phone',      // text filled in from the Sheet
+  'cms-contact-phone-link'  // href filled in from the Sheet
 ]);
 
 const missing = [...used].filter(cls =>
