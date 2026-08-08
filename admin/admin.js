@@ -807,26 +807,23 @@ function renderBarbers() {
 
     container.innerHTML = '';
 
-    // Add Barber button card
-    const addCard = document.createElement('div');
-    addCard.className = 'gallery-item add-new';
-    addCard.innerHTML = `<span style="font-size:24px;color:var(--gold)">+</span><span style="font-size:12px;color:var(--text-muted);margin-top:5px">Add Barber</span>`;
-    addCard.onclick = () => addBarber();
-    container.appendChild(addCard);
+    // A second "+ Add Barber" used to sit here as its own tile - the styled
+    // button above the grid already does this, so it was the same action
+    // offered twice, and the tile had no .add-new rule to centre its content,
+    // which is why it rendered as a bare dark square with the label in the
+    // corner.
 
     barbers.forEach((b, index) => {
         const name = String(b.name).trim();
-        const isPlaceholder = name === ANY_BARBER;
+        // Not a person to manage: it exists only so the booking form has a
+        // "no preference" option, and it has no working days to show. Renaming
+        // or deleting it here would silently break that option everywhere.
+        if (name === ANY_BARBER) return;
 
         // Show the week at a glance, so the owner can see who covers which day
         // without opening every barber in turn.
-        let summary;
-        if (isPlaceholder) {
-            summary = 'Booking option';
-        } else {
-            const on = rotaFor(name).filter(r => r.working).map(r => r.day.slice(0, 3));
-            summary = on.length ? on.join(' · ') : 'No days set';
-        }
+        const on = rotaFor(name).filter(r => r.working).map(r => r.day.slice(0, 3));
+        const summary = on.length ? on.join(' · ') : 'No days set';
 
         const item = document.createElement('div');
         item.className = 'gallery-item';

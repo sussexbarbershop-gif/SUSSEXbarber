@@ -56,6 +56,39 @@ const myBookingsFn = (site.match(/listEl\.innerHTML = myBookingsCache\.map[\s\S]
 ok('a customer\'s own bookings list carries no emoji',
    /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(myBookingsFn), false);
 
+console.log('--- Our Barbers grid: one Add action, no unmanageable card ---');
+function grabByBraces(src, name) {
+  const start = src.indexOf('function ' + name + '(');
+  if (start === -1) return '';
+  const bodyStart = src.indexOf('{', start);
+  let depth = 0, i = bodyStart;
+  for (; i < src.length; i++) {
+    if (src[i] === '{') depth++;
+    else if (src[i] === '}') { depth--; if (depth === 0) break; }
+  }
+  return src.slice(start, i + 1);
+}
+
+(function () {
+  const ANY_BARBER = 'Any Available';
+  const container = { innerHTML: '', appendChild(el) { this.innerHTML += el.innerHTML; } };
+  global.document = {
+    getElementById: id => id === 'barbersContainer' ? container : null,
+    createElement: () => ({ innerHTML: '', style: {} })
+  };
+  const cmsLoaded = true;
+  const barbers = [{ name: ANY_BARBER, image: '' }, { name: 'Hemen', image: '' }];
+  const rotaFor = () => [{ day: 'Tuesday', working: true }];
+  const escapeAttr = s => s;
+  const escapeHtml = s => s;
+  eval(grabByBraces(adminJs, 'renderBarbers'));
+  renderBarbers();
+
+  ok('no second "+ Add Barber" tile rendered', container.innerHTML.includes('Add Barber'), false);
+  ok('"Any Available" gets no card of its own', container.innerHTML.includes(ANY_BARBER), false);
+  ok('a real barber still gets a card', container.innerHTML.includes('Hemen'), true);
+})();
+
 console.log('--- image filters left to do their job ---');
 // A brightness/contrast/hover-brighten stack was applied to real photos of
 // the shop and its barbers, in the gallery and on the team grid.
