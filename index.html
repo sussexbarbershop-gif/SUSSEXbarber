@@ -305,8 +305,12 @@
 
                     <!-- Multi-step Form -->
                     <form id="bookingForm" class="bg-white dark:bg-charcoal-900 p-4 sm:p-10 shadow-xl text-left border border-gray-200 dark:border-charcoal-700 transition-colors duration-300 rounded-lg relative z-30">
-                <input type="hidden" id="service" value="Classic Haircut">
-                <input type="hidden" id="barber" value="Any Available">
+                <!-- All three start empty. A barber and a service used to be
+                     pre-filled, which meant a customer who never touched either
+                     picker still got a booking - for whoever and whatever the
+                     defaults happened to be - without having chosen it. -->
+                <input type="hidden" id="service" value="">
+                <input type="hidden" id="barber" value="">
                 <input type="hidden" id="time" value="">
 
                 <!-- STEP 1: Select Service & Barber -->
@@ -324,7 +328,7 @@
                                 <span class="w-8 h-8 rounded-full bg-gold/20 flex items-center justify-center text-gold shrink-0">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                                 </span>
-                                <span id="barberPickerLabel" class="font-medium text-sm sm:text-base text-gray-900 dark:text-white truncate">Any Available</span>
+                                <span id="barberPickerLabel" class="font-medium text-sm sm:text-base text-gray-500 dark:text-gray-400 truncate" data-translate="Choose barber">Choose barber</span>
                             </span>
                             <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
                         </button>
@@ -333,7 +337,7 @@
                     <div>
                         <label class="block text-xs sm:text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2 sm:mb-3 font-semibold">2. Service</label>
                         <button type="button" id="servicePickerBtn" onclick="openServicePicker()" class="w-full flex items-center justify-between gap-3 px-4 py-3 sm:py-3.5 bg-transparent border border-gray-300 dark:border-charcoal-700 rounded-lg hover:border-gold transition-colors text-left focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
-                            <span id="servicePickerLabel" class="font-medium text-sm sm:text-base text-gray-900 dark:text-white truncate min-w-0">Select a service</span>
+                            <span id="servicePickerLabel" class="font-medium text-sm sm:text-base text-gray-500 dark:text-gray-400 truncate min-w-0" data-translate="Choose service">Choose service</span>
                             <span class="flex items-center gap-2.5 shrink-0">
                                 <span id="servicePickerPrice" class="text-gold font-serif font-bold text-sm sm:text-base"></span>
                                 <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
@@ -344,7 +348,7 @@
                     <!-- Full width on a phone, the way a primary action behaves in
                          an app; back to a right-aligned button from sm: up. -->
                     <div class="pt-2 sm:pt-4 flex justify-stretch sm:justify-end">
-                        <button type="button" id="goToStep2Btn" class="w-full sm:w-auto bg-gold text-charcoal-900 font-semibold uppercase tracking-widest px-6 sm:px-8 py-3.5 rounded-lg hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-charcoal-900 transition-colors duration-300 text-xs sm:text-sm flex items-center justify-center gap-2">
+                        <button type="button" id="goToStep2Btn" disabled class="w-full sm:w-auto bg-gold text-charcoal-900 font-semibold uppercase tracking-widest px-6 sm:px-8 py-3.5 rounded-lg hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-charcoal-900 transition-colors duration-300 text-xs sm:text-sm flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gold disabled:hover:text-charcoal-900">
                             <span class="sm:hidden">Continue</span>
                             <span class="hidden sm:inline">Continue to Date &amp; Time</span>
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
@@ -477,8 +481,8 @@
                             Live Summary
                         </h4>
                         <div class="space-y-3">
-                            <div class="flex justify-between text-sm"><span class="text-gray-600 dark:text-gray-400">Service:</span><span id="desktopLiveService" class="font-medium text-gray-900 dark:text-white text-right">Classic Haircut</span></div>
-                            <div class="flex justify-between text-sm"><span class="text-gray-600 dark:text-gray-400">Barber:</span><span id="desktopLiveBarber" class="font-medium text-gray-900 dark:text-white text-right">Any Available</span></div>
+                            <div class="flex justify-between text-sm"><span class="text-gray-600 dark:text-gray-400">Service:</span><span id="desktopLiveService" class="font-medium text-gray-900 dark:text-white text-right">-</span></div>
+                            <div class="flex justify-between text-sm"><span class="text-gray-600 dark:text-gray-400">Barber:</span><span id="desktopLiveBarber" class="font-medium text-gray-900 dark:text-white text-right">-</span></div>
                             <div class="flex justify-between text-sm"><span class="text-gray-600 dark:text-gray-400">Date:</span><span id="desktopLiveDate" class="font-medium text-gray-900 dark:text-white text-right">-</span></div>
                             <div class="flex justify-between text-sm"><span class="text-gray-600 dark:text-gray-400">Time:</span><span id="desktopLiveTime" class="font-medium text-gold font-bold text-right">-</span></div>
                         </div>
@@ -1952,11 +1956,15 @@
             const names = (list || []).map(b => String(b.name).trim()).filter(Boolean);
             const others = names.filter(n => n !== ANY_BARBER);
 
+            // A barber the owner has since deleted falls back to "Any
+            // Available" - but an empty field means the customer has not
+            // chosen yet, which is a different thing and must stay empty.
             const chosen = document.getElementById('barber');
-            if (chosen && !names.includes(String(chosen.value).trim())) {
+            const value = chosen ? String(chosen.value).trim() : '';
+            if (chosen && value && !names.includes(value)) {
                 chosen.value = ANY_BARBER;
             }
-            const current = chosen ? String(chosen.value).trim() : ANY_BARBER;
+            const current = chosen ? String(chosen.value).trim() : '';
 
             const anyIcon = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>`;
 
@@ -1983,12 +1991,38 @@
                 )).join('');
 
             updateBarberPickerLabel();
+            updateStep1Ready();
         }
 
+        /** Grey placeholder text until something is chosen, then the choice in
+         *  the normal text colour - the usual way a form field shows the
+         *  difference between "not filled in" and "filled in". */
         function updateBarberPickerLabel() {
             const label = document.getElementById('barberPickerLabel');
             const chosen = document.getElementById('barber');
-            if (label && chosen) label.textContent = chosen.value || ANY_BARBER;
+            if (!label || !chosen) return;
+            const value = String(chosen.value || '').trim();
+            label.textContent = value || 'Choose barber';
+            setPickerLabelState(label, !!value);
+        }
+
+        /** Placeholder styling on or off. Also used by the service picker. */
+        function setPickerLabelState(label, chosen) {
+            label.classList.toggle('text-gray-900', chosen);
+            label.classList.toggle('dark:text-white', chosen);
+            label.classList.toggle('text-gray-500', !chosen);
+            label.classList.toggle('dark:text-gray-400', !chosen);
+        }
+
+        /** Step 1 is done when both questions have an answer. Disabling the
+         *  button rather than validating on click: there is nothing to explain
+         *  in a toast when the two things still to do are on screen. */
+        function updateStep1Ready() {
+            const btn = document.getElementById('goToStep2Btn');
+            if (!btn) return;
+            const barber = String(document.getElementById('barber').value || '').trim();
+            const service = String(document.getElementById('service').value || '').trim();
+            btn.disabled = !(barber && service);
         }
 
         function openBarberPicker() {
@@ -2115,6 +2149,7 @@
             }).join('');
 
             updateServicePickerLabel();
+            updateStep1Ready();
         }
 
         function updateServicePickerLabel() {
@@ -2122,7 +2157,10 @@
             const priceEl = document.getElementById('servicePickerPrice');
             const current = String(document.getElementById('service').value || '').trim();
             const match = (window.sussexServiceList || []).find(s => s.nameEN === current);
-            if (label) label.textContent = current || 'Select a service';
+            if (label) {
+                label.textContent = current || 'Choose service';
+                setPickerLabelState(label, !!current);
+            }
             if (priceEl) priceEl.textContent = match ? `€${match.price.toFixed(0)}` : '';
         }
 

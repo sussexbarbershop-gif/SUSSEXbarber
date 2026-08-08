@@ -13,10 +13,20 @@ function grab(name) {
 }
 
 const ANY_BARBER = 'Any Available';
-const el = (initial = {}) => Object.assign({
-  classList: { add() {}, remove() {} },
-  dispatchEvent() {}, addEventListener() {}
-}, initial);
+/** A stand-in element whose classList remembers what is on it, so the tests can
+ *  tell placeholder styling from chosen styling. */
+const el = (initial = {}) => {
+  const classes = new Set();
+  return Object.assign({
+    classList: {
+      add(c) { classes.add(c); },
+      remove(c) { classes.delete(c); },
+      toggle(c, on) { on ? classes.add(c) : classes.delete(c); },
+      contains(c) { return classes.has(c); }
+    },
+    dispatchEvent() {}, addEventListener() {}
+  }, initial);
+};
 
 const barberField = el({ value: ANY_BARBER });
 const serviceField = el({ value: '' });
@@ -29,12 +39,15 @@ const servicePrice = el({ textContent: '' });
 const barberSheet = el({ hidden: false, classList: { add(c) { if (c === 'hidden') barberSheet.hidden = true; }, remove(c) { if (c === 'hidden') barberSheet.hidden = false; } } });
 const serviceSheet = el({ hidden: false, classList: { add(c) { if (c === 'hidden') serviceSheet.hidden = true; }, remove(c) { if (c === 'hidden') serviceSheet.hidden = false; } } });
 
+const continueBtn = el({ disabled: true });
+
 const byId = {
   barber: barberField, service: serviceField, date: dateField,
   barberPickerList: barberList, servicePickerList: serviceList,
   barberPickerLabel: barberLabel, servicePickerLabel: serviceLabel,
   servicePickerPrice: servicePrice,
   barberPickerSheet: barberSheet, servicePickerSheet: serviceSheet,
+  goToStep2Btn: continueBtn,
   desktopLiveService: null, time: el({ value: '' })
 };
 global.document = {
@@ -54,7 +67,7 @@ function noSlotsOn() { return false; }
 let bookedTimesList = [];
 
 eval([
-  'escapeText', 'escapeAttribute',
+  'escapeText', 'escapeAttribute', 'setPickerLabelState', 'updateStep1Ready',
   'renderBarberCards', 'updateBarberPickerLabel', 'chooseBarber', 'closeBarberPicker',
   'renderServiceCards', 'updateServicePickerLabel', 'chooseService', 'closeServicePicker'
 ].map(grab).join('\n'));
@@ -87,6 +100,30 @@ console.log('--- every inline onclick can actually reach its function ---');
   const unreachable = [...handlers].filter(h => !exported.has(h) && !topLevel.has(h)).sort();
   ok('no onclick calls a function trapped inside the IIFE', unreachable, []);
 }
+
+console.log('--- nothing is chosen for the customer ---');
+// Both fields used to ship pre-filled ("Classic Haircut", "Any Available"), so
+// someone who opened neither picker still booked - for whoever and whatever the
+// defaults were - without having chosen either.
+ok('the page ships with no barber pre-selected', /id="barber" value=""/.test(html), true);
+ok('the page ships with no service pre-selected', /id="service" value=""/.test(html), true);
+ok('the Continue button starts disabled', /id="goToStep2Btn" disabled/.test(html), true);
+
+barberField.value = '';
+serviceField.value = '';
+renderBarberCards([{ name: ANY_BARBER }, { name: 'Hemen' }]);
+renderServiceCards([{ nameEN: 'Classic Haircut', duration: 30, price: 28 }]);
+ok('barber button reads as a prompt', barberLabel.textContent, 'Choose barber');
+ok('service button reads as a prompt', serviceLabel.textContent, 'Choose service');
+ok('prompts are styled as placeholders', barberLabel.classList.contains('text-gray-500'), true);
+ok('no price is shown before a service is picked', servicePrice.textContent, '');
+ok('Continue is blocked with neither chosen', continueBtn.disabled, true);
+
+chooseBarber('Hemen');
+ok('Continue is still blocked with only a barber', continueBtn.disabled, true);
+chooseService('Classic Haircut');
+ok('Continue unlocks once both are chosen', continueBtn.disabled, false);
+ok('a real choice is not styled as a placeholder', barberLabel.classList.contains('text-gray-500'), false);
 
 console.log('--- barber picker ---');
 barberField.value = 'Hemen';

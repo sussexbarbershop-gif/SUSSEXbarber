@@ -10,14 +10,21 @@ function grab(name) {
 
 const ANY_BARBER = 'Any Available';
 const barberField = { value: '' };
+const serviceField = { value: '' };
 const container = { innerHTML: '' };
 const teamContainer = { innerHTML: '' };
+const noopClassList = { add() {}, remove() {}, toggle() {}, contains: () => false };
+const pickerLabel = { textContent: '', classList: noopClassList };
+const continueBtn = { disabled: true };
 
 global.document = {
   getElementById: id => id === 'barberPickerList' ? container
                       : id === 'barber' ? barberField
+                      : id === 'service' ? serviceField
                       : id === 'cms-barbers-grid' ? teamContainer
-                      : null, // barberPickerLabel etc: updateBarberPickerLabel() guards on null
+                      : id === 'barberPickerLabel' ? pickerLabel
+                      : id === 'goToStep2Btn' ? continueBtn
+                      : null,
   createElement: () => ({
     set textContent(v) { this._t = String(v == null ? '' : v); },
     get innerHTML() { return this._t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
@@ -26,7 +33,8 @@ global.document = {
 };
 global.window = { sussexBarberHours: {} };
 
-eval(['renderBarberCards', 'renderTeamGrid', 'escapeText', 'escapeAttribute', 'updateBarberPickerLabel'].map(grab).join('\n'));
+eval(['renderBarberCards', 'renderTeamGrid', 'escapeText', 'escapeAttribute',
+      'updateBarberPickerLabel', 'setPickerLabelState', 'updateStep1Ready'].map(grab).join('\n'));
 
 let failed = 0;
 const ok = (label, actual, want) => {
