@@ -60,6 +60,13 @@ const ok = (label, actual, want) => {
 const D = s => new Date(s + 'T00:00:00');
 
 // Aug 2026: 16 Sun, 17 Mon, 18 Tue, 19 Wed, 20 Thu, 21 Fri, 22 Sat
+console.log('--- the mobile action bar and duplicate Call/Directions buttons are gone ---');
+// A floating round Book button and a floating round Contact button used to sit
+// at the same bottom-right corner, and a second Call/Directions pair sat above
+// the address. Both were removed for the header's Book Now and the nav's Call.
+ok('no mobileActionBar left in the page', html.includes('id="mobileActionBar"'), false);
+ok('no pb-28 left over for the removed bar', /class="[^"]*\bpb-28\b/.test(html), false);
+
 console.log('--- the barber list comes from the sheet ---');
 ok('no barber names written into the page',
    hardcoded.filter(n => n !== 'Any Available' && !n.startsWith('$')), []);
