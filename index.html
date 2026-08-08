@@ -25,7 +25,7 @@
            card or a time chip does not highlight it. Real content - the
            address, the phone number, prices - stays copyable, which is the
            whole point of putting it on the page. */
-        nav, .service-card, .barber-card, #timeChipsGrid, #customCalendar,
+        nav, #timeChipsGrid, #customCalendar,
         button, .no-select {
             -webkit-user-select: none;
             -ms-user-select: none;
@@ -311,38 +311,34 @@
 
                 <!-- STEP 1: Select Service & Barber -->
                 <div id="bookingStep1" class="space-y-4 sm:space-y-8">
+                    <!-- A grid of barber cards and a grid of service cards used to sit
+                         here - six-plus tiles each, most of the step's height, to make a
+                         choice that is really "pick one name from a short list" twice
+                         over. Each is a single button now, labelled with the choice, that
+                         opens a sheet to change it - the way an app asks a one-of-many
+                         question instead of laying every option out on the page. -->
                     <div>
-                        <label class="block text-xs sm:text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2 sm:mb-3 font-semibold">1. Choose Preferred Barber</label>
-                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="barberCardsContainer">
-                            <div tabindex="0" data-barber="Any Available" class="barber-card cursor-pointer p-2 sm:p-4 border-2 border-gold bg-gold/5 dark:bg-gold/10 rounded-lg text-center transition-all duration-300 sm:hover:-translate-y-1 sm:hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
-                                <div class="w-9 h-9 sm:w-12 sm:h-12 mx-auto rounded-full bg-gold/20 flex items-center justify-center text-gold mb-1 sm:mb-2">
-                                    <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                                </div>
-                                <h5 class="font-medium text-xs sm:text-sm text-gray-900 dark:text-white leading-tight">Any Available</h5>
-                                <p class="hidden sm:block text-xs text-gray-500 dark:text-gray-400 mt-0.5">First available chair</p>
-                            </div>
-                        </div>
+                        <label class="block text-xs sm:text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2 sm:mb-3 font-semibold">1. Barber</label>
+                        <button type="button" id="barberPickerBtn" onclick="openBarberPicker()" class="w-full flex items-center justify-between gap-3 px-4 py-3 sm:py-3.5 bg-transparent border border-gray-300 dark:border-charcoal-700 rounded-lg hover:border-gold transition-colors text-left focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                            <span class="flex items-center gap-2.5 min-w-0">
+                                <span class="w-8 h-8 rounded-full bg-gold/20 flex items-center justify-center text-gold shrink-0">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                </span>
+                                <span id="barberPickerLabel" class="font-medium text-sm sm:text-base text-gray-900 dark:text-white truncate">Any Available</span>
+                            </span>
+                            <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                        </button>
                     </div>
 
                     <div>
-                        <label class="block text-xs sm:text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2 sm:mb-3 font-semibold">2. Choose Service</label>
-                        <!-- Eleven services stacked one per row pushed "Next Step" off
-                             the bottom of a phone, so the list scrolls within itself
-                             below sm: and the button stays where the thumb expects it.
-                             On a wider screen the whole list fits and there is no cap. -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[46vh] overflow-y-auto pr-1 -mr-1 sm:max-h-none sm:overflow-visible sm:pr-0 sm:mr-0" id="serviceCardsContainer">
-                            <!-- One card so the form is not empty for the instant before
-                                 the Sheet answers. renderServiceCards() replaces the lot;
-                                 the other ten were a second copy of the price list to keep
-                                 in step, and nobody ever saw them. -->
-                            <div tabindex="0" data-service="Classic Haircut" class="service-card cursor-pointer px-3 py-2 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center gap-2 transition-all duration-300 sm:hover:-translate-y-1 sm:hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
-                                <div class="min-w-0 flex items-baseline gap-2 sm:block">
-                                    <h4 class="font-medium text-gray-900 dark:text-white text-sm sm:text-base leading-snug truncate sm:whitespace-normal" data-translate="Classic Haircut">Classic Haircut</h4>
-                                    <p class="text-[11px] sm:text-xs text-gold sm:mt-1 font-medium whitespace-nowrap shrink-0">~30m<span class="hidden sm:inline">in</span></p>
-                                </div>
-                                <span class="text-gold font-serif font-bold text-sm sm:text-lg shrink-0">€28<span class="hidden sm:inline">.00</span></span>
-                            </div>
-                        </div>
+                        <label class="block text-xs sm:text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2 sm:mb-3 font-semibold">2. Service</label>
+                        <button type="button" id="servicePickerBtn" onclick="openServicePicker()" class="w-full flex items-center justify-between gap-3 px-4 py-3 sm:py-3.5 bg-transparent border border-gray-300 dark:border-charcoal-700 rounded-lg hover:border-gold transition-colors text-left focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
+                            <span id="servicePickerLabel" class="font-medium text-sm sm:text-base text-gray-900 dark:text-white truncate min-w-0">Select a service</span>
+                            <span class="flex items-center gap-2.5 shrink-0">
+                                <span id="servicePickerPrice" class="text-gold font-serif font-bold text-sm sm:text-base"></span>
+                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                            </span>
+                        </button>
                     </div>
 
                     <!-- Full width on a phone, the way a primary action behaves in
@@ -491,6 +487,35 @@
             </div> <!-- End Grid -->
         </div>
     </section>
+
+    <!-- Barber picker: a bottom sheet on a phone, a centred panel from sm: up -
+         one list, tap a row, done. Populated by renderBarberCards(). -->
+    <div id="barberPickerSheet" class="fixed inset-0 z-[80] hidden">
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeBarberPicker()"></div>
+        <div class="absolute inset-x-0 bottom-0 sm:inset-0 sm:m-auto sm:max-w-md sm:h-fit bg-white dark:bg-charcoal-900 rounded-t-2xl sm:rounded-2xl max-h-[75vh] overflow-hidden flex flex-col shadow-2xl">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-charcoal-700 shrink-0">
+                <h3 class="font-serif text-lg text-gray-900 dark:text-white" data-translate="Choose your barber">Choose your barber</h3>
+                <button type="button" onclick="closeBarberPicker()" aria-label="Close" class="p-1.5 -mr-1.5 text-gray-500 hover:text-gold transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div id="barberPickerList" class="overflow-y-auto p-2"></div>
+        </div>
+    </div>
+
+    <!-- Service picker: same shape as the barber one, one service per row. -->
+    <div id="servicePickerSheet" class="fixed inset-0 z-[80] hidden">
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeServicePicker()"></div>
+        <div class="absolute inset-x-0 bottom-0 sm:inset-0 sm:m-auto sm:max-w-md sm:h-fit bg-white dark:bg-charcoal-900 rounded-t-2xl sm:rounded-2xl max-h-[75vh] overflow-hidden flex flex-col shadow-2xl">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-charcoal-700 shrink-0">
+                <h3 class="font-serif text-lg text-gray-900 dark:text-white" data-translate="Choose a service">Choose a service</h3>
+                <button type="button" onclick="closeServicePicker()" aria-label="Close" class="p-1.5 -mr-1.5 text-gray-500 hover:text-gold transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div id="servicePickerList" class="overflow-y-auto p-2"></div>
+        </div>
+    </div>
 
     <!-- Gallery Section -->
     <section id="gallery" class="py-14 sm:py-24 bg-white dark:bg-charcoal-900 transition-colors duration-300">
@@ -908,77 +933,6 @@
         let bookedTimesList = [];
         const API_URL = "https://script.google.com/macros/s/AKfycbyB3U2n2W2HRn20BxQWLi7Swjq0dSQV6_nnrSXPHRMsx53kP6xy8OpO2w9OTu9cdZvVtQ/exec";
 
-        // Service Cards Selection
-        document.querySelectorAll('#serviceCardsContainer .service-card').forEach(card => {
-            const selectService = () => {
-                // Deselect all cards first
-                document.querySelectorAll('#serviceCardsContainer .service-card').forEach(c => {
-                    c.classList.remove('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
-                    c.classList.add('border-gray-200', 'dark:border-charcoal-700', 'border');
-                });
-                
-                // Select the clicked card
-                card.classList.remove('border-gray-200', 'dark:border-charcoal-700', 'border');
-                card.classList.add('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
-
-                // Update selected service
-                document.getElementById('service').value = card.getAttribute('data-service');
-                updateDesktopLiveSummary();
-                
-                const selectedDate = document.getElementById('date').value;
-                if (selectedDate) {
-                    renderTimeChips();
-                }
-            };
-            card.addEventListener('click', selectService);
-            card.addEventListener('keydown', (e) => {
-                if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectService(); }
-            });
-        });
-
-        // Barber Cards Selection. Called again after renderBarberCards()
-        // replaces the markup, since the old listeners go with the old nodes.
-        function bindBarberCards() {
-        document.querySelectorAll('#barberCardsContainer .barber-card').forEach(card => {
-            const selectBarber = () => {
-                document.querySelectorAll('#barberCardsContainer .barber-card').forEach(c => {
-                    c.classList.remove('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
-                    c.classList.add('border-gray-200', 'dark:border-charcoal-700');
-                });
-                card.classList.remove('border-gray-200', 'dark:border-charcoal-700');
-                card.classList.add('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
-                document.getElementById('barber').value = card.getAttribute('data-barber');
-                updateDesktopLiveSummary();
-
-                // A different barber works different days and has different
-                // slots taken, so the calendar and the chips both go stale.
-                if (typeof renderCustomCalendar === 'function') renderCustomCalendar();
-
-                const dateField = document.getElementById('date');
-                if (dateField && dateField.value) {
-                    const picked = new Date(dateField.value);
-                    picked.setHours(0, 0, 0, 0);
-                    if (noSlotsOn(picked)) {
-                        // The date they had chosen is a day off for this barber.
-                        const who = card.getAttribute('data-barber');
-                        dateField.value = '';
-                        document.getElementById('time').value = '';
-                        bookedTimesList = [];
-                        renderTimeChips();
-                        showToast(`${who} does not work on that date. Please pick another day.`, 'error');
-                    } else {
-                        // Re-ask the backend: availability is per barber.
-                        dateField.dispatchEvent(new Event('change'));
-                    }
-                }
-            };
-            card.addEventListener('click', selectBarber);
-            card.addEventListener('keydown', (e) => {
-                if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectBarber(); }
-            });
-        });
-        }
-        bindBarberCards();
 
         // Step Navigation Logic
         const step1 = document.getElementById('bookingStep1');
@@ -1768,8 +1722,10 @@
             'Service': 'Dienst',
             'Date & Time': 'Datum & Tijd',
             'Confirm': 'Bevestigen',
-            '1. Choose Preferred Barber': '1. Kies Voorkeurskapper',
-            '2. Choose Service': '2. Kies Dienst',
+            '1. Barber': '1. Kapper',
+            '2. Service': '2. Dienst',
+            'Choose your barber': 'Kies uw kapper',
+            'Choose a service': 'Kies een dienst',
             'Meet the experienced professionals dedicated to giving you the perfect look. Every barber at Sussex is a master of their craft.': 'Ontmoet de ervaren professionals die toegewijd zijn om u de perfecte look te geven. Elke kapper bij Sussex is een meester in zijn vak.',
             'At Sussex Barber Shop, we blend modern styling techniques with traditional barbering values. Our space is designed to be a sanctuary for men—a place where you can unwind, enjoy a free coffee, and leave looking your absolute best.': 'Bij Sussex Barber Shop combineren we moderne stylingtechnieken met traditionele barbierswaarden. Onze ruimte is ontworpen als een rustplek voor mannen—een plek waar u kunt ontspannen, genieten van een gratis koffie en er op uw best uitziet.',
             'With a 4.7-star rating and a reputation for precise cuts and a friendly atmosphere, our attentive barbers ensure that every haircut, beard trim, and hot towel shave is executed to perfection.': 'Met een beoordeling van 4.7 sterren en een reputatie voor nauwkeurige knipbeurten en een vriendelijke sfeer, zorgen onze aandachtige kappers ervoor dat elke knipbeurt, baardtrim en hot towel scheerbeurt tot in de perfectie wordt uitgevoerd.',
@@ -1985,43 +1941,93 @@
          *  added or removed in the panel never reached the booking form, and a name
          *  the sheet had never heard of got no rota and was bookable whenever
          *  the shop was open. The list comes from the Sheet now. */
+        /** One row per barber in the picker sheet, "Any Available" first. Kept
+         *  as an array on window so choosing one can redraw the checkmarks
+         *  without needing the config reloaded. */
         function renderBarberCards(list) {
-            const container = document.getElementById('barberCardsContainer');
-            if (!container) return;
+            const listEl = document.getElementById('barberPickerList');
+            if (!listEl) return;
+            window.sussexBarberList = list || [];
 
             const names = (list || []).map(b => String(b.name).trim()).filter(Boolean);
-            // "Any Available" always leads, whether or not the sheet lists it.
             const others = names.filter(n => n !== ANY_BARBER);
 
-            // Smaller avatars and no second line on a phone: six of these at
-            // the desktop size filled the screen before the services began.
-            const cardBase = 'barber-card cursor-pointer p-2 sm:p-4 rounded-lg text-center ' +
-                'transition-all duration-300 sm:hover:-translate-y-1 sm:hover:shadow-lg active:scale-95 ' +
-                'focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900';
-            const avatarBase = 'w-9 h-9 sm:w-12 sm:h-12 mx-auto rounded-full flex items-center justify-center mb-1 sm:mb-2';
-
-            const anyCard = `
-                <div tabindex="0" data-barber="${ANY_BARBER}" class="${cardBase} border-2 border-gold bg-gold/5 dark:bg-gold/10">
-                    <div class="${avatarBase} bg-gold/20 text-gold">
-                        <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                    </div>
-                    <h5 class="font-medium text-xs sm:text-sm text-gray-900 dark:text-white leading-tight" data-translate="Any Available">Any Available</h5>
-                    <p class="hidden sm:block text-xs text-gray-500 dark:text-gray-400 mt-0.5" data-translate="First available chair">First available chair</p>
-                </div>`;
-
-            container.innerHTML = anyCard + others.map(name => `
-                <div tabindex="0" data-barber="${escapeAttribute(name)}" class="${cardBase} border border-gray-200 dark:border-charcoal-700 hover:border-gold/50">
-                    <div class="${avatarBase} bg-gray-200 dark:bg-charcoal-800 text-gray-700 dark:text-gray-300 font-serif font-bold text-sm sm:text-base">${escapeText(name.charAt(0).toUpperCase())}</div>
-                    <h5 class="font-medium text-xs sm:text-sm text-gray-900 dark:text-white leading-tight truncate">${escapeText(name)}</h5>
-                    <p class="hidden sm:block text-xs text-gray-500 dark:text-gray-400 mt-0.5" data-translate="Barber">Barber</p>
-                </div>`).join('');
-
-            bindBarberCards();
-
-            // The card that was selected may no longer exist.
             const chosen = document.getElementById('barber');
             if (chosen && !names.includes(String(chosen.value).trim())) {
                 chosen.value = ANY_BARBER;
+            }
+            const current = chosen ? String(chosen.value).trim() : ANY_BARBER;
+
+            const anyIcon = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>`;
+
+            const rowFor = (name, subtitle, avatarInner, avatarClass) => {
+                const selected = name === current;
+                const rowClass = 'w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-colors ' +
+                    'focus:outline-none focus:ring-2 focus:ring-gold ' +
+                    (selected ? 'bg-gold/10 dark:bg-gold/10' : 'hover:bg-gray-100 dark:hover:bg-charcoal-800');
+                return `
+                <button type="button" data-barber="${escapeAttribute(name)}" onclick="chooseBarber('${escapeAttribute(name)}')" class="${rowClass}">
+                    <span class="w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${avatarClass}">${avatarInner}</span>
+                    <span class="flex-1 min-w-0">
+                        <span class="block font-medium text-sm text-gray-900 dark:text-white truncate">${escapeText(name)}</span>
+                        <span class="block text-xs text-gray-500 dark:text-gray-400 truncate">${escapeText(subtitle)}</span>
+                    </span>
+                    ${selected ? '<svg class="w-5 h-5 text-gold shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>' : ''}
+                </button>`;
+            };
+
+            listEl.innerHTML = rowFor(ANY_BARBER, 'First available chair', anyIcon, 'bg-gold/20 text-gold')
+                + others.map(name => rowFor(
+                    name, 'Barber', escapeText(name.charAt(0).toUpperCase()),
+                    'bg-gray-200 dark:bg-charcoal-800 text-gray-700 dark:text-gray-300 font-serif font-bold text-sm'
+                )).join('');
+
+            updateBarberPickerLabel();
+        }
+
+        function updateBarberPickerLabel() {
+            const label = document.getElementById('barberPickerLabel');
+            const chosen = document.getElementById('barber');
+            if (label && chosen) label.textContent = chosen.value || ANY_BARBER;
+        }
+
+        function openBarberPicker() {
+            const sheet = document.getElementById('barberPickerSheet');
+            if (sheet) sheet.classList.remove('hidden');
+        }
+        function closeBarberPicker() {
+            const sheet = document.getElementById('barberPickerSheet');
+            if (sheet) sheet.classList.add('hidden');
+        }
+
+        /** Applies a barber choice made in the picker: everything selecting a
+         *  barber card used to do, now driven by one call instead of a
+         *  delegated click handler on cards that no longer exist. */
+        function chooseBarber(name) {
+            document.getElementById('barber').value = name;
+            renderBarberCards(window.sussexBarberList);
+            closeBarberPicker();
+            if (typeof updateDesktopLiveSummary === 'function') updateDesktopLiveSummary();
+
+            // A different barber works different days and has different slots
+            // taken, so the calendar and the chips both go stale.
+            if (typeof renderCustomCalendar === 'function') renderCustomCalendar();
+
+            const dateField = document.getElementById('date');
+            if (dateField && dateField.value) {
+                const picked = new Date(dateField.value);
+                picked.setHours(0, 0, 0, 0);
+                if (noSlotsOn(picked)) {
+                    // The date they had chosen is a day off for this barber.
+                    dateField.value = '';
+                    document.getElementById('time').value = '';
+                    bookedTimesList = [];
+                    renderTimeChips();
+                    showToast(`${name} does not work on that date. Please pick another day.`, 'error');
+                } else {
+                    // Re-ask the backend: availability is per barber.
+                    dateField.dispatchEvent(new Event('change'));
+                }
             }
         }
 
@@ -2079,50 +2085,66 @@
             return escapeText(str).replace(/"/g, '&quot;');
         }
 
+        /** One row per service in the picker sheet. Selection was single-choice
+         *  already - the grid only ever set #service to one name at a time,
+         *  regardless of a "multi-select" comment above the old click handler -
+         *  so this changes nothing about what a booking can contain. */
         function renderServiceCards(services) {
-        const serviceCardsContainer = document.getElementById('serviceCardsContainer');
-        if (serviceCardsContainer) {
-            serviceCardsContainer.innerHTML = services.map(s => {
-                // On a phone the name and the duration sit on one line, so a
-                // card is a row rather than a block: eleven of them fit in half
-                // the height they used to. From sm: the duration drops under
-                // the name again, where there is room for it.
-                return `<div tabindex="0" data-service="${s.nameEN}" class="service-card cursor-pointer px-3 py-2 sm:p-4 border border-gray-200 dark:border-charcoal-700 hover:border-gold/50 rounded-lg flex justify-between items-center gap-2 transition-all duration-300 sm:hover:-translate-y-1 sm:hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
-                    <div class="min-w-0 flex items-baseline gap-2 sm:block">
-                        <h4 class="font-medium text-gray-900 dark:text-white text-sm sm:text-base leading-snug truncate sm:whitespace-normal" data-translate="${s.nameEN}">${s.nameEN}</h4>
-                        <p class="text-[11px] sm:text-xs text-gold sm:mt-1 font-medium whitespace-nowrap shrink-0">~${s.duration}m<span class="hidden sm:inline">in</span></p>
-                    </div>
-                    <span class="text-gold font-serif font-bold text-sm sm:text-lg shrink-0">€${s.price.toFixed(0)}<span class="hidden sm:inline">.00</span></span>
-                </div>`;
+            const listEl = document.getElementById('servicePickerList');
+            if (!listEl) return;
+            window.sussexServiceList = services || [];
+
+            const current = String(document.getElementById('service').value || '').trim();
+
+            listEl.innerHTML = services.map(s => {
+                const selected = s.nameEN === current;
+                const rowClass = 'w-full flex items-center justify-between gap-3 px-3 py-3 rounded-lg text-left transition-colors ' +
+                    'focus:outline-none focus:ring-2 focus:ring-gold ' +
+                    (selected ? 'bg-gold/10 dark:bg-gold/10' : 'hover:bg-gray-100 dark:hover:bg-charcoal-800');
+                return `
+                <button type="button" data-service="${escapeAttribute(s.nameEN)}" onclick="chooseService('${escapeAttribute(s.nameEN)}')" class="${rowClass}">
+                    <span class="min-w-0">
+                        <span class="block font-medium text-sm text-gray-900 dark:text-white truncate" data-translate="${escapeAttribute(s.nameEN)}">${escapeText(s.nameEN)}</span>
+                        <span class="block text-xs text-gray-500 dark:text-gray-400">~${s.duration} min</span>
+                    </span>
+                    <span class="flex items-center gap-2 shrink-0">
+                        <span class="text-gold font-serif font-bold text-sm">€${s.price.toFixed(0)}</span>
+                        ${selected ? '<svg class="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>' : ''}
+                    </span>
+                </button>`;
             }).join('');
 
-            // Re-bind service card click events (multi-select support)
-            serviceCardsContainer.querySelectorAll('.service-card').forEach(card => {
-                const selectService = () => {
-                    // Deselect all cards first
-                    serviceCardsContainer.querySelectorAll('.service-card').forEach(c => {
-                        c.classList.remove('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
-                        c.classList.add('border-gray-200', 'dark:border-charcoal-700', 'border');
-                    });
-                    
-                    // Select the clicked card
-                    card.classList.remove('border-gray-200', 'dark:border-charcoal-700', 'border');
-                    card.classList.add('border-2', 'border-gold', 'bg-gold/5', 'dark:bg-gold/10');
-
-                    const selectedService = card.getAttribute('data-service');
-                    document.getElementById('service').value = selectedService;
-                    const liveEl = document.getElementById('desktopLiveService');
-                    if (liveEl) liveEl.textContent = selectedService || 'Select a service';
-                    if (typeof updateDesktopLiveSummary === 'function') updateDesktopLiveSummary();
-                    const selectedDate = document.getElementById('date').value;
-                    if (selectedDate) renderTimeChips();
-                };
-                card.addEventListener('click', selectService);
-                card.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectService(); }
-                });
-            });
+            updateServicePickerLabel();
         }
+
+        function updateServicePickerLabel() {
+            const label = document.getElementById('servicePickerLabel');
+            const priceEl = document.getElementById('servicePickerPrice');
+            const current = String(document.getElementById('service').value || '').trim();
+            const match = (window.sussexServiceList || []).find(s => s.nameEN === current);
+            if (label) label.textContent = current || 'Select a service';
+            if (priceEl) priceEl.textContent = match ? `€${match.price.toFixed(0)}` : '';
+        }
+
+        function openServicePicker() {
+            const sheet = document.getElementById('servicePickerSheet');
+            if (sheet) sheet.classList.remove('hidden');
+        }
+        function closeServicePicker() {
+            const sheet = document.getElementById('servicePickerSheet');
+            if (sheet) sheet.classList.add('hidden');
+        }
+
+        function chooseService(name) {
+            document.getElementById('service').value = name;
+            renderServiceCards(window.sussexServiceList);
+            closeServicePicker();
+
+            const liveEl = document.getElementById('desktopLiveService');
+            if (liveEl) liveEl.textContent = name || 'Select a service';
+            if (typeof updateDesktopLiveSummary === 'function') updateDesktopLiveSummary();
+            const selectedDate = document.getElementById('date').value;
+            if (selectedDate) renderTimeChips();
         }
 
         // ---- Populate Working Hours ----

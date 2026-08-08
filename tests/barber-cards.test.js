@@ -14,20 +14,19 @@ const container = { innerHTML: '' };
 const teamContainer = { innerHTML: '' };
 
 global.document = {
-  getElementById: id => id === 'barberCardsContainer' ? container
+  getElementById: id => id === 'barberPickerList' ? container
                       : id === 'barber' ? barberField
                       : id === 'cms-barbers-grid' ? teamContainer
-                      : null,
+                      : null, // barberPickerLabel etc: updateBarberPickerLabel() guards on null
   createElement: () => ({
     set textContent(v) { this._t = String(v == null ? '' : v); },
     get innerHTML() { return this._t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
   }),
   querySelectorAll: () => []
 };
-function bindBarberCards() {}
 global.window = { sussexBarberHours: {} };
 
-eval(['renderBarberCards', 'renderTeamGrid', 'escapeText', 'escapeAttribute'].map(grab).join('\n'));
+eval(['renderBarberCards', 'renderTeamGrid', 'escapeText', 'escapeAttribute', 'updateBarberPickerLabel'].map(grab).join('\n'));
 
 let failed = 0;
 const ok = (label, actual, want) => {
