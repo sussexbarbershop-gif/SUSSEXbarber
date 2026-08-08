@@ -38,6 +38,14 @@ const ADMIN_USERNAME = 'admin';
 // Must match ANY_BARBER in Code.gs and index.html.
 const ANY_BARBER = 'Any Available';
 
+// Small stroke icons, in the site's own style, for the handful of spots that
+// used to reach for an emoji (✏️ 🗑 ✓ ✕) instead.
+const ICON_EDIT = '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>';
+const ICON_DELETE = '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>';
+const ICON_CHECK = '<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>';
+const ICON_CROSS = '<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>';
+const ICON_INFO = '<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+
 // The password is never stored here. It lives in the Apps Script project
 // (Script Properties > ADMIN_PASSWORD) and is checked server-side, so reading
 // this file tells an attacker nothing. It is held in memory for the session
@@ -560,8 +568,8 @@ function renderServices() {
             </div>
             <div class="card-price">€${s.price}</div>
             <div class="card-actions">
-                <button class="btn btn-secondary btn-sm" onclick="editService(${s.id})">✏️</button>
-                <button class="btn btn-danger btn-sm" onclick="deleteService(${s.id})">🗑</button>
+                <button class="btn btn-secondary btn-sm" onclick="editService(${s.id})" aria-label="Edit">${ICON_EDIT}</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteService(${s.id})" aria-label="Delete">${ICON_DELETE}</button>
             </div>
         </div>
     `).join('');
@@ -743,7 +751,7 @@ function renderGallery() {
         <div class="gallery-item">
             <img src="${escapeHtml(img.src)}" alt="${escapeHtml(img.name)}" onerror="this.style.display='none'">
             <div class="overlay">
-                <button class="btn btn-danger btn-sm" onclick="deleteGalleryImage(${img.id})">🗑 Delete</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteGalleryImage(${img.id})">${ICON_DELETE} Delete</button>
             </div>
         </div>
     `).join('');
@@ -1361,7 +1369,7 @@ function renderWeeklyPlannerGrid() {
     sunday.setDate(monday.getDate() + 6);
 
     if (titleEl) {
-        titleEl.textContent = `📅 WEEK: ${formatDateShort(monday)} to ${formatDateShort(sunday)}`;
+        titleEl.textContent = `${formatDateShort(monday)} – ${formatDateShort(sunday)}`;
     }
 
     const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -1372,79 +1380,60 @@ function renderWeeklyPlannerGrid() {
         d.setDate(monday.getDate() + i);
         const iso = formatDateISO(d);
         const dayBookings = bookings.filter(b => b.date === iso);
+        // This used to treat the seventh column as Sunday and Sunday as always
+        // closed, which stopped being true the moment the owner changed the
+        // shop's day off in Working Hours.
+        const shopDay = hours.find(h => h.day === dayNames[i]);
         weekDays.push({
             name: dayNames[i],
             dateObj: d,
             iso: iso,
-            bookings: dayBookings
+            bookings: dayBookings,
+            closed: shopDay ? shopDay.open !== true : false
         });
     }
 
     let totalWeekBookings = 0;
     let totalEstRev = 0;
 
-    let html = '';
-
-    weekDays.forEach((dayData, colIdx) => {
+    const html = weekDays.map(dayData => {
         totalWeekBookings += dayData.bookings.length;
-
-        // Calculate day revenue
         dayData.bookings.forEach(b => {
-            let priceNum = parseInt(String(b.price).replace(/[^0-9]/g, '')) || 28;
-            totalEstRev += priceNum;
+            totalEstRev += parseInt(String(b.price).replace(/[^0-9]/g, ''), 10) || 28;
         });
 
-        const isClosed = (colIdx === 6); // Sunday
         const countText = dayData.bookings.length === 1 ? '1 booking' : `${dayData.bookings.length} bookings`;
 
-        html += `
-            <div class="planner-day-col" style="background:var(--bg-secondary); border-radius:10px; border:1px solid var(--border-color); overflow:hidden; display:flex; flex-direction:column;">
-                <div class="planner-day-header" style="background:${isClosed ? '#3b1c1c' : '#222'}; padding:12px; text-align:center; border-bottom:1px solid var(--border-color);">
-                    <div style="font-weight:700; color:var(--gold); font-size:14px;">${dayData.name}</div>
-                    <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${formatDateShort(dayData.dateObj)}</div>
-                    <div style="font-size:11px; color:#aaa; margin-top:4px; font-weight:600;">${countText}</div>
-                </div>
-                <div class="planner-day-body" style="padding:10px; flex:1; display:flex; flex-direction:column; gap:10px; min-height:300px; background:${isClosed ? 'rgba(239, 68, 68, 0.03)' : 'transparent'};">
-        `;
-
-        if (isClosed && dayData.bookings.length === 0) {
-            html += `
-                <div style="text-align:center; color:#ef4444; font-size:13px; font-weight:600; padding:20px 0;">
-                    🚫 CLOSED
-                </div>
-            `;
-        } else if (dayData.bookings.length === 0) {
-            html += `
-                <div style="text-align:center; color:var(--text-muted); font-size:12px; padding:20px 0; font-style:italic;">
-                    No bookings
-                </div>
-            `;
+        let body;
+        if (dayData.bookings.length === 0) {
+            body = `<div class="planner-empty${dayData.closed ? ' is-closed' : ''}">${dayData.closed ? 'Closed' : 'No bookings'}</div>`;
         } else {
-            // Sort bookings by time
-            dayData.bookings.sort((a, b) => a.time.localeCompare(b.time));
-
-            dayData.bookings.forEach(b => {
-                html += `
-                    <div class="planner-card" style="background:var(--bg-card); border:1px solid var(--border-color); border-left:3px solid var(--gold); border-radius:6px; padding:10px; font-size:12px; transition:transform 0.2s ease;">
-                        <div style="font-weight:700; color:var(--gold); font-size:13px; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
-                            <span>⏰ ${escapeHtml(b.time)}</span>
-                            <button onclick="cancelBookingById('${escapeAttr(b.id)}')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:12px; padding:0 4px;" title="Cancel Booking">✕</button>
-                        </div>
-                        <div style="font-weight:600; color:#fff; margin-bottom:2px;">👤 ${escapeHtml(b.customerName)}</div>
-                        ${b.customerPhone ? `<div style="margin-bottom:2px;"><a href="tel:${escapeHtml(b.customerPhone)}" style="color:#60a5fa; text-decoration:none;">📞 ${escapeHtml(b.customerPhone)}</a></div>` : ''}
-                        <div style="color:var(--text-muted); margin-bottom:2px;">💈 ${escapeHtml(b.barberName)}</div>
-                        <div style="color:var(--text-muted); margin-bottom:2px;">✂️ ${escapeHtml(b.serviceName)}</div>
-                        ${b.price ? `<div style="color:#4ade80; font-weight:600; margin-top:4px;">💶 €${escapeHtml(String(b.price))}</div>` : ''}
+            const sorted = [...dayData.bookings].sort((a, b) => a.time.localeCompare(b.time));
+            body = sorted.map(b => `
+                <div class="planner-card">
+                    <div class="planner-card-top">
+                        <span class="planner-card-time">${escapeHtml(b.time)}</span>
+                        <button onclick="cancelBookingById('${escapeAttr(b.id)}')" class="planner-card-cancel" aria-label="Cancel booking">
+                            <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
                     </div>
-                `;
-            });
+                    <div class="planner-card-name">${escapeHtml(b.customerName)}</div>
+                    <div class="planner-card-detail">${escapeHtml(b.serviceName)}${b.barberName ? ' · ' + escapeHtml(b.barberName) : ''}</div>
+                    ${b.customerPhone ? `<a class="planner-card-phone" href="tel:${escapeHtml(b.customerPhone)}">${escapeHtml(b.customerPhone)}</a>` : ''}
+                    ${b.price ? `<div class="planner-card-price">€${escapeHtml(String(b.price))}</div>` : ''}
+                </div>`).join('');
         }
 
-        html += `
+        return `
+            <div class="planner-day-col${dayData.closed ? ' is-closed' : ''}">
+                <div class="planner-day-header">
+                    <div class="planner-day-name">${dayData.name}</div>
+                    <div class="planner-day-date">${formatDateShort(dayData.dateObj)}</div>
+                    <div class="planner-day-count">${countText}</div>
                 </div>
-            </div>
-        `;
-    });
+                <div class="planner-day-body">${body}</div>
+            </div>`;
+    }).join('');
 
     container.innerHTML = html;
     if (countEl) countEl.textContent = totalWeekBookings;
@@ -1530,12 +1519,10 @@ function exportBookingsCSV() {
 }
 
 // ---- Admin Theme Switcher (Dark / Light) ----
+// The icon is two SVGs in the button; admin.css shows whichever matches
+// body.admin-light-mode, so this only has the state to track.
 function toggleAdminTheme() {
     const isLight = document.body.classList.toggle('admin-light-mode');
-    const btn = document.getElementById('btnThemeToggle');
-    if (btn) {
-        btn.innerHTML = isLight ? '☀️' : '🌙';
-    }
     localStorage.setItem('sussex_admin_theme', isLight ? 'light' : 'dark');
 }
 
@@ -1597,11 +1584,8 @@ function setAdminLanguage(lang) {
 
 // Load saved theme & language on init
 document.addEventListener('DOMContentLoaded', () => {
-    const savedTheme = localStorage.getItem('sussex_admin_theme');
-    if (savedTheme === 'light') {
+    if (localStorage.getItem('sussex_admin_theme') === 'light') {
         document.body.classList.add('admin-light-mode');
-        const btn = document.getElementById('btnThemeToggle');
-        if (btn) btn.innerHTML = '☀️';
     }
 
     const savedLang = localStorage.getItem('sussex_admin_lang') || 'en';
@@ -1630,7 +1614,7 @@ function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     toast.innerHTML = `
-        <span>${type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ'}</span>
+        <span class="toast-icon">${type === 'success' ? ICON_CHECK : type === 'error' ? ICON_CROSS : ICON_INFO}</span>
         <span>${message}</span>
     `;
     document.body.appendChild(toast);

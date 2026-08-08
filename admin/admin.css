@@ -269,6 +269,10 @@ tbody tr:last-child td { border-bottom: none; }
 .toast.success { border-left: 3px solid var(--green); }
 .toast.error { border-left: 3px solid var(--red); }
 .toast.info { border-left: 3px solid var(--blue); }
+.toast-icon { display: inline-flex; flex-shrink: 0; }
+.toast.success .toast-icon { color: var(--green); }
+.toast.error .toast-icon { color: var(--red); }
+.toast.info .toast-icon { color: var(--blue); }
 
 /* ANIMATIONS */
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -426,10 +430,62 @@ tbody tr:last-child td { border-bottom: none; }
     color: var(--text-muted, #9ca3af); font-size: .9rem;
 }
 
+/* Dark is the default (no body class), so the moon shows until the light
+   class says otherwise - matching the sun/moon convention on the site. */
+.theme-toggle-btn { display: inline-flex; align-items: center; justify-content: center; }
+.theme-icon-sun { display: none; }
+.theme-icon-moon { display: inline-flex; }
+body.admin-light-mode .theme-icon-sun { display: inline-flex; }
+body.admin-light-mode .theme-icon-moon { display: none; }
+
 .today-next-title {
     margin: 2rem 0 .75rem; font-size: 1rem;
     color: var(--text-muted, #9ca3af); font-weight: 600;
 }
+
+/* ---- Weekly Planner ----------------------------------------------------
+   Same information as Today - time, name, service, barber, phone, price -
+   drawn the same way: text and one theme colour for gold, not seven emoji
+   and raw hex standing in for icons and status. */
+.planner-day-col {
+    background: var(--bg-card); border: 1px solid var(--border-color);
+    border-radius: var(--radius); overflow: hidden;
+    display: flex; flex-direction: column;
+}
+.planner-day-header {
+    padding: 12px; text-align: center; background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+.planner-day-col.is-closed .planner-day-header { background: var(--red-bg); }
+.planner-day-name { font-weight: 700; color: var(--gold); font-size: 14px; }
+.planner-day-date { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.planner-day-count { font-size: 11px; color: var(--text-secondary); margin-top: 4px; font-weight: 600; }
+
+.planner-day-body {
+    padding: 10px; flex: 1; display: flex; flex-direction: column; gap: 8px; min-height: 120px;
+}
+
+.planner-empty {
+    text-align: center; color: var(--text-muted); font-size: 12px; padding: 20px 0;
+}
+.planner-empty.is-closed { color: var(--red); font-weight: 600; }
+
+.planner-card {
+    background: var(--bg-primary); border: 1px solid var(--border-color);
+    border-left: 3px solid var(--gold); border-radius: 6px; padding: 10px; font-size: 12px;
+}
+.planner-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.planner-card-time { font-weight: 700; color: var(--gold); font-size: 13px; }
+.planner-card-cancel {
+    background: none; border: none; color: var(--red); cursor: pointer;
+    padding: 2px 4px; display: flex; align-items: center; opacity: .7;
+}
+.planner-card-cancel:hover { opacity: 1; }
+.planner-card-name { font-weight: 600; color: var(--text-primary); margin-bottom: 2px; }
+.planner-card-detail { color: var(--text-muted); margin-bottom: 2px; }
+.planner-card-phone { display: block; color: var(--blue); text-decoration: none; margin-bottom: 2px; }
+.planner-card-phone:hover { text-decoration: underline; }
+.planner-card-price { color: var(--green); font-weight: 600; margin-top: 4px; }
 
 /* On a phone the row would otherwise squash; stack it instead. */
 @media (max-width: 560px) {
