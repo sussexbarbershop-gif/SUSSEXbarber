@@ -2313,6 +2313,16 @@
         }
 
         window.fetchCMS = fetchCMS;
+
+        // Everything this block defines is private to the IIFE, so anything an
+        // inline onclick calls has to be published deliberately - same as
+        // openLightbox and toggleLanguage above.
+        window.openBarberPicker = openBarberPicker;
+        window.closeBarberPicker = closeBarberPicker;
+        window.chooseBarber = chooseBarber;
+        window.openServicePicker = openServicePicker;
+        window.closeServicePicker = closeServicePicker;
+        window.chooseService = chooseService;
     })();
     // --- 11. My Bookings: looked up from the Sheet by phone number ---
     // Nothing is stored on the device, so a customer can check or cancel an

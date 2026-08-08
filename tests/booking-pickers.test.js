@@ -67,6 +67,27 @@ const ok = (label, actual, want) => {
     (pass ? '' : `   got=${JSON.stringify(actual)} want=${JSON.stringify(want)}`));
 };
 
+console.log('--- every inline onclick can actually reach its function ---');
+// The site's script runs inside an IIFE, so a function is private unless it is
+// published on window. Both picker buttons shipped broken for exactly this
+// reason: the markup called openBarberPicker(), the function existed, and the
+// browser could not see it. Syntax checks pass either way, so this checks the
+// one thing that matters - the name is reachable from an attribute.
+{
+  const handlers = new Set(
+    [...html.matchAll(/on(?:click|change|submit)="(\w+)\(/g)].map(m => m[1])
+  );
+  const exported = new Set(
+    [...html.matchAll(/window\.(\w+)\s*=/g)].map(m => m[1])
+  );
+  // Handlers declared outside any IIFE are global already; find those too.
+  const topLevel = new Set(
+    [...html.matchAll(/^    (?:async )?function (\w+)/gm)].map(m => m[1])
+  );
+  const unreachable = [...handlers].filter(h => !exported.has(h) && !topLevel.has(h)).sort();
+  ok('no onclick calls a function trapped inside the IIFE', unreachable, []);
+}
+
 console.log('--- barber picker ---');
 barberField.value = 'Hemen';
 renderBarberCards([{ name: ANY_BARBER }, { name: 'Hemen' }, { name: 'Amir' }]);
