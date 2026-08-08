@@ -278,7 +278,7 @@
                          wrapping under them, so the header alone took a fifth of
                          the screen before the form began. Smaller discs, one-word
                          labels on a single line, full labels from sm: up. -->
-                    <div class="flex justify-between items-start max-w-md mx-auto mb-5 sm:mb-10 relative px-3 sm:px-4 sticky top-16 sm:top-20 z-40 bg-gray-50/90 dark:bg-charcoal-800/90 backdrop-blur py-2.5 sm:py-4 rounded-xl border border-gray-100 dark:border-charcoal-700 shadow-sm">
+                    <div id="stepIndicator" class="flex justify-between items-start max-w-md mx-auto mb-5 sm:mb-10 relative px-3 sm:px-4 sticky top-16 sm:top-20 z-40 bg-gray-50/90 dark:bg-charcoal-800/90 backdrop-blur py-2.5 sm:py-4 rounded-xl border border-gray-100 dark:border-charcoal-700 shadow-sm">
                         <div class="absolute top-[1.6rem] sm:top-[2.25rem] left-[calc(0.75rem_+_(100%_-_1.5rem)/6)] right-[calc(0.75rem_+_(100%_-_1.5rem)/6)] sm:left-[calc(1rem_+_(100%_-_2rem)/6)] sm:right-[calc(1rem_+_(100%_-_2rem)/6)] h-0.5 bg-gray-300 dark:bg-charcoal-700 z-0">
                             <div id="progressLine" class="h-full bg-gold transition-all duration-500 ease-out" style="width: 0%"></div>
                         </div>
@@ -963,14 +963,25 @@
 
             currentWizardStep = stepNum;
 
-            // Scroll up to the top of the booking section smoothly
-            // Use setTimeout to allow the DOM to render the new step before scrolling
+            // Bring the step indicator to just under the nav, not the top of the
+            // whole booking section - that put "Book an Appointment" and its
+            // subtitle back on screen every time, so changing step threw away a
+            // screenful to re-read a heading the customer had already passed.
+            //
+            // offsetTop rather than getBoundingClientRect(): the indicator is
+            // sticky, so once it is stuck its rect reports where it is pinned,
+            // not where it sits in the page, and scrolling to that lands short.
             setTimeout(() => {
-                const bookingEl = document.getElementById('booking');
-                if (bookingEl) {
-                    const y = bookingEl.getBoundingClientRect().top + window.scrollY - 100;
-                    window.scrollTo({top: y, behavior: 'smooth'});
-                }
+                const indicator = document.getElementById('stepIndicator');
+                if (!indicator) return;
+
+                let top = 0;
+                for (let node = indicator; node; node = node.offsetParent) top += node.offsetTop;
+
+                const nav = document.querySelector('nav');
+                const navHeight = nav ? nav.offsetHeight : 0;
+
+                window.scrollTo({ top: Math.max(0, top - navHeight - 8), behavior: 'smooth' });
             }, 50);
 
             // Progress Line width

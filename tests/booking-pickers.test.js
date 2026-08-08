@@ -101,6 +101,21 @@ console.log('--- every inline onclick can actually reach its function ---');
   ok('no onclick calls a function trapped inside the IIFE', unreachable, []);
 }
 
+console.log('--- changing step scrolls to the steps, not past them ---');
+// This scrolled to the top of #booking minus 100px, which put the "Book an
+// Appointment" heading and its subtitle back on screen on every step change.
+{
+  const wizard = html.match(/function updateWizardUI\(stepNum\)[\s\S]*?\n        \}/);
+  const src = wizard ? wizard[0] : '';
+  ok('the wizard scroll targets the step indicator', /getElementById\('stepIndicator'\)/.test(src), true);
+  ok('it no longer scrolls to the section top', /getElementById\('booking'\)/.test(src), false);
+  // A sticky element's rect reports where it is pinned once stuck, so the
+  // document position has to come from offsetTop instead.
+  ok('it measures position with offsetTop, not a rect', /offsetTop/.test(src), true);
+  ok('it offsets by the real nav height', /offsetHeight/.test(src), true);
+  ok('the step indicator has the id the scroll looks for', /id="stepIndicator"/.test(html), true);
+}
+
 console.log('--- nothing is chosen for the customer ---');
 // Both fields used to ship pre-filled ("Classic Haircut", "Any Available"), so
 // someone who opened neither picker still booked - for whoever and whatever the
