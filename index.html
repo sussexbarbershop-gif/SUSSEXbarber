@@ -273,6 +273,13 @@
             <div class="md:grid md:grid-cols-12 md:gap-8 md:items-start text-left">
                 <!-- Left Column: Form -->
                 <div class="md:col-span-12">
+                    <!-- Where changing step scrolls to. A separate, empty, non-sticky
+                         marker rather than the indicator itself: once the indicator is
+                         stuck its box sits where it is pinned, not where it belongs in
+                         the page, so both measuring it and scrollIntoView on it land in
+                         the wrong place. scroll-mt clears the fixed nav. -->
+                    <div id="bookingStepsAnchor" class="scroll-mt-24 sm:scroll-mt-28"></div>
+
                     <!-- Step Progress Indicator -->
                     <!-- On a phone this was 40px discs with "Barber & Service"
                          wrapping under them, so the header alone took a fifth of
@@ -322,7 +329,6 @@
                          opens a sheet to change it - the way an app asks a one-of-many
                          question instead of laying every option out on the page. -->
                     <div>
-                        <label class="block text-xs sm:text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2 sm:mb-3 font-semibold">1. Barber</label>
                         <button type="button" id="barberPickerBtn" onclick="openBarberPicker()" class="w-full flex items-center justify-between gap-3 px-4 py-3 sm:py-3.5 bg-transparent border border-gray-300 dark:border-charcoal-700 rounded-lg hover:border-gold transition-colors text-left focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
                             <span class="flex items-center gap-2.5 min-w-0">
                                 <span class="w-8 h-8 rounded-full bg-gold/20 flex items-center justify-center text-gold shrink-0">
@@ -335,7 +341,6 @@
                     </div>
 
                     <div>
-                        <label class="block text-xs sm:text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2 sm:mb-3 font-semibold">2. Service</label>
                         <button type="button" id="servicePickerBtn" onclick="openServicePicker()" class="w-full flex items-center justify-between gap-3 px-4 py-3 sm:py-3.5 bg-transparent border border-gray-300 dark:border-charcoal-700 rounded-lg hover:border-gold transition-colors text-left focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 dark:focus:ring-offset-charcoal-900">
                             <span id="servicePickerLabel" class="font-medium text-sm sm:text-base text-gray-500 dark:text-gray-400 truncate min-w-0" data-translate="Choose service">Choose service</span>
                             <span class="flex items-center gap-2.5 shrink-0">
@@ -473,21 +478,11 @@
             </form>
                 </div> <!-- End Left Column -->
 
-                <!-- Bottom/Right Column: Live Summary (Desktop only) -->
-                <div class="hidden md:block md:col-span-12 mt-4">
-                    <div class="bg-gold/10 dark:bg-gold/5 p-6 rounded-xl border border-gold/30 shadow-lg space-y-4">
-                        <h4 class="text-sm uppercase tracking-widest text-gold font-bold mb-4 flex items-center gap-2">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
-                            Live Summary
-                        </h4>
-                        <div class="space-y-3">
-                            <div class="flex justify-between text-sm"><span class="text-gray-600 dark:text-gray-400">Service:</span><span id="desktopLiveService" class="font-medium text-gray-900 dark:text-white text-right">-</span></div>
-                            <div class="flex justify-between text-sm"><span class="text-gray-600 dark:text-gray-400">Barber:</span><span id="desktopLiveBarber" class="font-medium text-gray-900 dark:text-white text-right">-</span></div>
-                            <div class="flex justify-between text-sm"><span class="text-gray-600 dark:text-gray-400">Date:</span><span id="desktopLiveDate" class="font-medium text-gray-900 dark:text-white text-right">-</span></div>
-                            <div class="flex justify-between text-sm"><span class="text-gray-600 dark:text-gray-400">Time:</span><span id="desktopLiveTime" class="font-medium text-gold font-bold text-right">-</span></div>
-                        </div>
-                    </div>
-                </div> <!-- End Right Column -->
+                <!-- A "Live Summary" panel sat here on desktop, repeating the
+                     service, barber, date and time under the form on every step.
+                     It read as four dashes for most of the booking, and step 3
+                     already shows the same four lines as a summary at the point
+                     they matter - just before confirming. -->
             </div> <!-- End Grid -->
         </div>
     </section>
@@ -786,24 +781,6 @@
             quickContactMenu.classList.toggle('flex');
         });
 
-        // Live Summary Update
-        const updateDesktopLiveSummary = () => {
-            const service = document.getElementById('service').value || '-';
-            const barber = document.getElementById('barber').value || '-';
-            const date = document.getElementById('date').value || '-';
-            const time = document.getElementById('time').value || '-';
-            
-            const elService = document.getElementById('desktopLiveService');
-            const elBarber = document.getElementById('desktopLiveBarber');
-            const elDate = document.getElementById('desktopLiveDate');
-            const elTime = document.getElementById('desktopLiveTime');
-            
-            if (elService) elService.innerText = service;
-            if (elBarber) elBarber.innerText = barber;
-            if (elDate) elDate.innerText = date;
-            if (elTime) elTime.innerText = time;
-        };
-
         // --- 7. Multi-step Booking Wizard & Time Chips Logic ---
         // Slots are derived from the opening hours in the Sheet, not fixed here.
         // A hardcoded list meant the owner could change the hours in the panel,
@@ -963,25 +940,20 @@
 
             currentWizardStep = stepNum;
 
-            // Bring the step indicator to just under the nav, not the top of the
-            // whole booking section - that put "Book an Appointment" and its
-            // subtitle back on screen every time, so changing step threw away a
-            // screenful to re-read a heading the customer had already passed.
+            // Bring the steps to just under the nav, rather than the top of the
+            // booking section - that put "Book an Appointment" and its subtitle
+            // back on screen on every step change, a screenful spent re-reading
+            // a heading the customer had already passed.
             //
-            // offsetTop rather than getBoundingClientRect(): the indicator is
-            // sticky, so once it is stuck its rect reports where it is pinned,
-            // not where it sits in the page, and scrolling to that lands short.
+            // Scrolls to the empty anchor above the indicator, not the indicator
+            // itself: it is sticky, so once stuck its box reports where it is
+            // pinned rather than where it sits in the page, and both hand-rolled
+            // arithmetic and scrollIntoView on it overshoot by however far the
+            // page had already scrolled. The gap under the nav comes from the
+            // anchor's scroll-mt, so the browser does the arithmetic.
             setTimeout(() => {
-                const indicator = document.getElementById('stepIndicator');
-                if (!indicator) return;
-
-                let top = 0;
-                for (let node = indicator; node; node = node.offsetParent) top += node.offsetTop;
-
-                const nav = document.querySelector('nav');
-                const navHeight = nav ? nav.offsetHeight : 0;
-
-                window.scrollTo({ top: Math.max(0, top - navHeight - 8), behavior: 'smooth' });
+                const anchor = document.getElementById('bookingStepsAnchor');
+                if (anchor) anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }, 50);
 
             // Progress Line width
@@ -1153,7 +1125,6 @@
                     chip.addEventListener('click', () => {
                         document.getElementById('time').value = t;
                         renderTimeChips();
-                        updateDesktopLiveSummary();
                     });
                 }
 
@@ -1328,7 +1299,6 @@
                         dateInput.dispatchEvent(event);
                         
                         renderCustomCalendar();
-                        updateDesktopLiveSummary();
                     });
                 }
                 
@@ -1737,15 +1707,12 @@
             'Service': 'Dienst',
             'Date & Time': 'Datum & Tijd',
             'Confirm': 'Bevestigen',
-            '1. Barber': '1. Kapper',
-            '2. Service': '2. Dienst',
             'Choose your barber': 'Kies uw kapper',
             'Choose a service': 'Kies een dienst',
             'Meet the experienced professionals dedicated to giving you the perfect look. Every barber at Sussex is a master of their craft.': 'Ontmoet de ervaren professionals die toegewijd zijn om u de perfecte look te geven. Elke kapper bij Sussex is een meester in zijn vak.',
             'At Sussex Barber Shop, we blend modern styling techniques with traditional barbering values. Our space is designed to be a sanctuary for men—a place where you can unwind, enjoy a free coffee, and leave looking your absolute best.': 'Bij Sussex Barber Shop combineren we moderne stylingtechnieken met traditionele barbierswaarden. Onze ruimte is ontworpen als een rustplek voor mannen—een plek waar u kunt ontspannen, genieten van een gratis koffie en er op uw best uitziet.',
             'With a 4.7-star rating and a reputation for precise cuts and a friendly atmosphere, our attentive barbers ensure that every haircut, beard trim, and hot towel shave is executed to perfection.': 'Met een beoordeling van 4.7 sterren en een reputatie voor nauwkeurige knipbeurten en een vriendelijke sfeer, zorgen onze aandachtige kappers ervoor dat elke knipbeurt, baardtrim en hot towel scheerbeurt tot in de perfectie wordt uitgevoerd.',
             'Visit Us': 'Bezoek Ons',
-            'LIVE SUMMARY': 'LIVE OVERZICHT',
             'Service:': 'Dienst:',
             'Barber:': 'Kapper:',
             'Date:': 'Datum:',
@@ -1837,7 +1804,6 @@
 
             // Re-render live status badge and desktop live summary safely
             if (typeof updateBusinessStatus === 'function') updateBusinessStatus();
-            if (typeof updateDesktopLiveSummary === 'function') updateDesktopLiveSummary();
         }
 
         window.toggleLanguage = toggleLanguage;
@@ -2052,7 +2018,6 @@
             document.getElementById('barber').value = name;
             renderBarberCards(window.sussexBarberList);
             closeBarberPicker();
-            if (typeof updateDesktopLiveSummary === 'function') updateDesktopLiveSummary();
 
             // A different barber works different days and has different slots
             // taken, so the calendar and the chips both go stale.
@@ -2189,9 +2154,6 @@
             renderServiceCards(window.sussexServiceList);
             closeServicePicker();
 
-            const liveEl = document.getElementById('desktopLiveService');
-            if (liveEl) liveEl.textContent = name || 'Select a service';
-            if (typeof updateDesktopLiveSummary === 'function') updateDesktopLiveSummary();
             const selectedDate = document.getElementById('date').value;
             if (selectedDate) renderTimeChips();
         }

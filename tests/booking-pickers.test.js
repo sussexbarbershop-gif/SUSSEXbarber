@@ -107,14 +107,29 @@ console.log('--- changing step scrolls to the steps, not past them ---');
 {
   const wizard = html.match(/function updateWizardUI\(stepNum\)[\s\S]*?\n        \}/);
   const src = wizard ? wizard[0] : '';
-  ok('the wizard scroll targets the step indicator', /getElementById\('stepIndicator'\)/.test(src), true);
+  ok('the wizard scrolls to the steps anchor', /getElementById\('bookingStepsAnchor'\)/.test(src), true);
   ok('it no longer scrolls to the section top', /getElementById\('booking'\)/.test(src), false);
-  // A sticky element's rect reports where it is pinned once stuck, so the
-  // document position has to come from offsetTop instead.
-  ok('it measures position with offsetTop, not a rect', /offsetTop/.test(src), true);
-  ok('it offsets by the real nav height', /offsetHeight/.test(src), true);
-  ok('the step indicator has the id the scroll looks for', /id="stepIndicator"/.test(html), true);
+  // The indicator is sticky: once stuck, its box is where it is pinned rather
+  // than where it belongs in the page, so measuring it or scrolling to it
+  // overshoots by however far the page had already moved. The anchor is a
+  // plain, empty, non-sticky element and has neither problem.
+  ok('it does not aim at the sticky indicator', /getElementById\('stepIndicator'\)/.test(src), false);
+  ok('the anchor exists above the indicator',
+     html.indexOf('id="bookingStepsAnchor"') < html.indexOf('id="stepIndicator"'), true);
+  // The nav is fixed, so the anchor needs its own scroll margin or the browser
+  // parks it underneath the header.
+  const anchorTag = (html.match(/<div id="bookingStepsAnchor"[^>]*>/) || [''])[0];
+  ok('the anchor clears the fixed nav', /scroll-mt-/.test(anchorTag), true);
 }
+
+console.log('--- the desktop Live Summary is gone ---');
+// It repeated service, barber, date and time under the form on every step,
+// reading as four dashes for most of the booking. Step 3 already summarises
+// the same four lines where they matter, just before confirming.
+// Match the rendered heading, not the comment that explains its removal.
+ok('no Live Summary panel', />\s*Live Summary\s*</.test(html), false);
+ok('no desktopLive* elements', /desktopLive/.test(html), false);
+ok('step 3 still summarises the booking', /id="summaryService"/.test(html), true);
 
 console.log('--- nothing is chosen for the customer ---');
 // Both fields used to ship pre-filled ("Classic Haircut", "Any Available"), so
