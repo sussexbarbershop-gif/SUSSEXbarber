@@ -108,7 +108,7 @@ var DEFAULT_MAPS_EMBED = 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d
  * reaches the site when someone pastes it in and redeploys, and forgetting
  * that has been the cause of every "I changed it but nothing happened".
  */
-var BACKEND_VERSION = '9-past-slots-and-alerts';
+var BACKEND_VERSION = '10-customer-email';
 
 // ---- Helpers ----------------------------------------------------------
 
@@ -201,7 +201,7 @@ function getRawBookingsSheet(ss) {
  * Bump when setupSheets() starts creating something new, so the next request
  * runs it once more instead of trusting the "already done" mark.
  */
-var SCHEMA_VERSION = '7-link-settings';
+var SCHEMA_VERSION = '8-booking-email-column';
 
 /**
  * setupSheets() opens nine sheets and reads them to decide it has nothing to
@@ -228,8 +228,10 @@ function setupSheets() {
 
   var bookings = sheetNamed(ss, SHEET_BOOKINGS);
   if (bookings.getLastRow() === 0) {
-    bookings.appendRow(['Date', 'Time', 'Service', 'Barber', 'Name', 'Phone', 'Status', 'Timestamp', 'Price']);
+    bookings.appendRow(['Date', 'Time', 'Service', 'Barber', 'Name', 'Phone',
+                        'Status', 'Timestamp', 'Price', 'Email']);
   }
+  addMissingBookingColumns(bookings);
 
   var settings = sheetNamed(ss, SHEET_SETTINGS);
   if (settings.getLastRow() === 0) {
@@ -328,6 +330,28 @@ function repairSettingErrors(sheet) {
     SpreadsheetApp.flush();
     CacheService.getScriptCache().remove('config');
   }
+}
+
+/**
+ * Adds a header the bookings sheet has never had, to the right of what is
+ * already there. Existing rows keep their columns and simply have nothing in
+ * the new one; nothing is moved, so a sheet the owner has sorted, filtered or
+ * built a formula against is left as it was.
+ */
+function addMissingBookingColumns(sheet) {
+  if (sheet.getLastRow() === 0) return;
+
+  var width = sheet.getLastColumn();
+  var headers = sheet.getRange(1, 1, 1, width).getValues()[0]
+    .map(function (h) { return String(h).trim().toLowerCase(); });
+
+  ['email'].forEach(function (name) {
+    if (headers.indexOf(name) !== -1) return;
+    width += 1;
+    sheet.getRange(1, width).setValue(name.charAt(0).toUpperCase() + name.slice(1));
+    headers.push(name);
+  });
+  SpreadsheetApp.flush();
 }
 
 /**
@@ -906,6 +930,7 @@ function doPost(e) {
       return idx === -1 ? fallback : idx;
     };
     var statusIdx = head2.indexOf('status');
+    var emailIdx = head2.indexOf('email');
 
     var diaryOut = [];
     for (var d2 = 1; d2 < diary.length; d2++) {
@@ -918,6 +943,9 @@ function doPost(e) {
         barber: diary[d2][col('barber', 3)],
         name: diary[d2][col('name', 4)],
         phone: diary[d2][col('phone', 5)],
+        // No fallback position: Email was added later, so a sheet that predates
+        // it simply has no such column and every booking reads as blank.
+        email: emailIdx === -1 ? '' : (diary[d2][emailIdx] || ''),
         price: diary[d2][col('price', 8)]
       });
     }
@@ -937,13 +965,29 @@ function doPost(e) {
         return json({ status: 'error', message: check });
       }
 
-      sheet.appendRow([
-        payload.date, payload.time, payload.service, payload.barber || 'Any',
-        payload.name, payload.phone, 'Active', new Date().toISOString(), payload.price || ''
-      ]);
-
+      // Built by header name, not by position: the sheet has gained columns
+      // over time and may be reordered by hand, and writing a row positionally
+      // would put the phone number wherever the sixth column happens to be.
       var hdrs = sheet.getRange(1, 1, 1, sheet.getLastColumn() || 9).getValues()[0]
         .map(function (h) { return String(h).trim().toLowerCase(); });
+
+      var values = {
+        date: payload.date,
+        time: payload.time,
+        service: payload.service,
+        barber: payload.barber || 'Any',
+        name: payload.name,
+        phone: payload.phone,
+        email: String(payload.email || '').trim(),
+        status: 'Active',
+        timestamp: new Date().toISOString(),
+        price: payload.price || ''
+      };
+      var row = hdrs.map(function (h) {
+        return Object.prototype.hasOwnProperty.call(values, h) ? values[h] : '';
+      });
+      sheet.appendRow(row);
+
       sortRawBookings(sheet, hdrs);
     } catch (err) {
       return json({ status: 'error', message: String(err) });
@@ -951,9 +995,10 @@ function doPost(e) {
       try { lock.releaseLock(); } catch (ignored) {}
     }
 
-    // Told after the lock is released and the row is safely written: the
+    // Both sent after the lock is released and the row is safely written: the
     // booking must not fail because an email did.
     notifyOwnerOfBooking(payload);
+    emailCustomerConfirmation(payload);
 
     return json({ status: 'success', message: 'Booking added' });
   }
@@ -1137,6 +1182,56 @@ function notifyOwnerOfBooking(payload) {
   notifyOwner('Booking', 'New booking', payload);
 }
 
+/**
+ * Confirms the appointment to the customer, if they gave an address. The email
+ * field is optional, so most bookings will not send one.
+ *
+ * Silent on failure for the same reason as the owner's copy: the booking is
+ * already in the sheet, and a bounced address must not be reported back to
+ * someone whose appointment is confirmed.
+ */
+function emailCustomerConfirmation(payload) {
+  try {
+    var to = String(payload.email || '').trim();
+    // Same shape the browser checks. This is a public endpoint, so whatever
+    // arrives here is checked again before it is handed to MailApp.
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(to)) return;
+
+    var config = readConfigCached(SpreadsheetApp.getActiveSpreadsheet());
+    var shopPhone = String(config.settings.contact_phone || '').trim();
+    var shopAddress = String(config.settings.contact_address || '').trim()
+      .replace(/<br\s*\/?>/gi, ', ');
+    var barber = String(payload.barber || '').trim() || ANY_BARBER;
+
+    var lines = [
+      'Hello ' + String(payload.name || '') + ',',
+      '',
+      'Your appointment at Sussex Barber Shop is booked.',
+      '',
+      'When:    ' + String(payload.date || '') + ' at ' + String(payload.time || ''),
+      'Service: ' + String(payload.service || ''),
+      'Barber:  ' + barber
+    ];
+    if (shopAddress) lines.push('Where:   ' + shopAddress);
+    lines.push('');
+    // No cancel link: cancelling is done on the site with the phone number the
+    // booking was made under, and a link in an email would be a second way in
+    // that nothing else checks.
+    lines.push('To change or cancel, visit the website and use "Already booked?"');
+    if (shopPhone) lines.push('or call us on ' + shopPhone + '.');
+    lines.push('');
+    lines.push('See you soon.');
+
+    MailApp.sendEmail({
+      to: to,
+      subject: 'Your appointment — ' + String(payload.date || '') + ' at ' + String(payload.time || ''),
+      body: lines.join('\n')
+    });
+  } catch (err) {
+    Logger.log('Could not send the customer confirmation: ' + err);
+  }
+}
+
 /** A cancellation is worth knowing sooner than a booking: a chair is free. */
 function notifyOwnerOfCancellation(payload) {
   notifyOwner('CANCELLED', 'Booking cancelled', payload);
@@ -1156,6 +1251,7 @@ function notifyOwner(subjectPrefix, heading, payload) {
       'When:    ' + when,
       'Who:     ' + String(payload.name || ''),
       'Phone:   ' + String(payload.phone || ''),
+      'Email:   ' + (String(payload.email || '').trim() || '—'),
       'Service: ' + String(payload.service || ''),
       'Barber:  ' + barber
     ];
@@ -1227,7 +1323,10 @@ function slotRefusal(ss, sheet, payload) {
 
   var holders = holdersOfSlot(sheet, date, time);
   if (!isSlotFree(config, String(date), String(time), holders, wanted)) {
-    return 'That time slot has just been taken';
+    // Says who took it and what to do, because the customer had that slot on
+    // screen a moment ago and needs to know it was not their own mistake.
+    return 'Someone else booked that time while you were filling this in. ' +
+           'Please choose another.';
   }
   return '';
 }

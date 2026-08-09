@@ -3,7 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sussex Barber Shop | Premium Grooming</title>
+    <title>Sussex Barber Shop | Book Online in Wassenaar</title>
+
+    <!-- What a search result and a shared link look like. Without these Google
+         picks its own snippet from whatever text it finds first, and a link
+         pasted into WhatsApp arrives as a bare URL with no name, no picture and
+         nothing saying what it is. Customers send this to each other. -->
+    <meta name="description" content="Barber shop in Wassenaar. Book a haircut, beard trim or hot towel shave online in under a minute. Van Hogendorpstraat 10, open Monday to Saturday.">
+    <link rel="canonical" href="https://sussexbarber.vercel.app/">
+
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Sussex Barber Shop">
+    <meta property="og:title" content="Sussex Barber Shop — Wassenaar">
+    <meta property="og:description" content="Book a haircut, beard trim or hot towel shave online in under a minute.">
+    <meta property="og:url" content="https://sussexbarber.vercel.app/">
+    <!-- Must be absolute: WhatsApp and Facebook fetch it from their own servers
+         and cannot resolve a relative path. -->
+    <meta property="og:image" content="https://sussexbarber.vercel.app/assets/hero_bg_shop.jpg">
+    <meta property="og:image:width" content="1436">
+    <meta property="og:image:height" content="808">
+    <meta property="og:locale" content="en_GB">
+    <meta property="og:locale:alternate" content="nl_NL">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Sussex Barber Shop — Wassenaar">
+    <meta name="twitter:description" content="Book a haircut, beard trim or hot towel shave online in under a minute.">
+    <meta name="twitter:image" content="https://sussexbarber.vercel.app/assets/hero_bg_shop.jpg">
+
+    <meta name="theme-color" content="#121212">
+
     <!-- Security Meta Tags -->
     <meta http-equiv="X-XSS-Protection" content="1; mode=block">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
@@ -69,8 +97,38 @@
             background: #d4af37;
             border-radius: 4px;
         }
-        }
     </style>
+
+    <!-- Tells Google this is a barber shop in Wassenaar rather than leaving it
+         to guess, which is what puts the address, the hours and the phone
+         number into the search result itself. The hours here are the shop's
+         published ones; the Sheet is what actually governs bookings. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "HairSalon",
+      "name": "Sussex Barber Shop",
+      "url": "https://sussexbarber.vercel.app/",
+      "image": "https://sussexbarber.vercel.app/assets/hero_bg_shop.jpg",
+      "telephone": "+31653730803",
+      "priceRange": "€20–€40",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Van Hogendorpstraat 10",
+        "postalCode": "2242 KZ",
+        "addressLocality": "Wassenaar",
+        "addressCountry": "NL"
+      },
+      "geo": { "@type": "GeoCoordinates", "latitude": 52.1412, "longitude": 4.3946 },
+      "openingHoursSpecification": [
+        { "@type": "OpeningHoursSpecification", "dayOfWeek": "Monday", "opens": "12:00", "closes": "18:00" },
+        { "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+          "opens": "10:00", "closes": "18:00" }
+      ],
+      "sameAs": ["https://www.instagram.com/sussexbarbershop"]
+    }
+    </script>
 </head>
 <body class="antialiased font-sans selection:bg-gold selection:text-charcoal-900 overflow-x-hidden">
 
@@ -399,10 +457,15 @@
                     <div>
                         <div class="flex justify-between items-center mb-3">
                             <label class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest font-semibold">2. Select Time Slot</label>
-                            <span id="timeSlotStatusText" class="text-xs text-gray-500 dark:text-gray-400">Please choose a date first</span>
+                            <!-- Announced when it changes. The whole grid of times is
+                                 replaced after picking a date or a barber, which a
+                                 sighted customer sees at once and a screen reader user
+                                 would otherwise get no notice of at all. polite, not
+                                 assertive: it should wait for a pause, not interrupt. -->
+                            <span id="timeSlotStatusText" role="status" aria-live="polite" class="text-xs text-gray-500 dark:text-gray-400">Please choose a date first</span>
                         </div>
                         <!-- Interactive Time Chips Grid -->
-                        <div id="timeChipsGrid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-2.5"></div>
+                        <div id="timeChipsGrid" role="group" aria-label="Available times" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-2.5"></div>
                     </div>
 
                     <div class="pt-4 flex justify-between items-stretch gap-3">
@@ -436,6 +499,15 @@
                         <div>
                             <label class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2 font-semibold">Phone Number</label>
                             <input type="tel" id="phoneNumber" inputmode="numeric" required placeholder="+31 6 12345678" class="w-full bg-gray-50 dark:bg-charcoal-800 border border-gray-300 dark:border-charcoal-700 text-gray-900 dark:text-white p-3.5 focus:outline-none focus:border-gold transition-colors rounded-lg">
+                        </div>
+                        <div>
+                            <!-- Optional on purpose. The phone number is what the shop
+                                 actually needs; making an email compulsory only loses
+                                 bookings from people who would rather not give one. -->
+                            <label for="emailAddress" class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2 font-semibold">
+                                Email <span class="normal-case tracking-normal font-normal text-gray-400 dark:text-gray-500" data-translate="(optional — for your confirmation)">(optional — for your confirmation)</span>
+                            </label>
+                            <input type="email" id="emailAddress" autocomplete="email" placeholder="you@example.com" class="w-full bg-gray-50 dark:bg-charcoal-800 border border-gray-300 dark:border-charcoal-700 text-gray-900 dark:text-white p-3.5 focus:outline-none focus:border-gold transition-colors rounded-lg">
                         </div>
                     </div>
 
@@ -1126,15 +1198,23 @@
                 const chipBase = 'min-h-[44px] flex flex-col items-center justify-center ' +
                     'px-1.5 sm:px-2 text-xs leading-tight rounded-lg text-center';
 
+                // Which chip is chosen, and which are gone, is carried entirely
+                // by colour and a strikethrough - so it has to be said as well,
+                // or a screen reader reads eighteen identical times.
+                chip.setAttribute('aria-pressed', String(isSelected));
+
                 if (isBooked) {
                     chip.className = `${chipBase} font-medium border border-gray-200 dark:border-charcoal-700 bg-gray-100 dark:bg-charcoal-800 text-gray-400 dark:text-gray-600 cursor-not-allowed`;
                     chip.innerHTML = `<span class="line-through">${t}</span><span class="block text-[10px]">Booked</span>`;
+                    chip.setAttribute('aria-label', `${t} — already booked`);
                 } else if (isSelected) {
                     chip.className = `${chipBase} font-semibold border-2 border-gold bg-gold text-charcoal-900 shadow-md`;
                     chip.innerText = t;
+                    chip.setAttribute('aria-label', `${t} — selected`);
                 } else {
                     chip.className = `${chipBase} font-medium border border-gray-300 dark:border-charcoal-700 bg-gray-50 dark:bg-charcoal-800 text-gray-800 dark:text-gray-200 hover:border-gold hover:text-gold transition-colors`;
                     chip.innerText = t;
+                    chip.setAttribute('aria-label', `${t} — available`);
                 }
 
                 if (!isBooked) {
@@ -1388,6 +1468,18 @@
                 return;
             }
 
+            // Optional, but if it is filled in it has to be usable - a
+            // confirmation sent to a typo is worse than none at all, because
+            // the customer believes one is coming.
+            const emailVal = document.getElementById('emailAddress').value.trim();
+            if (emailVal && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(emailVal)) {
+                showToast('That email address does not look right. Leave it blank if you prefer.', 'error');
+                document.getElementById('emailAddress').focus();
+                submitBtn.innerText = originalText;
+                submitBtn.disabled = false;
+                return;
+            }
+
             const selectedServiceName = document.getElementById('service').value;
             let servicePrice = 0;
             try {
@@ -1406,6 +1498,7 @@
                 time: timeVal,
                 name: nameVal,
                 phone: phoneVal,
+                email: emailVal,
                 service: selectedServiceName,
                 barber: document.getElementById('barber').value,
                 price: servicePrice
@@ -1425,11 +1518,22 @@
 
                 if (result.status !== 'success') {
                     showToast(result.message || 'That booking could not be completed.', 'error');
-                    // Re-check the day so the taken slot greys out.
-                    const dateEl = document.getElementById('date');
-                    if (dateEl && dateEl.value) dateEl.dispatchEvent(new Event('change'));
+
                     submitBtn.innerText = originalText;
                     submitBtn.disabled = false;
+
+                    // Every reason the server refuses is about the slot itself:
+                    // someone else took it in the seconds this form was open, or
+                    // the time has since passed. Leaving the customer on step 3
+                    // left them looking at a Confirm button that would fail
+                    // again, with the time picker two taps away. Put them back
+                    // where the choice is, with that time cleared and the day
+                    // re-checked, so the next thing they see is what is free.
+                    document.getElementById('time').value = '';
+                    updateWizardUI(2);
+
+                    const dateEl = document.getElementById('date');
+                    if (dateEl && dateEl.value) dateEl.dispatchEvent(new Event('change'));
                     return;
                 }
 

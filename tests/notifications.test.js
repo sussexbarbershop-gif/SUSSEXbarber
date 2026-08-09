@@ -32,7 +32,18 @@ global.MailApp = {
 };
 global.Logger = { log: (m) => logged.push(String(m)) };
 
-eval([grab('notifyOwnerOfBooking'), grab('notifyOwnerOfCancellation'), grab('notifyOwner')].join('\n'));
+// emailCustomerConfirmation() reads the shop's address and phone from the
+// config; hand it a fixture rather than a Sheet.
+global.SpreadsheetApp = { getActiveSpreadsheet: () => ({}) };
+function readConfigCached() {
+  return { settings: {
+    contact_phone: '+31 6 53730803',
+    contact_address: 'Van Hogendorpstraat 10<br>2242 KZ Wassenaar'
+  } };
+}
+
+eval([grab('notifyOwnerOfBooking'), grab('notifyOwnerOfCancellation'),
+      grab('notifyOwner'), grab('emailCustomerConfirmation')].join('\n'));
 
 let failed = 0;
 const ok = (label, actual, want) => {
@@ -90,6 +101,60 @@ let threw = false;
 try { notifyOwnerOfBooking(booking); } catch (e) { threw = true; }
 ok('the failure is swallowed', threw, false);
 ok('and recorded in the log instead', logged.length, 1);
+
+console.log('--- the customer confirmation is optional ---');
+// The email field is optional, so most bookings carry no address and must
+// send nothing at all rather than failing or mailing an empty recipient.
+reset();
+emailCustomerConfirmation(Object.assign({}, booking, { email: '' }));
+ok('no address, no email', sent.length, 0);
+emailCustomerConfirmation(Object.assign({}, booking, { email: '   ' }));
+ok('whitespace is not an address', sent.length, 0);
+emailCustomerConfirmation(Object.assign({}, booking, {}));
+ok('a missing field is not an address', sent.length, 0);
+
+// This is a public endpoint: whatever arrives is checked again here before it
+// is handed to MailApp, not just in the browser.
+['not-an-email', 'a@b', 'a b@c.com', '@example.com', 'x@.com'].forEach(bad => {
+  reset();
+  emailCustomerConfirmation(Object.assign({}, booking, { email: bad }));
+  ok(`"${bad}" is refused`, sent.length, 0);
+});
+
+console.log('--- what the customer is sent ---');
+reset();
+emailCustomerConfirmation(Object.assign({}, booking, { email: 'ahmed@example.com' }));
+ok('one email sent', sent.length, 1);
+ok('to the address given', sent[0].to, 'ahmed@example.com');
+ok('the subject carries the appointment',
+   /Your appointment .* 2026-09-08 at 11:00 AM/.test(sent[0].subject), true);
+ok('it greets them by name', sent[0].body.includes('Ahmed'), true);
+ok('it names the service', sent[0].body.includes('Skin Fade'), true);
+ok('it gives the address', sent[0].body.includes('Van Hogendorpstraat 10'), true);
+ok('with the <br> resolved, not printed',
+   sent[0].body.includes('<br>'), false);
+ok('it says how to cancel', /Already booked\?/.test(sent[0].body), true);
+// A cancel link would be a second way in that nothing else checks; cancelling
+// is done on the site with the phone number the booking was made under.
+ok('and carries no cancel link', /https?:\/\/[^\s]*cancel/i.test(sent[0].body), false);
+
+console.log('--- a bad address must not break a confirmed booking ---');
+reset();
+mailThrows = true;
+threw = false;
+try { emailCustomerConfirmation(Object.assign({}, booking, { email: 'ahmed@example.com' })); }
+catch (e) { threw = true; }
+ok('the failure is swallowed', threw, false);
+ok('and recorded in the log instead', logged.length, 1);
+mailThrows = false;
+
+console.log('--- the owner is told the address too ---');
+reset();
+notifyOwnerOfBooking(Object.assign({}, booking, { email: 'ahmed@example.com' }));
+ok('the address is in the body', sent[0].body.includes('ahmed@example.com'), true);
+reset();
+notifyOwnerOfBooking(booking);
+ok('and reads as a dash when there is none', /Email:\s+—/.test(sent[0].body), true);
 
 console.log('--- it is called after the row is written, not before ---');
 const addBooking = src.slice(src.indexOf("if (!action || action === 'addBooking')"));
