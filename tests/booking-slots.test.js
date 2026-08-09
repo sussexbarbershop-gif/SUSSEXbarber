@@ -18,6 +18,7 @@ const src = NAMES.map(n => {
 }).join('\n');
 
 const SLOT_MINUTES = 30;
+const MIN_NOTICE_MINUTES = 15;
 const WEEKDAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const ANY_BARBER = 'Any Available';
 
@@ -124,6 +125,39 @@ console.log('--- who is on the floor ---');
 ok('Sat 11:00', barbersWorkingAt(D('2026-08-22'), 11*60), ['Hemen','Amir','Raman']);
 ok('Wed 11:00', barbersWorkingAt(D('2026-08-19'), 11*60), ['Hemen']);
 ok('Mon 13:00', barbersWorkingAt(D('2026-08-17'), 13*60), ['Raman']);
+
+console.log('--- today: times that have already gone ---');
+// The list was built from the shop hours alone, so at four in the afternoon it
+// still offered ten that morning.
+{
+  const RealDate = Date;
+  // A Wednesday 16:00, a day the fixture has Hemen working 10:00-18:00.
+  const frozen = new RealDate(2026, 7, 19, 16, 0, 0);
+  global.Date = class extends RealDate {
+    constructor(...args) { return args.length ? new RealDate(...args) : new RealDate(frozen); }
+    static now() { return frozen.getTime(); }
+  };
+
+  barberFieldValue = 'Hemen';
+  const todaySlots = slotsForDate(D('2026-08-19'));
+  ok('nothing before now is offered',   todaySlots.some(s => s === '10:00 AM'), false);
+  ok('nor inside the notice window',    todaySlots.some(s => s === '04:00 PM'), false);
+  ok('the first offer clears the notice', todaySlots[0], '04:30 PM');
+  ok('the rest of the day is intact',   todaySlots, ['04:30 PM', '05:00 PM', '05:30 PM']);
+
+  // Tomorrow is a full day regardless of the hour it is looked at.
+  ok('tomorrow starts at opening', slotsForDate(D('2026-08-21'))[0], '10:00 AM');
+
+  // A day with nothing left should grey out in the calendar.
+  const lateFrozen = new RealDate(2026, 7, 19, 17, 40, 0);
+  global.Date = class extends RealDate {
+    constructor(...args) { return args.length ? new RealDate(...args) : new RealDate(lateFrozen); }
+    static now() { return lateFrozen.getTime(); }
+  };
+  ok('a day with no time left is greyed', noSlotsOn(D('2026-08-19')), true);
+
+  global.Date = RealDate;
+}
 
 console.log(failed === 0 ? '\nAll front-end tests passed.' : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);

@@ -89,6 +89,11 @@ var KNOWN_BARBERS = [ANY_BARBER, 'Hemen', 'Amir', 'Raman', 'Bassam', 'Saan'];
 /** Appointment length. Must match SLOT_MINUTES in index.html. */
 var SLOT_MINUTES = 30;
 
+/** How much notice the shop wants. A slot closer to now than this is neither
+ *  offered nor accepted: nobody is in the chair in five minutes. Must match
+ *  MIN_NOTICE_MINUTES in index.html. */
+var MIN_NOTICE_MINUTES = 15;
+
 // Where the site points before anyone edits them in the panel. These used to
 // be written into index.html in six places between them, so moving premises or
 // changing the handle meant editing the source.
@@ -103,7 +108,7 @@ var DEFAULT_MAPS_EMBED = 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d
  * reaches the site when someone pastes it in and redeploys, and forgetting
  * that has been the cause of every "I changed it but nothing happened".
  */
-var BACKEND_VERSION = '8-link-settings';
+var BACKEND_VERSION = '9-past-slots-and-alerts';
 
 // ---- Helpers ----------------------------------------------------------
 
@@ -820,6 +825,26 @@ function doGet(e) {
       }
     });
 
+    // Times today that have already gone. The browser hides these itself, but
+    // it works from the visitor's own clock: a phone set to the wrong time, or
+    // a customer in another timezone, would still be shown them. The shop's
+    // clock is the one that decides.
+    var nowForDate = new Date();
+    if (dateParam === formatDateTimezoneSafe(nowForDate)) {
+      var cutoff = nowForDate.getHours() * 60 + nowForDate.getMinutes() + MIN_NOTICE_MINUTES;
+      config.hours.forEach(function (day) {
+        if (day.day !== weekdayNameFor(dateParam) || !day.open) return;
+        var open = clockToMinutes(day.from);
+        var close = clockToMinutes(day.to);
+        if (open === null || close === null) return;
+        for (var t = open; t + SLOT_MINUTES <= close; t += SLOT_MINUTES) {
+          if (t >= cutoff) break;
+          var label = formatTimeForFrontend(new Date(1970, 0, 1, Math.floor(t / 60), t % 60));
+          if (booked.indexOf(label) === -1) booked.push(label);
+        }
+      });
+    }
+
     return json(booked);
   }
 
@@ -925,6 +950,11 @@ function doPost(e) {
     } finally {
       try { lock.releaseLock(); } catch (ignored) {}
     }
+
+    // Told after the lock is released and the row is safely written: the
+    // booking must not fail because an email did.
+    notifyOwnerOfBooking(payload);
+
     return json({ status: 'success', message: 'Booking added' });
   }
 
@@ -954,6 +984,13 @@ function doPost(e) {
         canceledSheet.appendRow([row[0], row[1], row[2], row[3], row[4], row[5],
                                  'Canceled', new Date().toISOString(), row[8] || '']);
         bookingSheet.deleteRow(i + 1);
+
+        // Worth knowing sooner than a booking: a chair has just come free.
+        notifyOwnerOfCancellation({
+          date: rowDate, time: rowTime, name: row[4], phone: row[5],
+          service: row[2], barber: row[3]
+        });
+
         return json({ status: 'success', message: 'Booking canceled' });
       }
     }
@@ -1086,6 +1123,56 @@ function doPost(e) {
 }
 
 /**
+ * Emails the shop when a booking comes in, so nobody has to keep the panel
+ * open to find out. Off until an address is set:
+ *
+ *   Project Settings > Script Properties > Add script property
+ *   Property: NOTIFY_EMAIL   Value: the address to tell
+ *
+ * Never throws. A booking is already written by the time this runs, and a
+ * failed email must not turn a successful booking into an error for the
+ * customer - nor use up the daily quota retrying.
+ */
+function notifyOwnerOfBooking(payload) {
+  notifyOwner('Booking', 'New booking', payload);
+}
+
+/** A cancellation is worth knowing sooner than a booking: a chair is free. */
+function notifyOwnerOfCancellation(payload) {
+  notifyOwner('CANCELLED', 'Booking cancelled', payload);
+}
+
+function notifyOwner(subjectPrefix, heading, payload) {
+  try {
+    var to = PropertiesService.getScriptProperties().getProperty('NOTIFY_EMAIL');
+    if (!to) return;
+
+    var when = String(payload.date || '') + ' at ' + String(payload.time || '');
+    var barber = String(payload.barber || '').trim() || ANY_BARBER;
+
+    var lines = [
+      heading,
+      '',
+      'When:    ' + when,
+      'Who:     ' + String(payload.name || ''),
+      'Phone:   ' + String(payload.phone || ''),
+      'Service: ' + String(payload.service || ''),
+      'Barber:  ' + barber
+    ];
+    if (payload.price) lines.push('Price:   EUR ' + String(payload.price));
+
+    MailApp.sendEmail({
+      to: to,
+      // The subject alone should be enough to read on a lock screen.
+      subject: subjectPrefix + ': ' + String(payload.name || 'customer') + ' — ' + when,
+      body: lines.join('\n')
+    });
+  } catch (err) {
+    Logger.log('Could not send the ' + subjectPrefix + ' notification: ' + err);
+  }
+}
+
+/**
  * Why this booking cannot be accepted, or '' when it can. Checked here and not
  * only in the browser: the form is public, so the rota is not enforced until
  * the server says so.
@@ -1112,8 +1199,19 @@ function slotRefusal(ss, sheet, payload) {
 
   // The diary is only useful for appointments that have not happened yet, and
   // the site itself only offers the next 30 days.
-  var today = formatDateTimezoneSafe(new Date());
+  var now = new Date();
+  var today = formatDateTimezoneSafe(now);
   if (String(date) < today) return 'That date has already passed';
+
+  // Only the date was checked here, so at four in the afternoon a booking for
+  // ten that morning was accepted - and then sat in the diary looking like a
+  // customer who had not turned up.
+  if (String(date) === today) {
+    var minutesNow = now.getHours() * 60 + now.getMinutes();
+    if (minutes < minutesNow + MIN_NOTICE_MINUTES) {
+      return 'That time has passed. Please choose a later one.';
+    }
+  }
 
   var config = readConfigCached(ss);
   var wanted = String(payload.barber || '').trim();

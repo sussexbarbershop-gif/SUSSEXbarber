@@ -13,6 +13,7 @@ function grab(name) {
 }
 
 const SLOT_MINUTES = 30;
+const MIN_NOTICE_MINUTES = 15;
 const ANY_BARBER = 'Any Available';
 const WEEKDAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
@@ -82,6 +83,33 @@ refused('phone absurdly long',{ phone: '0'.repeat(41) }, true);
 
 console.log('--- the past ---');
 refused('yesterday', { date: '2020-01-01' }, true);
+
+console.log('--- times today that have already gone ---');
+// Only the date used to be checked, so at four in the afternoon a booking for
+// ten that morning was accepted, and then sat in the diary looking like a
+// customer who had not turned up.
+{
+  // Freeze "now" at a Tuesday 16:00, a day the fixture has Hemen working.
+  const RealDate = Date;
+  const frozen = new RealDate(2099, 8, 8, 16, 0, 0);   // 2099-09-08, a Tuesday
+  global.Date = class extends RealDate {
+    constructor(...args) { return args.length ? new RealDate(...args) : new RealDate(frozen); }
+    static now() { return frozen.getTime(); }
+  };
+
+  const at = (time, want) => refused(`today ${time}`, { date: '2099-09-08', time }, want);
+  at('10:00 AM', true);    // long gone
+  at('03:30 PM', true);    // gone
+  at('04:00 PM', true);    // now — no notice at all
+  at('04:10 PM', true);    // inside the 15-minute notice
+  at('04:30 PM', false);   // far enough ahead
+  at('05:00 PM', false);
+
+  // A later date is unaffected by the time of day. Wednesday is Hemen's.
+  refused('tomorrow at 10:00', { date: '2099-09-09', time: '10:00 AM', barber: 'Hemen' }, false);
+
+  global.Date = RealDate;
+}
 
 console.log('--- the rota is enforced, not just drawn ---');
 refused('Hemen on a Monday',      { date:'2099-09-07', barber:'Hemen' }, true);

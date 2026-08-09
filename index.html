@@ -888,6 +888,13 @@
         /** Bookable start times for a date. The last slot starts one appointment
          *  length before closing, so an appointment never runs past closing.
          *  With a barber chosen, only the hours that barber actually works. */
+        /** How much notice the shop wants. A slot this close to now is no longer
+         *  offered: nobody can be in the chair in five minutes, and a booking
+         *  made for a time that has effectively passed reads in the diary as a
+         *  customer who did not turn up. Must match MIN_NOTICE_MINUTES in
+         *  Code.gs, which enforces it. */
+        const MIN_NOTICE_MINUTES = 15;
+
         function slotsForDate(dateObj, barberName) {
             const entry = hoursForDay(dateObj);
             if (!entry || entry.open !== true) return [];
@@ -895,9 +902,18 @@
             const to = parseClock(entry.to);
             if (from === null || to === null || to <= from) return [];
 
+            // On today, start past whatever time it already is. Without this the
+            // shop was still offering 10:00 at four in the afternoon.
+            const now = new Date();
+            const isToday = dateKey(dateObj) === dateKey(now);
+            const earliest = isToday
+                ? now.getHours() * 60 + now.getMinutes() + MIN_NOTICE_MINUTES
+                : -Infinity;
+
             const wanted = barberName === undefined ? selectedBarberName() : barberName;
             const slots = [];
             for (let t = from; t + SLOT_MINUTES <= to; t += SLOT_MINUTES) {
+                if (t < earliest) continue;
                 const open = wanted
                     ? isBarberWorkingAt(wanted, dateObj, t)
                     : barbersWorkingAt(dateObj, t).length > 0;
