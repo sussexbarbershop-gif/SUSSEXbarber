@@ -86,6 +86,32 @@
             transform: translateY(0);
         }
 
+        /* Gallery hover: the photo lifts and brightens, so it reads as
+           something you can open before you click it. No outline - the photo
+           itself is the subject, and a border round it only competes. Kept to
+           transform and shadow, both composited, so a grid of six photos does
+           not repaint on every mouse move. */
+        .gallery-img {
+            transition: transform .4s ease, box-shadow .4s ease, filter .4s ease;
+        }
+        .gallery-img:hover,
+        .gallery-img:focus-visible {
+            transform: scale(1.03);
+            box-shadow: 0 10px 26px rgba(0, 0, 0, .3);
+            filter: brightness(1.06);
+            position: relative;
+            z-index: 1;
+        }
+        /* A finger cannot hover: on a touch screen the scale only fires on tap
+           and shifts the photo under the finger that is opening it. */
+        @media (hover: none) {
+            .gallery-img:hover { transform: none; box-shadow: none; filter: none; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .gallery-img { transition: none; }
+            .gallery-img:hover { transform: none; }
+        }
+
         /* Custom Scrollbar */
         ::-webkit-scrollbar {
             width: 8px;
@@ -601,7 +627,7 @@
                      renderGalleryGrid() replaces the lot. Shown as taken, not run
                      through a brightness/contrast stack - a real photo of the shop
                      is the point, not a processed version of one. -->
-                <img src="assets/IMG_8582.PNG" alt="Gallery Image" loading="lazy" class="w-full aspect-square sm:aspect-auto sm:h-64 object-cover rounded-lg sm:rounded-none transition-opacity duration-300 hover:opacity-90 cursor-pointer" onclick="openLightbox(this.src)">
+                <img src="assets/IMG_8582.PNG" alt="Gallery Image" loading="lazy" class="gallery-img w-full aspect-square sm:aspect-auto sm:h-64 object-cover rounded-lg sm:rounded-none cursor-pointer" onclick="openLightbox(this.src)">
             </div>
         </div>
 
@@ -2306,7 +2332,7 @@
                 const name = (typeof img === 'object' && img.name) ? img.name : 'Gallery Image';
                 // Square and two to a row on a phone: at h-64 in a single column
                 // six photos ran to about 1600px of scrolling.
-                return `<img src="${escapeAttribute(src)}" alt="${escapeAttribute(name)}" loading="lazy" class="w-full aspect-square sm:aspect-auto sm:h-64 object-cover rounded-lg sm:rounded-none transition-opacity duration-300 hover:opacity-90 cursor-pointer" onclick="openLightbox(this.src)">`;
+                return `<img src="${escapeAttribute(src)}" alt="${escapeAttribute(name)}" loading="lazy" class="gallery-img w-full aspect-square sm:aspect-auto sm:h-64 object-cover rounded-lg sm:rounded-none cursor-pointer" onclick="openLightbox(this.src)">`;
             }).join('');
         }
 
