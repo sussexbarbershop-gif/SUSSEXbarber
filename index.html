@@ -76,6 +76,17 @@
             background-size: cover;
             background-position: center;
         }
+        /* Lighter on a light device, where the old veil read as a black slab
+           under a white header. Dark mode keeps the heavier one.
+           0.45-0.65 is as far as this can go: the photo has bright lamps and a
+           window in it, and measured against the actual pixels behind the
+           headline, the worst spot lands at exactly 4.5:1 for white text.
+           Lighten it further and the subtitle starts failing over highlights. */
+        @media (prefers-color-scheme: light) {
+            .hero-bg {
+                background-image: linear-gradient(rgba(18, 18, 18, 0.45), rgba(18, 18, 18, 0.65)), url('assets/hero_bg_shop.jpg');
+            }
+        }
         
         input[type="date"]::-webkit-calendar-picker-indicator {
             filter: none;
@@ -280,7 +291,9 @@
          the section jumped as the bar slid away while scrolling. svh is the
          small viewport - the one that is always visible. -->
     <section id="hero" class="min-h-[100svh] flex items-center justify-center text-center px-4 relative overflow-hidden hero-bg">
-        <div class="absolute inset-0 bg-black/30 z-10"></div>
+        <!-- Second veil, on top of the gradient. Lighter in light mode for the
+             same reason, and measured with it: the two compose. -->
+        <div class="absolute inset-0 bg-black/20 dark:bg-black/30 z-10"></div>
         <div class="max-w-3xl reveal active relative z-20">
             <h1 id="cms-hero-title" class="font-serif text-3xl sm:text-5xl md:text-7xl mb-4 sm:mb-6 text-white leading-tight">Masterful Cuts.<br><span class="text-gold italic">Timeless Style.</span></h1>
             <p id="cms-hero-subtitle" class="text-gray-300 text-base sm:text-lg md:text-xl mb-8 sm:mb-10 font-light tracking-wide">Experience premium grooming and hearty service in the heart of Wassenaar.</p>
