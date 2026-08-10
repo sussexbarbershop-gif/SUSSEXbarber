@@ -108,7 +108,7 @@ var DEFAULT_MAPS_EMBED = 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d
  * reaches the site when someone pastes it in and redeploys, and forgetting
  * that has been the cause of every "I changed it but nothing happened".
  */
-var BACKEND_VERSION = '10-customer-email';
+var BACKEND_VERSION = '11-validate-email';
 
 // ---- Helpers ----------------------------------------------------------
 
@@ -1292,6 +1292,18 @@ function slotRefusal(ss, sheet, payload) {
   // Nothing legitimate is this long; a cell holds 50,000 characters and the
   // diary is read by a person.
   if (name.length > 100 || phone.length > 40) return 'That name or number is too long';
+
+  // Optional, but a typo is worse than leaving it blank: the booking would be
+  // accepted, the confirmation would silently never arrive, and the customer
+  // would be waiting for one. Only the browser checked this, and the browser
+  // is not what decides.
+  var email = String(payload.email || '').trim();
+  if (email) {
+    if (email.length > 254) return 'That email address is too long';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      return 'That email address does not look right. Leave it blank if you prefer.';
+    }
+  }
 
   // The diary is only useful for appointments that have not happened yet, and
   // the site itself only offers the next 30 days.

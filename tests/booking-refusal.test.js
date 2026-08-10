@@ -81,6 +81,17 @@ refused('phone too short',    { phone: '123' }, true);
 refused('name absurdly long', { name: 'x'.repeat(101) }, true);
 refused('phone absurdly long',{ phone: '0'.repeat(41) }, true);
 
+console.log('--- the optional email, if given, has to work ---');
+// A typo is worse than a blank: the booking is accepted, the confirmation
+// silently never arrives, and the customer is left expecting one.
+refused('no email at all',      { email: '' }, false);
+refused('email left undefined', {}, false);
+refused('a good address',       { email: 'ahmed@example.com' }, false);
+['not-an-email', 'a@b', 'a b@c.com', '@example.com', 'x@.com', 'x@y.c'].forEach(bad => {
+  refused(`"${bad}"`, { email: bad }, true);
+});
+refused('absurdly long address', { email: 'a'.repeat(250) + '@example.com' }, true);
+
 console.log('--- the past ---');
 refused('yesterday', { date: '2020-01-01' }, true);
 
