@@ -35,20 +35,26 @@
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-body.admin-light-mode {
-    --bg-primary: #f8fafc;
-    --bg-secondary: #ffffff;
-    --bg-card: #ffffff;
-    --bg-card-hover: #f1f5f9;
-    --bg-sidebar: #0f172a;
-    --bg-input: #f1f5f9;
-    --border-color: #e2e8f0;
-    --border-light: #cbd5e1;
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --text-muted: #64748b;
-    --shadow: 0 4px 24px rgba(0,0,0,0.06);
-    --shadow-lg: 0 8px 40px rgba(0,0,0,0.1);
+/* The panel follows the device, the way the site does. These used to sit on
+   body.admin-light-mode, set by a button and remembered in localStorage - so
+   the panel could sit in light mode on a phone that had gone dark, until
+   someone thought to press the button again. */
+@media (prefers-color-scheme: light) {
+    :root {
+        --bg-primary: #f8fafc;
+        --bg-secondary: #ffffff;
+        --bg-card: #ffffff;
+        --bg-card-hover: #f1f5f9;
+        --bg-sidebar: #0f172a;
+        --bg-input: #f1f5f9;
+        --border-color: #e2e8f0;
+        --border-light: #cbd5e1;
+        --text-primary: #0f172a;
+        --text-secondary: #475569;
+        --text-muted: #64748b;
+        --shadow: 0 4px 24px rgba(0,0,0,0.06);
+        --shadow-lg: 0 8px 40px rgba(0,0,0,0.1);
+    }
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -101,8 +107,10 @@ input, textarea, select { -webkit-user-select: auto; user-select: auto; }
     display: block;
 }
 .login-card .logo-light { display: none; }
-body.admin-light-mode .login-card .logo-dark { display: none; }
-body.admin-light-mode .login-card .logo-light { display: block; }
+@media (prefers-color-scheme: light) {
+    .login-card .logo-dark { display: none; }
+    .login-card .logo-light { display: block; }
+}
 
 .login-card h1 { font-family: 'Playfair Display', serif; font-size: 28px; margin-bottom: 8px; }
 .login-card p { color: var(--text-secondary); font-size: 14px; margin-bottom: 32px; }
@@ -429,14 +437,6 @@ tbody tr:last-child td { border-bottom: none; }
     border: 1px dashed var(--border, #2a2a2a);
     color: var(--text-muted, #9ca3af); font-size: .9rem;
 }
-
-/* Dark is the default (no body class), so the moon shows until the light
-   class says otherwise - matching the sun/moon convention on the site. */
-.theme-toggle-btn { display: inline-flex; align-items: center; justify-content: center; }
-.theme-icon-sun { display: none; }
-.theme-icon-moon { display: inline-flex; }
-body.admin-light-mode .theme-icon-sun { display: inline-flex; }
-body.admin-light-mode .theme-icon-moon { display: none; }
 
 .today-next-title {
     margin: 2rem 0 .75rem; font-size: 1rem;

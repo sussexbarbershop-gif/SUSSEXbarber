@@ -122,13 +122,9 @@
                     <h2 id="pageTitle" data-admin-i18n="dashboard">Dashboard</h2>
                 </div>
                 <div class="topbar-right" style="display:flex; align-items:center; gap:15px;">
-                    <!-- Two icons swapped by CSS on body.admin-light-mode, the same
-                         technique the site uses for its own theme button - no JS
-                         reaching into innerHTML to swap an emoji. -->
-                    <button class="btn btn-secondary btn-sm theme-toggle-btn" onclick="toggleAdminTheme()" id="btnThemeToggle" title="Toggle Dark/Light Mode" style="padding:6px 10px;">
-                        <svg class="theme-icon-sun" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-                        <svg class="theme-icon-moon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
-                    </button>
+                    <!-- No theme button. The device already has that setting and the
+                         panel follows it: admin.css keeps the dark values on :root and
+                         overrides them inside a prefers-color-scheme query. -->
 
                     <!-- Language Switcher -->
                     <!-- Flags stood for two of three languages and there is no flag for
@@ -137,7 +133,6 @@
                     <select id="adminLangSelect" onchange="setAdminLanguage(this.value)" style="background:var(--bg-secondary); color:var(--text-main); border:1px solid var(--border-color); padding:5px 10px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;">
                         <option value="en">EN — English</option>
                         <option value="nl">NL — Nederlands</option>
-                        <option value="ku">KU — کوردی</option>
                     </select>
 
                     <span class="admin-name">Admin</span>

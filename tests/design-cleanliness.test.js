@@ -7,6 +7,10 @@ const root = path.join(__dirname, '..');
 const site = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const adminHtml = fs.readFileSync(path.join(root, 'admin', 'index.html'), 'utf8');
 const adminJs = fs.readFileSync(path.join(root, 'admin', 'admin.js'), 'utf8');
+const adminCss = fs.readFileSync(path.join(root, 'admin', 'admin.css'), 'utf8');
+// Rules only. A comment explaining what a selector used to be is not that
+// selector, and a test that cannot tell the difference punishes the comment.
+const adminCssRules = adminCss.replace(/\/\*[\s\S]*?\*\//g, '');
 
 let failed = 0;
 const ok = (label, actual, want) => {
@@ -50,10 +54,29 @@ ok('no flying plane', site.includes('animate-fly-plane'), false);
 console.log('--- the mobile action bar (superseded by the header CTAs) ---');
 ok('removed from the site', site.includes('id="mobileActionBar"'), false);
 
+console.log('--- the panel: English and Dutch only ---');
+// Kurdish was dropped from the panel. The option, its dictionary and any
+// Kurdish characters all have to go together: leaving the dictionary behind
+// would keep a language nobody can select, and leaving the option behind would
+// select a language with no dictionary.
+ok('no Kurdish option', /value="ku"/.test(adminHtml), false);
+ok('no Kurdish dictionary', /^\s*ku:\s*\{/m.test(adminJs), false);
+ok('no Kurdish text anywhere in the panel',
+   /[؀-ۿ]/.test(adminHtml + adminJs), false);
+// A stored 'ku' outlives the option, so the loader has to fall back or the
+// panel comes up with its dropdown and its storage disagreeing.
+ok('an unknown stored language falls back',
+   /if\s*\(!ADMIN_I18N\[savedLang\]\)/.test(adminJs), true);
+
+console.log('--- the panel follows the device too ---');
+ok('no theme button', adminHtml.includes('btnThemeToggle'), false);
+ok('no toggle function', adminJs.includes('toggleAdminTheme'), false);
+ok('nothing remembers a panel theme', adminJs.includes('sussex_admin_theme'), false);
+ok('no admin-light-mode class left', /body\.admin-light-mode/.test(adminCssRules), false);
+ok('the panel css uses the query', adminCssRules.includes('prefers-color-scheme'), true);
+
 console.log('--- emoji standing in for an icon or a status ---');
-// A stray sun in front of "کوردی" (no flag exists for Kurdish) and the
-// weekly planner's calendar/clock/scissors/phone/euro/no-entry icons.
-ok('no sun icon on the Kurdish option', adminHtml.includes('☀️ کوردی'), false);
+// The weekly planner's calendar/clock/scissors/phone/euro/no-entry icons.
 function grabByBraces(src, name) {
   const start = src.indexOf('function ' + name + '(');
   if (start === -1) return '';

@@ -1515,13 +1515,9 @@ function exportBookingsCSV() {
     showToast('Bookings exported to CSV (Excel) successfully!', 'success');
 }
 
-// ---- Admin Theme Switcher (Dark / Light) ----
-// The icon is two SVGs in the button; admin.css shows whichever matches
-// body.admin-light-mode, so this only has the state to track.
-function toggleAdminTheme() {
-    const isLight = document.body.classList.toggle('admin-light-mode');
-    localStorage.setItem('sussex_admin_theme', isLight ? 'light' : 'dark');
-}
+// The theme needs no JavaScript. admin.css holds the dark values on :root and
+// overrides them in a prefers-color-scheme query, so the panel matches whatever
+// the device is set to, with nothing to press and nothing stored.
 
 // ---- Admin Multi-Language Engine ----
 const ADMIN_I18N = {
@@ -1544,16 +1540,6 @@ const ADMIN_I18N = {
         cms: "Website Teksten",
         barbers: "Onze Kappers",
         analytics: "Analyses"
-    },
-    ku: {
-        dashboard: "داشبۆرد",
-        bookings: "حیجزەکان",
-        services: "سێرڤسەکان و نرخ",
-        hours: "کاتژمێرەکانی کارکردن",
-        gallery: "گەلەری",
-        cms: "نووسینەکانی وێبسایت",
-        barbers: "تراشەرەکان",
-        analytics: "ئامارەکان"
     }
 };
 
@@ -1579,13 +1565,15 @@ function setAdminLanguage(lang) {
     }
 }
 
-// Load saved theme & language on init
+// Load the saved language on init. The theme is not restored here any more:
+// it is the device's to decide, and CSS reads that without being asked.
 document.addEventListener('DOMContentLoaded', () => {
-    if (localStorage.getItem('sussex_admin_theme') === 'light') {
-        document.body.classList.add('admin-light-mode');
-    }
-
-    const savedLang = localStorage.getItem('sussex_admin_lang') || 'en';
+    let savedLang = localStorage.getItem('sussex_admin_lang') || 'en';
+    // Kurdish was removed. Anyone who had picked it still has 'ku' stored, and
+    // setAdminLanguage() would refuse it and leave the panel half-set — the
+    // dropdown showing English while storage said otherwise. Fall back and
+    // overwrite, so this repairs itself on the next visit.
+    if (!ADMIN_I18N[savedLang]) savedLang = 'en';
     setAdminLanguage(savedLang);
 });
 
