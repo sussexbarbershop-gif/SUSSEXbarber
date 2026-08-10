@@ -632,14 +632,19 @@
         </div>
 
         <!-- Lightbox Overlay -->
+        <!-- The three buttons need z-10 against the photo below them. The photo
+             is transformed (scale-95), which makes it paint like a positioned
+             element, and it comes last in this container - so at z-index auto it
+             covered the arrows and swallowed the taps. Only visible on a narrow
+             screen, where max-w-[90vw] runs the photo out under them. -->
         <div id="lightbox" class="fixed inset-0 bg-charcoal-900/95 backdrop-blur-sm z-[60] hidden flex-col justify-center items-center opacity-0 transition-opacity duration-300">
-            <button id="closeLightboxBtn" type="button" aria-label="Close Lightbox" class="absolute top-6 right-6 p-2 text-white hover:text-gold focus:outline-none transition-colors">
+            <button id="closeLightboxBtn" type="button" aria-label="Close Lightbox" class="absolute z-10 top-6 right-6 p-2 text-white hover:text-gold focus:outline-none transition-colors">
                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
-            <button id="prevLightboxBtn" type="button" aria-label="Previous Image" class="absolute left-4 sm:left-10 p-3 text-white hover:text-gold focus:outline-none transition-colors bg-black/50 rounded-full">
+            <button id="prevLightboxBtn" type="button" aria-label="Previous Image" class="absolute z-10 left-4 sm:left-10 p-3 text-white hover:text-gold focus:outline-none transition-colors bg-black/50 rounded-full">
                 <svg class="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
             </button>
-            <button id="nextLightboxBtn" type="button" aria-label="Next Image" class="absolute right-4 sm:right-10 p-3 text-white hover:text-gold focus:outline-none transition-colors bg-black/50 rounded-full">
+            <button id="nextLightboxBtn" type="button" aria-label="Next Image" class="absolute z-10 right-4 sm:right-10 p-3 text-white hover:text-gold focus:outline-none transition-colors bg-black/50 rounded-full">
                 <svg class="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
             </button>
             <img id="lightboxImg" src="" alt="Gallery Full Image" class="max-h-[85vh] max-w-[90vw] object-contain shadow-2xl rounded-sm transform scale-95 transition-transform duration-300">
