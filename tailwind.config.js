@@ -1,7 +1,10 @@
 /** Mirrors the config that used to sit inline next to the CDN script tag. */
 module.exports = {
   content: ['./index.html'],
-  darkMode: 'class',
+  // The site follows the device. Every `dark:` utility compiles to a
+  // prefers-color-scheme query instead of waiting for a class on <html>, so
+  // there is nothing to toggle and nothing to remember between visits.
+  darkMode: 'media',
   theme: {
     extend: {
       colors: {

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="scroll-smooth dark">
+<html lang="en" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -30,7 +30,11 @@
     <meta name="twitter:description" content="Book a haircut, beard trim or hot towel shave online in under a minute.">
     <meta name="twitter:image" content="https://sussexbarber.vercel.app/assets/hero_bg_shop.jpg">
 
-    <meta name="theme-color" content="#121212">
+    <!-- The browser chrome around the page follows the device too. One value
+         was pinned to the dark background, so a phone set to light got a black
+         address bar above a white page. -->
+    <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
 
     <!-- Security Meta Tags -->
     <meta http-equiv="X-XSS-Protection" content="1; mode=block">
@@ -49,18 +53,23 @@
         body {
             transition: background-color 0.3s ease, color 0.3s ease;
         }
-        /* Only the interactive chrome resists selection, so that dragging on a
-           card or a time chip does not highlight it. Real content - the
-           address, the phone number, prices - stays copyable, which is the
-           whole point of putting it on the page. */
+        /* Nothing you drag across should highlight: the chrome, and now the
+           service cards, where dragging over a card used to leave the name and
+           price selected in blue. The address and phone number are left
+           copyable - those are worth taking off the page; a price is read. */
         nav, #timeChipsGrid, #customCalendar,
-        button, .no-select {
+        button, .no-select, .service-card {
             -webkit-user-select: none;
             -ms-user-select: none;
             user-select: none;
         }
-        .dark body { background-color: #121212; color: #f3f4f6; }
-        html:not(.dark) body { background-color: #fafafa; color: #1f2937; }
+        /* Light is the default and dark is the query, rather than a class on
+           <html> that JavaScript had to put there. Nothing to toggle, and no
+           flash of the wrong colours before a script runs. */
+        body { background-color: #fafafa; color: #1f2937; }
+        @media (prefers-color-scheme: dark) {
+            body { background-color: #121212; color: #f3f4f6; }
+        }
 
         .hero-bg {
             background-image: linear-gradient(rgba(18, 18, 18, 0.6), rgba(18, 18, 18, 0.85)), url('assets/hero_bg_shop.jpg');
@@ -68,11 +77,13 @@
             background-position: center;
         }
         
-        .dark input[type="date"]::-webkit-calendar-picker-indicator {
-            filter: invert(1);
-        }
-        html:not(.dark) input[type="date"]::-webkit-calendar-picker-indicator {
+        input[type="date"]::-webkit-calendar-picker-indicator {
             filter: none;
+        }
+        @media (prefers-color-scheme: dark) {
+            input[type="date"]::-webkit-calendar-picker-indicator {
+                filter: invert(1);
+            }
         }
 
         /* Scroll Reveal Animation */
@@ -112,16 +123,15 @@
             .gallery-img:hover { transform: none; }
         }
 
-        /* Service card hover: the border warms to gold and the card lifts a
-           little. No pointer cursor and no scale - these are a price list, not
-           buttons, and anything stronger would promise a click that does
-           nothing. */
+        /* Service card hover: the card lifts, and that is all it does. No gold
+           border, no scale, no pointer cursor - it is a price list, not a set
+           of buttons, and a stronger hover promises a click that does nothing.
+           The shadow is the lift's depth, not an outline. */
         .service-card {
-            transition: transform .3s ease, border-color .3s ease, box-shadow .3s ease;
+            transition: transform .3s ease, box-shadow .3s ease;
         }
         .service-card:hover {
             transform: translateY(-2px);
-            border-color: #d4af37;
             box-shadow: 0 6px 18px rgba(0, 0, 0, .12);
         }
         @media (hover: none) {
@@ -217,15 +227,10 @@
                         EN
                     </button>
                     
-                    <!-- One button, not a 3-item dropdown for Light/Dark/System. A phone
-                         already has a system setting for that; a second one buried in a
-                         menu on the page is a control nobody reaches for. This just flips
-                         between light and dark, the way the logo swap works: two icons,
-                         CSS shows the one that matches, no JS needed for the icon itself. -->
-                    <button id="themeToggleBtn" type="button" aria-label="Toggle dark mode" class="w-9 h-9 rounded-lg border border-gray-300 dark:border-charcoal-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-charcoal-800 transition-colors flex items-center justify-center shadow-sm">
-                        <svg class="w-4 h-4 dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-                        <svg class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
-                    </button>
+                    <!-- No theme button. The device already has that setting, and the
+                         page follows it: `darkMode: 'media'` in tailwind.config.js turns
+                         every dark: utility into a prefers-color-scheme query. Nothing
+                         to toggle, nothing stored, nothing to disagree with the phone. -->
 
                     <a href="#booking" class="hidden sm:block whitespace-nowrap bg-transparent text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-charcoal-700 px-4 sm:px-6 py-2 rounded-lg text-xs sm:text-sm font-semibold tracking-wider uppercase hover:bg-gold hover:text-charcoal-900 hover:border-gold transition-colors duration-300" data-translate="My Bookings">My Bookings</a>
                     <a href="#booking" class="whitespace-nowrap bg-gold text-charcoal-900 px-4 sm:px-6 py-2 rounded-lg text-xs sm:text-sm font-semibold tracking-wider uppercase hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-charcoal-900 transition-colors duration-300">Book Now</a>
@@ -848,39 +853,28 @@
         updateBusinessStatus();
         setInterval(updateBusinessStatus, 60000);
 
-        // --- 3. Theme Toggle ---
-        // One button, two states. No explicit "System" choice: the first visit
-        // follows the OS, same as before, but once someone taps the button
-        // they have picked a side, same as every other app doing this.
-        const themeToggleBtn = document.getElementById('themeToggleBtn');
+        // --- 3. The map, in whichever theme the device is set to ---
+        // The theme itself needs no JavaScript: darkMode is 'media', so every
+        // dark: utility is a prefers-color-scheme query the browser answers on
+        // its own, before the first paint and with nothing stored.
+        //
+        // The map is the one exception. It is a Google iframe, so its own
+        // colours cannot be reached from here and are inverted from outside
+        // instead - and a filter is not something a media query can apply to
+        // another document's contents.
+        const darkMode = window.matchMedia('(prefers-color-scheme: dark)');
         const mapIframe = document.getElementById('mapIframe');
 
-        function getSystemTheme() {
-            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-        }
-
-        function applyTheme(actualTheme) {
-            document.documentElement.classList.toggle('dark', actualTheme === 'dark');
+        function paintMapForTheme(isDark) {
             if (mapIframe) {
-                mapIframe.style.filter = actualTheme === 'dark' ? 'invert(90%) hue-rotate(180deg)' : 'none';
+                mapIframe.style.filter = isDark ? 'invert(90%) hue-rotate(180deg)' : 'none';
             }
         }
 
-        function currentTheme() {
-            return localStorage.getItem('theme') || getSystemTheme();
-        }
-
-        themeToggleBtn.addEventListener('click', () => {
-            const next = currentTheme() === 'dark' ? 'light' : 'dark';
-            localStorage.setItem('theme', next);
-            applyTheme(next);
-        });
-
-        applyTheme(currentTheme());
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-            // Only follow the OS while nobody has tapped the toggle yet.
-            if (!localStorage.getItem('theme')) applyTheme(e.matches ? 'dark' : 'light');
-        });
+        paintMapForTheme(darkMode.matches);
+        // Follows the device for as long as the page is open, so switching the
+        // phone to dark at dusk does not leave one white rectangle behind.
+        darkMode.addEventListener('change', (e) => paintMapForTheme(e.matches));
 
         // --- 4. Scroll Entrance Animations ---
         const observer = new IntersectionObserver((entries) => {

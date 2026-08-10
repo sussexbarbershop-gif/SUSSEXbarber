@@ -16,10 +16,32 @@ const ok = (label, actual, want) => {
     (pass ? '' : `   got=${JSON.stringify(actual)} want=${JSON.stringify(want)}`));
 };
 
-console.log('--- theme switcher: one button, not a 3-item menu ---');
+console.log('--- no theme switcher at all: the device decides ---');
+// This went from a 3-item Light/Dark/System menu, to one toggle button, to
+// nothing. The phone already has the setting, and a second one on the page can
+// only disagree with it.
 ok('no themeDropdown left', site.includes('id="themeDropdown"'), false);
 ok('no Light/Dark/System option buttons', site.includes('data-theme-value'), false);
-ok('the button shows both icons, swapped by dark:', /id="themeToggleBtn"[\s\S]{0,600}dark:hidden[\s\S]{0,400}dark:block/.test(site), true);
+ok('no toggle button either', site.includes('id="themeToggleBtn"'), false);
+// The whole point: no stored preference, and no class being put on <html>.
+ok('nothing remembers a theme', /localStorage\.[gs]etItem\(\s*['"]theme['"]/.test(site), false);
+ok('no dark class toggled onto <html>',
+   /documentElement\.classList\.(toggle|add|remove)\(\s*['"]dark['"]/.test(site), false);
+
+const config = fs.readFileSync(path.join(root, 'tailwind.config.js'), 'utf8');
+ok('tailwind follows the device', /darkMode:\s*['"]media['"]/.test(config), true);
+// The compiled sheet is what the browser reads. If darkMode changed but nobody
+// rebuilt, every dark: utility silently stops working.
+const builtCss = fs.readFileSync(path.join(root, 'assets', 'tailwind.css'), 'utf8');
+ok('and the built sheet was rebuilt for it', builtCss.includes('prefers-color-scheme'), true);
+ok('with no class-based dark rules left', /\.dark\s/.test(builtCss), false);
+
+// The site's own <style> block has to follow the same rule, or the page
+// background disagrees with everything Tailwind paints on top of it.
+const styleBlock = (site.match(/<style>[\s\S]*?<\/style>/) || [''])[0];
+ok('the style block uses the query too',
+   styleBlock.includes('prefers-color-scheme'), true);
+ok('and has no .dark selectors', /\.dark\s|:not\(\.dark\)/.test(styleBlock), false);
 
 console.log('--- the map is a map ---');
 ok('no drifting clouds', site.includes('animate-drift-cloud'), false);
