@@ -112,6 +112,26 @@
             .gallery-img:hover { transform: none; }
         }
 
+        /* Service card hover: the border warms to gold and the card lifts a
+           little. No pointer cursor and no scale - these are a price list, not
+           buttons, and anything stronger would promise a click that does
+           nothing. */
+        .service-card {
+            transition: transform .3s ease, border-color .3s ease, box-shadow .3s ease;
+        }
+        .service-card:hover {
+            transform: translateY(-2px);
+            border-color: #d4af37;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, .12);
+        }
+        @media (hover: none) {
+            .service-card:hover { transform: none; box-shadow: none; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .service-card { transition: none; }
+            .service-card:hover { transform: none; }
+        }
+
         /* Custom Scrollbar */
         ::-webkit-scrollbar {
             width: 8px;
@@ -1424,7 +1444,13 @@
                         dot.className = 'absolute bottom-1 w-1 h-1 rounded-full bg-rose-500/40';
                         dayBtn.appendChild(dot);
                     } else {
-                        dayBtn.className += ' text-gray-300 dark:text-charcoal-700 bg-transparent cursor-not-allowed opacity-30';
+                        // Beyond the 30-day window, or already past. This was
+                        // charcoal-700 text on a charcoal-800 panel at 30%
+                        // opacity - a number you had to hunt for, so the grid
+                        // read as damaged rather than as dates you cannot have
+                        // yet. Legible now, and still plainly not on offer:
+                        // no card, no border, and a grey nothing else uses.
+                        dayBtn.className += ' text-gray-500 dark:text-gray-500 bg-transparent cursor-not-allowed';
                     }
                 } else {
                     if (isSelected) {
@@ -2076,7 +2102,7 @@
             // short name and its price. As a bordered card rather than a ruled
             // line, because a rule between two columns reads as a table.
             servicesContainer.innerHTML = services.map(s => `
-                <div class="border border-gray-200 dark:border-charcoal-700 rounded-lg px-3 py-2.5 sm:px-4 sm:py-3.5 flex flex-col justify-between gap-1 min-w-0">
+                <div class="service-card border border-gray-200 dark:border-charcoal-700 rounded-lg px-3 py-2.5 sm:px-4 sm:py-3.5 flex flex-col justify-between gap-1 min-w-0">
                     <h3 class="text-sm sm:text-lg text-gray-900 dark:text-white font-medium leading-snug" data-translate="${s.nameEN}">${s.nameEN}</h3>
                     <div class="flex items-baseline justify-between gap-2">
                         <p class="text-[11px] sm:text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
