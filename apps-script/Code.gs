@@ -1494,3 +1494,52 @@ function testSetup() {
     ? 'ADMIN_PASSWORD is set — writes are protected.'
     : 'WARNING: ADMIN_PASSWORD is NOT set. Every write will be refused until you add it.');
 }
+
+/**
+ * Why no booking email arrived.
+ *
+ * The sending code cannot report its own failure - a booking is already saved
+ * by the time it runs, so it swallows everything rather than turn a good
+ * booking into an error. That is right for the customer and useless for
+ * working out what is wrong. Run this from the editor instead: it names the
+ * cause, and sends one real email so "it ran without complaining" and "an
+ * email actually left" stop being the same answer.
+ */
+function checkEmailSetup() {
+  var to = PropertiesService.getScriptProperties().getProperty('NOTIFY_EMAIL');
+
+  if (!to) {
+    Logger.log('NOT SET: NOTIFY_EMAIL. This is why the shop gets nothing.');
+    Logger.log('Fix: Project Settings > Script Properties > Add script property');
+    Logger.log('     Property: NOTIFY_EMAIL   Value: the address to notify');
+    Logger.log('Note: the customer confirmation does NOT depend on this - it is');
+    Logger.log('      sent whenever the customer fills the optional email field.');
+    return;
+  }
+  if (to.indexOf('@') === -1) {
+    Logger.log('NOTIFY_EMAIL is set to "' + to + '", which is not an address.');
+    return;
+  }
+
+  Logger.log('NOTIFY_EMAIL: ' + to);
+  Logger.log('Emails left today: ' + MailApp.getRemainingDailyQuota());
+
+  try {
+    MailApp.sendEmail({
+      to: to,
+      subject: 'Sussex Barber Shop — notification test',
+      body: 'If you are reading this, booking notifications work.\n\n' +
+            'Sent by checkEmailSetup() from the Apps Script editor.\n'
+    });
+    Logger.log('SENT. Check that inbox, and its spam folder.');
+  } catch (err) {
+    Logger.log('FAILED to send: ' + err);
+    Logger.log('If that mentions permission or authorisation: the web app is');
+    Logger.log('still running under the permissions granted before MailApp was');
+    Logger.log('added. Run this function again and accept the prompt.');
+    // Rethrown on purpose. Logged above for the detail, and thrown so the
+    // editor shows it in red - the whole problem with the sending code is
+    // that it fails where nobody looks.
+    throw err;
+  }
+}
