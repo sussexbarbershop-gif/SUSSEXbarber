@@ -1335,6 +1335,27 @@
         // Set date constraints & Custom Modern Calendar Logic
         let currentCalDate = new Date();
 
+        /**
+         * The day of `month` the grid should open on.
+         *
+         * A week that has entirely gone is a row of greyed-out numbers nobody
+         * can click. On the 10th of a month beginning on a Saturday that was
+         * two such rows plus six blank cells — a screenful of nothing above the
+         * first bookable date. So the current month starts at the week holding
+         * today, and any other month starts at the 1st.
+         *
+         * Only whole leading weeks go. Days before today *within* today's week
+         * stay, so the columns keep their places under SUN..SAT.
+         *
+         * Cannot empty the calendar: today's own week is never dropped, and
+         * calPrevBtn is disabled once the previous month is entirely past, so
+         * the month on screen holds today or lies ahead of it.
+         */
+        function calendarStartDay(year, month, today) {
+            if (year !== today.getFullYear() || month !== today.getMonth()) return 1;
+            return Math.max(1, today.getDate() - today.getDay());
+        }
+
         function renderCustomCalendar() {
             const grid = document.getElementById('calendarDaysGrid');
             const monthYearEl = document.getElementById('calendarMonthYear');
@@ -1350,23 +1371,25 @@
             
             grid.innerHTML = '';
             
-            const firstDayIndex = new Date(year, month, 1).getDay();
             const totalDays = new Date(year, month + 1, 0).getDate();
-            
+
+            const today = new Date();
+            today.setHours(0,0,0,0);
+
+            const maxDate = new Date();
+            maxDate.setDate(today.getDate() + 30);
+            maxDate.setHours(0,0,0,0);
+
+            const startDay = calendarStartDay(year, month, today);
+
+            const firstDayIndex = new Date(year, month, startDay).getDay();
             for (let i = 0; i < firstDayIndex; i++) {
                 const emptyCell = document.createElement('div');
                 emptyCell.className = 'w-full min-h-[44px] aspect-[5/4] sm:aspect-square';
                 grid.appendChild(emptyCell);
             }
-            
-            const today = new Date();
-            today.setHours(0,0,0,0);
-            
-            const maxDate = new Date();
-            maxDate.setDate(today.getDate() + 30);
-            maxDate.setHours(0,0,0,0);
-            
-            for (let day = 1; day <= totalDays; day++) {
+
+            for (let day = startDay; day <= totalDays; day++) {
                 const dateObj = new Date(year, month, day);
                 dateObj.setHours(0,0,0,0);
                 
