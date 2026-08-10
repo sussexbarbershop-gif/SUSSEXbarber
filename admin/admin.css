@@ -82,7 +82,12 @@ input, textarea, select { -webkit-user-select: auto; user-select: auto; }
     display: flex;
     align-items: center;
     justify-content: center;
-    background: radial-gradient(ellipse at top, #1a1a1a 0%, #0f0f0f 70%);
+    /* Through the variables, not the two hex values that used to be written
+       here: the card behind them read var(--bg-card) and turned white, while
+       this stayed black, so a light-mode sign-in was a white card floating on
+       a black page. In dark mode these resolve to the same #1a1a1a and #0f0f0f
+       as before. */
+    background: radial-gradient(ellipse at top, var(--bg-secondary) 0%, var(--bg-primary) 70%);
     padding: 20px;
 }
 
@@ -387,12 +392,12 @@ tbody tr:last-child td { border-bottom: none; }
     flex-wrap: wrap;
 }
 .today-header h2 { font-size: 1.4rem; margin: 0 0 .25rem; }
-.today-summary { margin: 0; color: var(--text-muted, #9ca3af); font-size: .9rem; }
+.today-summary { margin: 0; color: var(--text-muted); font-size: .9rem; }
 
 .btn-refresh {
     display: inline-flex; align-items: center; gap: .5rem;
     padding: .55rem .9rem; border-radius: .5rem; cursor: pointer;
-    border: 1px solid var(--border, #2a2a2a);
+    border: 1px solid var(--border-color);
     background: transparent; color: inherit; font-size: .85rem;
 }
 .btn-refresh:hover { border-color: #d4af37; color: #d4af37; }
@@ -402,8 +407,8 @@ tbody tr:last-child td { border-bottom: none; }
 .today-row {
     display: flex; align-items: center; gap: 1rem;
     padding: .85rem 1rem; border-radius: .65rem;
-    border: 1px solid var(--border, #2a2a2a);
-    background: var(--card, #1a1a1a);
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
 }
 .today-row.is-past { opacity: .45; }
 
@@ -413,7 +418,7 @@ tbody tr:last-child td { border-bottom: none; }
 }
 .today-who { flex: 1; min-width: 0; }
 .today-name { font-weight: 600; }
-.today-service { font-size: .82rem; color: var(--text-muted, #9ca3af); }
+.today-service { font-size: .82rem; color: var(--text-muted); }
 
 .today-actions { display: flex; align-items: center; gap: .5rem; flex-shrink: 0; }
 
@@ -421,7 +426,7 @@ tbody tr:last-child td { border-bottom: none; }
     display: inline-flex; align-items: center; gap: .4rem;
     padding: .45rem .75rem; border-radius: .5rem; font-size: .82rem;
     text-decoration: none; color: inherit;
-    border: 1px solid var(--border, #2a2a2a);
+    border: 1px solid var(--border-color);
 }
 .today-call:hover { border-color: #d4af37; color: #d4af37; }
 
@@ -434,13 +439,13 @@ tbody tr:last-child td { border-bottom: none; }
 
 .today-empty {
     padding: 1.5rem; text-align: center; border-radius: .65rem;
-    border: 1px dashed var(--border, #2a2a2a);
-    color: var(--text-muted, #9ca3af); font-size: .9rem;
+    border: 1px dashed var(--border-color);
+    color: var(--text-muted); font-size: .9rem;
 }
 
 .today-next-title {
     margin: 2rem 0 .75rem; font-size: 1rem;
-    color: var(--text-muted, #9ca3af); font-weight: 600;
+    color: var(--text-muted); font-weight: 600;
 }
 
 /* ---- Weekly Planner ----------------------------------------------------

@@ -75,6 +75,22 @@ ok('nothing remembers a panel theme', adminJs.includes('sussex_admin_theme'), fa
 ok('no admin-light-mode class left', /body\.admin-light-mode/.test(adminCssRules), false);
 ok('the panel css uses the query', adminCssRules.includes('prefers-color-scheme'), true);
 
+// A colour written as a literal cannot follow the theme. The login background
+// was a hardcoded gradient, so signing in on a light device gave a white card
+// on a black page - the card read a variable and the page behind it did not.
+const darkLiteral = /#(0[0-9a-f]|1[0-9a-f]|2[0-9a-f])[0-9a-f]{4}\b/i;
+const offendingLines = adminCssRules.split('\n')
+  .filter(l => darkLiteral.test(l) && !/^\s*--/.test(l));
+ok('no dark colour hardcoded outside the variables', offendingLines, []);
+
+// var(--typo, fallback) is silent: the name does not exist, the fallback wins,
+// and it wins in both themes. --border and --card were never declared, so the
+// Today cards kept dark borders on a light page.
+const declared = new Set([...adminCss.matchAll(/^\s*(--[a-z-]+):/gm)].map(m => m[1]));
+const referenced = [...adminCssRules.matchAll(/var\(\s*(--[a-z-]+)/g)].map(m => m[1]);
+ok('every variable used is one that exists',
+   [...new Set(referenced)].filter(v => !declared.has(v)), []);
+
 console.log('--- emoji standing in for an icon or a status ---');
 // The weekly planner's calendar/clock/scissors/phone/euro/no-entry icons.
 function grabByBraces(src, name) {
