@@ -153,10 +153,27 @@ async function main() {
   reset();
   openBarberModal(1);
   const tue = WEEK.indexOf('Tuesday');
+  const goodEnd = draftRota[tue].to;
   updateDraftRota(tue, 'to', '09:00');
-  ok('bad end time cleared', draftRota[tue].to, '');
+  // Put back, not cleared. A working day with a blank time is refused by the
+  // database, and refused along with every other change in the same save.
+  ok('bad end time reverted', draftRota[tue].to, goodEnd);
+  ok('and the owner is told', toasts[toasts.length - 1].type, 'error');
 
+  console.log('--- a working day always has hours in it ---');
+  reset();
+  openBarberModal(1);
+  const sun = WEEK.indexOf('Sunday');
+  draftRota[sun].from = '';
+  draftRota[sun].to = '';
+  toggleDraftRotaDay(sun, true);
+  ok('switching it on fills them in', [draftRota[sun].from, draftRota[sun].to],
+     ['10:00', '18:00']);
 
+  toasts = [];
+  updateDraftRota(sun, 'from', '');
+  ok('and clearing one is refused', draftRota[sun].from, '10:00');
+  ok('with a reason', toasts.length, 1);
 }
 
 main().then(() => {

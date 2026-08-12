@@ -678,11 +678,34 @@ function renderHours() {
 
 function updateHour(index, field, value) {
     hours[index][field] = value;
+    // Clearing a box on an open day would save a day that is open with no
+    // hours, which the database refuses — and refuses the whole save with it,
+    // so the other six days are lost too. Put the last good value back.
+    if (hours[index].open && !value) {
+        hours[index][field] = field === 'from' ? DEFAULT_OPEN_FROM : DEFAULT_OPEN_TO;
+        renderHours();
+        showToast('An open day needs an opening and a closing time', 'error');
+        return;
+    }
     saveHours();
 }
 
+// What a day that has never had hours is opened with. The shop's usual day,
+// so the common case is one toggle and nothing else.
+const DEFAULT_OPEN_FROM = '10:00';
+const DEFAULT_OPEN_TO = '18:00';
+
 function toggleDay(index, isOpen) {
-    hours[index].open = isOpen;
+    const day = hours[index];
+    day.open = isOpen;
+    // A day that has been shut since before the panel existed carries no hours
+    // at all, and switching it on used to send exactly that. The save was
+    // refused, the toggle stayed on screen looking saved, and the reason was a
+    // line in a log. Opening a day now always opens it at some hour.
+    if (isOpen) {
+        if (!day.from) day.from = DEFAULT_OPEN_FROM;
+        if (!day.to) day.to = DEFAULT_OPEN_TO;
+    }
     saveHours();
     renderHours();
 }
@@ -937,12 +960,21 @@ function renderModalRota() {
 
 function updateDraftRota(dayIndex, field, value) {
     const row = draftRota[dayIndex];
+    const before = row[field];
     row[field] = value;
     // A shift ending before it starts offers nothing, with nothing on screen
-    // to explain why.
+    // to explain why. The edit is put back rather than blanked: a working day
+    // with a blank time is refused by the database, and refused along with
+    // every other change in the same save.
     if (row.from && row.to && row.to <= row.from) {
         showToast('The end time must be after the start time', 'error');
-        row[field] = field === 'to' ? '' : row[field];
+        row[field] = before;
+        renderModalRota();
+        return;
+    }
+    if (row.working && !value) {
+        showToast('A working day needs a start and an end time', 'error');
+        row[field] = before;
         renderModalRota();
     }
 }

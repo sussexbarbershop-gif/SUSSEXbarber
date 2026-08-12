@@ -36,7 +36,18 @@ ok('the site reads every one of them', unread, []);
 // --- and applying them actually changes the page -----------------------
 const nodes = {};
 const el = (id) => (nodes[id] || (nodes[id] = {
-  id, tagName: 'P', textContent: '', innerHTML: '', _attrs: {},
+  id, tagName: 'P', innerHTML: '', _attrs: {}, children: [],
+  className: '',
+  // setHeroTitle builds the headline out of nodes rather than a string, so
+  // this has to behave like one: assigning textContent empties it, and what
+  // is appended afterwards is what the reader ends up with.
+  set textContent(v) { this._text = v; this.children = []; },
+  get textContent() {
+    return this.children.length
+      ? this.children.map(c => c.textContent).join('')
+      : (this._text || '');
+  },
+  appendChild(child) { this.children.push(child); return child; },
   setAttribute(k, v) { this._attrs[k] = v; },
   getAttribute(k) { return this._attrs[k]; }
 }));
@@ -50,8 +61,21 @@ const igLink = node('A');
 const igHandle = node('SPAN');
 const mapsLink = node('A');
 
+const made = [];
 global.document = {
   getElementById: el,
+  createElement(tag) {
+    const n = { tagName: tag.toUpperCase(), className: '', children: [],
+      set textContent(v) { this._text = v; this.children = []; },
+      get textContent() {
+        return this.children.length
+          ? this.children.map(c => c.textContent).join('') : (this._text || '');
+      },
+      appendChild(child) { this.children.push(child); return child; } };
+    made.push(n);
+    return n;
+  },
+  createTextNode: text => ({ tagName: '#text', textContent: text, children: [] }),
   querySelectorAll: sel => sel === '.cms-contact-phone' ? [phoneText]
                         : sel === '.cms-contact-phone-link' ? [phoneLink]
                         : sel === '[data-cms-link="instagram"]' ? [igLink]
@@ -60,6 +84,7 @@ global.document = {
 };
 function setText(node, value) { node.innerHTML = value; }
 
+eval(grab('setHeroTitle'));
 eval(renderSettingsSrc);
 
 renderSettings({
@@ -73,14 +98,42 @@ renderSettings({
   maps_embed_url: 'https://www.google.com/maps/embed?pb=NEW'
 });
 
-ok('hero title applied',    el('cms-hero-title').innerHTML, 'New Headline');
+ok('hero title applied',    el('cms-hero-title').textContent, 'New Headline');
 ok('hero subtitle applied', el('cms-hero-subtitle').innerHTML, 'New Subtitle');
 ok('about text applied',    el('cms-about-text').innerHTML, 'New About');
 ok('address applied',       el('cms-contact-address').innerHTML, 'New Address');
 ok('phone number shown',    phoneText.textContent, '+31 6 11112222');
 ok('phone dial link built', phoneLink.getAttribute('href'), 'tel:+31611112222');
 
+console.log('--- the headline keeps its shape, whatever it says ---');
+// It is two lines with the second in gold italic. setText would have flattened
+// that to one plain line the moment the config arrived, which is a design the
+// owner never chose and could not get back.
+const hero = () => el('cms-hero-title');
+const heroShape = () => hero().children.map(c => c.tagName).join(' ');
+
+renderSettings({ hero_title: 'Masterful Cuts, Exceptional Service.' });
+// The comma stays with the first line, where it is read; the break is what
+// separates them, so there is no space to account for.
+ok('all of it is on the page', hero().textContent, 'Masterful Cuts,Exceptional Service.');
+ok('broken into two lines', heroShape(), '#text BR SPAN');
+ok('the second half is gold italic',
+   hero().children[2].className, 'text-gold italic');
+ok('and reads as the second half', hero().children[2].textContent, 'Exceptional Service.');
+
+renderSettings({ hero_title: 'One Line Only' });
+ok('no comma, no guessing', heroShape(), '#text');
+ok('and the words are unchanged', hero().textContent, 'One Line Only');
+
+renderSettings({ hero_title: 'First, Second, Third.' });
+ok('broken at the last comma, not the first',
+   hero().children[2].textContent, 'Third.');
+
 // A blank setting should leave what is on the page, not wipe it.
+renderSettings({ hero_title: '   ' });
+ok('a blank headline does not erase the one on the page',
+   hero().children[2].textContent, 'Third.');
+
 renderSettings({ contact_phone: '' });
 ok('a blank phone does not erase the one on the page', phoneText.textContent, '+31 6 11112222');
 

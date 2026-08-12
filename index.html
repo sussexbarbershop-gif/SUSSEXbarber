@@ -298,11 +298,64 @@
              same reason, and measured with it: the two compose. -->
         <div class="absolute inset-0 bg-black/20 dark:bg-black/30 z-10"></div>
         <div class="max-w-3xl reveal active relative z-20">
-            <h1 id="cms-hero-title" class="font-serif text-3xl sm:text-5xl md:text-7xl mb-4 sm:mb-6 text-white leading-tight">Masterful Cuts.<br><span class="text-gold italic">Timeless Style.</span></h1>
+            <!-- These two lines are the shop's, and the shop can edit them.
+                 What is written here is what the database says today, so a
+                 first-time visitor is not shown one wording and then handed
+                 another a moment later. -->
+            <h1 id="cms-hero-title" class="font-serif text-3xl sm:text-5xl md:text-7xl mb-4 sm:mb-6 text-white leading-tight">Masterful Cuts,<br><span class="text-gold italic">Exceptional Service.</span></h1>
             <p id="cms-hero-subtitle" class="text-gray-300 text-base sm:text-lg md:text-xl mb-8 sm:mb-10 font-light tracking-wide">Experience premium grooming and hearty service in the heart of Wassenaar.</p>
             <a href="#booking" class="border border-gold text-gold hover:bg-gold hover:text-charcoal-900 px-8 py-4 text-sm font-semibold tracking-wider uppercase transition-all duration-300 inline-block">Reserve Your Chair</a>
         </div>
     </section>
+
+    <script>
+        /**
+         * The hero, in the shop's own words, before the first frame.
+         *
+         * Everything else on this page is painted by the script at the bottom,
+         * which runs after the browser has already drawn the hero — so the
+         * headline was visibly replaced on every load once the config arrived.
+         * This runs while the parser is still here, which is early enough that
+         * there is nothing to see.
+         *
+         * It reads only what the last visit cached. The fetch further down is
+         * still the authority and still repaints; this just means a returning
+         * visitor never watches it happen.
+         */
+        function setHeroTitle(el, value) {
+            const text = String(value || '').trim();
+            if (!el || !text) return;
+            el.textContent = '';
+            // Broken at the last comma, so the second half keeps the gold
+            // italic whatever the owner rewords it to. A title with no comma
+            // is left as one line rather than guessed at.
+            const at = text.lastIndexOf(',');
+            const head = at > 0 ? text.slice(0, at + 1) : text;
+            const tail = at > 0 ? text.slice(at + 1).trim() : '';
+            el.appendChild(document.createTextNode(head));
+            if (tail) {
+                el.appendChild(document.createElement('br'));
+                const span = document.createElement('span');
+                span.className = 'text-gold italic';
+                span.appendChild(document.createTextNode(tail));
+                el.appendChild(span);
+            }
+        }
+
+        (function paintCachedHero() {
+            let settings;
+            try {
+                const cached = JSON.parse(localStorage.getItem('sussex_config_v1') || 'null');
+                settings = cached && cached.settings;
+            } catch (err) {
+                return;   // first visit, private mode, or an older shape
+            }
+            if (!settings) return;
+            setHeroTitle(document.getElementById('cms-hero-title'), settings.hero_title);
+            const sub = document.getElementById('cms-hero-subtitle');
+            if (sub && settings.hero_subtitle) sub.textContent = String(settings.hero_subtitle).trim();
+        })();
+    </script>
 
     <!-- About Section with Parallax effect -->
     <section id="about" class="py-14 sm:py-24 bg-gray-50 dark:bg-charcoal-800 transition-colors duration-300 relative">
@@ -1890,6 +1943,11 @@
             'One Grade Trim': 'Eén lengte trim (tondeuse)',
             'Kids Haircut (Up to 10 Years)': 'Kinderknipbeurt (t/m 10 jaar)',
             'Kids Haircut (Up to 13 Years)': 'Kinderknipbeurt (t/m 13 jaar)',
+            // The headline is two text nodes, broken at the comma, so each half
+            // is looked up on its own. The whole line is kept as well: an older
+            // cached copy can still hand it over unsplit.
+            'Masterful Cuts,': 'Meesterlijke snitten,',
+            'Exceptional Service.': 'Uitzonderlijke service.',
             'Masterful Cuts.': 'Meesterlijke snitten.',
             'Timeless Style.': 'Tijdloze stijl.',
             'Masterful Cuts, Exceptional Service.': 'Meesterlijke snitten, Uitzonderlijke service.',
@@ -2424,8 +2482,12 @@
 
         function renderSettings(settings) {
             if (!settings) return;
+            // The headline has a shape — two lines, the second gold italic —
+            // and setText would flatten it to one plain line. setHeroTitle is
+            // defined up beside the hero itself, because it runs there first.
+            setHeroTitle(document.getElementById('cms-hero-title'), settings.hero_title);
+
             const map = {
-                'cms-hero-title': settings.hero_title,
                 'cms-hero-subtitle': settings.hero_subtitle,
                 'cms-about-text': settings.about_text,
                 'cms-contact-address': settings.contact_address
