@@ -1,7 +1,17 @@
-# Moving the backend from Google Sheets to Neon
+# The backend: Postgres on Neon
 
-The site is slow because of where its data lives, not because of anything on
-the page. Measured against the deployed Apps Script:
+The site used to keep everything in nine Google Sheets behind an Apps Script
+Web App. It does not any more. This is what runs now, why it was moved, and
+what to set up if it ever has to be stood up again from nothing.
+
+The Sheet has been deleted. Nothing reads it, nothing writes to it, and no part
+of this repository refers to it except as history.
+
+---
+
+## Why it moved
+
+Measured against the deployed Apps Script:
 
 | Request | Time |
 |---|---|
@@ -9,101 +19,38 @@ the page. Measured against the deployed Apps Script:
 | The site's configuration, which every page load waits for | **19–34s** |
 | Reading the bookings sheet | **65s** |
 
-Those are seconds. A page should answer in well under one. And the third number
-grows with every booking taken, because the script reads the sheet from the
-first row to the last every time somebody picks a date.
-
-This replaces that with Postgres on Neon and one Vercel function. Nothing about
-how the site looks or works changes.
-
-**Nothing is deleted from the Sheet.** It stays exactly as it is and remains
-readable, so if anything goes wrong the old backend is still there.
+Those are seconds. A page should answer in well under one. The third number
+grew with every booking taken, because the script read the sheet from the first
+row to the last every time somebody picked a date.
 
 ---
 
-## The order matters
+## What runs now
 
-Do these in order. The last step is the switch, and until you take it the live
-site carries on running on the Apps Script exactly as it does today.
+- **Database** — Postgres on [Neon](https://neon.tech). Schema in
+  [`db/schema.sql`](db/schema.sql); safe to re-run, every statement is
+  `IF NOT EXISTS`.
+- **Backend** — one Vercel function, [`api/index.js`](api/index.js), with its
+  parts in [`api/_lib/`](api/_lib).
+- **Front end** — [`index.html`](index.html) and [`admin/`](admin), both
+  calling `/api` on their own origin.
+- **Email** — [Brevo](https://brevo.com), over HTTPS, from
+  [`api/_lib/mail.js`](api/_lib/mail.js).
 
----
+## Environment
 
-### 1. Create the database
-
-1. Go to **https://neon.tech** and sign up **with the shop's email**
-   (`sussexbarbershop@gmail.com`). Signing in with Google is the quickest way.
-2. Create a project. Any name; **Frankfurt** or **Amsterdam** is the closest
-   region.
-3. On the project dashboard, find **Connection string** and copy it. It looks
-   like:
-
-   ```
-   postgresql://neondb_owner:XXXX@ep-something.eu-central-1.aws.neon.tech/neondb?sslmode=require
-   ```
-
-   **This is a password.** Do not paste it into a chat, an email, or a file in
-   this repository. It only ever goes in the two places below.
-
----
-
-### 2. Create the tables
-
-In the Neon dashboard, open **SQL Editor**, paste the whole of
-[`db/schema.sql`](db/schema.sql), and run it.
-
-It is safe to run twice — every statement is `IF NOT EXISTS`.
-
-You should end up with eight tables: `barbers`, `barber_hours`, `time_off`,
-`services`, `shop_hours`, `settings`, `gallery`, `bookings`.
-
----
-
-### 3. Set up email
-
-The Apps Script sent mail through Google. That goes away with it, so booking
-notifications need somewhere else to come from.
-
-**The shop has no domain** — the site is on `sussexbarber.vercel.app`, which
-belongs to Vercel. That rules out most providers, because they will only let
-you send from a domain you have proved you own, and you cannot prove you own
-somebody else's.
-
-Brevo is the way round it: it verifies **one address** rather than a whole
-domain, by emailing that address a link. So the shop can send as its own Gmail,
-free, with nothing to buy.
-
-1. Go to **https://brevo.com** and sign up with `sussexbarbershop@gmail.com`.
-2. **Senders, Domains & Dedicated IPs** → **Senders** → **Add a sender**.
-   Use the same Gmail address. Brevo emails it a confirmation link — click it.
-3. **SMTP & API** → **API Keys** → **Generate a new API key**. Copy it.
-   This is a password: it goes in Vercel and nowhere else.
-
-Free tier is 300 emails a day. This shop sends two per booking.
-
-Then set `MAIL_FROM` to the address you just verified — Brevo refuses anything
-else.
-
-**If the shop buys a domain later**, Resend is the better home for this: set
-`RESEND_API_KEY` instead of `BREVO_API_KEY` and change nothing else. Both are
-supported and whichever key is present is the one used.
-
----
-
-### 4. Put the secrets in Vercel
-
-Vercel dashboard → the `sussexbarber` project → **Settings** →
-**Environment Variables**. Add each of these for **all** environments
-(Production, Preview, Development):
+Vercel dashboard → the project → **Settings** → **Environment Variables**, set
+for Production, Preview and Development alike:
 
 | Name | Value |
 |---|---|
-| `DATABASE_URL` | the Neon connection string from step 1 |
-| `ADMIN_PASSWORD` | the same panel password as now, out of the Apps Script's Script Properties |
-| `NOTIFY_EMAIL` | `sussexbarbershop@gmail.com` |
-| `BREVO_API_KEY` | the key from step 3 |
-| `MAIL_FROM` | `Sussex Barber Shop <sussexbarbershop@gmail.com>` — the address verified in step 3 |
+| `DATABASE_URL` | the Neon connection string |
+| `ADMIN_PASSWORD` | the panel password |
+| `NOTIFY_EMAIL` | where booking notifications go |
+| `BREVO_API_KEY` | a Brevo API key |
+| `MAIL_FROM` | `Sussex Barber Shop <sussexbarbershop@gmail.com>` — exactly the sender verified in Brevo |
 
-Optional, and only if you want them:
+Optional:
 
 | Name | Value | What it does |
 |---|---|---|
@@ -113,88 +60,50 @@ Optional, and only if you want them:
 
 ---
 
-### 5. Copy the data across
+## Email, and the two things that silently stop it
 
-On your own computer, in the project folder:
+**The shop has no domain.** The site is on `sussexbarber.vercel.app`, which is
+Vercel's. That rules out most providers: they will only let you send from a
+domain you have proved you own, and you cannot prove you own somebody else's.
 
-```bash
-npm install
-```
+Brevo is the way round it. It verifies **one address** rather than a whole
+domain, by emailing that address a link, so the shop sends as its own Gmail,
+free. Free tier is 300 a day; this shop sends two per booking.
 
-Then run the migration. Substitute the two real values — this is the one time
-they are typed on your machine, and nothing writes them to a file:
+Two things will stop mail dead, and neither shows up as an error on the site —
+the booking is already saved by the time the email is attempted, and a failed
+email must never turn a confirmed appointment into an error for the customer:
 
-```bash
-DATABASE_URL="postgresql://…" ADMIN_PASSWORD="…" npm run migrate:neon
-```
+1. **`MAIL_FROM` must match the verified sender exactly.** Brevo refuses
+   anything else. The refusal is logged with the address it tried.
+2. **Brevo's "Authorized IPs" must be off for API keys.**
+   Brevo → Security → Authorized IPs → *Deactivate for API keys*. Vercel has no
+   fixed IP, so an allowlist cannot be kept current — it would silently block a
+   real customer's confirmation from an address nobody had seen before.
 
-Try it with `--dry-run` first if you want to see what it would do:
+Either way, the reason is in the Vercel log on a line starting `[mail]`.
 
-```bash
-DATABASE_URL="postgresql://…" ADMIN_PASSWORD="…" node scripts/migrate-to-neon.js --dry-run
-```
-
-It reads everything through the Apps Script that is still running, so it is
-slow — about a minute. At the end it prints what landed in Neon and compares
-the booking count against the Sheet. **Read that last line.** If the numbers
-differ it lists every row it skipped and why.
-
-Safe to run again. Bookings already copied are not duplicated.
-
----
-
-### 6. Take the switch
-
-This is the only step that changes what customers see. Two lines:
-
-- [`index.html`](index.html) — the `const API_URL = "https://script.google.com/…"` line
-- [`admin/admin.js`](admin/admin.js) — the same line near the top
-
-Change both to:
-
-```js
-const API_URL = "/api";
-```
-
-Commit and push. Vercel deploys in about a minute.
-
-Then check, in this order:
-
-1. The site loads and the prices and opening hours are right
-2. Pick a date — the time chips appear, and **fast**
-3. Make a test booking with your own email. Two emails should arrive: one to
-   the shop, one to you
-4. "Already booked?" with that phone number finds it
-5. Cancel it, and the slot comes back
-6. Sign in to `/admin` and check the diary shows the same bookings as the Sheet
+**If the shop buys a domain**, Resend is the better home for this: set
+`RESEND_API_KEY` instead of `BREVO_API_KEY` and change nothing else.
 
 ---
 
 ## If something is wrong
 
 **The site says it cannot load.** Vercel → the project → **Logs**. The function
-logs the real reason there. The most likely one is a missing or mistyped
-`DATABASE_URL`.
+logs the real reason. The most likely one is a missing or mistyped
+`DATABASE_URL`; a missing environment variable is answered with its own name
+and a 503 rather than a generic failure.
 
-**No email arrives.** Look in the same logs for a line starting `[mail]`. It
-says whether Resend was called, refused it, or was never configured. Remember
-Resend will only deliver to the account owner's address until a domain is
-verified.
+**The panel refuses a save.** It now says which rule was broken — a day marked
+open with no hours, a break that ends before it begins. The save is one
+transaction, so nothing lands until all of it can.
 
-**Go back to the old backend.** Change those two `API_URL` lines back to the
-Apps Script URL and push. This is why the switch is last and why it is only two
-lines.
+**No email arrives.** See the two causes above.
 
-> **The Sheet stopped being current the moment the switch went in.** Every save
-> from the panel now goes to Neon and nothing writes to the Sheet, so it is a
-> snapshot of migration day, not a live mirror. Going back would restore the
-> shop as it was then and lose everything edited since.
->
-> It is a real backup for the first hours and a worse one every day after. Do
-> not read from it either: a repair that pushed the Sheet's opening hours back
-> into Neon closed a Monday the owner had since reopened, because the Sheet
-> still had the old value. Neon is the source of truth now — read the current
-> state from `/api?action=getConfig`, never from the Sheet.
+> The current state of the shop is only ever `/api?action=getConfig`. There is
+> no second copy of it anywhere, and there has not been since the Sheet stopped
+> being written to.
 
 ---
 
@@ -214,7 +123,10 @@ because reading it cost twenty seconds, so the owner could save a price and
 watch the site ignore them. The queries are indexed and take milliseconds, so
 what you save is what the next visitor sees.
 
-**`repairSettingErrors` is gone**, along with the rest of the type-guessing.
-A phone number beginning `+31` was read by Sheets as a formula and stored as
-`#ERROR!`, which the site then displayed where the number should be. Text
-columns hold text.
+**Types are types.** A Sheet handed back a Date for a cell reading "10:00", a
+string for the same cell in another row, and `#ERROR!` for a phone number
+beginning with a plus — which the site then displayed where the number should
+be. `repairSettingErrors()` and the rest of the type-guessing are gone.
+
+**The price is the shop's, not the browser's.** The booking form sends what it
+thinks a service costs; the row records what the `services` table says.

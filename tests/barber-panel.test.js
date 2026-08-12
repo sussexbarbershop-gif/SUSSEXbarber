@@ -39,7 +39,7 @@ function escapeHtml(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;')
 function escapeAttr(s) { return escapeHtml(s).replace(/"/g,'&quot;'); }
 function renderBarbers() {}
 function uploadImage() { return null; }
-async function syncToSheet(partial) { synced = partial; return true; }
+async function saveToServer(partial) { synced = partial; return true; }
 
 eval([
   'rotaFor', 'openBarberModal', 'setBarberModalPhoto', 'closeBarberModal',

@@ -1,18 +1,11 @@
-const fs = require('fs');
-const src = fs.readFileSync(require('path').join(__dirname, '..', "apps-script/Code.gs"), 'utf8');
+// The rota rules themselves, driven directly. tests/rota-agreement.test.js
+// proves the browser's copy in index.html answers the same; this proves the
+// answers are right in the first place.
+const { isBarberWorkingAt, barbersWorkingAt, isSlotFree } =
+  require(require('path').join(__dirname, '..', 'api', '_lib', 'rota.js'));
 
-var SLOT_MINUTES = 30;
-var ANY_BARBER = 'Any Available';
-var WEEKDAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-
-function grab(name) {
-  const re = new RegExp('^function ' + name + '\\([\\s\\S]*?^}', 'm');
-  const m = src.match(re);
-  if (!m) throw new Error('not found: ' + name);
-  return m[0];
-}
-eval(['weekdayNameFor','clockToMinutes','barberDayEntry','isBarberOnLeave',
- 'isBarberWorkingAt','barbersWorkingAt','isSlotFree'].map(grab).join('\n'));
+const ANY_BARBER = 'Any Available';
+const WEEKDAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
 const FULL_DAY = { from:'10:00', to:'18:00', breakFrom:'13:30', breakTo:'14:00' };
 // Monday is Raman's alone: noon start, no break.
@@ -24,7 +17,7 @@ const rota = shifts => WEEKDAY_NAMES.map(d => shifts[d]
   : { day:d, working:false, from:'', to:'', breakFrom:'', breakTo:'' });
 
 const cfg = {
-  barbers: [{name:'Any Available'},{name:'Hemen'},{name:'Amir'},{name:'Raman'},{name:'Bassam'}],
+  barberNames: ['Any Available', 'Hemen', 'Amir', 'Raman', 'Bassam'],
   hours: WEEKDAY_NAMES.map(d => ({
     day: d, open: d !== 'Sunday', from: d === 'Monday' ? '12:00' : '10:00', to: '18:00'
   })),

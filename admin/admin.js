@@ -3,8 +3,8 @@
 // ===========================
 
 // Same origin as the panel, so the password never crosses to another domain.
-// This was an Apps Script Web App over nine Google Sheets; see the note in
-// index.html for why it is not any more.
+// This was an Apps Script Web App over nine Google Sheets until the move to
+// Postgres; see MIGRATION.md for what changed and why.
 const API_URL = "/api";
 
 // ---- Default Data ----
@@ -22,7 +22,7 @@ const DEFAULT_SERVICES = [
     { id: 11, nameEN: 'Kids Haircut (Up to 13 Years)', nameNL: 'Kinderknipbeurt (t/m 13 jaar)', price: 23, duration: 30 },
 ];
 
-// Placeholder only, shown for the instant before the Sheet answers. Kept in
+// Placeholder only, shown for the instant before the server answers. Kept in
 // step with the site's bookable slots so the two never contradict each other.
 const DEFAULT_HOURS = [
     { day: 'Monday', dayNL: 'Maandag', open: true, from: '12:00', to: '18:00' },
@@ -49,27 +49,37 @@ const ICON_CHECK = '<svg width="16" height="16" fill="none" stroke="currentColor
 const ICON_CROSS = '<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>';
 const ICON_INFO = '<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
 
-// The password is never stored here. It lives in the Apps Script project
-// (Script Properties > ADMIN_PASSWORD) and is checked server-side, so reading
-// this file tells an attacker nothing. It is held in memory for the session
-// only, because every write to the Sheet has to be signed with it.
+// The password is never stored here. It lives in the deployment's environment
+// (Vercel > Settings > Environment Variables > ADMIN_PASSWORD) and is checked
+// server-side, so reading this file tells an attacker nothing. It is held in
+// memory for the session only, because every write has to be signed with it.
 let adminPassword = sessionStorage.getItem('sussex_admin_pw') || '';
 
-/** POST a JSON action and read the reply. Apps Script allows this as a
- *  "simple" cross-origin request as long as the type stays text/plain. */
+/** POST a JSON action and read the reply.
+ *
+ *  A refusal is returned, not thrown. The server answers a rejected save with
+ *  a status and a sentence saying why; throwing on it lost the sentence and
+ *  the panel reported "could not reach the server" for a server that had
+ *  answered perfectly clearly. Only a request that never got an answer throws.
+ */
 async function apiPost(payload) {
     const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(payload)
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
+    try {
+        return await res.json();
+    } catch (err) {
+        // Not JSON at all — a gateway page, or nothing. There is no message to
+        // pass on, so the status is all the panel can say.
+        return { status: 'error', message: `The server answered with ${res.status}` };
+    }
 }
 
 /** Shrink an image in the browser before it ever leaves the machine.
  *  Gallery photos off a phone are several megabytes; at that size the upload
- *  is slow and Drive fills up for no visual benefit on a 400px-wide card. */
+ *  is slow and storage fills up for no visual benefit on a 400px-wide card. */
 function shrinkImage(file, maxEdge = 1600, quality = 0.82) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -96,7 +106,7 @@ function shrinkImage(file, maxEdge = 1600, quality = 0.82) {
     });
 }
 
-/** Shrink, upload to Drive, and hand back a URL fit to store in the Sheet. */
+/** Shrink, upload to blob storage, and hand back a URL fit to store. */
 async function uploadImage(file) {
     if (!adminPassword) {
         showToast('Session expired — please sign in again', 'error');
@@ -123,8 +133,8 @@ async function uploadImage(file) {
     }
 }
 
-/** Push the current content to the Sheet so customers actually see it. */
-async function syncToSheet(partial) {
+/** Push the current content to the server so customers actually see it. */
+async function saveToServer(partial) {
     if (!adminPassword) {
         showToast('Session expired — please sign in again', 'error');
         return false;
@@ -158,7 +168,7 @@ let settings = {};
 let visitCount = 0;
 let barberHours = {};   // { 'Hemen': [{ day, working, from, to, breakFrom, breakTo }] }
 let timeOff = [];       // [{ barber, from, to, note }]
-// False until the Sheet has answered once, so pages can say "loading" instead
+// False until the server has answered once, so pages can say "loading" instead
 // of drawing the placeholders as though they were the shop's real data.
 let cmsLoaded = false;
 
@@ -172,15 +182,15 @@ async function fetchLiveCMS() {
 
         if (data.settings) {
             settings = data.settings;
-            // The visit counter is a row in the Settings sheet now.
+            // The visit counter is a row in the settings table.
             visitCount = parseInt(settings.visit_count || '0', 10) || 0;
         }
         if (data.barbers && data.barbers.length > 0) barbers = data.barbers;
         if (data.gallery && data.gallery.length > 0) {
             galleryImages = data.gallery.map((g, i) => ({ id: i + 1, src: g, name: 'Img ' + (i + 1) }));
         }
-        // Services and hours now live in the Sheet too, so the panel shows
-        // what customers are actually being served.
+        // Services and hours are read back from the server too, so the panel
+        // shows what customers are actually being served.
         if (data.services && data.services.length > 0) services = data.services;
         if (data.hours && data.hours.length > 0) hours = data.hours;
         if (data.barberHours) barberHours = data.barberHours;
@@ -198,7 +208,7 @@ async function fetchLiveCMS() {
         // below is what actually fixes it.
         cmsLoaded = true;
         renderPage(currentPage);
-        showToast('Could not load from the Sheet — retrying', 'error');
+        showToast('Could not load the shop’s details — retrying', 'error');
         setTimeout(fetchLiveCMS, 5000);
     }
 }
@@ -213,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchLiveBookings();
 
     // Refresh bookings in the background. This polled every 10 seconds, but a
-    // round trip to Apps Script takes closer to ten, so the calls piled up and
+    // backend that took closer to ten to answer, so the calls piled up and
     // competed with whatever the owner was actually doing. fetchLiveBookings()
     // now refuses to overlap itself, and a hidden tab is not worth polling.
     setInterval(() => {
@@ -269,7 +279,7 @@ async function handleLogin(e) {
     if (submitBtn) { submitBtn.textContent = 'Signing in...'; submitBtn.disabled = true; }
 
     try {
-        // Verified by the Apps Script, not here.
+        // Verified by the server, not here.
         const result = await apiPost({ action: 'adminLogin', password: password });
 
         if (result.status === 'success') {
@@ -300,7 +310,7 @@ function handleLogout() {
 // ---- Data Management ----
 function loadData() {
     // Placeholders only. fetchLiveCMS() and fetchLiveBookings() replace all of
-    // these with the Sheet's contents a moment after load; nothing about the
+    // these with the server's answer a moment after load; nothing about the
     // shop is persisted on this device.
     services = [...DEFAULT_SERVICES];
     hours = [...DEFAULT_HOURS];
@@ -311,32 +321,32 @@ function loadData() {
 }
 
 /** Kept as a no-op seam. The panel calls this from several places after
- *  mutating its in-memory state; persistence is the Sheet's job now, done by
- *  the syncToSheet() calls below. It was missing entirely before, which made
+ *  mutating its in-memory state; persistence is the server's job, done by the
+ *  saveToServer() calls below. It was missing entirely before, which made
  *  fetchLiveCMS() and all the barber editing throw. */
 function saveData() {
     /* nothing is stored locally */
 }
 
 async function saveServices() {
-    if (await syncToSheet({ services: services })) {
+    if (await saveToServer({ services: services })) {
         showToast('Services updated — customers see this now', 'success');
     }
 }
 
 async function saveHours() {
-    if (await syncToSheet({ hours: hours })) {
+    if (await saveToServer({ hours: hours })) {
         showToast('Working hours updated — customers see this now', 'success');
     }
 }
 
 function saveBookings() {
-    // Bookings are owned by the Sheet; fetchLiveBookings() refreshes them.
+    // Bookings are owned by the database; fetchLiveBookings() refreshes them.
 }
 
 async function saveGallery() {
-    // The Sheet stores plain URLs, not the panel's {id, src, name} shape.
-    if (await syncToSheet({ gallery: galleryImages.map(g => g.src) })) {
+    // The gallery stores plain URLs, not the panel's {id, src, name} shape.
+    if (await saveToServer({ gallery: galleryImages.map(g => g.src) })) {
         showToast('Gallery updated — customers see this now', 'success');
     }
 }
@@ -554,7 +564,7 @@ function setBookingFilter(filter) {
 
 // updateBookingStatus() and deleteBooking() lived here. A booking has no
 // pending state — one arrives booked — so the confirm and reject buttons
-// never appeared, and both only edited the local array while the Sheet kept
+// never appeared, and both only edited the local array while the server kept
 // the row, so a "deleted" booking came back on the next refresh. Cancelling
 // goes through cancelBookingById(), which tells the server.
 
@@ -707,11 +717,11 @@ async function saveCMSData() {
         if (el) next[CMS_FIELDS[id]] = el.value;
     });
 
-    // saveCMS rewrites the whole Settings sheet from what it is sent, so the
+    // saveCMS rewrites the settings from what it is sent, so the
     // visit counter has to travel with it or it resets to zero.
     if (settings.visit_count !== undefined) next.visit_count = settings.visit_count;
 
-    if (await syncToSheet({ settings: next })) {
+    if (await saveToServer({ settings: next })) {
         settings = next;
         showToast('Website text updated — customers see this now', 'success');
     }
@@ -800,7 +810,7 @@ function renderBarbers() {
     const container = document.getElementById('barbersContainer');
     if (!container) return;
 
-    // The Sheet takes several seconds to answer. Say so, rather than showing an
+    // The server can take a moment to answer. Say so, rather than showing an
     // empty page that reads as "there are no barbers".
     if (!cmsLoaded) {
         container.innerHTML =
@@ -1038,7 +1048,7 @@ async function saveBarberModal() {
     closeBarberModal();
     renderBarbers();
 
-    if (await syncToSheet({ barbers, barberHours, timeOff })) {
+    if (await saveToServer({ barbers, barberHours, timeOff })) {
         showToast(`${newName} updated — customers see this now`, 'success');
     }
 }
@@ -1056,7 +1066,7 @@ async function deleteBarberFromModal() {
     closeBarberModal();
     renderBarbers();
 
-    if (await syncToSheet({ barbers, barberHours, timeOff })) {
+    if (await saveToServer({ barbers, barberHours, timeOff })) {
         showToast(`${name} removed`, 'success');
     }
 }
@@ -1079,7 +1089,7 @@ async function addBarber() {
     }));
 
     renderBarbers();
-    if (await syncToSheet({ barbers, barberHours })) {
+    if (await saveToServer({ barbers, barberHours })) {
         showToast(`${clean} added — set their working days`, 'success');
         openBarberModal(barbers.length - 1);
     }
@@ -1477,7 +1487,7 @@ async function cancelBookingById(id) {
         console.error("Cancel failed", e);
         showToast('Could not reach the server — nothing was canceled', 'error');
     } finally {
-        // Always re-sync: the Sheet decides what the schedule really is.
+        // Always re-sync: the server decides what the schedule really is.
         fetchLiveBookings();
     }
 }

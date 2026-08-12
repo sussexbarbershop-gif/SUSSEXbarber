@@ -4,13 +4,13 @@
 --   psql "$DATABASE_URL" -f db/schema.sql
 -- Safe to re-run: every statement is IF NOT EXISTS or CREATE OR REPLACE.
 --
--- Two things the Sheet could not do, and the reason half of Code.gs existed:
+-- Two things the Sheet could not do, and the reason half the old backend
+-- existed:
 --
 --   Types.  A Sheet hands back a Date for a cell reading "10:00", a string for
 --           the same cell in another row, and #ERROR! for a phone number that
---           begins with a plus. formatClock(), formatTimeForFrontend() and
---           repairSettingErrors() are all patches for that. A TIME column is a
---           time, and text is text.
+--           begins with a plus. Three separate repair functions existed to
+--           patch that up. A TIME column is a time, and text is text.
 --
 --   Rules.  Double-booking was held off by a ten-second lock around a read and
 --           a write. Here it is a unique index: two requests can arrive in the

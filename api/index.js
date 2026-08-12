@@ -1,20 +1,22 @@
 /**
  * The whole backend, on one route.
  *
- * It speaks the same action-based protocol the Apps Script did — same query
- * parameters, same POST bodies, same response shapes — so the site and the
- * panel only had to change one line each: the address they call.
+ * It kept the action-based protocol the Apps Script used — same POST bodies,
+ * same response shapes — so the site and the panel only had to change one line
+ * each: the address they call. Rewriting the storage and the client protocol
+ * in one go would have meant a failure could be in either, and the booking
+ * form is the thing that must not break.
  *
- * That is deliberate. Rewriting the storage and the client protocol in one go
- * would mean a failure could be in either, and the booking form is the thing
- * that must not break. Nicer routes can come later; they are cosmetic.
+ * A GET now answers only two questions: the shop's configuration, and which
+ * slots are taken on a given date. Everything that names a person is a POST,
+ * so no customer's number ends up in a URL.
  *
  * Environment (Vercel > Settings > Environment Variables):
  *   DATABASE_URL           the Neon connection string
  *   ADMIN_PASSWORD         the panel password
  *   NOTIFY_EMAIL           where booking notifications go
- *   RESEND_API_KEY         optional; without it no email is sent
- *   MAIL_FROM              optional; the From: address Resend sends as
+ *   BREVO_API_KEY          without it, or RESEND_API_KEY, no email is sent
+ *   MAIL_FROM              the From: address; must be the verified sender
  *   BLOB_READ_WRITE_TOKEN  optional; needed only to upload images
  */
 
@@ -111,6 +113,11 @@ module.exports = async function handler(req, res) {
   }
 };
 
+// Reachable by the tests, which drive the real rules rather than a copy of
+// them. Vercel only ever calls the default export above.
+module.exports.refuseBooking = (config, payload) => refuseBooking(config, payload);
+module.exports.shopNow = shopNow;
+
 // ---- GET ------------------------------------------------------------------
 
 async function handleGet(req, res) {
@@ -132,27 +139,6 @@ async function handleGet(req, res) {
         SET value = (COALESCE(NULLIF(settings.value, '')::bigint, 0) + 1)::text
       RETURNING value`;
     return json(res, { status: 'success', visits: Number(rows[0].value) });
-  }
-
-  if (action === 'myBookings') {
-    const key = phoneKey(q.phone);
-    if (!key) return json(res, []);
-    const sql = db();
-    const today = shopNow().date;
-    const rows = await sql`
-      SELECT to_char(booked_on, 'YYYY-MM-DD') AS booked_on,
-             booked_at, service, barber, customer_name, phone
-        FROM bookings
-       WHERE phone_key = ${key} AND status = 'active' AND booked_on >= ${today}
-       ORDER BY booked_on, booked_at`;
-    return json(res, rows.map(r => ({
-      date: r.booked_on,
-      time: rota.minutesToLabel(rota.parseClock(r.booked_at)),
-      service: r.service,
-      barber: r.barber,
-      name: r.customer_name,
-      phone: r.phone
-    })));
   }
 
   // Availability for one date: the slots that are NOT bookable, which is what
@@ -251,6 +237,31 @@ async function handlePost(req, res) {
     })));
   }
 
+  // A customer finding their own appointments. Unauthenticated by design — the
+  // phone number is the only thing they have — but a POST rather than a GET,
+  // so the number is not left in browser history, in a referrer, or in the
+  // access log of every proxy between here and them.
+  if (action === 'myBookings') {
+    const key = phoneKey(payload.phone);
+    if (!key) return json(res, []);
+    const sql = db();
+    const today = shopNow().date;
+    const rows = await sql`
+      SELECT to_char(booked_on, 'YYYY-MM-DD') AS booked_on,
+             booked_at, service, barber, customer_name, phone
+        FROM bookings
+       WHERE phone_key = ${key} AND status = 'active' AND booked_on >= ${today}
+       ORDER BY booked_on, booked_at`;
+    return json(res, rows.map(r => ({
+      date: r.booked_on,
+      time: rota.minutesToLabel(rota.parseClock(r.booked_at)),
+      service: r.service,
+      barber: r.barber,
+      name: r.customer_name,
+      phone: r.phone
+    })));
+  }
+
   if (!action || action === 'addBooking') return await addBooking(payload, res);
   if (action === 'cancelBooking' || action === 'cancel') return await cancelBooking(payload, res);
 
@@ -338,15 +349,26 @@ async function addBooking(payload, res) {
 
   const minutes = rota.clockToMinutes(trimmed(payload.time));
   const barber = trimmed(payload.barber) === rota.ANY_BARBER ? '' : trimmed(payload.barber);
-  const price = payload.price === '' || payload.price == null ? null : Number(payload.price);
+  const service = trimmed(payload.service);
   const sql = db();
+
+  // The price the browser sent is not the price that is recorded. It came from
+  // a public form and can say anything; the shop's own list is the only thing
+  // that decides what a Skin Fade costs. Unknown service, no price — the
+  // booking still stands, because the diary is what matters and the barber can
+  // read the board.
+  const priced = await sql`
+    SELECT price FROM services
+     WHERE name_en = ${service} OR name_nl = ${service}
+     ORDER BY position LIMIT 1`;
+  const price = priced.length ? Number(priced[0].price) : null;
 
   try {
     await sql`
       INSERT INTO bookings (booked_on, booked_at, service, barber, customer_name,
                             phone, email, price)
       VALUES (${trimmed(payload.date)}, ${rota.minutesToClock(minutes)},
-              ${trimmed(payload.service)}, ${barber}, ${trimmed(payload.name)},
+              ${service}, ${barber}, ${trimmed(payload.name)},
               ${trimmed(payload.phone)}, ${trimmed(payload.email)}, ${price})`;
   } catch (err) {
     // bookings_one_chair. Two requests for the same barber and moment arrived
@@ -362,10 +384,12 @@ async function addBooking(payload, res) {
   }
 
   // After the row is safely written. A booking must never fail because an
-  // email did.
+  // email did. The row, not the payload — so the notification quotes the price
+  // that was recorded rather than the one the browser claimed.
+  const written = Object.assign({}, payload, { service, barber, price });
   await Promise.allSettled([
-    sendBookingNotice(payload),
-    sendCustomerConfirmation(payload, config)
+    sendBookingNotice(written),
+    sendCustomerConfirmation(written, config)
   ]);
 
   return json(res, { status: 'success', message: 'Booking added' });
@@ -540,6 +564,41 @@ async function saveCMS(payload, res) {
     });
   }
 
-  if (statements.length) await sql.transaction(statements);
+  if (statements.length) {
+    try {
+      await sql.transaction(statements);
+    } catch (err) {
+      // The database's own rules, said back in the panel's language. Without
+      // this the owner sees a 500 and has to be told to read a log to find out
+      // that a day was switched on with no hours in it.
+      const why = explainSaveFailure(err);
+      if (!why) throw err;
+      return json(res, { status: 'error', message: why });
+    }
+  }
   return json(res, { status: 'success', message: 'Saved' });
+}
+
+/** A CHECK constraint the panel can hit, in words, or '' for anything else. */
+function explainSaveFailure(err) {
+  const text = String((err && err.message) || '');
+  if (text.includes('shop_hours_span')) {
+    return 'A day is open with no opening and closing time, or closes before it opens.';
+  }
+  if (text.includes('barber_hours_span')) {
+    return 'A barber is marked as working on a day with no hours, or ending before they start.';
+  }
+  if (text.includes('barber_hours_break')) {
+    return 'A break ends before it begins.';
+  }
+  if (text.includes('time_off_span')) {
+    return 'A period of time off ends before it starts.';
+  }
+  if (text.includes('services_price_check') || text.includes('price >= 0')) {
+    return 'A service has a negative price.';
+  }
+  if (text.includes('duration_min')) {
+    return 'A service has a duration of zero.';
+  }
+  return '';
 }

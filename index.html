@@ -41,7 +41,10 @@
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com https://script.google.com https://script.googleusercontent.com data: blob:; frame-src https://www.google.com https://maps.google.com; img-src 'self' https://maps.gstatic.com https://drive.google.com https://lh3.googleusercontent.com https://*.public.blob.vercel-storage.com data: blob:;">
+    <!-- script.google.com is not in here any more. The backend is /api on this
+         same origin, so 'self' covers it, and a policy that still allowed the
+         Apps Script would be permission for a host this site no longer calls. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com data: blob:; frame-src https://www.google.com https://maps.google.com; img-src 'self' https://maps.gstatic.com https://drive.google.com https://lh3.googleusercontent.com https://*.public.blob.vercel-storage.com data: blob:;">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
     <!-- Tailwind is compiled to assets/tailwind.css by the build script in
          package.json. The CDN build used to run here, which shipped the whole
@@ -2516,6 +2519,24 @@
         // 1. Paint the static defaults so the page is never blank while loading.
         applyConfig({ services: DEFAULT_SERVICES, hours: DEFAULT_HOURS, gallery: null });
 
+        // 1b. Then, if this visitor has been here before, paint what the shop
+        //     said last time. The markup carries one hero line and the database
+        //     another, so every visit opened on the wrong wording and swapped
+        //     it a moment later, in front of the reader. A returning visitor
+        //     now opens on the right words and the network only confirms them.
+        //
+        //     Deliberately not a substitute for the fetch below: this is last
+        //     week's prices until the real answer lands a moment later.
+        const CONFIG_CACHE_KEY = 'sussex_config_v1';
+        try {
+            const cached = localStorage.getItem(CONFIG_CACHE_KEY);
+            if (cached) applyConfig(JSON.parse(cached));
+        } catch (err) {
+            // Private mode, a full quota, or something we wrote in an older
+            // shape. The defaults are already on screen; the fetch decides.
+            console.warn('Ignoring the cached config:', err);
+        }
+
         // 2. Replace them with whatever the Sheet says.
         //    cache: 'no-store' everywhere below is deliberate. Apps Script
         //    responses are cacheable, and a cached copy means the owner
@@ -2529,6 +2550,8 @@
                 const config = await res.json();
                 if (config.status !== 'success') throw new Error(config.message || 'bad response');
                 applyConfig(config);
+                try { localStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify(config)); }
+                catch (err) { /* no room to remember it; the page is right anyway */ }
             } catch (err) {
                 // The defaults from step 1 stay on screen.
                 console.warn('Could not load live site config:', err);
@@ -2617,13 +2640,22 @@
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000);
         try {
-            const res = await fetch(`${API_URL}?action=myBookings&phone=${encodeURIComponent(phone)}`, { signal: controller.signal, cache: 'no-store' });
+            // POST, so the phone number travels in the body. As a query string
+            // it ended up in browser history and in the access log of every hop
+            // in between, which is a customer's number written down in places
+            // nobody meant to write it down.
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action: 'myBookings', phone }),
+                signal: controller.signal,
+                cache: 'no-store'
+            });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
-            // Filter by phone here as well as server-side. An older deployment
-            // of the Apps Script ignores `action=myBookings` and answers with
-            // every active booking; without this guard those would be shown to
-            // whoever asked.
+            // Filter by phone here as well as server-side, so a backend that
+            // did not understand the action and answered with the whole diary
+            // could not spill it to whoever asked.
             myBookingsCache = (Array.isArray(data) ? data : [])
                 .filter(b => b && normalisePhone(b.phone) === digits);
         } catch (err) {
