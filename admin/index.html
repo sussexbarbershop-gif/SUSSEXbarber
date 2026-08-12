@@ -102,6 +102,13 @@
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
                     Analytics
                 </button>
+
+                <!-- The takings. A padlock, because it is the one page in here
+                     that asks for a second secret. -->
+                <button class="nav-item" data-page="reports">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    Reports
+                </button>
             </nav>
 
             <div class="sidebar-footer">
@@ -452,6 +459,37 @@
                             <canvas id="analyticsChart"></canvas>
                         </div>
                     </div>
+                </div>
+
+                <!-- REPORTS -->
+                <!-- Two states in one section: the PIN, and everything behind
+                     it. Nothing of the figures is in this markup — the panel
+                     does not have them until the server has seen the PIN. -->
+                <div id="page-reports" class="page-section">
+                    <div id="reportsLocked" class="data-card" style="max-width:420px;margin:0 auto">
+                        <div class="data-card-header">
+                            <h3>Reports</h3>
+                        </div>
+                        <div style="padding:20px">
+                            <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px">
+                                What the shop has taken, and who brought it in.
+                                Enter the owner's PIN to see it.
+                            </p>
+                            <form id="reportsPinForm" autocomplete="off">
+                                <input type="password" id="reportsPin" inputmode="numeric"
+                                       autocomplete="off" placeholder="PIN"
+                                       style="width:100%;padding:12px;margin-bottom:12px">
+                                <button type="submit" class="btn-primary" style="width:100%">Unlock</button>
+                            </form>
+                            <p id="reportsPinError" style="color:#ef4444;font-size:13px;margin-top:12px;display:none"></p>
+                            <p style="color:var(--text-muted);font-size:12px;margin-top:16px">
+                                The PIN is asked for again after a refresh. It is
+                                never stored on this device, which is the point of it.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div id="reportsContent" style="display:none"></div>
                 </div>
 
             </div>

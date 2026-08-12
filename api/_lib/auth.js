@@ -16,14 +16,37 @@ const crypto = require('crypto');
  * password's length by returning early. The old hand-rolled loop compared
  * lengths first and did exactly that.
  */
+function matches(expected, given) {
+  const a = crypto.createHash('sha256').update(String(expected)).digest();
+  const b = crypto.createHash('sha256').update(String(given)).digest();
+  return crypto.timingSafeEqual(a, b);
+}
+
 function isAuthorized(payload) {
   const expected = process.env.ADMIN_PASSWORD;
   if (!expected) return false;              // refuse every write until it is set
-  const given = payload && payload.password ? String(payload.password) : '';
-  const a = crypto.createHash('sha256').update(expected).digest();
-  const b = crypto.createHash('sha256').update(given).digest();
-  return crypto.timingSafeEqual(a, b);
+  return matches(expected, (payload && payload.password) || '');
 }
+
+/**
+ * True when the supplied PIN matches REPORTS_PIN.
+ *
+ * A second secret, on top of the panel password, for the takings — what the
+ * shop earned, and which barber brought it in. Staff sign in to the panel to
+ * work the diary; this is the owner's alone.
+ *
+ * Checked here and not in the browser for the obvious reason: a gate the page
+ * draws itself is opened by anyone who can open the developer tools, and the
+ * figures would already have been sent to them.
+ */
+function isPinCorrect(payload) {
+  const expected = process.env.REPORTS_PIN;
+  if (!expected) return false;              // no PIN set, no reports
+  return matches(expected, (payload && payload.pin) || '');
+}
+
+/** Whether a PIN has been set at all, so the panel can say which it is. */
+const reportsPinIsSet = () => Boolean(process.env.REPORTS_PIN);
 
 /**
  * Slow a guesser down, in proportion to how many times they have been wrong.
@@ -51,4 +74,5 @@ function resetFailedLogins(key) {
   failures.delete(key || 'global');
 }
 
-module.exports = { isAuthorized, throttleFailedLogin, resetFailedLogins };
+module.exports = { isAuthorized, isPinCorrect, reportsPinIsSet,
+                   throttleFailedLogin, resetFailedLogins };

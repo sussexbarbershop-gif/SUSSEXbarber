@@ -22,7 +22,9 @@
 
 const { db, readConfig, readRotaConfig, indexToIso, WEEKDAY_NAMES } = require('./_lib/db');
 const rota = require('./_lib/rota');
-const { isAuthorized, throttleFailedLogin, resetFailedLogins } = require('./_lib/auth');
+const { isAuthorized, isPinCorrect, reportsPinIsSet,
+        throttleFailedLogin, resetFailedLogins } = require('./_lib/auth');
+const { readReports } = require('./_lib/reports');
 const { sendBookingNotice, sendCustomerConfirmation, sendCancellationNotice } = require('./_lib/mail');
 
 /**
@@ -264,6 +266,30 @@ async function handlePost(req, res) {
 
   if (!action || action === 'addBooking') return await addBooking(payload, res);
   if (action === 'cancelBooking' || action === 'cancel') return await cancelBooking(payload, res);
+
+  // The takings. Behind the panel password and a second PIN, because the
+  // people who use the panel to run the diary are not necessarily the person
+  // who is allowed to see what the shop earned.
+  if (action === 'reports') {
+    if (!isAuthorized(payload)) {
+      await throttleFailedLogin();
+      return json(res, { status: 'error', message: 'Unauthorized' }, 401);
+    }
+    if (!reportsPinIsSet()) {
+      return json(res, {
+        status: 'error',
+        message: 'No REPORTS_PIN set on the server. Add it in Vercel > Settings > Environment Variables.'
+      }, 503);
+    }
+    if (!isPinCorrect(payload)) {
+      // Same delay as a wrong password. A PIN is four or six digits, which is
+      // little enough to sit and guess at machine speed otherwise.
+      await throttleFailedLogin('pin');
+      return json(res, { status: 'error', message: 'That PIN is not right' }, 401);
+    }
+    const report = await readReports(db(), shopNow().date);
+    return json(res, Object.assign({ status: 'success' }, report));
+  }
 
   if (action === 'uploadImage') {
     if (!isAuthorized(payload)) {

@@ -217,7 +217,10 @@ document.addEventListener('DOMContentLoaded', () => {
     checkAuth();
     setupNavigation();
     setupSidebar();
-    
+
+    const pinForm = document.getElementById('reportsPinForm');
+    if (pinForm) pinForm.addEventListener('submit', unlockReports);
+
     // Ask for both straight away; the 500ms wait only delayed the first paint.
     fetchLiveCMS();
     fetchLiveBookings();
@@ -251,10 +254,22 @@ function showLogin() {
     document.getElementById('adminLayout').classList.remove('active');
 }
 
+/** The page named in the address bar, if it is one we have. */
+function pageFromHash() {
+    const wanted = String(location.hash || '').replace(/^#\/?/, '').trim();
+    if (!wanted) return '';
+    const known = document.querySelector(`.nav-item[data-page="${CSS.escape(wanted)}"]`);
+    return known ? wanted : '';
+}
+
 function showAdmin() {
     document.getElementById('loginWrapper').style.display = 'none';
     document.getElementById('adminLayout').classList.add('active');
-    navigateTo('today');
+    // Whatever page they were on, not the one the panel opens with. Editing a
+    // barber's rota on a phone and pulling to refresh threw the page away and
+    // put them back at Today, which on a phone is several taps from where they
+    // were and gives no clue that anything was kept.
+    navigateTo(pageFromHash() || 'today');
     // The diary needs the password, so it can only be asked for once we have
     // one. On a fresh sign-in that is now, not at page load.
     fetchLiveBookings();
@@ -302,6 +317,9 @@ async function handleLogin(e) {
 
 function handleLogout() {
     adminPassword = '';
+    // The takings go with the session. Signing out and handing the phone over
+    // must not leave them one tap away.
+    lockReports();
     sessionStorage.removeItem('sussex_admin_auth');
     sessionStorage.removeItem('sussex_admin_pw');
     showLogin();
@@ -373,10 +391,26 @@ function setupNavigation() {
             closeSidebar();
         });
     });
+
+    // The phone's back button, and anything else that moves through history.
+    window.addEventListener('popstate', () => {
+        const page = pageFromHash();
+        if (page && page !== currentPage) navigateTo(page);
+    });
 }
 
 function navigateTo(page) {
     currentPage = page;
+
+    // In the address bar, so a refresh comes back here and the phone's back
+    // button walks the pages rather than leaving the panel. replaceState on
+    // the first page of a session so the history does not start with an entry
+    // nobody navigated to.
+    const target = '#' + page;
+    if (location.hash !== target) {
+        if (location.hash) history.pushState(null, '', target);
+        else history.replaceState(null, '', target);
+    }
 
     // Update nav
     document.querySelectorAll('.nav-item[data-page]').forEach(el => {
@@ -398,7 +432,8 @@ function navigateTo(page) {
         gallery: 'Gallery',
         cms: 'Website Text',
         barbers: 'Our Barbers',
-        analytics: 'Analytics'
+        analytics: 'Analytics',
+        reports: 'Reports'
     };
     document.getElementById('pageTitle').textContent = titles[page] || page;
 
@@ -420,6 +455,7 @@ function renderPage(page) {
         case 'barbers': renderBarbers(); break;
         case 'cms': renderCms(); break;
         case 'analytics': renderAnalytics(); break;
+        case 'reports': renderReports(); break;
     }
 }
 
@@ -1225,6 +1261,222 @@ function renderAnalytics() {
 
     // Simple bar chart
     renderSimpleChart();
+}
+
+// ---- Reports ----
+// The one page in the panel that is not for the staff. The figures are asked
+// for with a PIN the server checks; nothing is drawn until it has answered.
+//
+// The PIN is held in memory and nowhere else. Putting it in sessionStorage
+// would save the owner typing it after a refresh and hand it to anyone who
+// opens the developer tools on the same phone, which is the person it is
+// being kept from.
+let reportsPin = '';
+let reportsData = null;
+
+function renderReports() {
+    const locked = document.getElementById('reportsLocked');
+    const content = document.getElementById('reportsContent');
+    if (!locked || !content) return;
+
+    if (!reportsData) {
+        locked.style.display = '';
+        content.style.display = 'none';
+        const field = document.getElementById('reportsPin');
+        if (field) field.value = '';
+        return;
+    }
+    locked.style.display = 'none';
+    content.style.display = '';
+    content.innerHTML = reportsMarkup(reportsData);
+}
+
+async function unlockReports(e) {
+    if (e) e.preventDefault();
+    const field = document.getElementById('reportsPin');
+    const error = document.getElementById('reportsPinError');
+    const pin = field ? field.value.trim() : '';
+    if (!pin) return;
+
+    error.style.display = 'none';
+    try {
+        const result = await apiPost({ action: 'reports', password: adminPassword, pin });
+        if (result.status !== 'success') {
+            error.textContent = result.message || 'That PIN is not right';
+            error.style.display = '';
+            field.value = '';
+            return;
+        }
+        reportsPin = pin;
+        reportsData = result;
+        renderReports();
+    } catch (err) {
+        console.error('Reports failed', err);
+        error.textContent = 'Could not reach the server. Please try again.';
+        error.style.display = '';
+    }
+}
+
+function lockReports() {
+    reportsPin = '';
+    reportsData = null;
+    renderReports();
+}
+
+async function refreshReports() {
+    if (!reportsPin) return;
+    try {
+        const result = await apiPost({ action: 'reports', password: adminPassword, pin: reportsPin });
+        if (result.status === 'success') {
+            reportsData = result;
+            renderReports();
+        }
+    } catch (err) {
+        console.error('Could not refresh the reports', err);
+    }
+}
+
+const euros = v => '€' + Number(v || 0).toLocaleString('en-GB',
+    { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** 195 -> "3h 15m". Minutes alone stop meaning anything past about a hundred. */
+function asHours(minutes) {
+    const total = Math.round(Number(minutes) || 0);
+    const h = Math.floor(total / 60);
+    const m = total % 60;
+    if (!h) return m + 'm';
+    return m ? `${h}h ${m}m` : `${h}h`;
+}
+
+/** "2026-08" -> "Aug 2026", which is what a person reads a chart in. */
+function monthLabel(key) {
+    const [year, month] = String(key).split('-');
+    const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${names[Number(month) - 1] || month} ${year}`;
+}
+
+function statCard(colour, value, label, note) {
+    return `
+        <div class="stat-card ${colour}">
+            <div class="stat-value">${escapeHtml(value)}</div>
+            <div class="stat-label">${escapeHtml(label)}</div>
+            ${note ? `<div style="color:var(--text-muted);font-size:12px;margin-top:6px">${escapeHtml(note)}</div>` : ''}
+        </div>`;
+}
+
+/**
+ * A bar per row, drawn with a div rather than a chart library.
+ *
+ * The panel has no third-party scripts and the site's CSP does not allow any,
+ * so this is not a shortcut around one — it is the only kind of chart that can
+ * ship here. Widths are a percentage of the largest value, so a quiet month is
+ * a short bar and not an empty one.
+ */
+function barRows(rows, valueOf, labelOf, textOf) {
+    const peak = Math.max(1, ...rows.map(valueOf));
+    return rows.map(row => `
+        <div style="display:flex;align-items:center;gap:10px;padding:5px 0">
+            <div style="flex:0 0 82px;color:var(--text-muted);font-size:12px">${escapeHtml(labelOf(row))}</div>
+            <div style="flex:1;background:var(--bg-elevated,rgba(255,255,255,.06));border-radius:4px;height:20px;overflow:hidden">
+                <div style="width:${(valueOf(row) / peak) * 100}%;height:100%;background:var(--gold,#d4af37);border-radius:4px"></div>
+            </div>
+            <div style="flex:0 0 92px;text-align:right;font-size:12px;color:var(--text-primary)">${escapeHtml(textOf(row))}</div>
+        </div>`).join('');
+}
+
+function reportsCard(title, body, aside) {
+    return `
+        <div class="data-card" style="margin-bottom:20px">
+            <div class="data-card-header">
+                <h3>${escapeHtml(title)}</h3>
+                ${aside ? `<span style="color:var(--text-muted);font-size:12px">${escapeHtml(aside)}</span>` : ''}
+            </div>
+            <div style="padding:16px 20px">${body}</div>
+        </div>`;
+}
+
+function reportsMarkup(d) {
+    const empty = '<p style="color:var(--text-muted);font-size:13px;margin:0">Nothing recorded yet.</p>';
+
+    const barberTable = rows => rows.length === 0 ? empty : `
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead><tr><th>Barber</th><th>Appointments</th><th>Time in the chair</th><th>Takings</th></tr></thead>
+                <tbody>${rows.map(r => `
+                    <tr>
+                        <td style="color:var(--text-primary);font-weight:500">${escapeHtml(r.barber)}</td>
+                        <td>${r.appointments}</td>
+                        <td>${escapeHtml(asHours(r.minutes))}</td>
+                        <td>${escapeHtml(euros(r.revenue))}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+        </div>`;
+
+    const busiestHours = d.hours.filter(h => h.appointments > 0);
+
+    return `
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+            <span style="color:var(--text-muted);font-size:13px">
+                Everything below counts appointments up to and including ${escapeHtml(d.asAt)}.
+            </span>
+            <span style="display:flex;gap:8px">
+                <button class="btn btn-sm" onclick="refreshReports()">Refresh</button>
+                <button class="btn btn-sm" onclick="lockReports()">Lock</button>
+            </span>
+        </div>
+
+        <div class="stats-grid">
+            ${statCard('gold', euros(d.thisMonth.revenue), 'Taken this month',
+                       `${d.thisMonth.appointments} appointments since ${d.thisMonth.from}`)}
+            ${statCard('green', euros(d.lifetime.revenue), 'Taken in total',
+                       `${d.lifetime.appointments} appointments`)}
+            ${statCard('blue', String(d.lifetime.customers), 'Customers',
+                       `${d.thisMonth.newCustomers} new this month`)}
+            ${statCard('orange', String(d.upcoming.appointments), 'Still to come',
+                       `${euros(d.upcoming.revenue)} booked ahead`)}
+        </div>
+
+        ${reportsCard('The last twelve months',
+            d.months.length === 0 ? empty : barRows(d.months,
+                m => m.revenue, m => monthLabel(m.month),
+                m => `${euros(m.revenue)} · ${m.appointments}`),
+            'takings, and appointments')}
+
+        ${reportsCard('Barbers this month', barberTable(d.barbers.thisMonth),
+            `since ${d.thisMonth.from}`)}
+
+        ${reportsCard('Barbers, all time', barberTable(d.barbers.lifetime))}
+
+        ${reportsCard('What sells',
+            d.services.length === 0 ? empty : barRows(d.services,
+                s => s.appointments, s => s.service,
+                s => `${s.appointments} · ${euros(s.revenue)}`),
+            'by how often it is booked')}
+
+        ${reportsCard('Busiest days',
+            barRows(d.weekdays, w => w.appointments, w => w.day, w => String(w.appointments)))}
+
+        ${reportsCard('Busiest times',
+            busiestHours.length === 0 ? empty : barRows(busiestHours,
+                h => h.appointments,
+                h => String(h.hour).padStart(2, '0') + ':00',
+                h => String(h.appointments)))}
+
+        ${reportsCard('Customers coming back', `
+            <div class="stats-grid">
+                ${statCard('blue', String(d.loyalty.returning), 'Been in more than once')}
+                ${statCard('orange', String(d.loyalty.onceOnly), 'Been in once')}
+                ${statCard('green', String(d.loyalty.averageVisits), 'Average visits each')}
+            </div>`)}
+
+        ${reportsCard('Cancellations and reach', `
+            <div class="stats-grid">
+                ${statCard('orange', String(d.lifetime.cancelled), 'Cancelled',
+                           d.lifetime.cancelledShare + '% of everything booked')}
+                ${statCard('blue', String(d.lifetime.siteVisits), 'Visits to the website')}
+            </div>`)}
+    `;
 }
 
 function renderSimpleChart() {
