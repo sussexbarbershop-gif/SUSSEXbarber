@@ -1,13 +1,27 @@
 /**
  * Booking emails.
  *
- * MailApp went with the Apps Script, so this goes through Resend over plain
- * HTTPS — no SDK, because the whole surface used here is one POST.
+ * MailApp went with the Apps Script, so these go out over plain HTTPS. Two
+ * providers are supported, and whichever key is present is the one used.
  *
- * Environment:
- *   RESEND_API_KEY   without it nothing is sent, and nothing complains
- *   MAIL_FROM        e.g. "Sussex Barber Shop <bookings@yourdomain.com>"
+ * Environment — set ONE of these:
+ *   BREVO_API_KEY    Brevo. Verifies a single sender address by emailing it a
+ *                    link, so the shop can send as its own Gmail with no
+ *                    domain and nothing to pay. 300 a day.
+ *   RESEND_API_KEY   Resend. Verifies a whole domain and nothing less, so it
+ *                    can only reach the account owner's own inbox until the
+ *                    shop has a domain. Better deliverability once it does.
+ *
+ * And:
+ *   MAIL_FROM        "Sussex Barber Shop <sussexbarbershop@gmail.com>".
+ *                    With Brevo this has to be the address that was verified.
  *   NOTIFY_EMAIL     where the shop's own notifications go
+ *
+ * Two providers rather than one because of a real constraint: the shop has no
+ * domain, only sussexbarbershop.vercel.app, which belongs to Vercel and cannot
+ * be verified. Single-sender verification is the only free way to reach
+ * customers. If a domain is bought later, set RESEND_API_KEY instead and
+ * nothing else changes.
  *
  * Every function here swallows its failures, for the same reason the Apps
  * Script did: the booking is already saved by the time these run, and a
@@ -22,37 +36,77 @@ const isEmail = v => EMAIL_RE.test(String(v || '').trim());
 
 const SHOP_NAME = 'Sussex Barber Shop';
 
-/**
- * Hand one message to Resend. Resolves either way; never throws.
- * Returns true only when Resend accepted it.
- */
-async function send({ to, subject, text, replyTo }) {
-  const key = process.env.RESEND_API_KEY;
-  if (!key) {
-    console.warn('[mail] RESEND_API_KEY is not set — nothing sent to', to);
+/** '<name> <addr@x>' or 'addr@x' -> { name, email }, which Brevo wants split. */
+function splitFrom(value) {
+  const m = String(value || '').match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
+  if (m) return { name: m[1] || SHOP_NAME, email: m[2].trim() };
+  return { name: SHOP_NAME, email: String(value || '').trim() };
+}
+
+async function sendViaBrevo(key, { to, subject, text, replyTo }) {
+  const from = splitFrom(process.env.MAIL_FROM || process.env.NOTIFY_EMAIL);
+  if (!isEmail(from.email)) {
+    console.error('[mail] MAIL_FROM is not a verified sender address:', from.email);
     return false;
   }
-  // Resend will only send from a domain you have verified. onboarding@resend.dev
-  // works out of the box but can only deliver to your own account address,
-  // which is enough to prove the wiring before a domain is set up.
+  const body = {
+    sender: { name: from.name, email: from.email },
+    to: [{ email: to }],
+    subject,
+    textContent: text
+  };
+  if (replyTo) body.replyTo = { email: replyTo };
+
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: { 'api-key': key, 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    console.error('[mail] Brevo refused it:', res.status, await res.text());
+    return false;
+  }
+  return true;
+}
+
+async function sendViaResend(key, { to, subject, text, replyTo }) {
+  // onboarding@resend.dev works out of the box but only delivers to the
+  // account owner's address — enough to prove the wiring, not enough to
+  // confirm anything to a customer.
   const from = process.env.MAIL_FROM || `${SHOP_NAME} <onboarding@resend.dev>`;
+  const body = { from, to: [to], subject, text };
+  if (replyTo) body.reply_to = [replyTo];
 
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    console.error('[mail] Resend refused it:', res.status, await res.text());
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Hand one message to whichever provider is configured.
+ * Resolves either way; never throws. True only when it was accepted.
+ */
+async function send(message) {
+  const brevo = process.env.BREVO_API_KEY;
+  const resend = process.env.RESEND_API_KEY;
+  if (!brevo && !resend) {
+    console.warn('[mail] no BREVO_API_KEY or RESEND_API_KEY — nothing sent to', message.to);
+    return false;
+  }
   try {
-    const body = { from, to: [to], subject, text };
-    if (replyTo) body.reply_to = [replyTo];
-
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    if (!res.ok) {
-      console.error('[mail] Resend refused it:', res.status, await res.text());
-      return false;
-    }
-    return true;
+    // Brevo first when both are set: it is the one that can reach customers
+    // without a domain, so it is the deliberate choice if someone configured
+    // both and forgot which.
+    return brevo ? await sendViaBrevo(brevo, message) : await sendViaResend(resend, message);
   } catch (err) {
-    console.error('[mail] could not reach Resend:', err);
+    console.error('[mail] could not reach the mail provider:', err);
     return false;
   }
 }

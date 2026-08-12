@@ -63,17 +63,29 @@ You should end up with eight tables: `barbers`, `barber_hours`, `time_off`,
 The Apps Script sent mail through Google. That goes away with it, so booking
 notifications need somewhere else to come from.
 
-1. Go to **https://resend.com** and sign up with the shop's email.
-2. **API Keys** → **Create API Key**. Copy it. It starts with `re_`.
-   This is also a password — same rules.
+**The shop has no domain** — the site is on `sussexbarber.vercel.app`, which
+belongs to Vercel. That rules out most providers, because they will only let
+you send from a domain you have proved you own, and you cannot prove you own
+somebody else's.
 
-Free tier is 3,000 emails a month and 100 a day, which is far more than this
-shop sends.
+Brevo is the way round it: it verifies **one address** rather than a whole
+domain, by emailing that address a link. So the shop can send as its own Gmail,
+free, with nothing to buy.
 
-Until a domain is verified, Resend will only deliver to the address that owns
-the account — enough to prove the wiring works. Verifying
-`sussexbarbershop.com`, or whatever domain the shop has, is a later job and
-needs no code change: set `MAIL_FROM` and it starts using it.
+1. Go to **https://brevo.com** and sign up with `sussexbarbershop@gmail.com`.
+2. **Senders, Domains & Dedicated IPs** → **Senders** → **Add a sender**.
+   Use the same Gmail address. Brevo emails it a confirmation link — click it.
+3. **SMTP & API** → **API Keys** → **Generate a new API key**. Copy it.
+   This is a password: it goes in Vercel and nowhere else.
+
+Free tier is 300 emails a day. This shop sends two per booking.
+
+Then set `MAIL_FROM` to the address you just verified — Brevo refuses anything
+else.
+
+**If the shop buys a domain later**, Resend is the better home for this: set
+`RESEND_API_KEY` instead of `BREVO_API_KEY` and change nothing else. Both are
+supported and whichever key is present is the one used.
 
 ---
 
@@ -88,13 +100,14 @@ Vercel dashboard → the `sussexbarber` project → **Settings** →
 | `DATABASE_URL` | the Neon connection string from step 1 |
 | `ADMIN_PASSWORD` | the same panel password as now, out of the Apps Script's Script Properties |
 | `NOTIFY_EMAIL` | `sussexbarbershop@gmail.com` |
-| `RESEND_API_KEY` | the `re_…` key from step 3 |
+| `BREVO_API_KEY` | the key from step 3 |
+| `MAIL_FROM` | `Sussex Barber Shop <sussexbarbershop@gmail.com>` — the address verified in step 3 |
 
 Optional, and only if you want them:
 
 | Name | Value | What it does |
 |---|---|---|
-| `MAIL_FROM` | `Sussex Barber Shop <bookings@yourdomain.com>` | sends from your own domain once it is verified with Resend |
+| `RESEND_API_KEY` | a Resend key | use Resend instead of Brevo, once the shop has a domain |
 | `BLOB_READ_WRITE_TOKEN` | from Vercel → Storage → Blob | lets the panel upload gallery photos. Without it the rest of the panel works and only uploading is refused |
 | `SHOP_TIMEZONE` | `Europe/Amsterdam` | already the default; only set it if the shop moves |
 
