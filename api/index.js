@@ -222,20 +222,28 @@ async function handlePost(req, res) {
       return json(res, { status: 'error', message: 'Unauthorized' }, 401);
     }
     const sql = db();
+    // No price. This is the diary, and everyone who works the diary signs in
+    // with the same password; what the shop took is behind the PIN, in
+    // reports. Nothing in the panel needs a price to run a day's work.
+    //
+    // created_at comes with it so the panel can put the booking that arrived
+    // most recently at the top, which is the one nobody has seen yet.
     const rows = await sql`
-      SELECT to_char(booked_on, 'YYYY-MM-DD') AS booked_on,
-             booked_at, service, barber, customer_name, phone, email, price
+      SELECT id,
+             to_char(booked_on, 'YYYY-MM-DD') AS booked_on,
+             booked_at, service, barber, customer_name, phone,
+             to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at
         FROM bookings WHERE status = 'active'
        ORDER BY booked_on, booked_at`;
     return json(res, rows.map(r => ({
+      id: r.id,
       date: r.booked_on,
       time: rota.minutesToLabel(rota.parseClock(r.booked_at)),
       service: r.service,
       barber: r.barber,
       name: r.customer_name,
       phone: r.phone,
-      email: r.email || '',
-      price: r.price === null ? '' : Number(r.price)
+      bookedAt: r.created_at
     })));
   }
 

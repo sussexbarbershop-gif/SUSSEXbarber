@@ -55,20 +55,21 @@
             <nav class="sidebar-nav">
                 <div class="nav-section-title">Main</div>
 
-                <button class="nav-item active" data-page="today">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    Today
-                </button>
-
-                <button class="nav-item" data-page="dashboard">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zm0 7a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1h-4a1 1 0 01-1-1v-5zm-10-2a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1v-5z"></path></svg>
-                    Dashboard
-                </button>
-
-                <button class="nav-item" data-page="bookings">
+                <!-- Two pages, not three. Today, Dashboard and Bookings each
+                     showed the same appointments cut a different way, and the
+                     Dashboard's tiles were takings and totals - the owner's
+                     business, not the floor's. What is left is the list and
+                     the week, both of which a barber can narrow to their own
+                     name. -->
+                <button class="nav-item active" data-page="bookings">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                     Bookings
                     <span class="badge" id="pendingBadge" style="display:none">0</span>
+                </button>
+
+                <button class="nav-item" data-page="week">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    Week
                 </button>
 
                 <div class="nav-section-title">Management</div>
@@ -151,156 +152,83 @@
             <!-- Content Area -->
             <div class="content-area">
 
-                <!-- ========== TODAY ========== -->
-                <!-- The landing page. Seeing who is coming in today is the one
-                     thing the owner does many times a day; everything else here
-                     is a monthly job at most. -->
-                <div id="page-today" class="page-section active">
-                    <div class="today-header">
-                        <div>
-                            <h2 id="todayDateLabel">Today</h2>
-                            <p id="todaySummary" class="today-summary">Loading…</p>
-                        </div>
-                        <button type="button" class="btn-refresh" onclick="fetchLiveBookings()">
-                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                            Refresh
-                        </button>
-                    </div>
-                    <div id="todayList" class="today-list"></div>
-
-                    <h3 class="today-next-title">Tomorrow</h3>
-                    <div id="tomorrowList" class="today-list"></div>
-                </div>
-
-                <!-- ========== DASHBOARD ========== -->
-                <div id="page-dashboard" class="page-section">
-                    <div class="stats-grid">
-                        <div class="stat-card gold">
-                            <div class="stat-icon">
-                                <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                            </div>
-                            <div class="stat-value" id="statTodayBookings">0</div>
-                            <div class="stat-label">Today's Bookings</div>
-                        </div>
-                        <div class="stat-card orange">
-                            <div class="stat-icon">
-                                <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            </div>
-                            <div class="stat-value" id="statPending">0</div>
-                            <div class="stat-label">Upcoming</div>
-                        </div>
-                        <div class="stat-card green">
-                            <div class="stat-icon">
-                                <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            </div>
-                            <div class="stat-value" id="statRevenue">€0</div>
-                            <div class="stat-label">Total Revenue</div>
-                        </div>
-                        <div class="stat-card blue">
-                            <div class="stat-icon">
-                                <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                            </div>
-                            <div class="stat-value" id="statVisits">0</div>
-                            <div class="stat-label">Site Visits</div>
-                        </div>
-                    </div>
-
+                <!-- ========== BOOKINGS ========== -->
+                <!-- Every appointment, newest arrival first. The one that came
+                     in last is the one nobody has seen yet, so it belongs at
+                     the top - not buried under next month's diary. -->
+                <div id="page-bookings" class="page-section active">
                     <div class="data-card">
-                        <div class="data-card-header">
-                            <h3>Recent Bookings</h3>
-                            <button class="btn btn-secondary btn-sm" onclick="navigateTo('bookings')">View All →</button>
+                        <div class="data-card-header" style="flex-wrap:wrap; gap:12px;">
+                            <h3>Bookings</h3>
+                            <div class="data-card-actions" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                                <select id="bookingsBarberFilter" class="barber-filter" aria-label="Show one barber's bookings"></select>
+                                <button class="btn btn-secondary btn-sm" onclick="exportBookingsCSV()">Export CSV</button>
+                                <button class="btn btn-secondary btn-sm" onclick="fetchLiveBookings()" style="display:flex; align-items:center; gap:6px;">
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                    Refresh
+                                </button>
+                            </div>
                         </div>
+
+                        <div class="data-card-actions" style="padding: 15px 20px 0 20px;">
+                            <div class="filter-tabs" id="bookingFilters">
+                                <button class="filter-tab active" data-filter="all" onclick="setBookingFilter('all')">All</button>
+                                <button class="filter-tab" data-filter="today" onclick="setBookingFilter('today')">Today</button>
+                                <button class="filter-tab" data-filter="week" onclick="setBookingFilter('week')">This Week</button>
+                                <button class="filter-tab" data-filter="upcoming" onclick="setBookingFilter('upcoming')">Upcoming</button>
+                            </div>
+                        </div>
+
+                        <p id="bookingsCaption" class="list-caption"></p>
+
                         <div class="table-responsive">
                             <table>
                                 <thead>
                                     <tr>
                                         <th>Customer</th>
+                                        <th>Phone</th>
                                         <th>Service</th>
                                         <th>Barber</th>
+                                        <th>Date</th>
                                         <th>Time</th>
                                         <th>Status</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody id="recentBookingsBody"></tbody>
+                                <tbody id="bookingsBody"></tbody>
                             </table>
                         </div>
                     </div>
                 </div>
 
-                <!-- ========== BOOKINGS ========== -->
-                <div id="page-bookings" class="page-section">
+                <!-- ========== WEEK ========== -->
+                <!-- The same appointments laid out as a week, which is how a
+                     barber reads their own shift. Scrolls sideways on a phone;
+                     the buttons move a week at a time. -->
+                <div id="page-week" class="page-section">
                     <div class="data-card">
-                        <div class="data-card-header" style="flex-wrap: wrap; gap: 15px;">
-                            <div style="display:flex; align-items:center; gap:15px;">
-                                <h3>Bookings Management</h3>
-                                <div class="view-switch-tabs" style="display:flex; background:var(--bg-secondary); padding:4px; border-radius:8px; border:1px solid var(--border-color);">
-                                    <button class="view-switch-btn active" id="btnViewPlanner" onclick="switchBookingView('planner')" style="padding:6px 14px; font-size:13px; border-radius:6px; border:none; background:var(--gold); color:#000; font-weight:600; cursor:pointer;">Week</button>
-                                    <button class="view-switch-btn" id="btnViewList" onclick="switchBookingView('list')" style="padding:6px 14px; font-size:13px; border-radius:6px; border:none; background:transparent; color:var(--text-muted); font-weight:500; cursor:pointer;">List</button>
-                                </div>
-                            </div>
-                            <div class="data-card-actions" style="display:flex; align-items:center; gap:10px;">
-                                <button class="btn btn-primary btn-sm" onclick="exportBookingsCSV()" style="display:flex; align-items:center; gap:6px; background:#10b981; border:none; font-weight:600;">
-                                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                    Export CSV (Excel)
-                                </button>
-                                <button class="btn btn-secondary btn-sm" onclick="fetchLiveBookings()" style="display:flex; align-items:center; gap:6px;">
-                                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                                    Refresh Data
-                                </button>
+                        <div class="data-card-header" style="flex-wrap:wrap; gap:12px;">
+                            <h3 id="plannerWeekTitle">Week</h3>
+                            <div class="data-card-actions" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                                <select id="weekBarberFilter" class="barber-filter" aria-label="Show one barber's week"></select>
+                                <button class="btn btn-secondary btn-sm" onclick="fetchLiveBookings()">Refresh</button>
                             </div>
                         </div>
 
-                        <!-- WEEKLY PLANNER VIEW -->
-                        <div id="bookingPlannerView" style="padding: 20px;">
-                            <div class="planner-toolbar" style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-secondary); padding:12px 20px; border-radius:10px; margin-bottom:20px; border:1px solid var(--border-color); flex-wrap:wrap; gap:12px;">
-                                <div style="display:flex; align-items:center; gap:10px;">
-                                    <button class="btn btn-secondary btn-sm" onclick="navigateWeek(-1)">← Previous Week</button>
-                                    <button class="btn btn-secondary btn-sm" onclick="navigateWeek(0)">This Week</button>
-                                    <button class="btn btn-secondary btn-sm" onclick="navigateWeek(1)">Next Week →</button>
-                                </div>
-                                <h4 id="plannerWeekTitle" style="color:var(--gold); font-size:16px; font-weight:700; margin:0;">Week Range</h4>
-                                <div style="display:flex; gap:15px; font-size:13px;">
-                                    <span style="color:var(--text-muted);">Total Bookings: <b id="plannerTotalCount" style="color:#fff;">0</b></span>
-                                    <span style="color:var(--text-muted);">Est. Revenue: <b id="plannerEstRevenue" style="color:#4ade80;">€0</b></span>
-                                </div>
+                        <div style="padding: 16px 20px;">
+                            <div class="planner-toolbar">
+                                <button class="btn btn-secondary btn-sm" onclick="navigateWeek(-1)">← Previous</button>
+                                <button class="btn btn-secondary btn-sm" onclick="navigateWeek(0)">This week</button>
+                                <button class="btn btn-secondary btn-sm" onclick="navigateWeek(1)">Next →</button>
                             </div>
 
-                            <div class="weekly-grid-container" id="weeklyGridContainer" style="display:grid; grid-template-columns: repeat(7, minmax(180px, 1fr)); gap:12px; overflow-x:auto; padding-bottom:10px;">
-                                <!-- Rendered dynamically by JS -->
-                            </div>
-                        </div>
+                            <p id="weekCaption" class="list-caption" style="padding:0 0 10px 0"></p>
 
-                        <!-- LIST TABLE VIEW -->
-                        <div id="bookingListView" style="display:none;">
-                            <div class="data-card-actions" style="padding: 15px 20px 0 20px;">
-                                <div class="filter-tabs" id="bookingFilters">
-                                    <button class="filter-tab active" data-filter="all" onclick="setBookingFilter('all')">All</button>
-                                    <button class="filter-tab" data-filter="today" onclick="setBookingFilter('today')">Today</button>
-                                    <button class="filter-tab" data-filter="week" onclick="setBookingFilter('week')">This Week</button>
-                                    <button class="filter-tab" data-filter="upcoming" onclick="setBookingFilter('upcoming')">Upcoming</button>
-                                </div>
-                            </div>
-                            <div class="table-responsive">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th>Customer</th>
-                                            <th>Phone</th>
-                                            <th>Service</th>
-                                            <th>Barber</th>
-                                            <th>Date</th>
-                                            <th>Time</th>
-                                            <th>Status</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="bookingsBody"></tbody>
-                                </table>
-                            </div>
+                            <div class="weekly-grid-container" id="weeklyGridContainer"></div>
                         </div>
                     </div>
                 </div>
+
 
                 <!-- ========== SERVICES ========== -->
                 <div id="page-services" class="page-section">
@@ -466,25 +394,27 @@
                      it. Nothing of the figures is in this markup — the panel
                      does not have them until the server has seen the PIN. -->
                 <div id="page-reports" class="page-section">
-                    <div id="reportsLocked" class="data-card" style="max-width:420px;margin:0 auto">
-                        <div class="data-card-header">
-                            <h3>Reports</h3>
-                        </div>
-                        <div style="padding:20px">
-                            <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px">
-                                What the shop has taken, and who brought it in.
-                                Enter the owner's PIN to see it.
-                            </p>
+                    <div id="reportsLocked" class="pin-gate">
+                        <div class="pin-card">
+                            <svg class="pin-icon" width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                            <h2>Reports</h2>
+                            <div class="gold-line"></div>
+                            <p>What the shop has taken, and who brought it in.</p>
+
                             <form id="reportsPinForm" autocomplete="off">
-                                <input type="password" id="reportsPin" inputmode="numeric"
-                                       autocomplete="off" placeholder="PIN"
-                                       style="width:100%;padding:12px;margin-bottom:12px">
-                                <button type="submit" class="btn-primary" style="width:100%">Unlock</button>
+                                <div class="form-group">
+                                    <label for="reportsPin">Owner's PIN</label>
+                                    <input type="password" id="reportsPin" inputmode="numeric"
+                                           autocomplete="off" placeholder="••••">
+                                </div>
+                                <button type="submit" class="btn-login">Unlock</button>
                             </form>
-                            <p id="reportsPinError" style="color:#ef4444;font-size:13px;margin-top:12px;display:none"></p>
-                            <p style="color:var(--text-muted);font-size:12px;margin-top:16px">
-                                The PIN is asked for again after a refresh. It is
-                                never stored on this device, which is the point of it.
+
+                            <div id="reportsPinError" class="login-error"></div>
+
+                            <p class="pin-note">
+                                Asked for again after a refresh. It is never stored
+                                on this device, which is the point of it.
                             </p>
                         </div>
                     </div>

@@ -47,8 +47,10 @@ console.log('--- rows whose contents refuse to shrink ---');
 // than a phone. They have to wrap, or they push the page sideways.
 [
   ['.topbar-left', /min-width:\s*0/],
-  ['.today-row', /flex-wrap:\s*wrap/],
-  ['.today-actions', /width:\s*100%/],
+  ['.data-card-header', /flex-wrap:\s*wrap/],
+  ['.data-card-actions', /flex-wrap:\s*wrap/],
+  ['.planner-toolbar', /flex-wrap:\s*wrap/],
+  ['.barber-filter', /width:\s*100%/],
   ['.filter-tabs', /overflow-x:\s*auto/]
 ].forEach(([selector, expected]) => {
   const block = new RegExp(selector.replace('.', '\\.') + '\\s*\\{([^}]*)\\}');
@@ -57,8 +59,17 @@ console.log('--- rows whose contents refuse to shrink ---');
 });
 
 console.log('--- a week of appointments ---');
-ok('the planner stacks one day per row',
-   /#weeklyGridContainer\s*\{[^}]*grid-template-columns:\s*1fr/.test(mobile), true);
+// Swiped through a day at a time rather than stacked down the page: a week is
+// a row, and scrolling past six empty days to reach Saturday is not reading a
+// week. The snap is what stops a half-scrolled column being left on screen.
+ok('the week scrolls sideways',
+   /#weeklyGridContainer\s*\{[^}]*grid-auto-flow:\s*column/.test(mobile), true);
+ok('one day nearly fills the screen',
+   /#weeklyGridContainer\s*\{[^}]*grid-auto-columns:[^;]*vw/.test(mobile), true);
+ok('and the days snap into place',
+   /#weeklyGridContainer\s*\{[^}]*scroll-snap-type:\s*x/.test(mobile), true);
+ok('the grid it scrolls can overflow',
+   /\.weekly-grid-container\s*\{[^}]*overflow-x:\s*auto/.test(css), true);
 
 console.log('--- anything wide enough to overflow must scroll itself ---');
 // A table is wider than a phone by nature; each one needs a scrolling parent.

@@ -424,9 +424,8 @@ function navigateTo(page) {
 
     // Update topbar title
     const titles = {
-        today: 'Today',
-        dashboard: 'Dashboard',
         bookings: 'Bookings',
+        week: 'Week',
         services: 'Services & Pricing',
         hours: 'Working Hours',
         gallery: 'Gallery',
@@ -443,9 +442,8 @@ function navigateTo(page) {
 
 function renderPage(page) {
     switch (page) {
-        case 'today': renderToday(); break;
-        case 'dashboard': renderDashboard(); break;
         case 'bookings': renderBookings(); break;
+        case 'week': renderWeek(); break;
         case 'services': renderServices(); break;
         case 'hours': renderHours(); break;
         case 'gallery': renderGallery(); break;
@@ -477,71 +475,88 @@ function closeSidebar() {
     document.getElementById('sidebarOverlay').classList.remove('active');
 }
 
-// ---- Dashboard ----
-function renderDashboard() {
-    const today = new Date().toISOString().split('T')[0];
-    const todayBookings = bookings.filter(b => b.date === today);
-    const upcoming = bookings.filter(b => b.date >= today);
-
-    // Every booking in the sheet is a booking; there is no pending state and
-    // no lowercase 'confirmed'. Filtering on those matched nothing, so this
-    // total was always €0 and the Pending tile always read zero.
-    const totalRevenue = bookings.reduce((sum, b) => {
-        const stored = parseFloat(b.price);
-        if (!isNaN(stored) && stored > 0) return sum + stored;
-        // Older rows were written before the price was stored with them.
-        const svc = services.find(s => s.nameEN === b.serviceName ||
-                                       s.nameNL === b.serviceName);
-        return sum + (svc ? svc.price : 0);
-    }, 0);
-
-    document.getElementById('statTodayBookings').textContent = todayBookings.length;
-    document.getElementById('statPending').textContent = upcoming.length;
-    document.getElementById('statRevenue').textContent = `€${Math.round(totalRevenue)}`;
-    document.getElementById('statVisits').textContent = visitCount;
-
-    // The sidebar badge counts what is still to come, which is the number the
-    // owner actually wants at a glance.
-    const badge = document.getElementById('pendingBadge');
-    if (badge) {
-        badge.textContent = upcoming.length;
-        badge.style.display = upcoming.length > 0 ? 'inline' : 'none';
-    }
-
-    // Recent bookings
-    renderRecentBookings(todayBookings.length > 0 ? todayBookings : bookings.slice(0, 5));
-}
-
-function renderRecentBookings(list) {
-    const tbody = document.getElementById('recentBookingsBody');
-    if (!tbody) return;
-
-    if (list.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">No bookings yet</td></tr>`;
-        return;
-    }
-
-    // Same field-name mismatch as the bookings table: b.name, b.service and
-    // b.barber do not exist, so these columns were blank.
-    tbody.innerHTML = list.map(b => `
-        <tr>
-            <td style="color:var(--text-primary);font-weight:500">${escapeHtml(b.customerName)}</td>
-            <td>${escapeHtml(b.serviceName)}</td>
-            <td>${escapeHtml(b.barberName || 'Any')}</td>
-            <td>${escapeHtml(b.time)}</td>
-            <td><span class="status-badge confirmed">● Booked</span></td>
-            <td>
-                <button class="btn btn-danger btn-sm" onclick="cancelBookingById('${escapeAttr(b.id)}')" title="Cancel this booking">Cancel</button>
-            </td>
-        </tr>
-    `).join('');
-}
-
 // ---- Bookings ----
 let bookingFilter = 'all';
 
+// Which barber's work is being looked at, or '' for everyone's. Remembered on
+// this device: a barber picks their name once and the panel opens on their own
+// day from then on, which is the whole point of it.
+const NO_PREFERENCE = '__any__';
+let barberFilter = localStorage.getItem('sussex_admin_barber') || '';
+
+/** The names to offer, in the order the booking form offers them. */
+function barberFilterNames() {
+    return (barbers || [])
+        .map(b => String(b.name || '').trim())
+        .filter(name => name && name !== ANY_BARBER);
+}
+
+/**
+ * Fill both dropdowns and keep them saying the same thing.
+ *
+ * One choice, two pages: switching to the week after narrowing the list to
+ * your own name and finding the whole shop's week there again is the kind of
+ * thing that gets a filter ignored.
+ */
+function renderBarberFilters() {
+    const names = barberFilterNames();
+    // A name that has since been removed from the panel would otherwise leave
+    // the select showing nothing while quietly filtering everything out.
+    if (barberFilter && barberFilter !== NO_PREFERENCE && !names.includes(barberFilter)) {
+        setBarberFilter('');
+        return;
+    }
+
+    const options = [
+        `<option value="">All barbers</option>`,
+        ...names.map(name =>
+            `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`),
+        `<option value="${NO_PREFERENCE}">No preference</option>`
+    ].join('');
+
+    ['bookingsBarberFilter', 'weekBarberFilter'].forEach(id => {
+        const select = document.getElementById(id);
+        if (!select) return;
+        select.innerHTML = options;
+        select.value = barberFilter;
+        select.onchange = () => setBarberFilter(select.value);
+    });
+}
+
+function setBarberFilter(name) {
+    barberFilter = name || '';
+    if (barberFilter) localStorage.setItem('sussex_admin_barber', barberFilter);
+    else localStorage.removeItem('sussex_admin_barber');
+    renderBarberFilters();
+    renderBookings();
+    renderWeeklyPlannerGrid();
+    // The count in the sidebar follows the filter too, or a barber looking at
+    // their own day is told the whole shop's number beside it.
+    updateUpcomingBadge();
+}
+
+/** The chosen barber's appointments, or everyone's. */
+function forChosenBarber(list) {
+    if (!barberFilter) return list;
+    if (barberFilter === NO_PREFERENCE) {
+        // Nobody was asked for, so nobody's name is on it — these are the ones
+        // whoever is free picks up.
+        return list.filter(b => !b.barberName || b.barberName === 'Any' ||
+                                b.barberName === ANY_BARBER);
+    }
+    return list.filter(b => b.barberName === barberFilter);
+}
+
+/** "Hemen · 4 appointments" — never a total anyone could add money to. */
+function listCaption(count, noun) {
+    const who = !barberFilter ? 'Everyone'
+              : barberFilter === NO_PREFERENCE ? 'No preference'
+              : barberFilter;
+    return `${who} · ${count} ${count === 1 ? noun : noun + 's'}`;
+}
+
 function renderBookings() {
-    let filtered = [...bookings];
+    let filtered = forChosenBarber(bookings);
 
     const today = new Date().toISOString().split('T')[0];
     const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
@@ -554,8 +569,19 @@ function renderBookings() {
         filtered = filtered.filter(b => b.date >= today);
     }
 
-    // Sort by date desc
-    filtered.sort((a, b) => new Date(b.date + 'T' + b.time) - new Date(a.date + 'T' + a.time));
+    // Newest arrival first — the booking that came in last is the one nobody
+    // has seen yet. Sorting by the appointment date instead put next month's
+    // diary above a booking made five minutes ago.
+    filtered = [...filtered].sort((a, b) => {
+        const arrived = String(b.bookedAt || '').localeCompare(String(a.bookedAt || ''));
+        if (arrived !== 0) return arrived;
+        // Older rows predate created_at being sent; fall back to the
+        // appointment so their order is at least stable.
+        return String(b.date + b.time).localeCompare(String(a.date + a.time));
+    });
+
+    const caption = document.getElementById('bookingsCaption');
+    if (caption) caption.textContent = listCaption(filtered.length, 'appointment');
 
     const tbody = document.getElementById('bookingsBody');
     if (!tbody) return;
@@ -1165,83 +1191,6 @@ async function addBarber() {
 
 // ---- Today ----
 
-/** Minutes since midnight, for sorting and for "next up". */
-function minutesOf(timeStr) {
-    const m = String(timeStr || '').match(/(\d+):(\d+)\s*(AM|PM)?/i);
-    if (!m) return 0;
-    let h = parseInt(m[1], 10);
-    const min = parseInt(m[2], 10);
-    const period = (m[3] || '').toUpperCase();
-    if (period === 'PM' && h < 12) h += 12;
-    if (period === 'AM' && h === 12) h = 0;
-    return h * 60 + min;
-}
-
-function bookingsOn(dateStr) {
-    return bookings
-        .filter(b => b.date === dateStr)
-        .sort((a, b) => minutesOf(a.time) - minutesOf(b.time));
-}
-
-function renderToday() {
-    const listEl = document.getElementById('todayList');
-    const tomorrowEl = document.getElementById('tomorrowList');
-    if (!listEl || !tomorrowEl) return;
-
-    const now = new Date();
-    const todayStr = formatDateISO(now);
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = formatDateISO(tomorrow);
-
-    document.getElementById('todayDateLabel').textContent =
-        now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
-
-    const todays = bookingsOn(todayStr);
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
-    const upcoming = todays.filter(b => minutesOf(b.time) >= nowMinutes);
-
-    const summary = document.getElementById('todaySummary');
-    if (todays.length === 0) {
-        summary.textContent = 'No appointments booked.';
-    } else {
-        summary.textContent = `${todays.length} appointment${todays.length === 1 ? '' : 's'}` +
-            (upcoming.length ? ` · next at ${upcoming[0].time}` : ' · all done for today');
-    }
-
-    listEl.innerHTML = renderDayList(todays, nowMinutes);
-    tomorrowEl.innerHTML = renderDayList(bookingsOn(tomorrowStr), null);
-}
-
-function renderDayList(list, nowMinutes) {
-    if (list.length === 0) {
-        return '<div class="today-empty">Nothing booked.</div>';
-    }
-    return list.map(b => {
-        // Grey out what has already happened so the eye lands on what is next.
-        const past = nowMinutes !== null && minutesOf(b.time) < nowMinutes;
-        // Cancel takes the booking's id, not its details. A phone number is
-        // typed by the customer, and pasting one into a quoted onclick let it
-        // close the quote and run whatever followed — inside the owner's
-        // signed-in panel.
-        return `
-            <div class="today-row${past ? ' is-past' : ''}">
-                <div class="today-time">${escapeHtml(b.time)}</div>
-                <div class="today-who">
-                    <div class="today-name">${escapeHtml(b.customerName)}</div>
-                    <div class="today-service">${escapeHtml(b.serviceName)}${b.barberName ? ' · ' + escapeHtml(b.barberName) : ''}</div>
-                </div>
-                <div class="today-actions">
-                    ${b.customerPhone ? `<a class="today-call" href="tel:${encodeURIComponent(b.customerPhone)}" title="Call ${escapeAttr(b.customerName)}">
-                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
-                        ${escapeHtml(b.customerPhone)}
-                    </a>` : ''}
-                    <button type="button" class="today-cancel" onclick="cancelBookingById('${escapeAttr(b.id)}')">Cancel</button>
-                </div>
-            </div>`;
-    }).join('');
-}
-
 // ---- Analytics ----
 function renderAnalytics() {
     document.getElementById('analyticsTotalVisits').textContent = visitCount;
@@ -1282,8 +1231,11 @@ function renderReports() {
     if (!reportsData) {
         locked.style.display = '';
         content.style.display = 'none';
+        content.innerHTML = '';   // nothing of the figures left behind the lock
         const field = document.getElementById('reportsPin');
         if (field) field.value = '';
+        const error = document.getElementById('reportsPinError');
+        if (error) error.classList.remove('is-shown');
         return;
     }
     locked.style.display = 'none';
@@ -1298,13 +1250,14 @@ async function unlockReports(e) {
     const pin = field ? field.value.trim() : '';
     if (!pin) return;
 
-    error.style.display = 'none';
+    error.classList.remove('is-shown');
     try {
         const result = await apiPost({ action: 'reports', password: adminPassword, pin });
         if (result.status !== 'success') {
             error.textContent = result.message || 'That PIN is not right';
-            error.style.display = '';
+            error.classList.add('is-shown');
             field.value = '';
+            field.focus();
             return;
         }
         reportsPin = pin;
@@ -1313,7 +1266,7 @@ async function unlockReports(e) {
     } catch (err) {
         console.error('Reports failed', err);
         error.textContent = 'Could not reach the server. Please try again.';
-        error.style.display = '';
+        error.classList.add('is-shown');
     }
 }
 
@@ -1360,7 +1313,7 @@ function statCard(colour, value, label, note) {
         <div class="stat-card ${colour}">
             <div class="stat-value">${escapeHtml(value)}</div>
             <div class="stat-label">${escapeHtml(label)}</div>
-            ${note ? `<div style="color:var(--text-muted);font-size:12px;margin-top:6px">${escapeHtml(note)}</div>` : ''}
+            ${note ? `<div class="stat-note">${escapeHtml(note)}</div>` : ''}
         </div>`;
 }
 
@@ -1374,37 +1327,35 @@ function statCard(colour, value, label, note) {
  */
 function barRows(rows, valueOf, labelOf, textOf) {
     const peak = Math.max(1, ...rows.map(valueOf));
-    return rows.map(row => `
-        <div style="display:flex;align-items:center;gap:10px;padding:5px 0">
-            <div style="flex:0 0 82px;color:var(--text-muted);font-size:12px">${escapeHtml(labelOf(row))}</div>
-            <div style="flex:1;background:var(--bg-elevated,rgba(255,255,255,.06));border-radius:4px;height:20px;overflow:hidden">
-                <div style="width:${(valueOf(row) / peak) * 100}%;height:100%;background:var(--gold,#d4af37);border-radius:4px"></div>
-            </div>
-            <div style="flex:0 0 92px;text-align:right;font-size:12px;color:var(--text-primary)">${escapeHtml(textOf(row))}</div>
-        </div>`).join('');
+    return `<div class="bar-list">${rows.map(row => `
+        <div class="bar-row">
+            <span class="bar-label">${escapeHtml(labelOf(row))}</span>
+            <span class="bar-track"><span class="bar-fill" style="width:${(valueOf(row) / peak) * 100}%"></span></span>
+            <span class="bar-value">${escapeHtml(textOf(row))}</span>
+        </div>`).join('')}</div>`;
 }
 
 function reportsCard(title, body, aside) {
     return `
-        <div class="data-card" style="margin-bottom:20px">
+        <div class="data-card report-card">
             <div class="data-card-header">
                 <h3>${escapeHtml(title)}</h3>
-                ${aside ? `<span style="color:var(--text-muted);font-size:12px">${escapeHtml(aside)}</span>` : ''}
+                ${aside ? `<span class="report-aside">${escapeHtml(aside)}</span>` : ''}
             </div>
-            <div style="padding:16px 20px">${body}</div>
+            <div class="report-body">${body}</div>
         </div>`;
 }
 
 function reportsMarkup(d) {
-    const empty = '<p style="color:var(--text-muted);font-size:13px;margin:0">Nothing recorded yet.</p>';
+    const empty = '<p class="report-empty">Nothing recorded yet.</p>';
 
     const barberTable = rows => rows.length === 0 ? empty : `
         <div class="table-responsive">
-            <table class="data-table">
+            <table>
                 <thead><tr><th>Barber</th><th>Appointments</th><th>Time in the chair</th><th>Takings</th></tr></thead>
                 <tbody>${rows.map(r => `
                     <tr>
-                        <td style="color:var(--text-primary);font-weight:500">${escapeHtml(r.barber)}</td>
+                        <td class="cell-strong">${escapeHtml(r.barber)}</td>
                         <td>${r.appointments}</td>
                         <td>${escapeHtml(asHours(r.minutes))}</td>
                         <td>${escapeHtml(euros(r.revenue))}</td>
@@ -1416,13 +1367,13 @@ function reportsMarkup(d) {
     const busiestHours = d.hours.filter(h => h.appointments > 0);
 
     return `
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-            <span style="color:var(--text-muted);font-size:13px">
-                Everything below counts appointments up to and including ${escapeHtml(d.asAt)}.
+        <div class="report-toolbar">
+            <span class="report-asat">
+                Counts appointments up to and including ${escapeHtml(d.asAt)}.
             </span>
-            <span style="display:flex;gap:8px">
-                <button class="btn btn-sm" onclick="refreshReports()">Refresh</button>
-                <button class="btn btn-sm" onclick="lockReports()">Lock</button>
+            <span class="report-toolbar-actions">
+                <button class="btn btn-secondary btn-sm" onclick="refreshReports()">Refresh</button>
+                <button class="btn btn-secondary btn-sm" onclick="lockReports()">Lock</button>
             </span>
         </div>
 
@@ -1534,7 +1485,6 @@ function renderSimpleChart() {
 
 // ---- Live Bookings & Weekly Planner Engine ----
 let currentWeekOffset = 0;
-let bookingViewMode = 'planner';
 
 let bookingsFetchInFlight = false;
 
@@ -1556,6 +1506,9 @@ async function fetchLiveBookings() {
             return;
         }
         if (Array.isArray(data)) {
+            // No price. The server stopped sending one to the panel: the
+            // takings are behind the PIN on Reports, and everyone who works
+            // the diary shares this password.
             bookings = data.map((b, idx) => ({
                 id: 'BK-' + (100 + idx),
                 customerName: b.name || 'Customer',
@@ -1564,12 +1517,12 @@ async function fetchLiveBookings() {
                 barberName: b.barber || 'Any',
                 date: b.date || '',
                 time: b.time || '',
-                price: b.price || '',
+                bookedAt: b.bookedAt || '',
                 status: 'Confirmed'
             }));
             saveBookings();
-            renderToday();
-            renderDashboard();
+            updateUpcomingBadge();
+            renderBarberFilters();
             renderBookings();
             renderWeeklyPlannerGrid();
         }
@@ -1580,42 +1533,25 @@ async function fetchLiveBookings() {
     }
 }
 
-function switchBookingView(mode) {
-    bookingViewMode = mode;
-    const plannerEl = document.getElementById('bookingPlannerView');
-    const listEl = document.getElementById('bookingListView');
-    const btnPlanner = document.getElementById('btnViewPlanner');
-    const btnList = document.getElementById('btnViewList');
+/** The Week page: the dropdown, then the grid it filters. */
+function renderWeek() {
+    renderBarberFilters();
+    renderWeeklyPlannerGrid();
+}
 
-    if (mode === 'planner') {
-        if (plannerEl) plannerEl.style.display = 'block';
-        if (listEl) listEl.style.display = 'none';
-        if (btnPlanner) {
-            btnPlanner.style.background = 'var(--gold)';
-            btnPlanner.style.color = '#000';
-            btnPlanner.style.fontWeight = '600';
-        }
-        if (btnList) {
-            btnList.style.background = 'transparent';
-            btnList.style.color = 'var(--text-muted)';
-            btnList.style.fontWeight = '500';
-        }
-        renderWeeklyPlannerGrid();
-    } else {
-        if (plannerEl) plannerEl.style.display = 'none';
-        if (listEl) listEl.style.display = 'block';
-        if (btnPlanner) {
-            btnPlanner.style.background = 'transparent';
-            btnPlanner.style.color = 'var(--text-muted)';
-            btnPlanner.style.fontWeight = '500';
-        }
-        if (btnList) {
-            btnList.style.background = 'var(--gold)';
-            btnList.style.color = '#000';
-            btnList.style.fontWeight = '600';
-        }
-        renderBookings();
-    }
+/**
+ * The count on the Bookings tab in the sidebar.
+ *
+ * Appointments still to come, for whoever is being looked at — a barber who
+ * has picked their own name wants their own number there, not the shop's.
+ */
+function updateUpcomingBadge() {
+    const badge = document.getElementById('pendingBadge');
+    if (!badge) return;
+    const today = new Date().toISOString().split('T')[0];
+    const upcoming = forChosenBarber(bookings).filter(b => b.date >= today).length;
+    badge.textContent = upcoming;
+    badge.style.display = upcoming > 0 ? 'inline' : 'none';
 }
 
 function navigateWeek(offsetDir) {
@@ -1653,8 +1589,7 @@ function formatDateShort(date) {
 function renderWeeklyPlannerGrid() {
     const container = document.getElementById('weeklyGridContainer');
     const titleEl = document.getElementById('plannerWeekTitle');
-    const countEl = document.getElementById('plannerTotalCount');
-    const revEl = document.getElementById('plannerEstRevenue');
+    const captionEl = document.getElementById('weekCaption');
 
     if (!container) return;
 
@@ -1666,6 +1601,7 @@ function renderWeeklyPlannerGrid() {
         titleEl.textContent = `${formatDateShort(monday)} – ${formatDateShort(sunday)}`;
     }
 
+    const mine = forChosenBarber(bookings);
     const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     const weekDays = [];
 
@@ -1673,7 +1609,7 @@ function renderWeeklyPlannerGrid() {
         const d = new Date(monday);
         d.setDate(monday.getDate() + i);
         const iso = formatDateISO(d);
-        const dayBookings = bookings.filter(b => b.date === iso);
+        const dayBookings = mine.filter(b => b.date === iso);
         // This used to treat the seventh column as Sunday and Sunday as always
         // closed, which stopped being true the moment the owner changed the
         // shop's day off in Working Hours.
@@ -1687,15 +1623,10 @@ function renderWeeklyPlannerGrid() {
         });
     }
 
-    let totalWeekBookings = 0;
-    let totalEstRev = 0;
+    let weekTotal = 0;
 
     const html = weekDays.map(dayData => {
-        totalWeekBookings += dayData.bookings.length;
-        dayData.bookings.forEach(b => {
-            totalEstRev += parseInt(String(b.price).replace(/[^0-9]/g, ''), 10) || 28;
-        });
-
+        weekTotal += dayData.bookings.length;
         const countText = dayData.bookings.length === 1 ? '1 booking' : `${dayData.bookings.length} bookings`;
 
         let body;
@@ -1714,7 +1645,6 @@ function renderWeeklyPlannerGrid() {
                     <div class="planner-card-name">${escapeHtml(b.customerName)}</div>
                     <div class="planner-card-detail">${escapeHtml(b.serviceName)}${b.barberName ? ' · ' + escapeHtml(b.barberName) : ''}</div>
                     ${b.customerPhone ? `<a class="planner-card-phone" href="tel:${escapeHtml(b.customerPhone)}">${escapeHtml(b.customerPhone)}</a>` : ''}
-                    ${b.price ? `<div class="planner-card-price">€${escapeHtml(String(b.price))}</div>` : ''}
                 </div>`).join('');
         }
 
@@ -1730,8 +1660,7 @@ function renderWeeklyPlannerGrid() {
     }).join('');
 
     container.innerHTML = html;
-    if (countEl) countEl.textContent = totalWeekBookings;
-    if (revEl) revEl.textContent = `€${totalEstRev}`;
+    if (captionEl) captionEl.textContent = listCaption(weekTotal, 'appointment') + ' this week';
 }
 
 /** Cancel by the id the panel gave the booking, so no customer-typed text is
@@ -1748,10 +1677,9 @@ async function cancelBookingById(id) {
     // Drop it locally first so the grid reacts at once; the re-sync below is
     // what makes it true.
     bookings = bookings.filter(x => x.id !== id);
-    renderToday();
-    renderWeeklyPlannerGrid();
     renderBookings();
-    renderDashboard();
+    renderWeeklyPlannerGrid();
+    updateUpcomingBadge();
 
     try {
         const result = await apiPost({
@@ -1783,10 +1711,19 @@ function exportBookingsCSV() {
         return;
     }
 
-    let csvContent = 'data:text/csv;charset=utf-8,';
-    csvContent += 'ID,Date,Time,Customer Name,Phone,Barber,Service,Price,Status\n';
+    // Whoever is being looked at, not always the whole shop — a barber who has
+    // picked their own name expects to export their own list. No price column:
+    // the takings are behind the PIN, and a spreadsheet leaves the building.
+    const rows = forChosenBarber(bookings);
+    if (rows.length === 0) {
+        showToast('Nothing to export for that filter', 'error');
+        return;
+    }
 
-    bookings.forEach(b => {
+    let csvContent = 'data:text/csv;charset=utf-8,';
+    csvContent += 'ID,Date,Time,Customer Name,Phone,Barber,Service,Status\n';
+
+    rows.forEach(b => {
         const row = [
             `"${b.id || ''}"`,
             `"${b.date || ''}"`,
@@ -1795,7 +1732,6 @@ function exportBookingsCSV() {
             `"${(b.customerPhone || '').replace(/"/g, '""')}"`,
             `"${(b.barberName || '').replace(/"/g, '""')}"`,
             `"${(b.serviceName || '').replace(/"/g, '""')}"`,
-            `"${b.price || ''}"`,
             `"${b.status || 'Confirmed'}"`
         ];
         csvContent += row.join(',') + '\n';

@@ -329,19 +329,27 @@ tbody tr:last-child td { border-bottom: none; }
     .filter-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .filter-tabs .filter-tab { white-space: nowrap; }
 
-    /* An appointment is a time, a name and a service, then a phone number and
-       a Cancel button — all flex-shrink:0. Side by side that runs off a phone,
-       so the two buttons drop to their own line under the details. */
-    .today-row { flex-wrap: wrap; gap: .5rem .75rem; padding: .75rem .85rem; }
-    .today-time { min-width: 4.5rem; }
-    .today-actions { width: 100%; flex-wrap: wrap; }
-    .today-call { flex: 1 1 auto; justify-content: center; min-width: 0; }
-    .today-call span { overflow: hidden; text-overflow: ellipsis; }
-    .today-cancel { flex-shrink: 0; }
+    /* A dropdown and two buttons in one header row is wider than a phone. */
+    .data-card-header { flex-wrap: wrap; }
+    .data-card-actions { flex-wrap: wrap; }
+    .barber-filter { width: 100%; }
 
-    /* Seven 180px columns is 1260px of sideways scrolling to read a week.
-       One day per row reads down the screen instead. */
-    #weeklyGridContainer { grid-template-columns: 1fr !important; overflow-x: visible !important; }
+    /* Three week buttons, side by side, that must stay tappable. */
+    .planner-toolbar { flex-wrap: wrap; }
+    .planner-toolbar .btn { flex: 1 1 auto; }
+
+    /* A week is swiped through, one day almost filling the screen, and each
+       day snaps into place so a half-scrolled column is not left on screen.
+       Stacking the seven days down the page was the other option and reads
+       worse: a week is a row, and scrolling past six empty Sundays to reach
+       Saturday is not reading a week. */
+    #weeklyGridContainer {
+        grid-template-columns: none;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(220px, 82vw);
+        scroll-snap-type: x mandatory;
+    }
+    .planner-day-col { scroll-snap-align: start; }
     .planner-day-body { min-height: 0 !important; }
     .stats-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
     .stat-card { padding: 16px; }
@@ -397,72 +405,15 @@ tbody tr:last-child td { border-bottom: none; }
 .table-responsive { overflow-x: auto; }
 
 /* ---- Today ----------------------------------------------------------- */
-/* The landing page. Optimised for a glance on a phone between customers. */
 
-.today-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
-    margin-bottom: 1.25rem;
-    flex-wrap: wrap;
-}
-.today-header h2 { font-size: 1.4rem; margin: 0 0 .25rem; }
-.today-summary { margin: 0; color: var(--text-muted); font-size: .9rem; }
 
-.btn-refresh {
-    display: inline-flex; align-items: center; gap: .5rem;
-    padding: .55rem .9rem; border-radius: .5rem; cursor: pointer;
-    border: 1px solid var(--border-color);
-    background: transparent; color: inherit; font-size: .85rem;
-}
-.btn-refresh:hover { border-color: #d4af37; color: #d4af37; }
 
-.today-list { display: flex; flex-direction: column; gap: .6rem; }
 
-.today-row {
-    display: flex; align-items: center; gap: 1rem;
-    padding: .85rem 1rem; border-radius: .65rem;
-    border: 1px solid var(--border-color);
-    background: var(--bg-card);
-}
-.today-row.is-past { opacity: .45; }
 
-.today-time {
-    font-weight: 700; font-size: 1rem; color: #d4af37;
-    min-width: 5.5rem; flex-shrink: 0;
-}
-.today-who { flex: 1; min-width: 0; }
-.today-name { font-weight: 600; }
-.today-service { font-size: .82rem; color: var(--text-muted); }
 
-.today-actions { display: flex; align-items: center; gap: .5rem; flex-shrink: 0; }
 
-.today-call {
-    display: inline-flex; align-items: center; gap: .4rem;
-    padding: .45rem .75rem; border-radius: .5rem; font-size: .82rem;
-    text-decoration: none; color: inherit;
-    border: 1px solid var(--border-color);
-}
-.today-call:hover { border-color: #d4af37; color: #d4af37; }
 
-.today-cancel {
-    padding: .45rem .75rem; border-radius: .5rem; font-size: .82rem;
-    cursor: pointer; background: transparent;
-    border: 1px solid rgba(244, 63, 94, .35); color: #fb7185;
-}
-.today-cancel:hover { background: rgba(244, 63, 94, .12); }
 
-.today-empty {
-    padding: 1.5rem; text-align: center; border-radius: .65rem;
-    border: 1px dashed var(--border-color);
-    color: var(--text-muted); font-size: .9rem;
-}
-
-.today-next-title {
-    margin: 2rem 0 .75rem; font-size: 1rem;
-    color: var(--text-muted); font-weight: 600;
-}
 
 /* ---- Weekly Planner ----------------------------------------------------
    Same information as Today - time, name, service, barber, phone, price -
@@ -506,12 +457,126 @@ tbody tr:last-child td { border-bottom: none; }
 .planner-card-detail { color: var(--text-muted); margin-bottom: 2px; }
 .planner-card-phone { display: block; color: var(--blue); text-decoration: none; margin-bottom: 2px; }
 .planner-card-phone:hover { text-decoration: underline; }
-.planner-card-price { color: var(--green); font-weight: 600; margin-top: 4px; }
 
-/* On a phone the row would otherwise squash; stack it instead. */
-@media (max-width: 560px) {
-    .today-row { flex-wrap: wrap; gap: .5rem 1rem; }
-    .today-time { min-width: auto; }
-    .today-who { flex-basis: 100%; order: 3; }
-    .today-actions { margin-left: auto; }
+
+/* ---- The barber filter, and what it is filtering ----------------------- */
+/* A barber picks their own name once and both pages narrow to their work.
+   Sized like a button rather than a form field: it sits in a row of them. */
+.barber-filter {
+    padding: 6px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    max-width: 100%;
+}
+.barber-filter:focus { outline: none; border-color: var(--gold); }
+
+/* "Hemen · 4 appointments". Says who is being looked at, so a filtered page
+   cannot be mistaken for a quiet day. Never a sum of money. */
+.list-caption {
+    margin: 0;
+    padding: 10px 20px 0 20px;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.planner-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+/* Seven columns that scroll sideways rather than squashing to nothing. The
+   scroll is the point on a phone: a week does not fit and should not pretend
+   to, so the columns keep a readable width and the week is swiped through. */
+.weekly-grid-container {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(180px, 1fr));
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 10px;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ---- The Reports PIN gate ---------------------------------------------
+   Deliberately the sign-in card again rather than a data-card with a form
+   dropped into it. It is the same act — proving who you are before the panel
+   shows you something — and it should look like it. The first version styled
+   the input and the button inline, which ignored the theme and produced a
+   white box and a bare gold bar on a dark page. */
+.pin-gate {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 24px 0;
+}
+.pin-card {
+    width: 100%;
+    max-width: 380px;
+    padding: 36px 32px;
+    text-align: center;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow, 0 10px 40px rgba(0, 0, 0, .25));
+}
+.pin-card .pin-icon { color: var(--gold); margin-bottom: 12px; }
+.pin-card h2 { font-family: 'Playfair Display', serif; font-size: 24px; margin: 0; }
+.pin-card .gold-line { width: 50px; height: 2px; background: var(--gold); margin: 14px auto 18px; }
+.pin-card p { color: var(--text-secondary); font-size: 14px; margin: 0 0 26px; }
+.pin-card .login-error { display: none; }
+.pin-card .login-error.is-shown { display: block; }
+.pin-note {
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.5;
+    margin: 22px 0 0 !important;
+}
+
+/* ---- Reports ----------------------------------------------------------- */
+.report-toolbar {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 12px; flex-wrap: wrap; margin-bottom: 18px;
+}
+.report-asat { color: var(--text-muted); font-size: 13px; }
+.report-toolbar-actions { display: flex; gap: 8px; }
+
+.report-card { margin-bottom: 20px; }
+.report-body { padding: 16px 20px; }
+.report-aside { color: var(--text-muted); font-size: 12px; }
+.report-empty { color: var(--text-muted); font-size: 13px; margin: 0; }
+
+.stat-note { color: var(--text-muted); font-size: 12px; margin-top: 6px; }
+.cell-strong { color: var(--text-primary); font-weight: 500; }
+
+/* A bar per row. No chart library: the panel ships no third-party scripts and
+   the site's CSP does not allow any, so this is the only kind of chart that
+   can be here. Widths are a share of the largest value, so a quiet month is a
+   short bar rather than an empty one. */
+.bar-list { display: flex; flex-direction: column; gap: 2px; }
+.bar-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
+.bar-label {
+    flex: 0 0 88px; color: var(--text-muted); font-size: 12px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.bar-track {
+    flex: 1; height: 20px; border-radius: 4px; overflow: hidden;
+    background: var(--bg-input);
+}
+.bar-fill { display: block; height: 100%; border-radius: 4px; background: var(--gold); }
+.bar-value {
+    flex: 0 0 96px; text-align: right; font-size: 12px;
+    color: var(--text-primary); white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+    .bar-label { flex-basis: 64px; }
+    .bar-value { flex-basis: 78px; }
+    .report-body { padding: 14px 16px; }
 }
