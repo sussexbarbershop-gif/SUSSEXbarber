@@ -41,7 +41,7 @@
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com https://script.google.com https://script.googleusercontent.com data: blob:; frame-src https://www.google.com https://maps.google.com; img-src 'self' https://maps.gstatic.com https://drive.google.com https://lh3.googleusercontent.com data: blob:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com https://script.google.com https://script.googleusercontent.com data: blob:; frame-src https://www.google.com https://maps.google.com; img-src 'self' https://maps.gstatic.com https://drive.google.com https://lh3.googleusercontent.com https://*.public.blob.vercel-storage.com data: blob:;">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
     <!-- Tailwind is compiled to assets/tailwind.css by the build script in
          package.json. The CDN build used to run here, which shipped the whole
@@ -1058,7 +1058,14 @@
         }
 
         let bookedTimesList = [];
-        const API_URL = "https://script.google.com/macros/s/AKfycbyB3U2n2W2HRn20BxQWLi7Swjq0dSQV6_nnrSXPHRMsx53kP6xy8OpO2w9OTu9cdZvVtQ/exec";
+        // Our own backend, on the same origin. It was an Apps Script Web App
+        // reading nine Google Sheets: an empty request took 22 seconds, this
+        // config took 19-34, and reading the bookings took 65 and grew with
+        // every booking taken, because it read the sheet end to end whenever
+        // anyone picked a date.
+        //
+        // Same protocol, so this is the only line that had to change.
+        const API_URL = "/api";
 
 
         // Step Navigation Logic

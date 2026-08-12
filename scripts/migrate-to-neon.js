@@ -156,9 +156,12 @@ async function main() {
     const open = h.open === true;
     const from = toClock(h.from);
     const to = toClock(h.to);
+    // The times are kept even on a closed day. They are never read while the
+    // day is shut, but they are what the owner last set, and blanking them
+    // means that reopening a Sunday in the panel presents empty boxes.
     content.push(sql`
       INSERT INTO shop_hours (weekday, is_open, opens_at, closes_at)
-      VALUES (${indexToIso(idx)}, ${open && !!from && !!to}, ${open ? from : null}, ${open ? to : null})
+      VALUES (${indexToIso(idx)}, ${open && !!from && !!to}, ${from}, ${to})
       ON CONFLICT (weekday) DO UPDATE
         SET is_open = EXCLUDED.is_open, opens_at = EXCLUDED.opens_at,
             closes_at = EXCLUDED.closes_at`);
@@ -181,11 +184,13 @@ async function main() {
       // A "working" day with unreadable hours is stored as not working rather
       // than rejected by the CHECK constraint and taking the migration down.
       const working = row.working === true && !!from && !!to;
+      // Same again: a day off keeps whatever hours were last set on it, so
+      // turning the day back on in the panel does not start from blank.
       rotas.push(sql`
         INSERT INTO barber_hours (barber_id, weekday, working, starts_at, ends_at,
                                   break_start, break_end)
-        SELECT id, ${indexToIso(idx)}, ${working}, ${working ? from : null},
-               ${working ? to : null}, ${toClock(row.breakFrom)}, ${toClock(row.breakTo)}
+        SELECT id, ${indexToIso(idx)}, ${working}, ${from}, ${to},
+               ${toClock(row.breakFrom)}, ${toClock(row.breakTo)}
           FROM barbers WHERE name = ${trimmed(who)}
         ON CONFLICT (barber_id, weekday) DO UPDATE
           SET working = EXCLUDED.working, starts_at = EXCLUDED.starts_at,

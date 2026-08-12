@@ -490,10 +490,13 @@ async function saveCMS(payload, res) {
       const idx = WEEKDAY_NAMES.indexOf(trimmed(h.day));
       if (idx === -1) return;
       const open = h.open === true;
+      // The times are stored whether the day is open or not. They are never
+      // read while it is shut, but blanking them means the owner who closes a
+      // Sunday and reopens it a month later is handed two empty boxes.
       statements.push(sql`
         INSERT INTO shop_hours (weekday, is_open, opens_at, closes_at)
         VALUES (${indexToIso(idx)}, ${open},
-                ${open ? trimmed(h.from) : null}, ${open ? trimmed(h.to) : null})
+                ${trimmed(h.from) || null}, ${trimmed(h.to) || null})
         ON CONFLICT (weekday) DO UPDATE
           SET is_open = EXCLUDED.is_open,
               opens_at = EXCLUDED.opens_at,
@@ -511,8 +514,7 @@ async function saveCMS(payload, res) {
           INSERT INTO barber_hours (barber_id, weekday, working, starts_at, ends_at,
                                     break_start, break_end)
           SELECT id, ${indexToIso(idx)}, ${working},
-                 ${working ? trimmed(row.from) || null : null},
-                 ${working ? trimmed(row.to) || null : null},
+                 ${trimmed(row.from) || null}, ${trimmed(row.to) || null},
                  ${trimmed(row.breakFrom) || null}, ${trimmed(row.breakTo) || null}
             FROM barbers WHERE name = ${trimmed(who)}
           ON CONFLICT (barber_id, weekday) DO UPDATE

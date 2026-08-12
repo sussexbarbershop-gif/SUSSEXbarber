@@ -2,7 +2,10 @@
 // Sussex Barber Shop — Admin Panel JS
 // ===========================
 
-const API_URL = "https://script.google.com/macros/s/AKfycbyB3U2n2W2HRn20BxQWLi7Swjq0dSQV6_nnrSXPHRMsx53kP6xy8OpO2w9OTu9cdZvVtQ/exec";
+// Same origin as the panel, so the password never crosses to another domain.
+// This was an Apps Script Web App over nine Google Sheets; see the note in
+// index.html for why it is not any more.
+const API_URL = "/api";
 
 // ---- Default Data ----
 const DEFAULT_SERVICES = [
