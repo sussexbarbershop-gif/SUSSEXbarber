@@ -6,12 +6,20 @@
   "scripts": {
     "build:css": "tailwindcss -i ./src/input.css -o ./assets/tailwind.css --minify",
     "watch:css": "tailwindcss -i ./src/input.css -o ./assets/tailwind.css --watch",
-    "test": "node tests/rota.test.js && node tests/booking-slots.test.js && node tests/booking-refusal.test.js && node tests/booking-pickers.test.js && node tests/calendar-grid.test.js && node tests/booking-clash.test.js && node tests/barber-cards.test.js && node tests/barber-panel.test.js && node tests/admin-pages.test.js && node tests/admin-wiring.test.js && node tests/admin-mobile.test.js && node tests/site-content.test.js && node tests/page-metadata.test.js && node tests/design-cleanliness.test.js && node tests/notifications.test.js && node tests/tailwind-build.test.js",
+    "test": "node tests/rota.test.js && node tests/rota-agreement.test.js && node tests/booking-slots.test.js && node tests/booking-refusal.test.js && node tests/booking-pickers.test.js && node tests/calendar-grid.test.js && node tests/booking-clash.test.js && node tests/barber-cards.test.js && node tests/barber-panel.test.js && node tests/admin-pages.test.js && node tests/admin-wiring.test.js && node tests/admin-mobile.test.js && node tests/site-content.test.js && node tests/page-metadata.test.js && node tests/design-cleanliness.test.js && node tests/notifications.test.js && node tests/tailwind-build.test.js",
     "check:backend": "node tests/check-backend.js",
-    "optimize:images": "node scripts/optimize-images.js"
+    "optimize:images": "node scripts/optimize-images.js",
+    "migrate:neon": "node scripts/migrate-to-neon.js"
   },
   "devDependencies": {
     "sharp": "^0.35.3",
     "tailwindcss": "^3.4.17"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4",
+    "@vercel/blob": "^0.27.3"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

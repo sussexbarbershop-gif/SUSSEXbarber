@@ -1,7 +1,11 @@
 # NOTE: admin/ is deployed on purpose — the shop owner works from it.
-# The password is not in this bundle: it lives in the Apps Script's Script
-# Properties (ADMIN_PASSWORD) and every write is re-checked there, so the
-# panel shipping to the browser gives an attacker nothing.
+# The password is not in this bundle: it is an environment variable on the
+# server and every write is re-checked there, so the panel shipping to the
+# browser gives an attacker nothing.
+#
+# api/ is NOT listed here. It is the backend, and Vercel turns each file in it
+# into a function — except anything under api/_lib, which is skipped for
+# routing because the name begins with an underscore.
 
 # Source photos. hero_bg_shop.png and the gallery are copied into assets/,
 # which is what the site actually loads.
@@ -9,3 +13,8 @@ photo susex/
 
 # Node-only checks for the booking rules; the browser never loads them.
 tests/
+
+# Run by hand, once, from a laptop. Nothing serves them.
+db/
+scripts/
+MIGRATION.md
