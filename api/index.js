@@ -98,10 +98,16 @@ module.exports = async function handler(req, res) {
     if (req.method === 'POST') return await handlePost(req, res);
     return json(res, { status: 'error', message: 'Method not allowed' }, 405);
   } catch (err) {
-    // The message, not the stack: this is a public endpoint. The stack goes to
-    // the Vercel log, where the owner can find it and a stranger cannot.
     console.error('[api]', err);
-    return json(res, { status: 'error', message: 'Something went wrong on our side.' }, 500);
+    // "Not set up yet" and "crashed" are different problems and the owner has
+    // to be able to tell them apart. Naming a missing environment variable
+    // gives an attacker nothing — they cannot set it — and saves the one
+    // person who can from reading logs to find out.
+    const missing = /is not set/.test(String(err.message || ''));
+    return json(res, {
+      status: 'error',
+      message: missing ? err.message : 'Something went wrong on our side.'
+    }, missing ? 503 : 500);
   }
 };
 
