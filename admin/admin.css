@@ -580,3 +580,46 @@ tbody tr:last-child td { border-bottom: none; }
     .bar-value { flex-basis: 78px; }
     .report-body { padding: 14px 16px; }
 }
+
+/* ---- Downloading one section over one window --------------------------- */
+.report-header-right { display: flex; align-items: center; gap: 10px; }
+.download-menu { position: relative; display: inline-flex; }
+.download-btn { display: inline-flex; align-items: center; padding: 6px 10px; }
+
+.download-options {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 20;
+    min-width: 168px;
+    display: flex;
+    flex-direction: column;
+    padding: 6px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-lg);
+}
+.download-options[hidden] { display: none; }
+.download-options button {
+    padding: 9px 12px;
+    border: none;
+    background: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+}
+.download-options button:hover { background: var(--bg-card-hover); color: var(--gold-text); }
+
+.table-empty { text-align: center; padding: 40px; color: var(--text-muted); }
+.cell-muted { color: var(--text-muted); }
+.cell-link { color: var(--blue); text-decoration: none; }
+.cell-link:hover { text-decoration: underline; }
+
+/* Near the right edge of a phone the menu would hang off the screen. */
+@media (max-width: 560px) {
+    .download-options { right: auto; left: auto; min-width: 150px; }
+}

@@ -295,7 +295,9 @@ async function handlePost(req, res) {
       await throttleFailedLogin('pin');
       return json(res, { status: 'error', message: 'That PIN is not right' }, 401);
     }
-    const report = await readReports(db(), shopNow().date);
+    // months is 1, 3, 6 or 12; anything else falls back to 12 rather than
+    // being refused. It comes from a dropdown, not from a person typing.
+    const report = await readReports(db(), shopNow().date, payload.months);
     return json(res, Object.assign({ status: 'success' }, report));
   }
 

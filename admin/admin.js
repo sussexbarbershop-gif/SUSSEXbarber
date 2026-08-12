@@ -430,9 +430,7 @@ function navigateTo(page) {
         hours: 'Working Hours',
         gallery: 'Gallery',
         cms: 'Website Text',
-        barbers: 'Our Barbers',
-        analytics: 'Analytics',
-        reports: 'Reports'
+        barbers: 'Our Barbers',        reports: 'Reports'
     };
     document.getElementById('pageTitle').textContent = titles[page] || page;
 
@@ -451,9 +449,7 @@ function renderPage(page) {
         // arrive while the page was already open. That took seconds before the
         // backend was sped up, which is why it looked like it worked.
         case 'barbers': renderBarbers(); break;
-        case 'cms': renderCms(); break;
-        case 'analytics': renderAnalytics(); break;
-        case 'reports': renderReports(); break;
+        case 'cms': renderCms(); break;        case 'reports': renderReports(); break;
     }
 }
 
@@ -583,11 +579,19 @@ function renderBookings() {
     const caption = document.getElementById('bookingsCaption');
     if (caption) caption.textContent = listCaption(filtered.length, 'appointment');
 
+    // Which tab is lit, before anything can return early. This ran at the foot
+    // of the function, after a `return` taken whenever the filter matched
+    // nothing — so tapping Today on a quiet day left the highlight on the tab
+    // you had come from, and the button looked broken rather than empty.
+    document.querySelectorAll('#bookingFilters .filter-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.filter === bookingFilter);
+    });
+
     const tbody = document.getElementById('bookingsBody');
     if (!tbody) return;
 
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">No bookings found</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="table-empty">Nothing here</td></tr>`;
         return;
     }
 
@@ -596,27 +600,22 @@ function renderBookings() {
     // columns rendered blank.
     tbody.innerHTML = filtered.map(b => `
         <tr>
-            <td style="color:var(--text-primary);font-weight:500">${escapeHtml(b.customerName)}</td>
+            <td class="cell-strong">${escapeHtml(b.customerName)}</td>
             <td>${b.customerPhone
-                    ? `<a href="tel:${encodeURIComponent(b.customerPhone)}" style="color:#60a5fa;text-decoration:none">${escapeHtml(b.customerPhone)}</a>`
+                    ? `<a class="cell-link" href="tel:${encodeURIComponent(b.customerPhone)}">${escapeHtml(b.customerPhone)}</a>`
                     : '—'}</td>
             <td>${escapeHtml(b.serviceName)}</td>
             <td>${escapeHtml(b.barberName || 'Any')}</td>
             <td>${escapeHtml(b.date)}</td>
             <td>${escapeHtml(b.time)}</td>
             <td>${b.date < today
-                    ? '<span style="color:var(--text-muted)">Past</span>'
+                    ? '<span class="cell-muted">Past</span>'
                     : '<span class="status-badge confirmed">● Booked</span>'}</td>
             <td>
                 <button class="btn btn-danger btn-sm" onclick="cancelBookingById('${escapeAttr(b.id)}')" title="Cancel this booking">Cancel</button>
             </td>
         </tr>
     `).join('');
-
-    // Update filter tabs
-    document.querySelectorAll('#bookingFilters .filter-tab').forEach(tab => {
-        tab.classList.toggle('active', tab.dataset.filter === bookingFilter);
-    });
 }
 
 function setBookingFilter(filter) {
@@ -1191,27 +1190,6 @@ async function addBarber() {
 
 // ---- Today ----
 
-// ---- Analytics ----
-function renderAnalytics() {
-    document.getElementById('analyticsTotalVisits').textContent = visitCount;
-
-    // A booking in the sheet is a booking — there is no confirmed/cancelled
-    // split to count, and counting one gave 0 and a 0% rate on every screen.
-    // What the owner can act on is how much is still to come, and how many
-    // visits turn into an appointment.
-    const today = new Date().toISOString().split('T')[0];
-    const totalBookings = bookings.length;
-    const upcoming = bookings.filter(b => b.date >= today).length;
-    const bookedShare = visitCount > 0 ? Math.round((totalBookings / visitCount) * 100) : 0;
-
-    document.getElementById('analyticsTotalBookings').textContent = totalBookings;
-    document.getElementById('analyticsConfirmed').textContent = upcoming;
-    document.getElementById('analyticsConversion').textContent = bookedShare + '%';
-
-    // Simple bar chart
-    renderSimpleChart();
-}
-
 // ---- Reports ----
 // The one page in the panel that is not for the staff. The figures are asked
 // for with a PIN the server checks; nothing is drawn until it has answered.
@@ -1222,6 +1200,77 @@ function renderAnalytics() {
 // being kept from.
 let reportsPin = '';
 let reportsData = null;
+
+// The windows a section can be downloaded over. The page itself always shows
+// twelve; these are for the file.
+const REPORT_WINDOWS = [1, 3, 6, 12];
+const REPORT_PAGE_WINDOW = 12;
+
+/**
+ * Each downloadable section: its columns, and how to read a row of it out of
+ * a report.
+ *
+ * Written once here rather than beside each card, so a column added to a
+ * table and a column added to its download cannot drift apart.
+ */
+const REPORT_SECTIONS = {
+    months: {
+        file: 'trade-by-month',
+        columns: ['Month', 'Appointments', 'Takings (EUR)'],
+        rows: d => d.months.map(m => [m.month, m.appointments, m.revenue])
+    },
+    barbers: {
+        file: 'barbers',
+        columns: ['Barber', 'Appointments', 'Minutes in the chair', 'Takings (EUR)'],
+        rows: d => d.barbers.window.map(b => [b.barber, b.appointments, b.minutes, b.revenue])
+    },
+    barbersThisMonth: {
+        file: 'barbers-this-month',
+        columns: ['Barber', 'Appointments', 'Minutes in the chair', 'Takings (EUR)'],
+        rows: d => d.barbers.thisMonth.map(b => [b.barber, b.appointments, b.minutes, b.revenue])
+    },
+    services: {
+        file: 'services',
+        columns: ['Service', 'Appointments', 'Takings (EUR)'],
+        rows: d => d.services.map(s => [s.service, s.appointments, s.revenue])
+    },
+    weekdays: {
+        file: 'busiest-days',
+        columns: ['Day', 'Appointments'],
+        rows: d => d.weekdays.map(w => [w.day, w.appointments])
+    },
+    hours: {
+        file: 'busiest-times',
+        columns: ['Hour', 'Appointments'],
+        rows: d => d.hours.map(h => [String(h.hour).padStart(2, '0') + ':00', h.appointments])
+    },
+    loyalty: {
+        file: 'customers-coming-back',
+        columns: ['Been in once', 'Been in more than once', 'Average visits each'],
+        rows: d => [[d.loyalty.onceOnly, d.loyalty.returning, d.loyalty.averageVisits]]
+    },
+    reach: {
+        file: 'cancellations-and-reach',
+        columns: ['Cancelled', 'Share of everything booked (%)',
+                  'Visits to the website', 'Visits that booked (%)'],
+        rows: d => [[d.lifetime.cancelled, d.lifetime.cancelledShare,
+                     d.lifetime.siteVisits, d.lifetime.bookedShare]]
+    },
+    summary: {
+        file: 'summary',
+        columns: ['As at', 'Window (months)', 'Appointments in window',
+                  'Takings in window (EUR)', 'This month appointments',
+                  'This month takings (EUR)', 'New customers this month',
+                  'Booked ahead', 'Booked ahead takings (EUR)'],
+        rows: d => [[
+            d.asAt, d.window.months,
+            d.months.reduce((n, m) => n + m.appointments, 0),
+            d.months.reduce((n, m) => n + m.revenue, 0).toFixed(2),
+            d.thisMonth.appointments, d.thisMonth.revenue, d.thisMonth.newCustomers,
+            d.upcoming.appointments, d.upcoming.revenue
+        ]]
+    }
+};
 
 function renderReports() {
     const locked = document.getElementById('reportsLocked');
@@ -1274,6 +1323,75 @@ function lockReports() {
     reportsPin = '';
     reportsData = null;
     renderReports();
+}
+
+/**
+ * One section of the report, over one window, as a file.
+ *
+ * The figures are asked for again rather than sliced out of what is on screen.
+ * The page holds twelve months of totals; three months of them is not the
+ * first three rows of that, and a barber's three-month takings are not a
+ * subtraction anyone should be doing in a browser.
+ */
+async function downloadReportSection(section, months) {
+    closeDownloadMenus();
+    const spec = REPORT_SECTIONS[section];
+    if (!spec || !reportsPin) return;
+
+    let data = reportsData;
+    if (!data || data.window.months !== months) {
+        showToast('Preparing the file…', 'info');
+        try {
+            const result = await apiPost({
+                action: 'reports', password: adminPassword, pin: reportsPin, months
+            });
+            if (result.status !== 'success') {
+                showToast(result.message || 'Could not build that file', 'error');
+                return;
+            }
+            data = result;
+        } catch (err) {
+            console.error('Report download failed', err);
+            showToast('Could not reach the server', 'error');
+            return;
+        }
+    }
+
+    const rows = spec.rows(data);
+    if (rows.length === 0) {
+        showToast('Nothing recorded in that period', 'error');
+        return;
+    }
+
+    downloadCSV(`sussex-${spec.file}-${months}m-${data.asAt}.csv`,
+                [spec.columns].concat(rows));
+    showToast('Downloaded', 'success');
+}
+
+/**
+ * Rows to a file the spreadsheet will open.
+ *
+ * Every field is quoted and its quotes doubled — a service called
+ * 4" Clipper Cut, or any name with a comma in it, otherwise shifts every
+ * column after it by one and the file reads as nonsense.
+ */
+function downloadCSV(filename, rows) {
+    const body = rows
+        .map(row => row.map(cell => `"${String(cell == null ? '' : cell).replace(/"/g, '""')}"`).join(','))
+        .join('\r\n');
+
+    // A Blob, not a data: URI. encodeURI() on a long report is slow and silently
+    // mangles anything outside Latin-1; a barber called Þór is not an edge case
+    // worth losing a file over.
+    const blob = new Blob(['﻿' + body], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 }
 
 async function refreshReports() {
@@ -1335,16 +1453,62 @@ function barRows(rows, valueOf, labelOf, textOf) {
         </div>`).join('')}</div>`;
 }
 
-function reportsCard(title, body, aside) {
+/**
+ * A card, and the download that belongs to it.
+ *
+ * `section` names which table of the report the file should hold. The window
+ * is asked for at the moment of downloading rather than being a setting on
+ * the page: the owner wants twelve months on screen and last month in a file
+ * far more often than they want the page rewound.
+ */
+function reportsCard(section, title, body, aside) {
     return `
         <div class="data-card report-card">
             <div class="data-card-header">
                 <h3>${escapeHtml(title)}</h3>
-                ${aside ? `<span class="report-aside">${escapeHtml(aside)}</span>` : ''}
+                <span class="report-header-right">
+                    ${aside ? `<span class="report-aside">${escapeHtml(aside)}</span>` : ''}
+                    ${section ? downloadMenu(section) : ''}
+                </span>
             </div>
             <div class="report-body">${body}</div>
         </div>`;
 }
+
+/** The arrow, and the four windows behind it. */
+function downloadMenu(section) {
+    const options = REPORT_WINDOWS.map(months =>
+        `<button type="button" role="menuitem" onclick="downloadReportSection('${section}', ${months})">
+            ${months === 1 ? 'Last month' : 'Last ' + months + ' months'}
+        </button>`).join('');
+    return `
+        <span class="download-menu">
+            <button type="button" class="btn btn-secondary btn-sm download-btn"
+                    aria-haspopup="true" aria-expanded="false"
+                    title="Download this section"
+                    onclick="toggleDownloadMenu(this)">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16"></path></svg>
+            </button>
+            <span class="download-options" role="menu" hidden>${options}</span>
+        </span>`;
+}
+
+function toggleDownloadMenu(button) {
+    const menu = button.parentElement.querySelector('.download-options');
+    const opening = menu.hidden;
+    closeDownloadMenus();
+    menu.hidden = !opening;
+    button.setAttribute('aria-expanded', String(opening));
+}
+
+function closeDownloadMenus() {
+    document.querySelectorAll('.download-options').forEach(m => { m.hidden = true; });
+    document.querySelectorAll('.download-btn').forEach(b => b.setAttribute('aria-expanded', 'false'));
+}
+// A menu that only closes when you pick something is a menu you cannot leave.
+document.addEventListener('click', e => {
+    if (!e.target.closest('.download-menu')) closeDownloadMenus();
+});
 
 function reportsMarkup(d) {
     const empty = '<p class="report-empty">Nothing recorded yet.</p>';
@@ -1369,9 +1533,11 @@ function reportsMarkup(d) {
     return `
         <div class="report-toolbar">
             <span class="report-asat">
-                Counts appointments up to and including ${escapeHtml(d.asAt)}.
+                Up to and including ${escapeHtml(d.asAt)}. Each card downloads
+                over one, three, six or twelve months.
             </span>
             <span class="report-toolbar-actions">
+                ${downloadMenu('summary')}
                 <button class="btn btn-secondary btn-sm" onclick="refreshReports()">Refresh</button>
                 <button class="btn btn-secondary btn-sm" onclick="lockReports()">Lock</button>
             </span>
@@ -1388,99 +1554,49 @@ function reportsMarkup(d) {
                        `${euros(d.upcoming.revenue)} booked ahead`)}
         </div>
 
-        ${reportsCard('The last twelve months',
+        ${reportsCard('months', 'Trade by month',
             d.months.length === 0 ? empty : barRows(d.months,
                 m => m.revenue, m => monthLabel(m.month),
                 m => `${euros(m.revenue)} · ${m.appointments}`),
             'takings, and appointments')}
 
-        ${reportsCard('Barbers this month', barberTable(d.barbers.thisMonth),
-            `since ${d.thisMonth.from}`)}
+        ${reportsCard('barbersThisMonth', 'Barbers this month',
+            barberTable(d.barbers.thisMonth), `since ${d.thisMonth.from}`)}
 
-        ${reportsCard('Barbers, all time', barberTable(d.barbers.lifetime))}
+        ${reportsCard('barbers', 'Barbers over the year',
+            barberTable(d.barbers.window), `since ${d.window.from}`)}
 
-        ${reportsCard('What sells',
+        ${reportsCard('services', 'What sells',
             d.services.length === 0 ? empty : barRows(d.services,
                 s => s.appointments, s => s.service,
                 s => `${s.appointments} · ${euros(s.revenue)}`),
             'by how often it is booked')}
 
-        ${reportsCard('Busiest days',
+        ${reportsCard('weekdays', 'Busiest days',
             barRows(d.weekdays, w => w.appointments, w => w.day, w => String(w.appointments)))}
 
-        ${reportsCard('Busiest times',
+        ${reportsCard('hours', 'Busiest times',
             busiestHours.length === 0 ? empty : barRows(busiestHours,
                 h => h.appointments,
                 h => String(h.hour).padStart(2, '0') + ':00',
                 h => String(h.appointments)))}
 
-        ${reportsCard('Customers coming back', `
+        ${reportsCard('loyalty', 'Customers coming back', `
             <div class="stats-grid">
                 ${statCard('blue', String(d.loyalty.returning), 'Been in more than once')}
                 ${statCard('orange', String(d.loyalty.onceOnly), 'Been in once')}
                 ${statCard('green', String(d.loyalty.averageVisits), 'Average visits each')}
             </div>`)}
 
-        ${reportsCard('Cancellations and reach', `
+        ${reportsCard('reach', 'Cancellations and reach', `
             <div class="stats-grid">
                 ${statCard('orange', String(d.lifetime.cancelled), 'Cancelled',
                            d.lifetime.cancelledShare + '% of everything booked')}
                 ${statCard('blue', String(d.lifetime.siteVisits), 'Visits to the website')}
+                ${statCard('green', d.lifetime.bookedShare + '%', 'Visits that booked',
+                           'a page load counts as a visit, so read it as a trend')}
             </div>`)}
     `;
-}
-
-function renderSimpleChart() {
-    const canvas = document.getElementById('analyticsChart');
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    const width = canvas.width = canvas.parentElement.clientWidth;
-    const height = canvas.height = 200;
-
-    ctx.clearRect(0, 0, width, height);
-
-    // Generate last 7 days data
-    const days = [];
-    const today = new Date();
-    for (let i = 6; i >= 0; i--) {
-        const d = new Date(today);
-        d.setDate(d.getDate() - i);
-        const dateStr = d.toISOString().split('T')[0];
-        const count = bookings.filter(b => b.date === dateStr).length;
-        days.push({
-            label: d.toLocaleDateString('en', { weekday: 'short' }),
-            value: count
-        });
-    }
-
-    const maxVal = Math.max(...days.map(d => d.value), 1);
-    const barWidth = (width - 80) / days.length;
-    const barGap = 8;
-
-    days.forEach((day, i) => {
-        const barH = (day.value / maxVal) * (height - 60);
-        const x = 40 + i * barWidth + barGap / 2;
-        const y = height - 30 - barH;
-
-        // Bar
-        ctx.fillStyle = '#d4af37';
-        ctx.beginPath();
-        ctx.roundRect(x, y, barWidth - barGap, barH, 4);
-        ctx.fill();
-
-        // Label
-        ctx.fillStyle = '#666';
-        ctx.font = '11px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(day.label, x + (barWidth - barGap) / 2, height - 10);
-
-        // Value
-        if (day.value > 0) {
-            ctx.fillStyle = '#f0f0f0';
-            ctx.fillText(day.value, x + (barWidth - barGap) / 2, y - 8);
-        }
-    });
 }
 
 // ---- Live Bookings & Weekly Planner Engine ----
@@ -1755,24 +1871,24 @@ function exportBookingsCSV() {
 // ---- Admin Multi-Language Engine ----
 const ADMIN_I18N = {
     en: {
-        dashboard: "Dashboard",
         bookings: "Bookings",
+        week: "Week",
         services: "Services & Pricing",
         hours: "Working Hours",
         gallery: "Gallery",
         cms: "Website Text",
         barbers: "Our Barbers",
-        analytics: "Analytics"
+        reports: "Reports"
     },
     nl: {
-        dashboard: "Dashboard",
         bookings: "Boekingen",
+        week: "Week",
         services: "Diensten & Prijzen",
         hours: "Werktijden",
         gallery: "Galerij",
         cms: "Website Teksten",
         barbers: "Onze Kappers",
-        analytics: "Analyses"
+        reports: "Rapporten"
     }
 };
 

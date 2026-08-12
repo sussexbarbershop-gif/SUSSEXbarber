@@ -36,9 +36,9 @@ ok('the mapper was found', bookingFields.length > 0, true);
 
 // Anything reading `b.<field>` must name one of those. Only look inside the
 // render functions that draw bookings; `b` means a barber elsewhere.
-const bookingRenderers = ['renderRecentBookings', 'renderBookings', 'renderDayList',
-                          'renderWeeklyPlannerGrid', 'exportBookingsCSV', 'renderDashboard',
-                          'renderAnalytics'];
+const bookingRenderers = ['renderBookings', 'renderWeeklyPlannerGrid',
+                          'exportBookingsCSV', 'forChosenBarber',
+                          'updateUpcomingBadge'];
 const unknownReads = [];
 bookingRenderers.forEach(name => {
   const fn = (js.match(new RegExp('^(?:async )?function ' + name + '\\([\\s\\S]*?^}', 'm')) || [''])[0];
@@ -72,6 +72,16 @@ const handled = (js.match(/function renderBookings\(\)[\s\S]*?^}/m) || [''])[0];
 const unhandled = offered.filter(f => f !== 'all' && !handled.includes(`'${f}'`));
 console.log('booking filters:', offered.join(', '));
 ok('every filter tab does something', unhandled, []);
+
+// The tab that is lit has to be set before any early return. It used to be
+// the last thing renderBookings() did, after a `return` taken whenever the
+// filter matched nothing — so tapping Today on a quiet day left the highlight
+// where it was and the button looked broken rather than the day looking empty.
+const litAt = handled.indexOf("classList.toggle('active'");
+const emptyReturn = handled.indexOf('No bookings found') !== -1
+  ? handled.indexOf('No bookings found') : handled.indexOf('Nothing here');
+ok('the active tab is set', litAt !== -1, true);
+ok('before the empty list can return early', litAt < emptyReturn, true);
 
 console.log(failed === 0 ? '\nAll wiring tests passed.' : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);

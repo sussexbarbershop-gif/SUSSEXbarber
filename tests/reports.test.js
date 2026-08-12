@@ -58,6 +58,44 @@ ok('an unset PIN says so rather than failing open',
 ok('and nothing is read before all of that',
    route.indexOf('readReports') > route.indexOf('isPinCorrect'), true);
 
+console.log('--- the window a download is taken over ---');
+const reportsLib = require(path.join(__dirname, '..', 'api', '_lib', 'reports.js'));
+
+ok('the offer is one, three, six or twelve', reportsLib.WINDOWS, [1, 3, 6, 12]);
+// It comes from a dropdown, so anything else is a mistake or a hand-made
+// request, and neither should be answered with a refusal or a crash.
+[undefined, null, '', 0, -1, 7, 999, 'twelve', {}].forEach(bad => {
+  ok(`${JSON.stringify(bad)} falls back to twelve`, reportsLib.windowMonths(bad), 12);
+});
+ok('a number as a string is understood', reportsLib.windowMonths('3'), 3);
+
+// The window starts at the first of a month, counting the current one, so
+// "last 3 months" in August is June, July and August — not the 13th of May.
+ok('one month is this month', reportsLib.windowStart('2026-08-13', 1), '2026-08-01');
+ok('three months counts this one', reportsLib.windowStart('2026-08-13', 3), '2026-06-01');
+ok('six months', reportsLib.windowStart('2026-08-13', 6), '2026-03-01');
+ok('twelve months', reportsLib.windowStart('2026-08-13', 12), '2025-09-01');
+// January is where month arithmetic usually goes wrong.
+ok('three months from January crosses the year',
+   reportsLib.windowStart('2026-01-05', 3), '2025-11-01');
+ok('twelve months from January',
+   reportsLib.windowStart('2026-01-05', 12), '2025-02-01');
+// The 31st is the other one: a naive setMonth() rolls it forward a month.
+ok('the 31st does not roll the month over',
+   reportsLib.windowStart('2026-03-31', 6), '2025-10-01');
+
+console.log('--- and every section knows how to be a file ---');
+const sections = [...panel.matchAll(/reportsCard\('(\w+)'/g)].map(m => m[1]);
+const declared = (panel.match(/const REPORT_SECTIONS = \{[\s\S]*?\n\};/) || [''])[0];
+ok('every card names a section', sections.length > 0, true);
+ok('and every one of them is downloadable',
+   sections.filter(s => !new RegExp('^\\s{4}' + s + ':', 'm').test(declared)), []);
+ok('the summary download exists too', /downloadMenu\('summary'\)/.test(panel), true);
+// Sliced out of the twelve months already on screen, three months of takings
+// would be right and three months of barber totals would not.
+ok('a different window is fetched, not sliced',
+   /window\.months !== months[\s\S]{0,400}action: 'reports'[\s\S]{0,80}months/.test(panel), true);
+
 console.log('--- the figures carry no customer with them ---');
 const reports = fs.readFileSync(path.join(__dirname, '..', 'api', '_lib', 'reports.js'), 'utf8');
 // The takings are sensitive enough without the customer list travelling with

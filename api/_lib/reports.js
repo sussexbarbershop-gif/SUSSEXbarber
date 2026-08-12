@@ -25,16 +25,40 @@ const ANY = 'Any Available';
 
 const money = v => Math.round(Number(v || 0) * 100) / 100;
 
+/** The windows the panel offers, and what anything else falls back to. */
+const WINDOWS = [1, 3, 6, 12];
+const DEFAULT_WINDOW = 12;
+
+const windowMonths = value => {
+  const n = Math.trunc(Number(value));
+  return WINDOWS.includes(n) ? n : DEFAULT_WINDOW;
+};
+
+/** The first day of the month `months - 1` months before `today`'s month. */
+function windowStart(today, months) {
+  const year = Number(today.slice(0, 4));
+  const month = Number(today.slice(5, 7));
+  const shifted = new Date(Date.UTC(year, month - 1 - (months - 1), 1));
+  return shifted.toISOString().slice(0, 10);
+}
+
 /**
  * `today` is the shop's date, passed in rather than read from the server's
  * clock: Vercel runs in UTC, and at half past midnight in Amsterdam that is
  * still yesterday. A month boundary decided by the wrong clock puts a day's
  * takings in the wrong month.
+ *
+ * `months` is how far back everything but the lifetime tiles looks — one,
+ * three, six or twelve. The page asks for twelve; a download asks for whatever
+ * the owner picked, so the file holds the same figures the card would if it
+ * were showing that window.
  */
-async function readReports(sql, today) {
+async function readReports(sql, today, months) {
+  const span = windowMonths(months);
   const monthStart = today.slice(0, 8) + '01';
+  const from = windowStart(today, span);
 
-  const [totals, thisMonth, ahead, months, barbersAllTime, barbersThisMonth,
+  const [totals, thisMonth, ahead, byMonth, barbersOverWindow, barbersThisMonth,
          services, loyalty, newThisMonth, weekdays, hours, visits] =
     await Promise.all([
       // Lifetime, and how much of it was called off.
@@ -58,13 +82,13 @@ async function readReports(sql, today) {
           FROM bookings
          WHERE status = 'active' AND booked_on > ${today}`,
 
-      // Twelve months of trade, oldest first, gaps included so a quiet month
-      // reads as a quiet month rather than disappearing off the chart.
+      // The window, month by month, oldest first. Gaps are filled in so a
+      // quiet month reads as a quiet month rather than disappearing.
       sql`
         SELECT to_char(m.month, 'YYYY-MM') AS month,
                count(b.id) AS bookings,
                COALESCE(sum(b.price), 0) AS revenue
-          FROM generate_series(date_trunc('month', ${monthStart}::date) - interval '11 months',
+          FROM generate_series(date_trunc('month', ${from}::date),
                                date_trunc('month', ${monthStart}::date),
                                interval '1 month') AS m(month)
           LEFT JOIN bookings b
@@ -74,7 +98,7 @@ async function readReports(sql, today) {
          GROUP BY m.month
          ORDER BY m.month`,
 
-      barberRows(sql, today, null),
+      barberRows(sql, today, from),
       barberRows(sql, today, monthStart),
 
       sql`
@@ -82,7 +106,7 @@ async function readReports(sql, today) {
                count(*) AS bookings,
                COALESCE(sum(price), 0) AS revenue
           FROM bookings
-         WHERE status = 'active' AND booked_on <= ${today}
+         WHERE status = 'active' AND booked_on <= ${today} AND booked_on >= ${from}
          GROUP BY service
          ORDER BY bookings DESC, service
          LIMIT 10`,
@@ -94,7 +118,7 @@ async function readReports(sql, today) {
                COALESCE(round(avg(visits), 2), 0) AS average
           FROM (SELECT phone_key, count(*) AS visits
                   FROM bookings
-                 WHERE status = 'active' AND booked_on <= ${today}
+                 WHERE status = 'active' AND booked_on <= ${today} AND booked_on >= ${from}
                  GROUP BY phone_key) AS per_customer`,
 
       // Faces the shop had not seen before this month.
@@ -109,13 +133,13 @@ async function readReports(sql, today) {
       sql`
         SELECT EXTRACT(ISODOW FROM booked_on)::int AS weekday, count(*) AS bookings
           FROM bookings
-         WHERE status = 'active' AND booked_on <= ${today}
+         WHERE status = 'active' AND booked_on <= ${today} AND booked_on >= ${from}
          GROUP BY 1 ORDER BY 1`,
 
       sql`
         SELECT EXTRACT(HOUR FROM booked_at)::int AS hour, count(*) AS bookings
           FROM bookings
-         WHERE status = 'active' AND booked_on <= ${today}
+         WHERE status = 'active' AND booked_on <= ${today} AND booked_on >= ${from}
          GROUP BY 1 ORDER BY 1`,
 
       sql`SELECT value FROM settings WHERE key = 'visit_count'`
@@ -129,10 +153,15 @@ async function readReports(sql, today) {
   const doneAll = Number(lifetime.done);
   const cancelled = Number(lifetime.cancelled);
 
+  const siteVisits = visits.length ? Number(visits[0].value) || 0 : 0;
+
   return {
     // Everything is "as at" this date, and the panel says so — a figure with
     // no date on it is the kind that gets quoted a week later as today's.
     asAt: today,
+
+    // How far back everything but the lifetime tiles is counted from.
+    window: { months: span, from },
 
     lifetime: {
       appointments: doneAll,
@@ -142,7 +171,13 @@ async function readReports(sql, today) {
       // Of everything ever booked, the share that was called off.
       cancelledShare: doneAll + cancelled > 0
         ? Math.round((cancelled / (doneAll + cancelled)) * 100) : 0,
-      siteVisits: visits.length ? Number(visits[0].value) || 0 : 0
+      siteVisits,
+      // What the old Analytics page called "visits that booked". It is a rough
+      // number and always was: a visit is counted on every page load, so one
+      // customer reading the prices twice is two visits. Useful as a trend,
+      // not as a rate.
+      bookedShare: siteVisits > 0
+        ? Math.round(((doneAll + Number(upcoming.bookings)) / siteVisits) * 100) : 0
     },
 
     thisMonth: {
@@ -158,14 +193,14 @@ async function readReports(sql, today) {
       revenue: money(upcoming.revenue)
     },
 
-    months: months.map(r => ({
+    months: byMonth.map(r => ({
       month: r.month,
       appointments: Number(r.bookings),
       revenue: money(r.revenue)
     })),
 
     barbers: {
-      lifetime: barbersAllTime,
+      window: barbersOverWindow,
       thisMonth: barbersThisMonth
     },
 
@@ -205,31 +240,18 @@ async function readReports(sql, today) {
  * appointment twice.
  */
 async function barberRows(sql, today, from) {
-  const rows = from
-    ? await sql`
-        SELECT CASE WHEN b.barber = '' THEN ${ANY} ELSE b.barber END AS barber,
-               count(*) AS appointments,
-               COALESCE(sum(b.price), 0) AS revenue,
-               COALESCE(sum(s.duration_min), 0) AS minutes
-          FROM bookings b
-          LEFT JOIN LATERAL (
-                 SELECT duration_min FROM services s
-                  WHERE s.name_en = b.service OR s.name_nl = b.service
-                  ORDER BY s.position LIMIT 1) s ON true
-         WHERE b.status = 'active' AND b.booked_on <= ${today} AND b.booked_on >= ${from}
-         GROUP BY 1 ORDER BY appointments DESC, barber`
-    : await sql`
-        SELECT CASE WHEN b.barber = '' THEN ${ANY} ELSE b.barber END AS barber,
-               count(*) AS appointments,
-               COALESCE(sum(b.price), 0) AS revenue,
-               COALESCE(sum(s.duration_min), 0) AS minutes
-          FROM bookings b
-          LEFT JOIN LATERAL (
-                 SELECT duration_min FROM services s
-                  WHERE s.name_en = b.service OR s.name_nl = b.service
-                  ORDER BY s.position LIMIT 1) s ON true
-         WHERE b.status = 'active' AND b.booked_on <= ${today}
-         GROUP BY 1 ORDER BY appointments DESC, barber`;
+  const rows = await sql`
+    SELECT CASE WHEN b.barber = '' THEN ${ANY} ELSE b.barber END AS barber,
+           count(*) AS appointments,
+           COALESCE(sum(b.price), 0) AS revenue,
+           COALESCE(sum(s.duration_min), 0) AS minutes
+      FROM bookings b
+      LEFT JOIN LATERAL (
+             SELECT duration_min FROM services s
+              WHERE s.name_en = b.service OR s.name_nl = b.service
+              ORDER BY s.position LIMIT 1) s ON true
+     WHERE b.status = 'active' AND b.booked_on <= ${today} AND b.booked_on >= ${from}
+     GROUP BY 1 ORDER BY appointments DESC, barber`;
 
   return rows.map(r => ({
     barber: r.barber,
@@ -239,4 +261,4 @@ async function barberRows(sql, today, from) {
   }));
 }
 
-module.exports = { readReports };
+module.exports = { readReports, WINDOWS, DEFAULT_WINDOW, windowMonths, windowStart };
