@@ -2539,6 +2539,26 @@
 
         window.fetchCMS = fetchCMS;
 
+        // Read it again when the tab comes back to the front.
+        //
+        // The config was only ever fetched on load, so the owner editing a
+        // price in the panel and switching to the site in another tab saw the
+        // old one and concluded the panel had not saved. It had; the page just
+        // had no reason to ask again.
+        //
+        // Not worth doing while the config cost twenty seconds to fetch. It
+        // costs well under one now.
+        //
+        // Thirty seconds between refetches, so flicking between tabs does not
+        // turn into a request each time.
+        let lastConfigFetch = Date.now();
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState !== 'visible') return;
+            if (Date.now() - lastConfigFetch < 30000) return;
+            lastConfigFetch = Date.now();
+            fetchCMS();
+        });
+
         // Everything this block defines is private to the IIFE, so anything an
         // inline onclick calls has to be published deliberately - same as
         // openLightbox and toggleLanguage above.
