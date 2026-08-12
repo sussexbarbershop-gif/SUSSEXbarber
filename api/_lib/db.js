@@ -63,7 +63,12 @@ async function readConfig() {
     sql`SELECT b.name, h.weekday, h.working, h.starts_at, h.ends_at,
                h.break_start, h.break_end
           FROM barber_hours h JOIN barbers b ON b.id = h.barber_id`,
-    sql`SELECT b.name, t.starts_on, t.ends_on, t.note
+    // to_char, not the raw date column. The driver hands a `date` back as a
+    // JavaScript Date, and String()ing that gives
+    // "Fri Aug 07 2026 00:00:00 GMT+0000 (Coordinated Universal Time)" —
+    // which the site compares against 'YYYY-MM-DD' strings and never matches.
+    sql`SELECT b.name, to_char(t.starts_on, 'YYYY-MM-DD') AS starts_on,
+               to_char(t.ends_on, 'YYYY-MM-DD') AS ends_on, t.note
           FROM time_off t JOIN barbers b ON b.id = t.barber_id`
   ]);
 
@@ -113,8 +118,8 @@ async function readConfig() {
     barberHours,
     timeOff: timeOffRows.map(r => ({
       barber: r.name,
-      from: String(r.starts_on),
-      to: String(r.ends_on),
+      from: r.starts_on,
+      to: r.ends_on,
       note: r.note || ''
     }))
   };

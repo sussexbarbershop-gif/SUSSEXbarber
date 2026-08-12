@@ -140,12 +140,13 @@ async function handleGet(req, res) {
     const sql = db();
     const today = shopNow().date;
     const rows = await sql`
-      SELECT booked_on, booked_at, service, barber, customer_name, phone
+      SELECT to_char(booked_on, 'YYYY-MM-DD') AS booked_on,
+             booked_at, service, barber, customer_name, phone
         FROM bookings
        WHERE phone_key = ${key} AND status = 'active' AND booked_on >= ${today}
        ORDER BY booked_on, booked_at`;
     return json(res, rows.map(r => ({
-      date: String(r.booked_on),
+      date: r.booked_on,
       time: rota.minutesToLabel(rota.parseClock(r.booked_at)),
       service: r.service,
       barber: r.barber,
@@ -234,11 +235,12 @@ async function handlePost(req, res) {
     }
     const sql = db();
     const rows = await sql`
-      SELECT booked_on, booked_at, service, barber, customer_name, phone, email, price
+      SELECT to_char(booked_on, 'YYYY-MM-DD') AS booked_on,
+             booked_at, service, barber, customer_name, phone, email, price
         FROM bookings WHERE status = 'active'
        ORDER BY booked_on, booked_at`;
     return json(res, rows.map(r => ({
-      date: String(r.booked_on),
+      date: r.booked_on,
       time: rota.minutesToLabel(rota.parseClock(r.booked_at)),
       service: r.service,
       barber: r.barber,
@@ -386,7 +388,8 @@ async function cancelBooking(payload, res) {
        SET status = 'cancelled', cancelled_at = now()
      WHERE booked_on = ${date} AND booked_at = ${rota.minutesToClock(minutes)}
        AND phone_key = ${key} AND status = 'active'
-    RETURNING booked_on, booked_at, service, barber, customer_name, phone, email`;
+    RETURNING to_char(booked_on, 'YYYY-MM-DD') AS booked_on,
+              booked_at, service, barber, customer_name, phone, email`;
 
   if (rows.length === 0) {
     return json(res, { status: 'error', message: 'Booking not found' });
@@ -394,7 +397,7 @@ async function cancelBooking(payload, res) {
 
   const r = rows[0];
   await Promise.allSettled([sendCancellationNotice({
-    date: String(r.booked_on),
+    date: r.booked_on,
     time: rota.minutesToLabel(rota.parseClock(r.booked_at)),
     name: r.customer_name, phone: r.phone, email: r.email,
     service: r.service, barber: r.barber
