@@ -169,8 +169,19 @@ Resend will only deliver to the account owner's address until a domain is
 verified.
 
 **Go back to the old backend.** Change those two `API_URL` lines back to the
-Apps Script URL and push. The Sheet was never touched, so it is all still
-there. This is why the switch is last and why it is only two lines.
+Apps Script URL and push. This is why the switch is last and why it is only two
+lines.
+
+> **The Sheet stopped being current the moment the switch went in.** Every save
+> from the panel now goes to Neon and nothing writes to the Sheet, so it is a
+> snapshot of migration day, not a live mirror. Going back would restore the
+> shop as it was then and lose everything edited since.
+>
+> It is a real backup for the first hours and a worse one every day after. Do
+> not read from it either: a repair that pushed the Sheet's opening hours back
+> into Neon closed a Monday the owner had since reopened, because the Sheet
+> still had the old value. Neon is the source of truth now — read the current
+> state from `/api?action=getConfig`, never from the Sheet.
 
 ---
 
