@@ -389,7 +389,13 @@
                      not have them until the server has seen the PIN. -->
                 <div id="page-reports" class="page-section">
 
-                    <div id="reportsContent" style="display:none"></div>
+                    <!-- No display:none. It carried one from when a sibling
+                         card was the lock and this was the thing revealed;
+                         once the lock moved out to its own gate, nothing
+                         turned it back on, and the report was written into a
+                         hidden div. Empty while locked is enough — the panel
+                         clears it, and the page itself is hidden anyway. -->
+                    <div id="reportsContent"></div>
                 </div>
 
             </div>

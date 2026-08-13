@@ -241,6 +241,21 @@ ok('the section exists', /id="page-reports"/.test(markup), true);
 ok('with a PIN form', /id="ownerPinForm"/.test(markup), true);
 ok('and an empty place for the figures',
    /<div id="reportsContent"[^>]*><\/div>/.test(markup), true);
+// It carried style="display:none" from when a sibling card was the lock and
+// this was the thing revealed. Once the lock moved out to its own gate nothing
+// turned it back on, so the report was written into a hidden div and the page
+// was blank with no error anywhere to explain it.
+ok('which is not hidden by the markup',
+   /<div id="reportsContent"[^>]*display:\s*none/.test(markup), false);
+
+// Anything the panel hides in the markup has to be something it also shows.
+const hidden = [...markup.matchAll(/id="([\w-]+)"[^>]*style="[^"]*display:\s*none/g)]
+  .map(m => m[1]);
+console.log('hidden in the markup:', hidden.join(', ') || '(none)');
+hidden.forEach(id => {
+  const shows = new RegExp("getElementById\\('" + id + "'\\)[\\s\\S]{0,400}style\\.display");
+  ok(`${id} is turned back on somewhere`, shows.test(panel), true);
+});
 ok('the field does not show what is typed',
    /<input type="password" id="ownerPin"/.test(markup), true);
 
