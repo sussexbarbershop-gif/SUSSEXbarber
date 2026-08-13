@@ -115,12 +115,12 @@ async function uploadImage(file) {
     showToast('Uploading image...', 'info');
     try {
         const dataUrl = await shrinkImage(file);
-        const result = await apiPost({
+        const result = await apiPost(asOwner({
             action: 'uploadImage',
             password: adminPassword,
             filename: file.name,
             dataUrl: dataUrl
-        });
+        }));
         if (result.status !== 'success' || !result.url) {
             showToast(result.message || 'Upload failed', 'error');
             return null;
@@ -140,10 +140,10 @@ async function saveToServer(partial) {
         return false;
     }
     try {
-        const result = await apiPost(Object.assign({
+        const result = await apiPost(asOwner(Object.assign({
             action: 'saveCMS',
             password: adminPassword
-        }, partial));
+        }, partial)));
 
         if (result.status !== 'success') {
             showToast(result.message || 'Server refused the change', 'error');
@@ -158,7 +158,7 @@ async function saveToServer(partial) {
 }
 
 // ---- State ----
-let currentPage = 'dashboard';
+let currentPage = 'bookings';
 let bookings = [];
 let services = [];
 let hours = [];
@@ -218,8 +218,18 @@ document.addEventListener('DOMContentLoaded', () => {
     setupNavigation();
     setupSidebar();
 
-    const pinForm = document.getElementById('reportsPinForm');
-    if (pinForm) pinForm.addEventListener('submit', unlockReports);
+    const pinForm = document.getElementById('ownerPinForm');
+    if (pinForm) pinForm.addEventListener('submit', submitOwnerPin);
+
+    // The pass runs out on its own. Without this the page it unlocked stays on
+    // screen until something else redraws it, and the first save after ten
+    // minutes is refused with no warning that the lock had come back.
+    setInterval(() => {
+        if (OWNER_PAGES.includes(currentPage) && !isUnlocked()) {
+            const gate = document.getElementById('ownerGate');
+            if (gate && gate.style.display === 'none') lockOwnerPages();
+        }
+    }, 20000);
 
     // Ask for both straight away; the 500ms wait only delayed the first paint.
     fetchLiveCMS();
@@ -269,7 +279,7 @@ function showAdmin() {
     // barber's rota on a phone and pulling to refresh threw the page away and
     // put them back at Today, which on a phone is several taps from where they
     // were and gives no clue that anything was kept.
-    navigateTo(pageFromHash() || 'today');
+    navigateTo(pageFromHash() || 'bookings');
     // The diary needs the password, so it can only be asked for once we have
     // one. On a fresh sign-in that is now, not at page load.
     fetchLiveBookings();
@@ -319,7 +329,7 @@ function handleLogout() {
     adminPassword = '';
     // The takings go with the session. Signing out and handing the phone over
     // must not leave them one tap away.
-    lockReports();
+    lockOwnerPages();
     sessionStorage.removeItem('sussex_admin_auth');
     sessionStorage.removeItem('sussex_admin_pw');
     showLogin();
@@ -434,7 +444,9 @@ function navigateTo(page) {
     };
     document.getElementById('pageTitle').textContent = titles[page] || page;
 
-    // Render page content
+    // The keypad goes up before the page draws, so a locked page is never
+    // painted and then covered.
+    renderOwnerGate(page);
     renderPage(page);
 }
 
@@ -449,7 +461,8 @@ function renderPage(page) {
         // arrive while the page was already open. That took seconds before the
         // backend was sped up, which is why it looked like it worked.
         case 'barbers': renderBarbers(); break;
-        case 'cms': renderCms(); break;        case 'reports': renderReports(); break;
+        case 'cms': renderCms(); break;
+        case 'reports': renderReports(); break;
     }
 }
 
@@ -545,6 +558,43 @@ function forChosenBarber(list) {
     return list.filter(b => b.barberName === barberFilter);
 }
 
+/**
+ * When a booking arrived, in the words someone actually uses.
+ *
+ * The list is ordered by this, so it has to be readable at a glance: "20m ago"
+ * says new, "2026-08-13 01:00" makes you work it out. The exact moment is on
+ * the cell's tooltip for when it matters.
+ */
+function bookedAgo(iso) {
+    if (!iso) return '—';
+    const at = new Date(iso);
+    if (isNaN(at.getTime())) return '—';
+
+    const seconds = Math.round((Date.now() - at.getTime()) / 1000);
+    if (seconds < 0) return 'just now';        // a clock slightly ahead of ours
+    if (seconds < 60) return 'just now';
+    const minutes = Math.round(seconds / 60);
+    if (minutes < 60) return minutes + 'm ago';
+    const hours = Math.round(minutes / 60);
+    if (hours < 24) return hours + 'h ago';
+    const days = Math.round(hours / 24);
+    if (days === 1) return 'yesterday';
+    if (days < 7) return days + ' days ago';
+    // Past a week "37 days ago" stops meaning anything; the date is clearer.
+    return at.toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
+}
+
+/** The whole moment, for the tooltip and the exported file. */
+function bookedAtFull(iso) {
+    if (!iso) return '';
+    const at = new Date(iso);
+    if (isNaN(at.getTime())) return '';
+    return at.toLocaleString(undefined, {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit'
+    });
+}
+
 /** "Hemen · 4 appointments" — never a total anyone could add money to. */
 function listCaption(count, noun) {
     const who = !barberFilter ? 'Everyone'
@@ -611,7 +661,7 @@ function renderBookings() {
     if (!tbody) return;
 
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="table-empty">Nothing here</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="table-empty">Nothing here</td></tr>`;
         return;
     }
 
@@ -628,6 +678,7 @@ function renderBookings() {
             <td>${escapeHtml(b.barberName || 'Any')}</td>
             <td>${escapeHtml(b.date)}</td>
             <td>${escapeHtml(b.time)}</td>
+            <td class="cell-muted cell-nowrap" title="${escapeAttr(bookedAtFull(b.bookedAt))}">${escapeHtml(bookedAgo(b.bookedAt))}</td>
             <td>${b.date < today
                     ? '<span class="cell-muted">Past</span>'
                     : '<span class="status-badge confirmed">● Booked</span>'}</td>
@@ -1218,8 +1269,46 @@ async function addBarber() {
 // would save the owner typing it after a refresh and hand it to anyone who
 // opens the developer tools on the same phone, which is the person it is
 // being kept from.
-let reportsPin = '';
 let reportsData = null;
+
+// ---- The owner's lock --------------------------------------------------
+// One PIN over the takings and over everything that changes what the shop is:
+// prices, opening hours, the gallery, the website's words, the staff. The
+// diary is not behind it — that is the work, and everyone who signs in does it.
+//
+// The PIN is typed once and never kept. What is kept is a pass the server
+// signs, good for ten minutes: it cannot be read back into a PIN, cannot be
+// extended, and stops working on its own. sessionStorage so it survives the
+// pull-to-refresh that happens by accident while scrolling a rota, and dies
+// with the tab.
+const OWNER_PAGES = ['services', 'hours', 'gallery', 'cms', 'barbers', 'reports'];
+const UNLOCK_KEY = 'sussex_admin_unlock';
+
+/** The live pass, or '' when there is none or it has run out. */
+function unlockPass() {
+    try {
+        const raw = sessionStorage.getItem(UNLOCK_KEY);
+        if (!raw) return '';
+        const held = JSON.parse(raw);
+        if (!held || !held.pass || Date.now() >= held.until) {
+            sessionStorage.removeItem(UNLOCK_KEY);
+            return '';
+        }
+        return held.pass;
+    } catch (err) {
+        return '';
+    }
+}
+
+const isUnlocked = () => Boolean(unlockPass());
+
+/** Sign every owner-only request with the pass, whatever else it carries. */
+const asOwner = payload => Object.assign({ unlockPass: unlockPass() }, payload);
+
+function forgetUnlock() {
+    try { sessionStorage.removeItem(UNLOCK_KEY); } catch (err) { /* nothing to forget */ }
+    reportsData = null;
+}
 
 // The windows a section can be downloaded over. The page itself always asks
 // for twelve; these are for the file.
@@ -1301,36 +1390,70 @@ const REPORT_SECTIONS = {
     }
 };
 
-function renderReports() {
-    const locked = document.getElementById('reportsLocked');
-    const content = document.getElementById('reportsContent');
-    if (!locked || !content) return;
+/**
+ * The keypad, or the page behind it.
+ *
+ * One gate for six pages. Which page is being unlocked is remembered so the
+ * owner lands back on it rather than on whichever one the gate happens to
+ * live in.
+ */
+const OWNER_GATE_LINES = {
+    services: 'What the shop charges.',
+    hours: 'When the shop is open.',
+    gallery: 'The photographs on the website.',
+    cms: 'The words on the website.',
+    barbers: 'Who works here, and when.',
+    reports: 'What the shop has taken, and who brought it in.'
+};
 
-    if (!reportsData) {
-        locked.style.display = '';
-        content.style.display = 'none';
+function renderOwnerGate(page) {
+    const gate = document.getElementById('ownerGate');
+    if (!gate) return;
+
+    // The keypad belongs to the six pages behind the lock. On the diary it has
+    // no business being there at all — that is the work, and everyone who
+    // signs in does it.
+    const wanted = OWNER_PAGES.includes(page) && !isUnlocked();
+    gate.style.display = wanted ? '' : 'none';
+
+    const body = document.getElementById('page-' + page);
+    if (body) body.classList.toggle('is-locked', wanted);
+
+    if (!wanted) return;
+
+    // Say what is behind it. One keypad for six pages reads as a wall unless
+    // it names the one that was actually asked for.
+    const line = gate.querySelector('p:not(.pin-note)');
+    if (line) line.textContent = OWNER_GATE_LINES[page] || 'The owner’s pages.';
+
+    const field = document.getElementById('ownerPin');
+    if (field) field.value = '';
+    const error = document.getElementById('ownerPinError');
+    if (error) error.classList.remove('is-shown');
+}
+
+function renderReports() {
+    const content = document.getElementById('reportsContent');
+    if (!content) return;
+
+    if (!isUnlocked() || !reportsData) {
         content.innerHTML = '';   // nothing of the figures left behind the lock
-        const field = document.getElementById('reportsPin');
-        if (field) field.value = '';
-        const error = document.getElementById('reportsPinError');
-        if (error) error.classList.remove('is-shown');
         return;
     }
-    locked.style.display = 'none';
-    content.style.display = '';
     content.innerHTML = reportsMarkup(reportsData);
 }
 
-async function unlockReports(e) {
+/** Ask the server for the ten-minute pass, then show whatever was locked. */
+async function submitOwnerPin(e) {
     if (e) e.preventDefault();
-    const field = document.getElementById('reportsPin');
-    const error = document.getElementById('reportsPinError');
+    const field = document.getElementById('ownerPin');
+    const error = document.getElementById('ownerPinError');
     const pin = field ? field.value.trim() : '';
     if (!pin) return;
 
     error.classList.remove('is-shown');
     try {
-        const result = await apiPost({ action: 'reports', password: adminPassword, pin });
+        const result = await apiPost({ action: 'unlock', password: adminPassword, pin });
         if (result.status !== 'success') {
             error.textContent = result.message || 'That PIN is not right';
             error.classList.add('is-shown');
@@ -1338,20 +1461,24 @@ async function unlockReports(e) {
             field.focus();
             return;
         }
-        reportsPin = pin;
-        reportsData = result;
-        renderReports();
+        sessionStorage.setItem(UNLOCK_KEY,
+            JSON.stringify({ pass: result.unlockPass, until: result.until }));
+        // The pass alone does not draw the page; the page it was asked for does.
+        renderOwnerGate(currentPage);
+        renderPage(currentPage);
+        if (currentPage === 'reports') await refreshReports();
     } catch (err) {
-        console.error('Reports failed', err);
+        console.error('Unlock failed', err);
         error.textContent = 'Could not reach the server. Please try again.';
         error.classList.add('is-shown');
     }
 }
 
-function lockReports() {
-    reportsPin = '';
-    reportsData = null;
-    renderReports();
+/** Put the lock back, on every page at once. */
+function lockOwnerPages() {
+    forgetUnlock();
+    renderOwnerGate(currentPage);
+    renderPage(currentPage);
 }
 
 /**
@@ -1365,15 +1492,15 @@ function lockReports() {
 async function downloadReportSection(section, months) {
     closeDownloadMenus();
     const spec = REPORT_SECTIONS[section];
-    if (!spec || !reportsPin) return;
+    if (!spec || !isUnlocked()) return;
 
     let data = reportsData;
     if (!data || data.window.months !== months) {
         showToast('Preparing the file…', 'info');
         try {
-            const result = await apiPost({
-                action: 'reports', password: adminPassword, pin: reportsPin, months
-            });
+            const result = await apiPost(asOwner({
+                action: 'reports', password: adminPassword, months
+            }));
             if (result.status !== 'success') {
                 showToast(result.message || 'Could not build that file', 'error');
                 return;
@@ -1424,9 +1551,9 @@ function downloadCSV(filename, rows) {
 }
 
 async function refreshReports() {
-    if (!reportsPin) return;
+    if (!isUnlocked()) return;
     try {
-        const result = await apiPost({ action: 'reports', password: adminPassword, pin: reportsPin });
+        const result = await apiPost(asOwner({ action: 'reports', password: adminPassword }));
         if (result.status === 'success') {
             reportsData = result;
             renderReports();
@@ -1572,7 +1699,7 @@ function reportsMarkup(d) {
             <span class="report-toolbar-actions">
                 ${downloadMenu('summary')}
                 <button class="btn btn-secondary btn-sm" onclick="refreshReports()">Refresh</button>
-                <button class="btn btn-secondary btn-sm" onclick="lockReports()">Lock</button>
+                <button class="btn btn-secondary btn-sm" onclick="lockOwnerPages()">Lock</button>
             </span>
         </div>
 
@@ -1877,32 +2004,20 @@ function exportBookingsCSV() {
         return;
     }
 
-    let csvContent = 'data:text/csv;charset=utf-8,';
-    csvContent += 'ID,Date,Time,Customer Name,Phone,Barber,Service,Status\n';
+    // Through downloadCSV(), the same as the reports. This built a data: URI by
+    // hand and ran it through encodeURI(), which is slow on a long diary and
+    // silently mangles anything outside Latin-1 — a customer called Ayşe came
+    // out of the spreadsheet wrong.
+    downloadCSV(
+        `sussex-bookings-${new Date().toISOString().split('T')[0]}.csv`,
+        [['ID', 'Date', 'Time', 'Booked at', 'Customer Name', 'Phone', 'Barber',
+          'Service', 'Status']].concat(rows.map(b => [
+            b.id || '', b.date || '', b.time || '', bookedAtFull(b.bookedAt),
+            b.customerName || '', b.customerPhone || '', b.barberName || '',
+            b.serviceName || '', b.status || 'Confirmed'
+        ])));
 
-    rows.forEach(b => {
-        const row = [
-            `"${b.id || ''}"`,
-            `"${b.date || ''}"`,
-            `"${b.time || ''}"`,
-            `"${(b.customerName || '').replace(/"/g, '""')}"`,
-            `"${(b.customerPhone || '').replace(/"/g, '""')}"`,
-            `"${(b.barberName || '').replace(/"/g, '""')}"`,
-            `"${(b.serviceName || '').replace(/"/g, '""')}"`,
-            `"${b.status || 'Confirmed'}"`
-        ];
-        csvContent += row.join(',') + '\n';
-    });
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `sussex_barber_bookings_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    showToast('Bookings exported to CSV (Excel) successfully!', 'success');
+    showToast(`Exported ${rows.length} ${rows.length === 1 ? 'booking' : 'bookings'}`, 'success');
 }
 
 // The theme needs no JavaScript. admin.css holds the dark values on :root and

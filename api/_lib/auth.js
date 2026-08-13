@@ -31,22 +31,84 @@ function isAuthorized(payload) {
 /**
  * True when the supplied PIN matches REPORTS_PIN.
  *
- * A second secret, on top of the panel password, for the takings — what the
- * shop earned, and which barber brought it in. Staff sign in to the panel to
- * work the diary; this is the owner's alone.
+ * A second secret, on top of the panel password. Staff sign in to the panel to
+ * work the diary; the takings and the shop's settings are the owner's alone.
  *
  * Checked here and not in the browser for the obvious reason: a gate the page
  * draws itself is opened by anyone who can open the developer tools, and the
  * figures would already have been sent to them.
+ *
+ * (The variable is still called REPORTS_PIN. It guards more than the reports
+ * now, but renaming it would silently lock the owner out of their own panel on
+ * the next deploy, which is not a trade worth a better name.)
  */
 function isPinCorrect(payload) {
   const expected = process.env.REPORTS_PIN;
-  if (!expected) return false;              // no PIN set, no reports
+  if (!expected) return false;              // no PIN set, nothing unlocks
   return matches(expected, (payload && payload.pin) || '');
 }
 
 /** Whether a PIN has been set at all, so the panel can say which it is. */
 const reportsPinIsSet = () => Boolean(process.env.REPORTS_PIN);
+
+// ---------------------------------------------------------------------------
+// Staying unlocked
+// ---------------------------------------------------------------------------
+
+/**
+ * How long one PIN entry is good for. Long enough to edit the week's hours and
+ * three prices without typing it again; short enough that a phone left on the
+ * counter is not a way in.
+ */
+const UNLOCK_MINUTES = 10;
+
+/**
+ * A pass that says "this browser gave the right PIN, until then".
+ *
+ * The alternative was keeping the PIN itself in the browser so a refresh would
+ * not ask for it again — which hands the secret to exactly the person it is
+ * being kept from, since they are holding the phone. This is a signed expiry
+ * instead: it cannot be read back into a PIN, it cannot be extended, and it
+ * stops working on its own.
+ *
+ * Signed with the PIN and the password together, so changing either one
+ * invalidates every pass already issued.
+ */
+function issueUnlockPass(now) {
+  const until = (now || Date.now()) + UNLOCK_MINUTES * 60 * 1000;
+  return { pass: `${until}.${signUnlock(until)}`, until };
+}
+
+function signUnlock(until) {
+  const secret = String(process.env.REPORTS_PIN || '') + '|' +
+                 String(process.env.ADMIN_PASSWORD || '');
+  return crypto.createHmac('sha256', secret).update(String(until)).digest('hex');
+}
+
+/** True when `pass` was issued here and has not run out. */
+function unlockPassIsValid(pass, now) {
+  if (!process.env.REPORTS_PIN) return false;
+  const [untilPart, signature] = String(pass || '').split('.');
+  const until = Number(untilPart);
+  if (!until || !signature) return false;
+  if ((now || Date.now()) > until) return false;      // expired
+
+  const expected = signUnlock(until);
+  // Same length either way, so this cannot leak the signature a byte at a time.
+  if (signature.length !== expected.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(signature, 'hex'),
+                                Buffer.from(expected, 'hex'));
+}
+
+/**
+ * The owner is at the keyboard: either they have just typed the PIN, or they
+ * typed it within the last ten minutes and still hold the pass.
+ */
+function isOwner(payload) {
+  if (!payload) return false;
+  if (payload.pin && isPinCorrect(payload)) return true;
+  return unlockPassIsValid(payload.unlockPass);
+}
 
 /**
  * Slow a guesser down, in proportion to how many times they have been wrong.
@@ -74,5 +136,6 @@ function resetFailedLogins(key) {
   failures.delete(key || 'global');
 }
 
-module.exports = { isAuthorized, isPinCorrect, reportsPinIsSet,
+module.exports = { isAuthorized, isPinCorrect, isOwner, reportsPinIsSet,
+                   issueUnlockPass, unlockPassIsValid, UNLOCK_MINUTES,
                    throttleFailedLogin, resetFailedLogins };

@@ -58,10 +58,18 @@ async function readReports(sql, today, months) {
   const monthStart = today.slice(0, 8) + '01';
   const from = windowStart(today, span);
 
+  // One transaction, not thirteen separate queries.
+  //
+  // Two reasons, and the second is the real one. It is a single round trip
+  // rather than thirteen. And every figure is read from the same snapshot of
+  // the database: run apart, a booking taken between the first query and the
+  // third would be counted by one and not the other, and the report would say
+  // 412 appointments at the top while the barbers underneath added up to 413.
+  // Nobody would ever find out why.
   const [totals, inWindow, thisMonth, ahead, byMonth, barbersOverWindow,
          barbersThisMonth, services, loyalty, newThisMonth, weekdays, hours,
          visits] =
-    await Promise.all([
+    await sql.transaction([
       // Lifetime, and how much of it was called off.
       sql`
         SELECT count(*) FILTER (WHERE status = 'active' AND booked_on <= ${today}) AS done,
@@ -110,8 +118,8 @@ async function readReports(sql, today, months) {
          GROUP BY m.month
          ORDER BY m.month`,
 
-      barberRows(sql, today, from),
-      barberRows(sql, today, monthStart),
+      barberQuery(sql, today, from),
+      barberQuery(sql, today, monthStart),
 
       sql`
         SELECT service,
@@ -224,8 +232,8 @@ async function readReports(sql, today, months) {
     })),
 
     barbers: {
-      window: barbersOverWindow,
-      thisMonth: barbersThisMonth
+      window: asBarbers(barbersOverWindow),
+      thisMonth: asBarbers(barbersThisMonth)
     },
 
     services: services.map(r => ({
@@ -263,8 +271,11 @@ async function readReports(sql, today, months) {
  * name across the English and Dutch columns, and a join would then count the
  * appointment twice.
  */
-async function barberRows(sql, today, from) {
-  const rows = await sql`
+function barberQuery(sql, today, from) {
+  // Returned rather than awaited: the caller puts it in the transaction with
+  // everything else, so these totals come from the same snapshot as the ones
+  // they are meant to agree with.
+  return sql`
     SELECT CASE WHEN b.barber = '' THEN ${ANY} ELSE b.barber END AS barber,
            count(*) AS appointments,
            COALESCE(sum(b.price), 0) AS revenue,
@@ -276,13 +287,13 @@ async function barberRows(sql, today, from) {
               ORDER BY s.position LIMIT 1) s ON true
      WHERE b.status = 'active' AND b.booked_on <= ${today} AND b.booked_on >= ${from}
      GROUP BY 1 ORDER BY appointments DESC, barber`;
-
-  return rows.map(r => ({
-    barber: r.barber,
-    appointments: Number(r.appointments),
-    revenue: money(r.revenue),
-    minutes: Number(r.minutes)
-  }));
 }
+
+const asBarbers = rows => rows.map(r => ({
+  barber: r.barber,
+  appointments: Number(r.appointments),
+  revenue: money(r.revenue),
+  minutes: Number(r.minutes)
+}));
 
 module.exports = { readReports, WINDOWS, DEFAULT_WINDOW, windowMonths, windowStart };

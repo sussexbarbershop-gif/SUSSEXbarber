@@ -619,9 +619,13 @@ tbody tr:last-child td { border-bottom: none; }
 .cell-link { color: var(--blue); text-decoration: none; }
 .cell-link:hover { text-decoration: underline; }
 
-/* Near the right edge of a phone the menu would hang off the screen. */
+/* right:0 is what keeps the menu on the screen: the button sits at the right
+   edge of the card, so the menu opens leftwards from it. An earlier attempt at
+   a phone override set right:auto, which dropped it back to where it would
+   have sat in the flow — off the right of the screen, with half the options
+   unreachable. */
 @media (max-width: 560px) {
-    .download-options { right: auto; left: auto; min-width: 150px; }
+    .download-options { min-width: 150px; }
 }
 
 /* ---- Website Text -----------------------------------------------------
@@ -669,3 +673,12 @@ textarea.form-control { resize: vertical; line-height: 1.6; }
     color: var(--text-primary);
 }
 .btn-outline:hover { border-color: var(--gold); color: var(--gold-text); }
+
+/* A page waiting behind the owner's PIN. The keypad takes its place; this only
+   makes sure the page underneath is not on screen behind it. What actually
+   protects it is the server, which refuses to save or to report without the
+   PIN whatever the browser chooses to draw. */
+.page-section.is-locked { display: none !important; }
+
+/* "20m ago" wrapping onto two lines in a narrow column reads as two facts. */
+.cell-nowrap { white-space: nowrap; }

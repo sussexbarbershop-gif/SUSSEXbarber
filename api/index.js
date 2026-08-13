@@ -22,8 +22,8 @@
 
 const { db, readConfig, readRotaConfig, indexToIso, WEEKDAY_NAMES } = require('./_lib/db');
 const rota = require('./_lib/rota');
-const { isAuthorized, isPinCorrect, reportsPinIsSet,
-        throttleFailedLogin, resetFailedLogins } = require('./_lib/auth');
+const { isAuthorized, isPinCorrect, isOwner, reportsPinIsSet, issueUnlockPass,
+        UNLOCK_MINUTES, throttleFailedLogin, resetFailedLogins } = require('./_lib/auth');
 const { readReports } = require('./_lib/reports');
 const { sendBookingNotice, sendCustomerConfirmation, sendCancellationNotice } = require('./_lib/mail');
 
@@ -278,7 +278,15 @@ async function handlePost(req, res) {
   // The takings. Behind the panel password and a second PIN, because the
   // people who use the panel to run the diary are not necessarily the person
   // who is allowed to see what the shop earned.
-  if (action === 'reports') {
+  // Everything below is the owner's, not the floor's: the takings, the prices,
+  // the opening hours, the staff. Whoever holds the panel password can run the
+  // diary; changing what the shop *is* takes the PIN as well.
+  //
+  // Enforced here and not by hiding the pages. The panel could hide every one
+  // of them and a hand-written request would still have saved a new price
+  // list, because the only thing that had ever been checked was the password
+  // every barber knows.
+  if (['reports', 'unlock', 'saveCMS', 'uploadImage'].includes(action)) {
     if (!isAuthorized(payload)) {
       await throttleFailedLogin();
       return json(res, { status: 'error', message: 'Unauthorized' }, 401);
@@ -289,31 +297,38 @@ async function handlePost(req, res) {
         message: 'No REPORTS_PIN set on the server. Add it in Vercel > Settings > Environment Variables.'
       }, 503);
     }
-    if (!isPinCorrect(payload)) {
+    if (!isOwner(payload)) {
       // Same delay as a wrong password. A PIN is four or six digits, which is
       // little enough to sit and guess at machine speed otherwise.
+      //
+      // `locked` tells the panel this was the PIN and not the password, so it
+      // can put the keypad back up rather than sending the owner to sign in
+      // again for a session that has not expired.
       await throttleFailedLogin('pin');
-      return json(res, { status: 'error', message: 'That PIN is not right' }, 401);
+      return json(res, {
+        status: 'error', locked: true,
+        message: 'That PIN is not right, or ten minutes have passed. Enter it again.'
+      }, 401);
     }
+  }
+
+  // The PIN, traded for a pass that lasts ten minutes, so the owner is not
+  // typing it again between the opening hours and the price list.
+  if (action === 'unlock') {
+    const { pass, until } = issueUnlockPass();
+    return json(res, { status: 'success', unlockPass: pass, until, minutes: UNLOCK_MINUTES });
+  }
+
+  if (action === 'reports') {
     // months is 1, 3, 6 or 12; anything else falls back to 12 rather than
     // being refused. It comes from a dropdown, not from a person typing.
     const report = await readReports(db(), shopNow().date, payload.months);
     return json(res, Object.assign({ status: 'success' }, report));
   }
 
-  if (action === 'uploadImage') {
-    if (!isAuthorized(payload)) {
-      return json(res, { status: 'error', message: 'Unauthorized' }, 401);
-    }
-    return await uploadImage(payload, res);
-  }
+  if (action === 'uploadImage') return await uploadImage(payload, res);
 
-  if (action === 'saveCMS') {
-    if (!isAuthorized(payload)) {
-      return json(res, { status: 'error', message: 'Unauthorized' }, 401);
-    }
-    return await saveCMS(payload, res);
-  }
+  if (action === 'saveCMS') return await saveCMS(payload, res);
 
   return json(res, { status: 'error', message: 'Unknown action' });
 }

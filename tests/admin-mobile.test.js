@@ -71,6 +71,18 @@ ok('and the days snap into place',
 ok('the grid it scrolls can overflow',
    /\.weekly-grid-container\s*\{[^}]*overflow-x:\s*auto/.test(css), true);
 
+console.log('--- the download menu has to stay on the screen ---');
+// It hangs off a button at the right edge of a card, so it opens leftwards
+// from there. An earlier phone override set right:auto, which dropped it back
+// to where it would have sat in the flow — off the right of the screen, with
+// half the options unreachable.
+ok('the menu is positioned against its own button',
+   /\.download-menu\s*\{[^}]*position:\s*relative/.test(css), true);
+ok('and anchored to the right edge',
+   /\.download-options\s*\{[^}]*right:\s*0/.test(css), true);
+const phoneMenu = (mobile.match(/\.download-options\s*\{([^}]*)\}/) || [])[1] || '';
+ok('a phone does not unanchor it', /right:\s*auto/.test(phoneMenu), false);
+
 console.log('--- anything wide enough to overflow must scroll itself ---');
 // A table is wider than a phone by nature; each one needs a scrolling parent.
 const tables = (html.match(/<table/g) || []).length;

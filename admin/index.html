@@ -147,6 +147,40 @@
             <!-- Content Area -->
             <div class="content-area">
 
+                <!-- ========== THE OWNER'S LOCK ========== -->
+                <!-- One keypad for six pages: the takings, and everything that
+                     changes what the shop is. It sits here rather than inside
+                     any one of them because it is the same lock on all six, and
+                     opening it once opens all of them for ten minutes.
+
+                     The pages behind it are hidden by .is-locked, but that is
+                     only what the eye sees — the server refuses to save or to
+                     report without the PIN either way. -->
+                <div id="ownerGate" class="pin-gate" style="display:none">
+                    <div class="pin-card">
+                        <svg class="pin-icon" width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                        <h2>Owner only</h2>
+                        <div class="gold-line"></div>
+                        <p>The takings, the prices, the hours and the staff.</p>
+
+                        <form id="ownerPinForm" autocomplete="off">
+                            <div class="form-group">
+                                <label for="ownerPin">Owner's PIN</label>
+                                <input type="password" id="ownerPin" inputmode="numeric"
+                                       autocomplete="off" placeholder="••••">
+                            </div>
+                            <button type="submit" class="btn-login">Unlock</button>
+                        </form>
+
+                        <div id="ownerPinError" class="login-error"></div>
+
+                        <p class="pin-note">
+                            Unlocks every one of these pages for ten minutes.
+                            The PIN itself is never stored on this device.
+                        </p>
+                    </div>
+                </div>
+
                 <!-- ========== BOOKINGS ========== -->
                 <!-- Every appointment, newest arrival first. The one that came
                      in last is the one nobody has seen yet, so it belongs at
@@ -186,6 +220,9 @@
                                         <th>Barber</th>
                                         <th>Date</th>
                                         <th>Time</th>
+                                        <!-- When it came in, which is what the
+                                             list is ordered by. -->
+                                        <th>Booked</th>
                                         <th>Status</th>
                                         <th>Actions</th>
                                     </tr>
@@ -348,34 +385,9 @@
                 </div>
 
                 <!-- REPORTS -->
-                <!-- Two states in one section: the PIN, and everything behind
-                     it. Nothing of the figures is in this markup — the panel
-                     does not have them until the server has seen the PIN. -->
+                <!-- Nothing of the figures is in this markup — the panel does
+                     not have them until the server has seen the PIN. -->
                 <div id="page-reports" class="page-section">
-                    <div id="reportsLocked" class="pin-gate">
-                        <div class="pin-card">
-                            <svg class="pin-icon" width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                            <h2>Reports</h2>
-                            <div class="gold-line"></div>
-                            <p>What the shop has taken, and who brought it in.</p>
-
-                            <form id="reportsPinForm" autocomplete="off">
-                                <div class="form-group">
-                                    <label for="reportsPin">Owner's PIN</label>
-                                    <input type="password" id="reportsPin" inputmode="numeric"
-                                           autocomplete="off" placeholder="••••">
-                                </div>
-                                <button type="submit" class="btn-login">Unlock</button>
-                            </form>
-
-                            <div id="reportsPinError" class="login-error"></div>
-
-                            <p class="pin-note">
-                                Asked for again after a refresh. It is never stored
-                                on this device, which is the point of it.
-                            </p>
-                        </div>
-                    </div>
 
                     <div id="reportsContent" style="display:none"></div>
                 </div>

@@ -45,18 +45,75 @@ ok('nor no payload at all', auth.isPinCorrect(null), false);
 ok('a longer guess is refused, not thrown at',
    auth.isPinCorrect({ pin: '48210000000' }), false);
 
-console.log('--- the route asks for both secrets ---');
-const route = api.slice(api.indexOf("if (action === 'reports')"),
-                        api.indexOf("if (action === 'uploadImage')"));
-ok('the panel password first', /isAuthorized\(payload\)/.test(route), true);
-ok('and the PIN as well', /isPinCorrect\(payload\)/.test(route), true);
+console.log('--- the ten-minute pass ---');
+// The PIN is typed once and never kept: keeping it so a refresh would not ask
+// again hands the secret to the person it is being kept from, who is holding
+// the phone. A signed expiry instead — it cannot be read back into a PIN, it
+// cannot be extended, and it stops working on its own.
+process.env.ADMIN_PASSWORD = 'panel-password';
+{
+  const now = Date.UTC(2026, 7, 13, 12, 0, 0);
+  const { pass, until } = auth.issueUnlockPass(now);
+
+  ok('it lasts ten minutes', (until - now) / 60000, auth.UNLOCK_MINUTES);
+  ok('it opens the lock', auth.unlockPassIsValid(pass, now + 60000), true);
+  ok('a second before it runs out', auth.unlockPassIsValid(pass, until - 1), true);
+  ok('and not a second after', auth.unlockPassIsValid(pass, until + 1), false);
+
+  // The whole point of signing it: an expiry anyone could write is not a lock.
+  const later = String(now + 3600000) + '.' + pass.split('.')[1];
+  ok('the expiry cannot be moved', auth.unlockPassIsValid(later, now), false);
+  ok('nor the signature invented',
+     auth.unlockPassIsValid(String(until) + '.' + 'a'.repeat(64), now), false);
+  ok('a pass of the wrong shape is refused', auth.unlockPassIsValid('nonsense', now), false);
+  ok('so is an empty one', auth.unlockPassIsValid('', now), false);
+
+  // Signed with the PIN and the password, so changing either one throws away
+  // every pass already handed out.
+  process.env.REPORTS_PIN = '9999';
+  ok('changing the PIN invalidates it', auth.unlockPassIsValid(pass, now), false);
+  process.env.REPORTS_PIN = '4821';
+  process.env.ADMIN_PASSWORD = 'a-new-password';
+  ok('changing the password does too', auth.unlockPassIsValid(pass, now), false);
+  process.env.ADMIN_PASSWORD = 'panel-password';
+  ok('and it works again once both are back', auth.unlockPassIsValid(pass, now), true);
+
+  // With no PIN configured at all, nothing may open — including a pass that
+  // was signed when there was one.
+  delete process.env.REPORTS_PIN;
+  ok('no PIN set, no pass works', auth.unlockPassIsValid(pass, now), false);
+  process.env.REPORTS_PIN = '4821';
+}
+
+console.log('--- isOwner takes either ---');
+ok('the PIN itself', auth.isOwner({ pin: '4821' }), true);
+ok('or a live pass', auth.isOwner({ unlockPass: auth.issueUnlockPass().pass }), true);
+ok('a wrong PIN is still wrong', auth.isOwner({ pin: '0000' }), false);
+ok('and neither is nothing', auth.isOwner({}), false);
+ok('nor no payload', auth.isOwner(null), false);
+
+console.log('--- the owner-only routes ---');
+// The takings were behind the PIN; the prices, the hours, the gallery, the
+// website's words and the staff were behind the password every barber knows.
+// Hiding those pages in the panel would have changed nothing: a hand-written
+// request still saved a new price list.
+const guard = api.slice(api.indexOf("if (['reports', 'unlock'"),
+                        api.indexOf("if (action === 'unlock')"));
+['reports', 'unlock', 'saveCMS', 'uploadImage'].forEach(name => {
+  ok(`${name} is owner-only`, guard.includes(`'${name}'`), true);
+});
+ok('the panel password first', /isAuthorized\(payload\)/.test(guard), true);
+ok('then the PIN or a pass', /isOwner\(payload\)/.test(guard), true);
 // A wrong PIN must cost the same as a wrong password. Four digits is little
 // enough to sit and guess at machine speed.
-ok('a wrong PIN is slowed down', /throttleFailedLogin\('pin'\)/.test(route), true);
+ok('a wrong PIN is slowed down', /throttleFailedLogin\('pin'\)/.test(guard), true);
 ok('an unset PIN says so rather than failing open',
-   /reportsPinIsSet\(\)/.test(route), true);
+   /reportsPinIsSet\(\)/.test(guard), true);
+// So the panel puts the keypad back up instead of sending the owner to sign in
+// again for a session that has not expired.
+ok('a locked answer says which lock it was', /locked: true/.test(guard), true);
 ok('and nothing is read before all of that',
-   route.indexOf('readReports') > route.indexOf('isPinCorrect'), true);
+   api.indexOf('readReports(db()') > api.indexOf('isOwner(payload)'), true);
 
 console.log('--- the window a download is taken over ---');
 const reportsLib = require(path.join(__dirname, '..', 'api', '_lib', 'reports.js'));
@@ -135,33 +192,95 @@ ok('phone keys are only ever counted',
    /count\(DISTINCT phone_key\)/.test(reports), true);
 
 console.log('--- the PIN is not stored on the device ---');
-// sessionStorage would save the owner typing it after a refresh and hand it
-// to anyone who opens the developer tools on the same phone.
-const pinLines = panel.split('\n').filter(l => /reportsPin\b/.test(l) && !/^\s*(\/\/|\*)/.test(l));
-ok('never written to storage',
-   pinLines.some(l => /sessionStorage|localStorage/.test(l)), false);
-ok('it is a plain variable', /^let reportsPin = '';$/m.test(panel), true);
-ok('signing out clears it', /function handleLogout\(\)[\s\S]*?lockReports\(\)/.test(panel), true);
+// What is kept is the signed pass, never the PIN. Storing the PIN would save
+// the owner typing it after a refresh and hand it to anyone who opens the
+// developer tools on the same phone.
+const stores = panel.split(/\r?\n/)
+  .filter(l => /sessionStorage\.setItem|localStorage\.setItem/.test(l))
+  .filter(l => !/^\s*(\/\/|\*)/.test(l));
+console.log('what the panel stores:',
+  stores.map(l => (l.match(/setItem\(([^,]+)/) || [])[1]).join(', '));
+ok('the PIN is never written anywhere',
+   stores.some(l => /\bpin\b/i.test(l) && !/unlockPass/.test(l)), false);
+ok('the pass is what is kept', /setItem\(UNLOCK_KEY/.test(panel), true);
+ok('and only with its expiry', /JSON\.stringify\(\{ pass: result\.unlockPass, until: result\.until \}\)/.test(panel), true);
+
+console.log('--- and it lets itself go ---');
+// A stored expiry that nothing checks is a lock that never closes.
+ok('the held pass is checked against the clock',
+   /Date\.now\(\) >= held\.until/.test(panel), true);
+ok('and thrown away when it has passed',
+   /Date\.now\(\) >= held\.until\)[\s\S]{0,120}removeItem\(UNLOCK_KEY\)/.test(panel), true);
+ok('signing out clears it', /function handleLogout\(\)[\s\S]*?lockOwnerPages\(\)/.test(panel), true);
 ok('and locking clears the figures too',
-   /function lockReports\(\)[\s\S]*?reportsData = null/.test(panel), true);
+   /function forgetUnlock\(\)[\s\S]*?reportsData = null/.test(panel), true);
+// Otherwise the page it unlocked stays on screen after the ten minutes, and
+// the first save is refused with nothing to say the lock had come back.
+ok('an expired pass puts the keypad back without being asked',
+   /setInterval\([\s\S]{0,320}!isUnlocked\(\)[\s\S]{0,200}lockOwnerPages\(\)/.test(panel), true);
+
+console.log('--- one lock over six pages ---');
+ok('the pages are named', /const OWNER_PAGES = \[[^\]]+\]/.test(panel), true);
+['services', 'hours', 'gallery', 'cms', 'barbers', 'reports'].forEach(page => {
+  const list = (panel.match(/const OWNER_PAGES = \[([^\]]+)\]/) || ['', ''])[1];
+  ok(`${page} is behind it`, list.includes(`'${page}'`), true);
+});
+// The diary is not: that is the work, and everyone who signs in does it.
+const list = (panel.match(/const OWNER_PAGES = \[([^\]]+)\]/) || ['', ''])[1];
+ok('the diary is not locked', /'bookings'|'week'/.test(list), false);
+ok('every owner request carries the pass',
+   /const asOwner = payload => Object\.assign\(\{ unlockPass: unlockPass\(\) \}/.test(panel), true);
+['saveCMS', 'uploadImage'].forEach(action => {
+  const re = new RegExp("asOwner\\([\\s\\S]{0,200}action: '" + action + "'");
+  ok(`${action} is signed`, re.test(panel), true);
+});
 
 console.log('--- and nothing is in the markup to leak ---');
 // The page ships the lock, not the numbers.
 ok('the section exists', /id="page-reports"/.test(markup), true);
-ok('with a PIN form', /id="reportsPinForm"/.test(markup), true);
+ok('with a PIN form', /id="ownerPinForm"/.test(markup), true);
 ok('and an empty place for the figures',
    /<div id="reportsContent"[^>]*><\/div>/.test(markup), true);
 ok('the field does not show what is typed',
-   /id="reportsPin"[^>]*/.test(markup) &&
-   /<input type="password" id="reportsPin"/.test(markup), true);
+   /<input type="password" id="ownerPin"/.test(markup), true);
 
-console.log('--- a refresh lands back on Reports, locked ---');
+console.log('--- a refresh lands back where it was ---');
 ok('the page is remembered in the address bar', /function pageFromHash\(\)/.test(panel), true);
-ok('and restored on sign-in', /navigateTo\(pageFromHash\(\) \|\| 'today'\)/.test(panel), true);
-// With no data in memory, renderReports() must draw the lock, not a blank
-// page or a stale copy of the figures.
-ok('with no data it shows the lock',
-   /if \(!reportsData\) \{[\s\S]*?locked\.style\.display = ''/.test(panel), true);
+ok('and restored on sign-in', /navigateTo\(pageFromHash\(\) \|\| 'bookings'\)/.test(panel), true);
+// Locked, the figures must not be left on screen from before.
+ok('a locked Reports draws nothing',
+   /if \(!isUnlocked\(\) \|\| !reportsData\) \{[\s\S]{0,120}innerHTML = ''/.test(panel), true);
 
-console.log(failed === 0 ? '\nAll reports tests passed.' : `\n${failed} FAILED`);
-process.exit(failed === 0 ? 0 : 1);
+// --- and the one check that has to run the thing ------------------------
+async function readingIsOneSnapshot() {
+  console.log('--- the whole report is read from one snapshot ---');
+  // Thirteen separate queries would each see the database as it was when they
+  // arrived. A booking taken between the first and the third is counted by one
+  // and not the other, and the report says 412 appointments at the top while
+  // the barbers underneath add up to 413, with nothing to explain it.
+  const counts = { alone: 0, transactions: 0, inTransaction: 0 };
+  const row = { done: 0, cancelled: 0, customers: 0, revenue: 0, bookings: 0,
+                first_timers: 0, once: 0, returning: 0, average: 0, value: '0',
+                barber: 'Hemen', appointments: 0, minutes: 0 };
+  // A query object, not a promise: awaiting one would be a trip of its own.
+  const sql = () => { counts.alone++; return { built: true }; };
+  sql.transaction = queries => {
+    counts.transactions++;
+    counts.inTransaction += queries.length;
+    counts.alone -= queries.length;    // built for the transaction, not sent
+    return Promise.resolve(queries.map(() => [row]));
+  };
+
+  const out = await reportsLib.readReports(sql, '2026-08-13', 12);
+  ok('one transaction', counts.transactions, 1);
+  ok('and nothing sent outside it', counts.alone, 0);
+  ok('every query is in it', counts.inTransaction > 10, true);
+  // The rows still have to be mapped after the transaction hands them back.
+  ok('barbers are still shaped', out.barbers.window[0].barber, 'Hemen');
+  ok('and so is the window', typeof out.window.cancelled, 'number');
+}
+
+readingIsOneSnapshot().then(() => {
+  console.log(failed === 0 ? '\nAll reports tests passed.' : `\n${failed} FAILED`);
+  process.exit(failed === 0 ? 0 : 1);
+});
