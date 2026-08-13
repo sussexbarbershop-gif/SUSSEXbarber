@@ -498,9 +498,11 @@ function renderBarberFilters() {
     const names = barberFilterNames();
     // A name that has since been removed from the panel would otherwise leave
     // the select showing nothing while quietly filtering everything out.
+    // Cleared here rather than through setBarberFilter(), which would call
+    // back into this and the renders that call it.
     if (barberFilter && barberFilter !== NO_PREFERENCE && !names.includes(barberFilter)) {
-        setBarberFilter('');
-        return;
+        barberFilter = '';
+        localStorage.removeItem('sussex_admin_barber');
     }
 
     const options = [
@@ -551,7 +553,15 @@ function listCaption(count, noun) {
     return `${who} · ${count} ${count === 1 ? noun : noun + 's'}`;
 }
 
-function renderBookings() {
+/**
+ * The appointments the Bookings page is showing: the chosen barber's, narrowed
+ * to the chosen period, newest arrival first.
+ *
+ * Shared with the CSV export, which used to send every booking in the diary
+ * however the page was filtered — so a barber who had narrowed the list to
+ * their own week exported the whole shop's year.
+ */
+function visibleBookings() {
     let filtered = forChosenBarber(bookings);
 
     const today = new Date().toISOString().split('T')[0];
@@ -568,13 +578,23 @@ function renderBookings() {
     // Newest arrival first — the booking that came in last is the one nobody
     // has seen yet. Sorting by the appointment date instead put next month's
     // diary above a booking made five minutes ago.
-    filtered = [...filtered].sort((a, b) => {
+    return [...filtered].sort((a, b) => {
         const arrived = String(b.bookedAt || '').localeCompare(String(a.bookedAt || ''));
         if (arrived !== 0) return arrived;
         // Older rows predate created_at being sent; fall back to the
         // appointment so their order is at least stable.
         return String(b.date + b.time).localeCompare(String(a.date + a.time));
     });
+}
+
+function renderBookings() {
+    // The dropdown is filled from the config, which can arrive after this page
+    // is first drawn — and did, whenever the diary failed to load: the barber
+    // list came down with the config and the select stayed empty.
+    renderBarberFilters();
+
+    const today = new Date().toISOString().split('T')[0];
+    const filtered = visibleBookings();
 
     const caption = document.getElementById('bookingsCaption');
     if (caption) caption.textContent = listCaption(filtered.length, 'appointment');
@@ -1201,10 +1221,9 @@ async function addBarber() {
 let reportsPin = '';
 let reportsData = null;
 
-// The windows a section can be downloaded over. The page itself always shows
-// twelve; these are for the file.
+// The windows a section can be downloaded over. The page itself always asks
+// for twelve; these are for the file.
 const REPORT_WINDOWS = [1, 3, 6, 12];
-const REPORT_PAGE_WINDOW = 12;
 
 /**
  * Each downloadable section: its columns, and how to read a row of it out of
@@ -1221,51 +1240,61 @@ const REPORT_SECTIONS = {
     },
     barbers: {
         file: 'barbers',
-        columns: ['Barber', 'Appointments', 'Minutes in the chair', 'Takings (EUR)'],
-        rows: d => d.barbers.window.map(b => [b.barber, b.appointments, b.minutes, b.revenue])
-    },
-    barbersThisMonth: {
-        file: 'barbers-this-month',
-        columns: ['Barber', 'Appointments', 'Minutes in the chair', 'Takings (EUR)'],
-        rows: d => d.barbers.thisMonth.map(b => [b.barber, b.appointments, b.minutes, b.revenue])
+        columns: ['From', 'To', 'Barber', 'Appointments', 'Minutes in the chair',
+                  'Takings (EUR)'],
+        rows: d => d.barbers.window.map(b =>
+            [d.window.from, d.asAt, b.barber, b.appointments, b.minutes, b.revenue])
     },
     services: {
         file: 'services',
-        columns: ['Service', 'Appointments', 'Takings (EUR)'],
-        rows: d => d.services.map(s => [s.service, s.appointments, s.revenue])
+        columns: ['From', 'To', 'Service', 'Appointments', 'Takings (EUR)'],
+        rows: d => d.services.map(s =>
+            [d.window.from, d.asAt, s.service, s.appointments, s.revenue])
     },
     weekdays: {
         file: 'busiest-days',
-        columns: ['Day', 'Appointments'],
-        rows: d => d.weekdays.map(w => [w.day, w.appointments])
+        columns: ['From', 'To', 'Day', 'Appointments'],
+        rows: d => d.weekdays.map(w => [d.window.from, d.asAt, w.day, w.appointments])
     },
     hours: {
         file: 'busiest-times',
-        columns: ['Hour', 'Appointments'],
-        rows: d => d.hours.map(h => [String(h.hour).padStart(2, '0') + ':00', h.appointments])
+        columns: ['From', 'To', 'Hour', 'Appointments'],
+        rows: d => d.hours.map(h =>
+            [d.window.from, d.asAt, String(h.hour).padStart(2, '0') + ':00', h.appointments])
     },
+    // One row, so it needs the period on it or the numbers mean nothing: 96
+    // customers who came in once reads very differently over a month than over
+    // a year.
     loyalty: {
         file: 'customers-coming-back',
-        columns: ['Been in once', 'Been in more than once', 'Average visits each'],
-        rows: d => [[d.loyalty.onceOnly, d.loyalty.returning, d.loyalty.averageVisits]]
+        columns: ['From', 'To', 'Been in once', 'Been in more than once',
+                  'Average visits each'],
+        rows: d => [[d.window.from, d.asAt, d.loyalty.onceOnly,
+                     d.loyalty.returning, d.loyalty.averageVisits]]
     },
+    // The visit counter is a single running number with no dates behind it, so
+    // it cannot be cut to a window. The column headings say which figures move
+    // with the period and which do not, because a file that does not say is a
+    // file someone will quote wrongly a month later.
     reach: {
         file: 'cancellations-and-reach',
-        columns: ['Cancelled', 'Share of everything booked (%)',
-                  'Visits to the website', 'Visits that booked (%)'],
-        rows: d => [[d.lifetime.cancelled, d.lifetime.cancelledShare,
+        columns: ['From', 'To', 'Cancelled in period',
+                  'Share of what was booked in period (%)',
+                  'Visits to the website (all time)',
+                  'Visits that booked (all time, %)'],
+        rows: d => [[d.window.from, d.asAt, d.window.cancelled, d.window.cancelledShare,
                      d.lifetime.siteVisits, d.lifetime.bookedShare]]
     },
     summary: {
         file: 'summary',
-        columns: ['As at', 'Window (months)', 'Appointments in window',
-                  'Takings in window (EUR)', 'This month appointments',
+        columns: ['From', 'To', 'Months', 'Appointments', 'Takings (EUR)',
+                  'Customers', 'Cancelled', 'This month appointments',
                   'This month takings (EUR)', 'New customers this month',
                   'Booked ahead', 'Booked ahead takings (EUR)'],
         rows: d => [[
-            d.asAt, d.window.months,
-            d.months.reduce((n, m) => n + m.appointments, 0),
-            d.months.reduce((n, m) => n + m.revenue, 0).toFixed(2),
+            d.window.from, d.asAt, d.window.months,
+            d.window.appointments, d.window.revenue, d.window.customers,
+            d.window.cancelled,
             d.thisMonth.appointments, d.thisMonth.revenue, d.thisMonth.newCustomers,
             d.upcoming.appointments, d.upcoming.revenue
         ]]
@@ -1529,6 +1558,10 @@ function reportsMarkup(d) {
         </div>`;
 
     const busiestHours = d.hours.filter(h => h.appointments > 0);
+    // Every card but the lifetime tiles counts from here, and each says so.
+    // "Customers coming back: 96 been in once" means something quite different
+    // over one month than over twelve, and the card cannot be read without it.
+    const since = `since ${d.window.from}`;
 
     return `
         <div class="report-toolbar">
@@ -1560,42 +1593,49 @@ function reportsMarkup(d) {
                 m => `${euros(m.revenue)} · ${m.appointments}`),
             'takings, and appointments')}
 
-        ${reportsCard('barbersThisMonth', 'Barbers this month',
+        <!-- No download on this one: it is always the current month, so the
+             four windows would all have produced the same file. The Barbers
+             card below downloads over one month and gives exactly this. -->
+        ${reportsCard(null, 'Barbers this month',
             barberTable(d.barbers.thisMonth), `since ${d.thisMonth.from}`)}
 
-        ${reportsCard('barbers', 'Barbers over the year',
-            barberTable(d.barbers.window), `since ${d.window.from}`)}
+        ${reportsCard('barbers', 'Barbers', barberTable(d.barbers.window), since)}
 
         ${reportsCard('services', 'What sells',
             d.services.length === 0 ? empty : barRows(d.services,
                 s => s.appointments, s => s.service,
                 s => `${s.appointments} · ${euros(s.revenue)}`),
-            'by how often it is booked')}
+            `top ten ${since}`)}
 
         ${reportsCard('weekdays', 'Busiest days',
-            barRows(d.weekdays, w => w.appointments, w => w.day, w => String(w.appointments)))}
+            barRows(d.weekdays, w => w.appointments, w => w.day, w => String(w.appointments)),
+            since)}
 
         ${reportsCard('hours', 'Busiest times',
             busiestHours.length === 0 ? empty : barRows(busiestHours,
                 h => h.appointments,
                 h => String(h.hour).padStart(2, '0') + ':00',
-                h => String(h.appointments)))}
+                h => String(h.appointments)),
+            since)}
 
         ${reportsCard('loyalty', 'Customers coming back', `
             <div class="stats-grid">
                 ${statCard('blue', String(d.loyalty.returning), 'Been in more than once')}
                 ${statCard('orange', String(d.loyalty.onceOnly), 'Been in once')}
                 ${statCard('green', String(d.loyalty.averageVisits), 'Average visits each')}
-            </div>`)}
+            </div>`,
+            since)}
 
         ${reportsCard('reach', 'Cancellations and reach', `
             <div class="stats-grid">
-                ${statCard('orange', String(d.lifetime.cancelled), 'Cancelled',
-                           d.lifetime.cancelledShare + '% of everything booked')}
-                ${statCard('blue', String(d.lifetime.siteVisits), 'Visits to the website')}
+                ${statCard('orange', String(d.window.cancelled), 'Cancelled',
+                           d.window.cancelledShare + '% of what was booked, ' + since)}
+                ${statCard('blue', String(d.lifetime.siteVisits), 'Visits to the website',
+                           'all time — the counter has never been reset')}
                 ${statCard('green', d.lifetime.bookedShare + '%', 'Visits that booked',
-                           'a page load counts as a visit, so read it as a trend')}
-            </div>`)}
+                           'all time; a page load counts as a visit, so read it as a trend')}
+            </div>`,
+            since)}
     `;
 }
 
@@ -1827,10 +1867,11 @@ function exportBookingsCSV() {
         return;
     }
 
-    // Whoever is being looked at, not always the whole shop — a barber who has
-    // picked their own name expects to export their own list. No price column:
-    // the takings are behind the PIN, and a spreadsheet leaves the building.
-    const rows = forChosenBarber(bookings);
+    // Exactly what is on the page — the same barber, the same period. A file
+    // that quietly holds more than the list it was taken from is worse than no
+    // file. No price column either: the takings are behind the PIN, and a
+    // spreadsheet leaves the building.
+    const rows = visibleBookings();
     if (rows.length === 0) {
         showToast('Nothing to export for that filter', 'error');
         return;
@@ -1938,10 +1979,6 @@ function escapeHtml(str) {
  *  quotes alone, so a note like `back 5" late` would end the attribute early. */
 function escapeAttr(str) {
     return escapeHtml(str).replace(/"/g, '&quot;');
-}
-
-function capitalize(str) {
-    return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 function showToast(message, type = 'info') {

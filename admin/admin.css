@@ -623,3 +623,49 @@ tbody tr:last-child td { border-bottom: none; }
 @media (max-width: 560px) {
     .download-options { right: auto; left: auto; min-width: 150px; }
 }
+
+/* ---- Website Text -----------------------------------------------------
+   The boxes on this page carried .form-control, which nothing defined, so
+   they rendered as the browser's own white fields on a dark panel. They are
+   the sign-in field's styling, like every other input in here. */
+.form-control {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    transition: var(--transition);
+    outline: none;
+}
+.form-control:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(212,175,55,0.15); }
+.form-control::placeholder { color: var(--text-muted); }
+textarea.form-control { resize: vertical; line-height: 1.6; }
+
+.cms-field {
+    background: var(--bg-secondary);
+    padding: 15px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+}
+.cms-label {
+    display: block;
+    color: var(--gold-text);
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 5px;
+    text-transform: none;
+    letter-spacing: normal;
+}
+.cms-hint { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.5; }
+
+/* Used on the barber dialog's buttons and never defined, so they fell back to
+   a bare .btn with a transparent border and no edge to them at all. */
+.btn-outline {
+    background: transparent;
+    border-color: var(--border-light);
+    color: var(--text-primary);
+}
+.btn-outline:hover { border-color: var(--gold); color: var(--gold-text); }

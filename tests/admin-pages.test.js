@@ -45,5 +45,24 @@ ok('every case has its function',
 // Nav removed but markup left behind, or the reverse.
 ok('no orphan page sections', sections.filter(s => !pages.includes(s)), []);
 
+// --- a class the stylesheet has never heard of --------------------------
+// The panel has no utility framework: a class here is either defined in
+// admin.css or it does nothing. Both of those have shipped - the Website Text
+// boxes carried .form-control, which nothing defined, so they rendered as the
+// browser's own white fields on a dark page.
+const css = fs.readFileSync(path.join(root, 'admin.css'), 'utf8');
+const classes = new Set();
+// Static markup, and the classes the panel writes into it at run time.
+[...html.matchAll(/class="([^"]+)"/g)].forEach(m =>
+  m[1].split(/\s+/).forEach(c => c && classes.add(c)));
+[...js.matchAll(/class="([^"${]+)"/g)].forEach(m =>
+  m[1].split(/\s+/).forEach(c => c && classes.add(c)));
+[...js.matchAll(/className = '([^'${]+)'/g)].forEach(m =>
+  m[1].split(/\s+/).forEach(c => c && classes.add(c)));
+
+const unstyled = [...classes].filter(c => !new RegExp('\\.' + c + '\\b').test(css));
+console.log('classes in use:', classes.size);
+ok('every class the panel uses is styled', unstyled, []);
+
 console.log(failed === 0 ? '\nAll admin page tests passed.' : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);

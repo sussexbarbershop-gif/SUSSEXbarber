@@ -58,8 +58,9 @@ async function readReports(sql, today, months) {
   const monthStart = today.slice(0, 8) + '01';
   const from = windowStart(today, span);
 
-  const [totals, thisMonth, ahead, byMonth, barbersOverWindow, barbersThisMonth,
-         services, loyalty, newThisMonth, weekdays, hours, visits] =
+  const [totals, inWindow, thisMonth, ahead, byMonth, barbersOverWindow,
+         barbersThisMonth, services, loyalty, newThisMonth, weekdays, hours,
+         visits] =
     await Promise.all([
       // Lifetime, and how much of it was called off.
       sql`
@@ -68,6 +69,17 @@ async function readReports(sql, today, months) {
                count(DISTINCT phone_key) FILTER (WHERE status = 'active') AS customers,
                COALESCE(sum(price) FILTER (WHERE status = 'active' AND booked_on <= ${today}), 0) AS revenue
           FROM bookings`,
+
+      // The same, over the window. Without this, a card offering to be
+      // downloaded over one month or twelve produced the same file either way,
+      // because the figure behind it was neither.
+      sql`
+        SELECT count(*) FILTER (WHERE status = 'active') AS done,
+               count(*) FILTER (WHERE status = 'cancelled') AS cancelled,
+               count(DISTINCT phone_key) FILTER (WHERE status = 'active') AS customers,
+               COALESCE(sum(price) FILTER (WHERE status = 'active'), 0) AS revenue
+          FROM bookings
+         WHERE booked_on >= ${from} AND booked_on <= ${today}`,
 
       sql`
         SELECT count(*) AS done,
@@ -160,8 +172,20 @@ async function readReports(sql, today, months) {
     // no date on it is the kind that gets quoted a week later as today's.
     asAt: today,
 
-    // How far back everything but the lifetime tiles is counted from.
-    window: { months: span, from },
+    // How far back everything but the lifetime tiles is counted from, and
+    // what happened inside it.
+    window: {
+      months: span,
+      from,
+      appointments: Number(inWindow[0].done),
+      customers: Number(inWindow[0].customers),
+      revenue: money(inWindow[0].revenue),
+      cancelled: Number(inWindow[0].cancelled),
+      cancelledShare: Number(inWindow[0].done) + Number(inWindow[0].cancelled) > 0
+        ? Math.round((Number(inWindow[0].cancelled) /
+                     (Number(inWindow[0].done) + Number(inWindow[0].cancelled))) * 100)
+        : 0
+    },
 
     lifetime: {
       appointments: doneAll,

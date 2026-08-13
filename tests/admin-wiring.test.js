@@ -68,20 +68,28 @@ ok('no bare booking id in a handler', unquoted, []);
 
 // --- filters the UI offers must be ones the code handles ---------------
 const offered = [...html.matchAll(/data-filter="([^"]+)"/g)].map(m => m[1]).sort();
-const handled = (js.match(/function renderBookings\(\)[\s\S]*?^}/m) || [''])[0];
-const unhandled = offered.filter(f => f !== 'all' && !handled.includes(`'${f}'`));
+const chooses = (js.match(/function visibleBookings\(\)[\s\S]*?^}/m) || [''])[0];
+const unhandled = offered.filter(f => f !== 'all' && !chooses.includes(`'${f}'`));
 console.log('booking filters:', offered.join(', '));
 ok('every filter tab does something', unhandled, []);
+
+// The export must send what the page is showing. It used to take the whole
+// diary, so a barber who had narrowed the list to their own week exported the
+// entire shop's year without being told.
+const exporter = (js.match(/function exportBookingsCSV\(\)[\s\S]*?^}/m) || [''])[0];
+ok('the export takes the visible list', /visibleBookings\(\)/.test(exporter), true);
+ok('and not the raw diary', /\bconst rows = bookings\b/.test(exporter), false);
 
 // The tab that is lit has to be set before any early return. It used to be
 // the last thing renderBookings() did, after a `return` taken whenever the
 // filter matched nothing — so tapping Today on a quiet day left the highlight
 // where it was and the button looked broken rather than the day looking empty.
-const litAt = handled.indexOf("classList.toggle('active'");
-const emptyReturn = handled.indexOf('No bookings found') !== -1
-  ? handled.indexOf('No bookings found') : handled.indexOf('Nothing here');
+const draws = (js.match(/function renderBookings\(\)[\s\S]*?^}/m) || [''])[0];
+const litAt = draws.indexOf("classList.toggle('active'");
+const emptyReturn = draws.indexOf('Nothing here');
 ok('the active tab is set', litAt !== -1, true);
-ok('before the empty list can return early', litAt < emptyReturn, true);
+ok('and the empty state exists to return to', emptyReturn !== -1, true);
+ok('the tab is lit before the early return', litAt < emptyReturn, true);
 
 console.log(failed === 0 ? '\nAll wiring tests passed.' : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);

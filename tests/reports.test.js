@@ -96,6 +96,34 @@ ok('the summary download exists too', /downloadMenu\('summary'\)/.test(panel), t
 ok('a different window is fetched, not sliced',
    /window\.months !== months[\s\S]{0,400}action: 'reports'[\s\S]{0,80}months/.test(panel), true);
 
+console.log('--- a download over a period must actually change with it ---');
+// A card offering one, three, six or twelve months and handing back the same
+// file every time is worse than no download: it looks like it worked. Every
+// section's rows have to be read out of something the window scopes.
+const sectionBlock = name => {
+  const at = declared.indexOf('\n    ' + name + ': {');
+  return at === -1 ? '' : declared.slice(at, declared.indexOf('\n    },', at));
+};
+[...new Set(sections)].forEach(name => {
+  const block = sectionBlock(name);
+  ok(`${name} has a definition`, block !== '', true);
+  // d.lifetime.* is the whole history and ignores the window entirely, so a
+  // section reading only that would be identical over every period.
+  const windowed = /d\.(months|barbers\.window|services|weekdays|hours|loyalty|window)\b/.test(block);
+  ok(`${name} reads a windowed figure`, windowed, true);
+});
+
+// And where a figure genuinely cannot be cut to a period - the visit counter
+// is one running number with no dates behind it - the column has to say so,
+// or it gets quoted as the period's.
+const reachBlock = sectionBlock('reach');
+ok('the all-time columns are labelled', /all time/.test(reachBlock), true);
+// Single-row files carry their own dates; a row of bare numbers with no period
+// on it is the kind that is read back a month later as this month's.
+['reach', 'loyalty', 'summary'].forEach(name => {
+  ok(`${name} carries its period`, /'From', 'To'/.test(sectionBlock(name)), true);
+});
+
 console.log('--- the figures carry no customer with them ---');
 const reports = fs.readFileSync(path.join(__dirname, '..', 'api', '_lib', 'reports.js'), 'utf8');
 // The takings are sensitive enough without the customer list travelling with

@@ -123,7 +123,7 @@
                     <button class="burger-btn" onclick="toggleSidebar()">
                         <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                     </button>
-                    <h2 id="pageTitle" data-admin-i18n="dashboard">Dashboard</h2>
+                    <h2 id="pageTitle" data-admin-i18n="bookings">Bookings</h2>
                 </div>
                 <div class="topbar-right" style="display:flex; align-items:center; gap:15px;">
                     <!-- No theme button. The device already has that setting and the
@@ -274,50 +274,56 @@
                                 <br>Make your changes in the boxes below, then click <b>Save to Website</b>.
                             </p>
                             
-                            <div class="form-group" style="background:var(--bg-secondary); padding:15px; border-radius:8px; border:1px solid var(--border-color);">
-                                <label style="color:var(--gold); font-size:14px; margin-bottom:5px;">1. Hero Title (Main Website Title)</label>
-                                <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">The big text at the top of the website. You can use &lt;br&gt; to drop to a new line, and &lt;span class="text-gold italic"&gt;Text&lt;/span&gt; to make words golden.</p>
-                                <input type="text" id="cms_hero_title" class="form-control" style="font-family:monospace;">
+                            <div class="form-group cms-field">
+                                <label class="cms-label">1. Hero Title (Main Website Title)</label>
+                                <!-- This used to tell the owner to type HTML.
+                                     Nothing on the site has inserted their copy
+                                     as HTML for a long time - it goes in as
+                                     text, so a typed <br> appeared on the page
+                                     as the letters "<br>". The site breaks the
+                                     line at the comma instead. -->
+                                <p class="cms-hint">The big text at the top of the website. Whatever you write after the comma drops to a second line and is shown in gold.</p>
+                                <input type="text" id="cms_hero_title" class="form-control">
                             </div>
                             
-                            <div class="form-group" style="background:var(--bg-secondary); padding:15px; border-radius:8px; border:1px solid var(--border-color);">
-                                <label style="color:var(--gold); font-size:14px; margin-bottom:5px;">2. Hero Subtitle</label>
-                                <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">The smaller text below the main title.</p>
+                            <div class="form-group cms-field">
+                                <label class="cms-label">2. Hero Subtitle</label>
+                                <p class="cms-hint">The smaller text below the main title.</p>
                                 <input type="text" id="cms_hero_subtitle" class="form-control">
                             </div>
                             
-                            <div class="form-group" style="background:var(--bg-secondary); padding:15px; border-radius:8px; border:1px solid var(--border-color);">
-                                <label style="color:var(--gold); font-size:14px; margin-bottom:5px;">3. About Us Text</label>
-                                <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">The paragraph explaining your barber shop. Use &lt;br&gt;&lt;br&gt; to make a new paragraph.</p>
+                            <div class="form-group cms-field">
+                                <label class="cms-label">3. About Us Text</label>
+                                <p class="cms-hint">The paragraph explaining your barber shop. Press Enter to start a new paragraph.</p>
                                 <textarea id="cms_about_text" class="form-control" rows="6"></textarea>
                             </div>
                             
-                            <div class="form-group" style="background:var(--bg-secondary); padding:15px; border-radius:8px; border:1px solid var(--border-color);">
-                                <label style="color:var(--gold); font-size:14px; margin-bottom:5px;">4. Contact Phone Number</label>
+                            <div class="form-group cms-field">
+                                <label class="cms-label">4. Contact Phone Number</label>
                                 <input type="text" id="cms_contact_phone" class="form-control" style="max-width:300px;">
                             </div>
                             
-                            <div class="form-group" style="background:var(--bg-secondary); padding:15px; border-radius:8px; border:1px solid var(--border-color);">
-                                <label style="color:var(--gold); font-size:14px; margin-bottom:5px;">5. Contact Address</label>
-                                <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">Use &lt;br&gt; to break lines in the address.</p>
+                            <div class="form-group cms-field">
+                                <label class="cms-label">5. Contact Address</label>
+                                <p class="cms-hint">Separate the street, the postcode and the country with commas.</p>
                                 <input type="text" id="cms_contact_address" class="form-control" style="max-width:300px;">
                             </div>
 
-                            <div class="form-group" style="background:var(--bg-secondary); padding:15px; border-radius:8px; border:1px solid var(--border-color);">
-                                <label style="color:var(--gold); font-size:14px; margin-bottom:5px;">6. Instagram Page</label>
-                                <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">The full address of your Instagram profile. The @name shown on the website is taken from the end of it.</p>
+                            <div class="form-group cms-field">
+                                <label class="cms-label">6. Instagram Page</label>
+                                <p class="cms-hint">The full address of your Instagram profile. The @name shown on the website is taken from the end of it.</p>
                                 <input type="url" id="cms_instagram_url" class="form-control" placeholder="https://www.instagram.com/sussexbarbershop">
                             </div>
 
-                            <div class="form-group" style="background:var(--bg-secondary); padding:15px; border-radius:8px; border:1px solid var(--border-color);">
-                                <label style="color:var(--gold); font-size:14px; margin-bottom:5px;">7. Directions Link</label>
-                                <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">Where the "Directions" button and the map open. In Google Maps: find the shop, press Share, and copy the link.</p>
+                            <div class="form-group cms-field">
+                                <label class="cms-label">7. Directions Link</label>
+                                <p class="cms-hint">Where the "Directions" button and the map open. In Google Maps: find the shop, press Share, and copy the link.</p>
                                 <input type="url" id="cms_maps_url" class="form-control" placeholder="https://maps.app.goo.gl/...">
                             </div>
 
-                            <div class="form-group" style="background:var(--bg-secondary); padding:15px; border-radius:8px; border:1px solid var(--border-color);">
-                                <label style="color:var(--gold); font-size:14px; margin-bottom:5px;">8. Map Shown on the Page</label>
-                                <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">Only change this if you move premises. In Google Maps: Share &rarr; Embed a map &rarr; copy HTML, then paste only the address inside src="...". It must start with https://www.google.com/maps/embed</p>
+                            <div class="form-group cms-field">
+                                <label class="cms-label">8. Map Shown on the Page</label>
+                                <p class="cms-hint">Only change this if you move premises. In Google Maps: Share &rarr; Embed a map &rarr; copy HTML, then paste only the address inside src="...". It must start with https://www.google.com/maps/embed</p>
                                 <input type="url" id="cms_maps_embed_url" class="form-control" placeholder="https://www.google.com/maps/embed?pb=...">
                             </div>
                         </div>
@@ -436,20 +442,20 @@
             <form id="serviceForm" onsubmit="handleServiceSubmit(event)">
                 <input type="hidden" id="svcId">
                 <div class="modal-body">
-                    <div class="form-group">
+                    <div class="form-group cms-field">
                         <label>Service Name (English)</label>
                         <input type="text" id="svcNameEN" placeholder="e.g. Classic Haircut" required>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group cms-field">
                         <label>Service Name (Dutch)</label>
                         <input type="text" id="svcNameNL" placeholder="e.g. Klassieke knipbeurt" required>
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-                        <div class="form-group">
+                        <div class="form-group cms-field">
                             <label>Price (€)</label>
                             <input type="number" id="svcPrice" min="0" step="1" placeholder="28" required>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group cms-field">
                             <label>Duration (min)</label>
                             <input type="number" id="svcDuration" min="5" step="5" value="30" required>
                         </div>
