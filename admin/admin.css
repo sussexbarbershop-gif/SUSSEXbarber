@@ -682,3 +682,74 @@ textarea.form-control { resize: vertical; line-height: 1.6; }
 
 /* "20m ago" wrapping onto two lines in a narrow column reads as two facts. */
 .cell-nowrap { white-space: nowrap; }
+
+/* ---- Reports: what changed, and what is worth opening ------------------- */
+/* A number on its own cannot be read as good or bad. */
+.stat-note.is-up { color: var(--green); }
+.stat-note.is-down { color: var(--red); }
+
+.report-footnote {
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.6;
+    margin: -6px 0 20px;
+    max-width: 70ch;
+}
+
+.report-more {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-muted);
+    margin: 28px 0 12px;
+}
+
+/* Shut until asked for. The page was eight cards deep before anything could
+   be read, which on a phone is a lot of scrolling past questions nobody had. */
+.report-detail {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+.report-detail > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 16px 20px;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+.report-detail > summary::-webkit-details-marker { display: none; }
+.report-detail > summary:hover { background: var(--bg-card-hover); }
+.detail-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+/* A chevron that turns, so a shut section looks shut. */
+.detail-title::before {
+    content: '';
+    display: inline-block;
+    width: 6px; height: 6px;
+    margin-right: 10px;
+    border-right: 2px solid var(--gold);
+    border-bottom: 2px solid var(--gold);
+    transform: rotate(-45deg) translate(-2px, -2px);
+    transition: transform .2s ease;
+}
+.report-detail[open] > summary .detail-title::before {
+    transform: rotate(45deg) translate(-1px, -3px);
+}
+.report-detail[open] > summary { border-bottom: 1px solid var(--border-color); }
+.detail-download { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+
+/* Each barber's share of the takings, beside the figure it is a share of. */
+.share-cell { display: flex; align-items: center; gap: 8px; min-width: 92px; }
+.share-track {
+    flex: 1; height: 6px; border-radius: 3px;
+    background: var(--bg-input); overflow: hidden;
+}
+.share-fill { display: block; height: 100%; background: var(--gold); border-radius: 3px; }
+.share-value { flex: 0 0 34px; text-align: right; font-size: 12px; color: var(--text-muted); }

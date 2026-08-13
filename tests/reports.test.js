@@ -142,7 +142,7 @@ ok('the 31st does not roll the month over',
    reportsLib.windowStart('2026-03-31', 6), '2025-10-01');
 
 console.log('--- and every section knows how to be a file ---');
-const sections = [...panel.matchAll(/reportsCard\('(\w+)'/g)].map(m => m[1]);
+const sections = [...panel.matchAll(/reports(?:Card|Detail)\('(\w+)'/g)].map(m => m[1]);
 const declared = (panel.match(/const REPORT_SECTIONS = \{[\s\S]*?\n\};/) || [''])[0];
 ok('every card names a section', sections.length > 0, true);
 ok('and every one of them is downloadable',

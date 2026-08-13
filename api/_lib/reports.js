@@ -25,6 +25,13 @@ const ANY = 'Any Available';
 
 const money = v => Math.round(Number(v || 0) * 100) / 100;
 
+/** One row of takings(), in the shape the panel reads. */
+const period = rows => ({
+  appointments: Number(rows[0].bookings),
+  revenue: money(rows[0].revenue),
+  customers: Number(rows[0].customers)
+});
+
 /** The windows the panel offers, and what anything else falls back to. */
 const WINDOWS = [1, 3, 6, 12];
 const DEFAULT_WINDOW = 12;
@@ -40,6 +47,25 @@ function windowStart(today, months) {
   const month = Number(today.slice(5, 7));
   const shifted = new Date(Date.UTC(year, month - 1 - (months - 1), 1));
   return shifted.toISOString().slice(0, 10);
+}
+
+const asDate = day => new Date(day + 'T00:00:00Z');
+const asDay = date => date.toISOString().slice(0, 10);
+const shiftDays = (day, n) => asDay(new Date(asDate(day).getTime() + n * 86400000));
+
+/** The Monday of the week `day` falls in. The shop's week starts there. */
+function weekStart(day) {
+  const weekday = asDate(day).getUTCDay();          // 0 = Sunday
+  return shiftDays(day, weekday === 0 ? -6 : 1 - weekday);
+}
+
+/** The first and last day of the month before `day`'s. */
+function previousMonth(day) {
+  const year = Number(day.slice(0, 4));
+  const month = Number(day.slice(5, 7));
+  const first = new Date(Date.UTC(year, month - 2, 1));
+  const last = new Date(Date.UTC(year, month - 1, 0));
+  return { from: asDay(first), to: asDay(last) };
 }
 
 /**
@@ -58,6 +84,23 @@ async function readReports(sql, today, months) {
   const monthStart = today.slice(0, 8) + '01';
   const from = windowStart(today, span);
 
+  // The periods the headline compares against. A figure on its own says
+  // nothing: 255 euros this month is good news or bad depending entirely on
+  // what last month was, and the owner should not have to remember.
+  const lastMonth = previousMonth(today);
+  const thisWeekFrom = weekStart(today);
+  const lastWeekFrom = shiftDays(thisWeekFrom, -7);
+  const lastWeekTo = shiftDays(thisWeekFrom, -1);
+  // The same number of days into last week as we are into this one, so a
+  // Tuesday is compared with a Tuesday and not with a finished week.
+  const daysIn = Math.round((asDate(today) - asDate(thisWeekFrom)) / 86400000);
+  const lastWeekSoFar = shiftDays(lastWeekFrom, daysIn);
+  // And the same day of last month, for the same reason.
+  const lastMonthSoFar = (() => {
+    const wanted = shiftDays(lastMonth.from, Number(today.slice(8, 10)) - 1);
+    return wanted > lastMonth.to ? lastMonth.to : wanted;
+  })();
+
   // One transaction, not thirteen separate queries.
   //
   // Two reasons, and the second is the real one. It is a single round trip
@@ -66,9 +109,18 @@ async function readReports(sql, today, months) {
   // third would be counted by one and not the other, and the report would say
   // 412 appointments at the top while the barbers underneath added up to 413.
   // Nobody would ever find out why.
+  /** Appointments and takings between two days, inclusive. */
+  const takings = (a, b) => sql`
+    SELECT count(*) AS bookings,
+           COALESCE(sum(price), 0) AS revenue,
+           count(DISTINCT phone_key) AS customers
+      FROM bookings
+     WHERE status = 'active' AND booked_on >= ${a} AND booked_on <= ${b}`;
+
   const [totals, inWindow, thisMonth, ahead, byMonth, barbersOverWindow,
          barbersThisMonth, services, loyalty, newThisMonth, weekdays, hours,
-         visits] =
+         visits, lastMonthWhole, lastMonthToDate, thisWeek, lastWeekToDate,
+         lastWeekWhole] =
     await sql.transaction([
       // Lifetime, and how much of it was called off.
       sql`
@@ -162,7 +214,15 @@ async function readReports(sql, today, months) {
          WHERE status = 'active' AND booked_on <= ${today} AND booked_on >= ${from}
          GROUP BY 1 ORDER BY 1`,
 
-      sql`SELECT value FROM settings WHERE key = 'visit_count'`
+      sql`SELECT value FROM settings WHERE key = 'visit_count'`,
+
+      // Last month whole, and last month up to the same day — one says whether
+      // the month beat the last one, the other whether it is on course to.
+      takings(lastMonth.from, lastMonth.to),
+      takings(lastMonth.from, lastMonthSoFar),
+      takings(thisWeekFrom, today),
+      takings(lastWeekFrom, lastWeekSoFar),
+      takings(lastWeekFrom, lastWeekTo)
     ]);
 
   const lifetime = totals[0];
@@ -218,6 +278,17 @@ async function readReports(sql, today, months) {
       revenue: money(month.revenue),
       customers: Number(month.customers),
       newCustomers: Number(newThisMonth[0].first_timers)
+    },
+
+    // What the headline is measured against. "So far" is the same number of
+    // days into the earlier period, so a Tuesday is compared with a Tuesday
+    // rather than with a finished week that was always going to be bigger.
+    compare: {
+      thisWeek: Object.assign({ from: thisWeekFrom, to: today }, period(thisWeek)),
+      lastWeekSoFar: Object.assign({ from: lastWeekFrom, to: lastWeekSoFar }, period(lastWeekToDate)),
+      lastWeek: Object.assign({ from: lastWeekFrom, to: lastWeekTo }, period(lastWeekWhole)),
+      lastMonthSoFar: Object.assign({ from: lastMonth.from, to: lastMonthSoFar }, period(lastMonthToDate)),
+      lastMonth: Object.assign({ from: lastMonth.from, to: lastMonth.to }, period(lastMonthWhole))
     },
 
     upcoming: {

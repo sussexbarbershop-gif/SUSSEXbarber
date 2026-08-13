@@ -1625,6 +1625,48 @@ function statCard(colour, value, label, note) {
 }
 
 /**
+ * The same tile, with what it was last time underneath.
+ *
+ * A number on its own says nothing. 255 euros this month is good news or bad
+ * depending entirely on what last month was, and the owner should not have to
+ * remember. The comparison is against the same point in the earlier period —
+ * a Tuesday against a Tuesday — or every week would look like a collapse until
+ * Sunday.
+ */
+function statCardVs(colour, value, label, now, before, period) {
+    return `
+        <div class="stat-card ${colour}">
+            <div class="stat-value">${escapeHtml(value)}</div>
+            <div class="stat-label">${escapeHtml(label)}</div>
+            ${changeNote(now, before, period)}
+        </div>`;
+}
+
+/**
+ * "▲ 18% on last month", and the four cases where a percentage would lie.
+ *
+ * `period` is the thing being compared against — "last month", "last week" —
+ * so each sentence can be built to read properly rather than having one
+ * phrase bolted onto the end of all of them.
+ */
+function changeNote(now, before, period) {
+    const then = Number(before) || 0;
+    const value = Number(now) || 0;
+    const say = (text, mood) => `<div class="stat-note${mood ? ' ' + mood : ''}">${escapeHtml(text)}</div>`;
+
+    if (!then && !value) return say(`nothing this period, nor ${period}`);
+    // Something over nothing is not a percentage anybody can use.
+    if (!then) return say(`nothing at all ${period}`, 'is-up');
+    if (!value) return say(`nothing yet — ${period} it was there`, 'is-down');
+
+    const change = Math.round(((value - then) / then) * 100);
+    if (change === 0) return say(`level with ${period}`);
+    const mood = change > 0 ? 'is-up' : 'is-down';
+    const arrow = change > 0 ? '▲' : '▼';
+    return say(`${arrow} ${Math.abs(change)}% on ${period}`, mood);
+}
+
+/**
  * A bar per row, drawn with a div rather than a chart library.
  *
  * The panel has no third-party scripts and the site's CSP does not allow any,
@@ -1699,36 +1741,76 @@ document.addEventListener('click', e => {
     if (!e.target.closest('.download-menu')) closeDownloadMenus();
 });
 
-function reportsMarkup(d) {
-    const empty = '<p class="report-empty">Nothing recorded yet.</p>';
+const EMPTY_NOTE = '<p class="report-empty">Nothing recorded yet.</p>';
 
-    const barberTable = rows => rows.length === 0 ? empty : `
+/**
+ * Who did the work, and what it came to.
+ *
+ * The share is of the takings rather than of the appointments: a barber doing
+ * six beard trims and one doing four skin fades are not the same afternoon,
+ * and the appointment count on its own says they are.
+ */
+function barberTable(rows) {
+    if (rows.length === 0) return EMPTY_NOTE;
+    const total = rows.reduce((sum, r) => sum + r.revenue, 0);
+    return `
         <div class="table-responsive">
             <table>
-                <thead><tr><th>Barber</th><th>Appointments</th><th>Time in the chair</th><th>Takings</th></tr></thead>
-                <tbody>${rows.map(r => `
+                <thead><tr>
+                    <th>Barber</th><th>Appointments</th><th>In the chair</th>
+                    <th>Takings</th><th>Share</th>
+                </tr></thead>
+                <tbody>${rows.map(r => {
+                    const share = total > 0 ? Math.round((r.revenue / total) * 100) : 0;
+                    return `
                     <tr>
                         <td class="cell-strong">${escapeHtml(r.barber)}</td>
                         <td>${r.appointments}</td>
-                        <td>${escapeHtml(asHours(r.minutes))}</td>
-                        <td>${escapeHtml(euros(r.revenue))}</td>
-                    </tr>`).join('')}
+                        <td class="cell-nowrap">${escapeHtml(asHours(r.minutes))}</td>
+                        <td class="cell-nowrap">${escapeHtml(euros(r.revenue))}</td>
+                        <td>
+                            <span class="share-cell">
+                                <span class="share-track"><span class="share-fill" style="width:${share}%"></span></span>
+                                <span class="share-value">${share}%</span>
+                            </span>
+                        </td>
+                    </tr>`;
+                }).join('')}
                 </tbody>
             </table>
         </div>`;
+}
 
+/**
+ * A section that stays shut until it is wanted.
+ *
+ * The page was eight cards deep before anything could be read, which on a
+ * phone is a lot of scrolling to reach a number nobody was looking for. The
+ * headline and the barbers are always open; the rest answer questions that
+ * come up once a month.
+ */
+function reportsDetail(section, title, body, aside) {
+    return `
+        <details class="report-detail">
+            <summary>
+                <span class="detail-title">${escapeHtml(title)}</span>
+                ${aside ? `<span class="report-aside">${escapeHtml(aside)}</span>` : ''}
+            </summary>
+            <div class="report-body">
+                ${section ? `<div class="detail-download">${downloadMenu(section)}</div>` : ''}
+                ${body}
+            </div>
+        </details>`;
+}
+
+function reportsMarkup(d) {
     const busiestHours = d.hours.filter(h => h.appointments > 0);
-    // Every card but the lifetime tiles counts from here, and each says so.
-    // "Customers coming back: 96 been in once" means something quite different
-    // over one month than over twelve, and the card cannot be read without it.
     const since = `since ${d.window.from}`;
+    const c = d.compare;
 
     return `
         <div class="report-toolbar">
-            <span class="report-asat">
-                Up to and including ${escapeHtml(d.asAt)}. Each card downloads
-                over one, three, six or twelve months.
-            </span>
+            <span class="report-asat">Everything up to ${escapeHtml(d.asAt)}</span>
             <span class="report-toolbar-actions">
                 ${downloadMenu('summary')}
                 <button class="btn btn-secondary btn-sm" onclick="refreshReports()">Refresh</button>
@@ -1736,64 +1818,82 @@ function reportsMarkup(d) {
             </span>
         </div>
 
+        <!-- The four numbers the owner opened the page for. Money first,
+             because that is the question; each against the same point in the
+             period before, because a number with nothing beside it cannot be
+             read as good or bad. -->
         <div class="stats-grid">
-            ${statCard('gold', euros(d.thisMonth.revenue), 'Taken this month',
-                       `${d.thisMonth.appointments} appointments since ${d.thisMonth.from}`)}
-            ${statCard('green', euros(d.lifetime.revenue), 'Taken in total',
-                       `${d.lifetime.appointments} appointments`)}
-            ${statCard('blue', String(d.lifetime.customers), 'Customers',
-                       `${d.thisMonth.newCustomers} new this month`)}
-            ${statCard('orange', String(d.upcoming.appointments), 'Still to come',
-                       `${euros(d.upcoming.revenue)} booked ahead`)}
+            ${statCardVs('gold', euros(d.thisMonth.revenue), 'Taken this month',
+                         d.thisMonth.revenue, c.lastMonthSoFar.revenue, 'last month')}
+            ${statCardVs('green', euros(c.thisWeek.revenue), 'Taken this week',
+                         c.thisWeek.revenue, c.lastWeekSoFar.revenue, 'last week')}
+            ${statCardVs('blue', String(d.thisMonth.appointments), 'Appointments this month',
+                         d.thisMonth.appointments, c.lastMonthSoFar.appointments, 'last month')}
+            ${statCard('orange', String(d.upcoming.appointments), 'Booked ahead',
+                       `${euros(d.upcoming.revenue)} still to come in`)}
         </div>
 
-        ${reportsCard('months', 'Trade by month',
-            d.months.length === 0 ? empty : barRows(d.months,
+        <p class="report-footnote">
+            This month and this week are compared with the same number of days
+            into the last one — ${escapeHtml(c.lastMonthSoFar.from)} to
+            ${escapeHtml(c.lastMonthSoFar.to)}, and
+            ${escapeHtml(c.lastWeekSoFar.from)} to ${escapeHtml(c.lastWeekSoFar.to)}.
+            Last month finished on ${escapeHtml(euros(c.lastMonth.revenue))} from
+            ${c.lastMonth.appointments} appointments.
+        </p>
+
+        ${reportsCard(null, 'Who did the work', barberTable(d.barbers.thisMonth),
+            `this month, since ${d.thisMonth.from}`)}
+
+        <!-- Everything below is opened when it is asked for. -->
+        <h3 class="report-more">More detail</h3>
+
+        ${reportsDetail('months', 'Month by month',
+            d.months.length === 0 ? EMPTY_NOTE : barRows(d.months,
                 m => m.revenue, m => monthLabel(m.month),
                 m => `${euros(m.revenue)} · ${m.appointments}`),
             'takings, and appointments')}
 
-        <!-- No download on this one: it is always the current month, so the
-             four windows would all have produced the same file. The Barbers
-             card below downloads over one month and gives exactly this. -->
-        ${reportsCard(null, 'Barbers this month',
-            barberTable(d.barbers.thisMonth), `since ${d.thisMonth.from}`)}
+        ${reportsDetail('barbers', 'Barbers over the whole period',
+            barberTable(d.barbers.window), since)}
 
-        ${reportsCard('barbers', 'Barbers', barberTable(d.barbers.window), since)}
-
-        ${reportsCard('services', 'What sells',
-            d.services.length === 0 ? empty : barRows(d.services,
+        ${reportsDetail('services', 'What sells',
+            d.services.length === 0 ? EMPTY_NOTE : barRows(d.services,
                 s => s.appointments, s => s.service,
                 s => `${s.appointments} · ${euros(s.revenue)}`),
             `top ten ${since}`)}
 
-        ${reportsCard('weekdays', 'Busiest days',
+        ${reportsDetail('weekdays', 'Busiest days',
             barRows(d.weekdays, w => w.appointments, w => w.day, w => String(w.appointments)),
             since)}
 
-        ${reportsCard('hours', 'Busiest times',
-            busiestHours.length === 0 ? empty : barRows(busiestHours,
+        ${reportsDetail('hours', 'Busiest times',
+            busiestHours.length === 0 ? EMPTY_NOTE : barRows(busiestHours,
                 h => h.appointments,
                 h => String(h.hour).padStart(2, '0') + ':00',
                 h => String(h.appointments)),
             since)}
 
-        ${reportsCard('loyalty', 'Customers coming back', `
+        ${reportsDetail('loyalty', 'Customers', `
             <div class="stats-grid">
                 ${statCard('blue', String(d.loyalty.returning), 'Been in more than once')}
                 ${statCard('orange', String(d.loyalty.onceOnly), 'Been in once')}
-                ${statCard('green', String(d.loyalty.averageVisits), 'Average visits each')}
+                ${statCard('green', String(d.thisMonth.newCustomers), 'New this month')}
+                ${statCard('gold', String(d.lifetime.customers), 'Customers in all',
+                           'every number the shop has ever taken')}
             </div>`,
             since)}
 
-        ${reportsCard('reach', 'Cancellations and reach', `
+        ${reportsDetail('reach', 'Cancellations, and the website', `
             <div class="stats-grid">
                 ${statCard('orange', String(d.window.cancelled), 'Cancelled',
-                           d.window.cancelledShare + '% of what was booked, ' + since)}
+                           d.window.cancelledShare + '% of what was booked')}
                 ${statCard('blue', String(d.lifetime.siteVisits), 'Visits to the website',
                            'all time — the counter has never been reset')}
                 ${statCard('green', d.lifetime.bookedShare + '%', 'Visits that booked',
-                           'all time; a page load counts as a visit, so read it as a trend')}
+                           'a page load counts as a visit, so read it as a trend')}
+                ${statCard('gold', euros(d.lifetime.revenue), 'Taken in all',
+                           `${d.lifetime.appointments} appointments, all time`)}
             </div>`,
             since)}
     `;
