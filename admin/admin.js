@@ -147,6 +147,9 @@ async function saveToServer(partial) {
 
         if (result.status !== 'success') {
             showToast(result.message || 'Server refused the change', 'error');
+            // The ten minutes ran out mid-edit. Put the keypad back rather than
+            // leaving an open-looking page whose every save is now refused.
+            if (result.locked) lockOwnerPages();
             return false;
         }
         return true;
@@ -1432,14 +1435,29 @@ function renderOwnerGate(page) {
     if (error) error.classList.remove('is-shown');
 }
 
+let reportsFetchInFlight = false;
+
 function renderReports() {
     const content = document.getElementById('reportsContent');
     if (!content) return;
 
-    if (!isUnlocked() || !reportsData) {
+    if (!isUnlocked()) {
         content.innerHTML = '';   // nothing of the figures left behind the lock
         return;
     }
+
+    // Unlocked, but the figures have not been asked for yet — which is the
+    // ordinary case when the PIN was typed on another page. This used to draw
+    // nothing at all: no keypad, because the lock was open, and no report,
+    // because only unlocking *here* had ever fetched one.
+    if (!reportsData) {
+        if (!reportsFetchInFlight) {
+            content.innerHTML = '<p class="report-empty">Loading…</p>';
+            refreshReports();
+        }
+        return;
+    }
+
     content.innerHTML = reportsMarkup(reportsData);
 }
 
@@ -1463,10 +1481,11 @@ async function submitOwnerPin(e) {
         }
         sessionStorage.setItem(UNLOCK_KEY,
             JSON.stringify({ pass: result.unlockPass, until: result.until }));
-        // The pass alone does not draw the page; the page it was asked for does.
+        // The pass alone does not draw the page; the page it was asked for
+        // does. Reports fetches its own figures from there — it has to, since
+        // the PIN is as often typed on another page as on that one.
         renderOwnerGate(currentPage);
         renderPage(currentPage);
-        if (currentPage === 'reports') await refreshReports();
     } catch (err) {
         console.error('Unlock failed', err);
         error.textContent = 'Could not reach the server. Please try again.';
@@ -1551,16 +1570,30 @@ function downloadCSV(filename, rows) {
 }
 
 async function refreshReports() {
-    if (!isUnlocked()) return;
+    if (!isUnlocked() || reportsFetchInFlight) return;
+    reportsFetchInFlight = true;
     try {
         const result = await apiPost(asOwner({ action: 'reports', password: adminPassword }));
         if (result.status === 'success') {
             reportsData = result;
-            renderReports();
+        } else {
+            // A refused answer must not leave "Loading…" on screen for ever.
+            const content = document.getElementById('reportsContent');
+            if (content) {
+                content.innerHTML = `<p class="report-empty">${escapeHtml(result.message ||
+                    'Could not load the reports.')}</p>`;
+            }
+            // The pass has run out, or was never good. Put the keypad back.
+            if (result.locked) { lockOwnerPages(); return; }
         }
     } catch (err) {
         console.error('Could not refresh the reports', err);
+        const content = document.getElementById('reportsContent');
+        if (content) content.innerHTML = '<p class="report-empty">Could not reach the server.</p>';
+    } finally {
+        reportsFetchInFlight = false;
     }
+    if (reportsData) renderReports();
 }
 
 const euros = v => '€' + Number(v || 0).toLocaleString('en-GB',

@@ -249,7 +249,29 @@ ok('the page is remembered in the address bar', /function pageFromHash\(\)/.test
 ok('and restored on sign-in', /navigateTo\(pageFromHash\(\) \|\| 'bookings'\)/.test(panel), true);
 // Locked, the figures must not be left on screen from before.
 ok('a locked Reports draws nothing',
-   /if \(!isUnlocked\(\) \|\| !reportsData\) \{[\s\S]{0,120}innerHTML = ''/.test(panel), true);
+   /if \(!isUnlocked\(\)\) \{[\s\S]{0,140}innerHTML = ''/.test(panel), true);
+
+console.log('--- unlocked on one page, opened on another ---');
+// The PIN is one lock over six pages, so it is usually typed somewhere else.
+// Arriving at Reports already unlocked drew nothing at all: no keypad, because
+// the lock was open, and no figures, because only unlocking *here* had ever
+// fetched any.
+const drawReports = (panel.match(/function renderReports\(\)[\s\S]*?\n}/) || [''])[0];
+ok('an unlocked page with no figures asks for them',
+   /if \(!reportsData\)[\s\S]{0,260}refreshReports\(\)/.test(drawReports), true);
+ok('and says so while it waits', /Loading/.test(drawReports), true);
+// Two navigations before the first answer must not send two requests.
+ok('one request at a time', /reportsFetchInFlight/.test(drawReports), true);
+
+console.log('--- a refusal is not left as "Loading…" ---');
+const refresh = (panel.match(/async function refreshReports\(\)[\s\S]*?\n}/) || [''])[0];
+ok('a refused answer replaces it', /result\.message/.test(refresh), true);
+ok('and an unreachable server too', /Could not reach the server/.test(refresh), true);
+// An expired pass has to put the keypad back, not sit there refusing.
+ok('an expired pass relocks the panel',
+   /result\.locked[\s\S]{0,60}lockOwnerPages\(\)/.test(refresh), true);
+const save = (panel.match(/async function saveToServer\([\s\S]*?\n}/) || [''])[0];
+ok('and so does a refused save', /result\.locked\) lockOwnerPages\(\)/.test(save), true);
 
 // --- and the one check that has to run the thing ------------------------
 async function readingIsOneSnapshot() {
