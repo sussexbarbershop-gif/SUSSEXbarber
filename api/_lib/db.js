@@ -26,6 +26,57 @@ function db() {
   return cachedSql;
 }
 
+/**
+ * The three columns the diary grew after it was already in use, added on
+ * demand.
+ *
+ * `CREATE TABLE IF NOT EXISTS` does nothing whatsoever to a table that already
+ * exists, so re-running db/schema.sql does not add a column to a live
+ * database. The statements to do that are at the foot of that file — but "the
+ * shop must remember to run some SQL before the next deploy or bookings stop"
+ * is not a deployment step, it is a trap.
+ *
+ * So the code repairs the shape itself, and only when it finds it wrong: the
+ * normal path runs no extra query at all. `withNewColumns` catches the one
+ * error Postgres raises for a column that is not there, runs the ALTERs, and
+ * tries again. Every one of them is IF NOT EXISTS, so a second process racing
+ * this does no harm.
+ */
+let columnsEnsured = null;
+
+function ensureBookingColumns() {
+  if (!columnsEnsured) {
+    const sql = db();
+    columnsEnsured = (async () => {
+      await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'web'`;
+      await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS reminded_at timestamptz`;
+      await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS review_asked_at timestamptz`;
+    })();
+    // A failure must not be remembered as a success. Clearing it means the
+    // next request tries again rather than every request after a blip
+    // resolving instantly against a rejected promise.
+    columnsEnsured.catch(() => { columnsEnsured = null; });
+  }
+  return columnsEnsured;
+}
+
+/** 42703 is undefined_column. The text is checked too: some drivers drop the code. */
+const isMissingColumn = err =>
+  String((err && err.code) || '') === '42703' ||
+  /column .* does not exist/i.test(String((err && err.message) || ''));
+
+/** Run a query; if it fails only because a column is missing, add it and retry once. */
+async function withNewColumns(run) {
+  try {
+    return await run();
+  } catch (err) {
+    if (!isMissingColumn(err)) throw err;
+    console.warn('[db] adding the booking columns this database did not have yet');
+    await ensureBookingColumns();
+    return await run();
+  }
+}
+
 /** 'HH:MM:SS' or 'HH:MM' -> 'HH:MM'. Postgres returns seconds; nobody wants them. */
 function hhmm(value) {
   if (!value) return '';
@@ -143,4 +194,5 @@ async function readRotaConfig() {
 }
 
 module.exports = { db, readConfig, readRotaConfig, hhmm, isoToIndex, indexToIso,
-                   WEEKDAY_NAMES, WEEKDAY_NL };
+                   WEEKDAY_NAMES, WEEKDAY_NL,
+                   ensureBookingColumns, withNewColumns, isMissingColumn };

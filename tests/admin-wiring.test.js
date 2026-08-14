@@ -91,5 +91,55 @@ ok('the active tab is set', litAt !== -1, true);
 ok('and the empty state exists to return to', emptyReturn !== -1, true);
 ok('the tab is lit before the early return', litAt < emptyReturn, true);
 
+// --- the Add Booking dialog -------------------------------------------
+//
+// It is the only place in the panel that writes a booking, and every failure
+// it can have is quiet: a chip whose click handler does not exist looks like a
+// chip that will not select, and a request sent without the password comes
+// back "Unauthorized" with no clue which of the two things was missing.
+console.log('--- taking a booking over the phone ---');
+const dialog = (html.match(/<div class="modal-overlay" id="shopBookingModal"[\s\S]*?\n    <\/div>/) || [''])[0];
+ok('the dialog is in the page', dialog !== '', true);
+ok('and a button opens it', /onclick="openShopBookingModal\(\)"/.test(html), true);
+
+// Every field the server requires has to be on the form, or the refusal
+// arrives from the server as a sentence about something the user cannot see.
+['shopBookService', 'shopBookBarber', 'shopBookDate', 'shopBookName',
+ 'shopBookPhone', 'shopBookEmail', 'shopBookTimes'].forEach(id => {
+  ok(`${id} is there`, dialog.includes(`id="${id}"`), true);
+});
+
+const submit = (js.match(/async function submitShopBooking\([\s\S]*?^}/m) || [''])[0];
+ok('it posts the shop action', /action: 'addBookingByShop'/.test(submit), true);
+// Signed with the panel password. Not the PIN: taking a booking is the work,
+// and a barber answering the phone must not have to find the owner.
+ok('signed with the password', /password: adminPassword/.test(submit), true);
+ok('and not with the owner\'s pass', /asOwner\(/.test(submit), false);
+// Every id the form collects has to be read back out again, or the field is
+// decoration.
+['shopBookService', 'shopBookBarber', 'shopBookDate', 'shopBookName',
+ 'shopBookPhone', 'shopBookEmail'].forEach(id => {
+  ok(`${id} is sent`, submit.includes(id), true);
+});
+ok('and so is the chosen time', /shopBookingTime/.test(submit), true);
+// Two taps on a slow connection is two bookings.
+ok('the button locks while it is in flight', /submit\.disabled = true/.test(submit), true);
+ok('and unlocks whatever happens', /finally \{[\s\S]*?submit\.disabled = false/.test(submit), true);
+// The diary on screen is a minute old the moment a booking lands.
+ok('the list is reloaded afterwards', /fetchLiveBookings\(\)/.test(submit), true);
+
+const loader = (js.match(/async function loadShopBookingTimes\([\s\S]*?^}/m) || [''])[0];
+// The panel does not work out which times exist. index.html has its own copy
+// of the rota logic and rota-agreement.test.js keeps it honest; a third copy
+// here would be a third thing to keep in step, and it would drift silently.
+ok('the times come from the server', /slots=1/.test(loader), true);
+ok('including ones already past', /past=1/.test(loader), true);
+ok('a chip handler exists', /function chooseShopBookingTime\(/.test(js), true);
+ok('and the chips call it', /onclick="chooseShopBookingTime\(/.test(loader), true);
+// Change the date twice quickly and the first answer can land last.
+ok('out-of-order answers are dropped', /mine !== shopBookingTimesToken/.test(loader), true);
+// A grid drawn from a failed request would show every slot free.
+ok('a failed request draws nothing', /Could not reach the server/.test(loader), true);
+
 console.log(failed === 0 ? '\nAll wiring tests passed.' : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);

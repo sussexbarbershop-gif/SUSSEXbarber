@@ -230,5 +230,100 @@ async function sendCustomerCancellation(booking, config) {
   });
 }
 
+/**
+ * The morning of the appointment.
+ *
+ * A haircut is booked days ahead and then forgotten, and a customer who does
+ * not turn up costs the shop the whole slot — nobody else could book it and
+ * nobody is in the chair. This is the one email that is worth sending for the
+ * shop's own sake rather than the customer's, so it is kept to a few lines:
+ * when, who with, and how to say if you cannot make it.
+ *
+ * Sent once. api/daily.js writes the time it went out and never picks the same
+ * row up again, so a job that runs twice sends nothing the second time.
+ */
+async function sendReminder(booking, config) {
+  const to = String(booking.email || '').trim();
+  if (!isEmail(to)) return false;
+
+  const settings = (config && config.settings) || {};
+  const phone = String(settings.contact_phone || '').trim();
+  const address = String(settings.contact_address || '').trim().replace(/<br\s*\/?>/gi, ', ');
+  const barber = String(booking.barber || '').trim() || 'Any Available';
+
+  const lines = [
+    `Hello ${booking.name || ''},`,
+    '',
+    `A reminder that your appointment at ${SHOP_NAME} is today.`,
+    '',
+    line('Time:', booking.time || ''),
+    line('Service:', booking.service || ''),
+    line('Barber:', barber)
+  ];
+  if (address) lines.push(line('Where:', address));
+  lines.push('');
+  // The point of the sentence. A customer who cannot come and knows how to say
+  // so is worth more than one who is reminded and says nothing.
+  lines.push('If you cannot make it, please let us know so we can offer the');
+  lines.push(phone ? `time to someone else — call us on ${phone}.`
+                   : 'time to someone else.');
+  lines.push('', 'See you soon.');
+
+  return send({
+    // "Today" in the subject, because a reminder read on a lock screen and
+    // never opened has still done its job.
+    to,
+    subject: `Today at ${booking.time || ''} — ${SHOP_NAME}`,
+    text: lines.join('\n') + '\n'
+  });
+}
+
+/**
+ * The day after, asking for a review.
+ *
+ * Only ever sent to somebody who actually came in, and only once. `reviewUrl`
+ * is a setting the owner fills in; with nothing there this is never called at
+ * all, rather than sent with a dead link in it.
+ *
+ * No incentive offered, and none should be: Google removes reviews it decides
+ * were paid for, and it takes the honest ones down with them.
+ */
+async function sendReviewRequest(booking, config, reviewUrl) {
+  const to = String(booking.email || '').trim();
+  if (!isEmail(to)) return false;
+  const url = String(reviewUrl || '').trim();
+  if (!url) return false;
+
+  const settings = (config && config.settings) || {};
+  const phone = String(settings.contact_phone || '').trim();
+  const barber = String(booking.barber || '').trim();
+
+  const lines = [
+    `Hello ${booking.name || ''},`,
+    '',
+    barber
+      ? `Thank you for coming in yesterday — we hope ${barber} looked after you.`
+      : 'Thank you for coming in yesterday.',
+    '',
+    'If you have a moment, a short review helps people in Wassenaar find us:',
+    url,
+    '',
+    // Said plainly. An email that only wants something is one people stop
+    // opening, and the shop would rather hear about a bad haircut than read
+    // about it in public.
+    'If something was not right, reply to this email instead' +
+      (phone ? ` or call us on ${phone}` : '') + ' — we would rather fix it.',
+    '',
+    'See you next time.'
+  ];
+
+  return send({
+    to,
+    subject: `Thanks from ${SHOP_NAME}`,
+    text: lines.join('\n') + '\n'
+  });
+}
+
 module.exports = { sendBookingNotice, sendCancellationNotice,
-                   sendCustomerConfirmation, sendCustomerCancellation, isEmail };
+                   sendCustomerConfirmation, sendCustomerCancellation,
+                   sendReminder, sendReviewRequest, isEmail };

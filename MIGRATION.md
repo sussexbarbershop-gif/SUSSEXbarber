@@ -31,10 +31,12 @@ row to the last every time somebody picked a date.
   [`db/schema.sql`](db/schema.sql); safe to re-run, every statement is
   `IF NOT EXISTS`.
 - **Backend** — one Vercel function, [`api/index.js`](api/index.js), with its
-  parts in [`api/_lib/`](api/_lib).
+  parts in [`api/_lib/`](api/_lib), plus [`api/daily.js`](api/daily.js) which
+  nothing calls but the clock.
 - **Front end** — [`index.html`](index.html) and [`admin/`](admin), both
-  calling `/api` on their own origin.
-- **Email** — [Brevo](https://brevo.com), over HTTPS, from
+  calling `/api` on their own origin, and two static pages:
+  [`privacy.html`](privacy.html) and [`terms.html`](terms.html).
+- **Email** — [Resend](https://resend.com), over HTTPS, from
   [`api/_lib/mail.js`](api/_lib/mail.js).
 
 ## Environment
@@ -46,66 +48,111 @@ for Production, Preview and Development alike:
 |---|---|
 | `DATABASE_URL` | the Neon connection string |
 | `ADMIN_PASSWORD` | the panel password |
+| `REPORTS_PIN` | the owner's PIN, for the takings and the shop's own settings |
 | `NOTIFY_EMAIL` | where booking notifications go |
-| `BREVO_API_KEY` | a Brevo API key |
-| `MAIL_FROM` | `Sussex Barber Shop <sussexbarbershop@gmail.com>` — exactly the sender verified in Brevo |
+| `RESEND_API_KEY` | a Resend API key |
+| `MAIL_FROM` | `Sussex Barber Shop <booking@sussexbarber.nl>` — an address on the verified domain |
+| `CRON_SECRET` | any long random string. Vercel sends it back on the daily job; without it that job refuses to run at all |
 
 Optional:
 
 | Name | Value | What it does |
 |---|---|---|
-| `RESEND_API_KEY` | a Resend key | use Resend instead of Brevo, once the shop has a domain |
+| `BREVO_API_KEY` | a Brevo key | the old provider, from before the shop had a domain. **Brevo wins when both are set**, so leaving this here means Resend is never used |
 | `BLOB_READ_WRITE_TOKEN` | from Vercel → Storage → Blob | lets the panel upload gallery photos. Without it the rest of the panel works and only uploading is refused |
 | `SHOP_TIMEZONE` | `Europe/Amsterdam` | already the default; only set it if the shop moves |
 
 ---
 
-## Email, and the two things that silently stop it
+## The daily job
 
-The shop had no domain when this was set up — the site was on a `vercel.app`
-address, which is Vercel's. That ruled out most providers: they will only let
-you send from a domain you have proved you own, and you cannot prove you own
-somebody else's.
+`vercel.json` schedules one call to `/api/daily` at **07:00 UTC** — 09:00 in
+Amsterdam in summer, 08:00 in winter. Both are before the shop opens, which is
+all that matters: a reminder that arrives after the appointment is worse than
+none.
 
-Brevo was the way round it. It verifies **one address** rather than a whole
-domain, by emailing that address a link, so the shop sends as its own Gmail,
-free. Free tier is 300 a day; this shop sends two per booking.
+It does two rounds, and both only ever reach a customer who left an email
+address:
 
-**The shop has `sussexbarber.nl` now**, so that constraint is gone. Moving to
-Resend is worth doing when there is time: mail from a domain the shop owns is
-far less likely to be filed as spam than mail from a Gmail address sent by
-somebody else's server. See the end of this section.
+1. **Reminds** everybody booked in today.
+2. **Thanks** everybody who came in yesterday and asks them for a review —
+   but only once `review_url` is filled in on the panel's Website Text page.
+   Empty means no such email is sent at all.
 
-Two things will stop mail dead, and neither shows up as an error on the site —
-the booking is already saved by the time the email is attempted, and a failed
-email must never turn a confirmed appointment into an error for the customer:
+Each row records the moment its email went out, and the queries only pick up
+rows where that is still empty. So running the job twice sends nothing the
+second time, and nothing is ever backfilled: the review round only ever looks
+at yesterday, so setting the link months from now asks yesterday's customers
+and nobody else. Emailing every customer the shop has ever had on one morning
+is how a domain gets marked as spam, and it would take the booking
+confirmations down with it.
 
-1. **`MAIL_FROM` must match the verified sender exactly.** Brevo refuses
-   anything else. The refusal is logged with the address it tried.
-2. **Brevo's "Authorized IPs" must be off for API keys.**
-   Brevo → Security → Authorized IPs → *Deactivate for API keys*. Vercel has no
-   fixed IP, so an allowlist cannot be kept current — it would silently block a
-   real customer's confirmation from an address nobody had seen before.
+**`CRON_SECRET` must be set.** Vercel attaches it as `Authorization: Bearer …`
+to the scheduled call once the variable exists on the project; without it the
+route refuses everything, including Vercel. A public URL that emails the whole
+diary is not something to leave open while somebody remembers to configure it.
+The run is logged on a line starting `[daily]` with what it sent.
 
-Either way, the reason is in the Vercel log on a line starting `[mail]`.
+---
 
-### Moving to Resend
+## Bookings taken by the shop
 
-Now that the shop owns `sussexbarber.nl`, this is available and better. In
-order:
+The panel's Bookings page has an **+ Add Booking** button for a booking taken
+on the phone or at the counter. It posts `addBookingByShop`, which is the same
+`addBooking()` the website goes through — same rota, same one-chair index, same
+priority order for a booking that names nobody, same price read from the
+services table. Only two rules are lifted, and both exist solely because the
+public form is public:
 
-1. Sign up at **resend.com** with `sussexbarbershop@gmail.com`.
-2. **Domains** → **Add Domain** → `sussexbarber.nl`. It gives three DNS records
-   (DKIM, SPF, and a return-path). Add them in Namecheap under **Advanced DNS**
-   and wait for Resend to show **Verified**.
-3. **API Keys** → create one.
-4. In Vercel: set `RESEND_API_KEY`, change `MAIL_FROM` to an address on the
-   domain — `Sussex Barber Shop <booking@sussexbarber.nl>` — and **delete
-   `BREVO_API_KEY`**. The code prefers Brevo when both are set, so leaving it
-   there means nothing changes.
-5. Redeploy, make one test booking, and check both emails arrive.
+- the fifteen-minute notice period, so "can you do half past, it's twenty past"
+  works;
+- the ten-appointments-per-number limit, whose own refusal tells the customer
+  to call the shop.
 
-Nothing in the code changes. `MAIL_FROM` is parsed the same either way.
+It takes the **panel password, not the PIN**. Taking a booking is the work; the
+PIN guards what the shop *is* — its prices, its hours, its takings.
+
+Rows carry a `source` column, `'web'` or `'shop'`, and the diary marks the
+second kind "by phone".
+
+---
+
+## Email
+
+Four messages can reach a customer, and every one of them needs an email
+address the customer chose to give — the field is optional and the booking
+works identically without it:
+
+| When | What |
+|---|---|
+| the booking is made | a confirmation |
+| the morning of it | a reminder |
+| if it is cancelled | a note saying so |
+| the day after | a thank-you, and a review link — only if `review_url` is set |
+
+The shop gets its own notification when a booking arrives on the website. It
+does **not** get one for a booking it typed in itself.
+
+All four are described, in both languages, on [`privacy.html`](privacy.html).
+`tests/legal-pages.test.js` checks that page against `mail.js`, so an email
+added here and not described there fails the suite.
+
+### What silently stops it
+
+None of this shows up as an error on the site: the booking is already saved by
+the time the email is attempted, and a failed email must never turn a confirmed
+appointment into an error for the customer. The reason is always in the Vercel
+log on a line starting `[mail]`.
+
+1. **`MAIL_FROM` must be on a domain Resend has verified.** It is
+   `booking@sussexbarber.nl`. Resend refuses a domain you have not proved you
+   own — including a Gmail address, which is Google's.
+2. **The DNS records must still be there.** Resend → Domains shows *Verified*
+   or it does not. They live in Namecheap under **Advanced DNS**, and anything
+   that rewrites the zone can take them with it.
+3. **`BREVO_API_KEY` must be gone.** Brevo was used before the shop had a
+   domain, and the code still prefers it when both keys are set — so leaving
+   the old key in place silently sends nothing through Resend.
 
 ---
 
@@ -119,6 +166,17 @@ and a 503 rather than a generic failure.
 **The panel refuses a save.** It now says which rule was broken — a day marked
 open with no hours, a break that ends before it begins. The save is one
 transaction, so nothing lands until all of it can.
+
+**No reminders went out.** Vercel → the project → **Logs**, and look for
+`[daily]`. If there is no such line the job did not run: check `CRON_SECRET`
+exists, and that the deployment carries `vercel.json`. If the line is there
+with `"reminded":0`, nobody booked in that day had left an email address.
+
+**A column is missing.** `CREATE TABLE IF NOT EXISTS` does nothing to a table
+that already exists, so re-running `db/schema.sql` does not add a column to a
+live database — the `ALTER` statements at the foot of that file do. The code
+also repairs the shape itself the first time it finds it wrong, so this should
+not come up; if it does, the log says `[db] adding the booking columns…`.
 
 **No email arrives.** See the two causes above.
 

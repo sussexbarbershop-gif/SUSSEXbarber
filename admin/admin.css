@@ -293,6 +293,28 @@ tbody tr:last-child td { border-bottom: none; }
 .empty-state svg { width: 48px; height: 48px; margin-bottom: 16px; opacity: 0.3; }
 .empty-state p { font-size: 14px; }
 
+/* TIME SLOTS — the same grid of chips the website uses to pick a time.
+   Written out here rather than shared: the site is built with Tailwind and the
+   panel is not, so there is no stylesheet they could both read. What is shared
+   is the shape — a wrapping grid of equal chips, gold for the one chosen, a
+   line through one that has gone — because a barber who has watched a customer
+   use the site should recognise this without being told. */
+.slot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 8px; }
+.slot-chip {
+    /* 44px is a finger. Below that a chip is a thing you aim at. */
+    min-height: 44px; padding: 8px 6px; border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm); background: var(--bg-input);
+    color: var(--text-primary); font-family: 'Inter', sans-serif; font-size: 13px;
+    cursor: pointer; transition: var(--transition); text-align: center;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    line-height: 1.2;
+}
+.slot-chip:hover:not(:disabled) { border-color: var(--gold); color: var(--gold-text); }
+.slot-chip.selected { background: var(--gold); border-color: var(--gold); color: #000; font-weight: 600; }
+.slot-chip:disabled { cursor: not-allowed; opacity: 0.45; }
+.slot-chip:disabled .slot-chip-time { text-decoration: line-through; }
+.slot-chip-note { font-size: 10px; opacity: 0.8; }
+
 /* TOAST */
 .toast { position: fixed; bottom: 32px; right: 32px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 14px 20px; display: flex; align-items: center; gap: 10px; font-size: 14px; box-shadow: var(--shadow-lg); z-index: 100; animation: slideUp 0.3s ease; max-width: 360px; }
 .toast.success { border-left: 3px solid var(--green); }

@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  One page, so one entry. The site is a single document with the booking form,
-  the services, the gallery and the map all on it; the #anchors in the nav are
-  not separate pages and listing them would tell Google there are six pages
-  where there is one.
+  The shop is one page: the booking form, the services, the gallery and the map
+  are all on it, and the #anchors in the nav are not separate pages. Listing
+  them would tell Google there are six pages where there is one.
+
+  The other two are real documents at their own addresses. They are here at a
+  low priority because they are worth indexing and never worth ranking: nobody
+  searches for them, but a customer deciding whether to hand over a phone
+  number should be able to find what happens to it.
 
   robots.txt points here. It said so before this file existed, which meant the
   first thing any crawler was told about the site was a 404.
@@ -13,5 +17,15 @@
     <loc>https://sussexbarber.nl/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://sussexbarber.nl/privacy.html</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  <url>
+    <loc>https://sussexbarber.nl/terms.html</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.2</priority>
   </url>
 </urlset>

@@ -214,6 +214,7 @@
                         <div class="data-card-header" style="flex-wrap:wrap; gap:12px;">
                             <h3>Bookings</h3>
                             <div class="data-card-actions" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                                <button class="btn btn-primary btn-sm" onclick="openShopBookingModal()">+ Add Booking</button>
                                 <select id="bookingsBarberFilter" class="barber-filter" aria-label="Show one barber's bookings"></select>
                                 <button class="btn btn-secondary btn-sm" onclick="exportBookingsCSV()">Export CSV</button>
                                 <button class="btn btn-secondary btn-sm" onclick="fetchLiveBookings()" style="display:flex; align-items:center; gap:6px;">
@@ -387,6 +388,16 @@
                                 <p class="cms-hint">Only change this if you move premises. In Google Maps: Share &rarr; Embed a map &rarr; copy HTML, then paste only the address inside src="...". It must start with https://www.google.com/maps/embed</p>
                                 <input type="url" id="cms_maps_embed_url" class="form-control" placeholder="https://www.google.com/maps/embed?pb=...">
                             </div>
+
+                            <div class="form-group cms-field">
+                                <label class="cms-label">9. Review Link</label>
+                                <!-- Left empty until the shop has its Google
+                                     listing back. Empty means no review email
+                                     is sent at all, rather than one with a
+                                     dead link in it. -->
+                                <p class="cms-hint">Customers who left an email address are thanked the day after their appointment and asked for a review here. Leave it empty and no such email is sent. In your Google Business Profile: <em>Read reviews &rarr; Get more reviews</em>, and copy the short link.</p>
+                                <input type="url" id="cms_review_url" class="form-control" placeholder="https://g.page/r/...">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -520,6 +531,84 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" onclick="closeServiceModal()">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Service</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========== A BOOKING TAKEN OVER THE PHONE ==========
+         Laid out the way the website lays it out, because it is the same
+         question asked twice: service and barber, then a date and a time, then
+         who it is for. A barber who has watched a customer fill the form in
+         should not have to learn a second shape for it.
+
+         One screen rather than the site's three steps. The site walks a
+         stranger through it; this is answered while somebody is waiting on the
+         phone, and paging back and forth to change the time is exactly what
+         you do not want then. -->
+    <div class="modal-overlay" id="shopBookingModal">
+        <div class="modal" style="max-width:620px">
+            <div class="modal-header">
+                <h3>Add Booking</h3>
+                <button class="modal-close" onclick="closeShopBookingModal()" aria-label="Close">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <form id="shopBookingForm" onsubmit="submitShopBooking(event)">
+                <div class="modal-body">
+                    <p class="list-caption" style="padding:0 0 14px 0; margin:0;">
+                        For a booking taken on the phone or at the counter. It goes
+                        into the diary under the same rules as the website.
+                    </p>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                        <div class="form-group cms-field">
+                            <label for="shopBookService">Service</label>
+                            <select id="shopBookService" required></select>
+                        </div>
+                        <div class="form-group cms-field">
+                            <label for="shopBookBarber">Barber</label>
+                            <select id="shopBookBarber" onchange="loadShopBookingTimes()"></select>
+                        </div>
+                    </div>
+
+                    <div class="form-group cms-field">
+                        <label for="shopBookDate">Date</label>
+                        <input type="date" id="shopBookDate" onchange="loadShopBookingTimes()" required>
+                    </div>
+
+                    <div class="form-group cms-field">
+                        <label id="shopBookTimeLabel">Time</label>
+                        <!-- Announced, because the whole grid is replaced when
+                             the date or the barber changes and nothing else
+                             says so out loud. -->
+                        <p id="shopBookTimeStatus" class="list-caption" aria-live="polite" style="padding:0 0 8px 0; margin:0;">Choose a date first.</p>
+                        <div id="shopBookTimes" class="slot-grid" role="group" aria-label="Available times"></div>
+                    </div>
+
+                    <div class="form-group cms-field">
+                        <label for="shopBookName">Customer name</label>
+                        <input type="text" id="shopBookName" placeholder="e.g. Ahmed" required>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                        <div class="form-group cms-field">
+                            <label for="shopBookPhone">Phone</label>
+                            <input type="tel" id="shopBookPhone" placeholder="06 12345678" required>
+                        </div>
+                        <div class="form-group cms-field">
+                            <!-- Optional, and said so on the label: most
+                                 people who ring up will not give one, and a
+                                 barber should not be hunting for a way past a
+                                 required field with a customer on the line. -->
+                            <label for="shopBookEmail">Email <span style="opacity:.6">— optional</span></label>
+                            <input type="email" id="shopBookEmail" placeholder="Sends them a confirmation">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeShopBookingModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="shopBookSubmit">Add to diary</button>
                 </div>
             </form>
         </div>

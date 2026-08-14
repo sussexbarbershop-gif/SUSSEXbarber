@@ -24,14 +24,36 @@ const ok = (label, actual, want) => {
     (pass ? '' : `   got=${JSON.stringify(actual)} want=${JSON.stringify(want)}`));
 };
 
-// --- every setting the panel can save must be read by the site ---------
+// --- every setting the panel can save must be read by something --------
+//
+// A box on the Website Text page that nothing reads is a box the owner fills
+// in, saves, and watches change nothing — which is exactly what contact_phone
+// and hero_title used to do.
+//
+// "Something" is not always the website. review_url is typed on the same page
+// and read by api/daily.js when it sends the review email; the home page has
+// no use for it and should not pretend to. So both are searched, and a
+// setting read by neither is the failure.
 const savedByPanel = [...(adminJs.match(/const CMS_FIELDS = \{[\s\S]*?\};/) || [''])[0]
   .matchAll(/:\s*'([^']+)'/g)].map(m => m[1]).sort();
 console.log('the panel saves:', savedByPanel.join(', '));
 
 const renderSettingsSrc = grab('renderSettings');
-const unread = savedByPanel.filter(key => !renderSettingsSrc.includes('settings.' + key));
-ok('the site reads every one of them', unread, []);
+const backend = fs.readdirSync(path.join(root, 'api'))
+  .filter(f => f.endsWith('.js'))
+  .map(f => fs.readFileSync(path.join(root, 'api', f), 'utf8'))
+  .join('\n');
+
+const unread = savedByPanel.filter(key =>
+  !renderSettingsSrc.includes('settings.' + key) &&
+  !backend.includes('.' + key));
+ok('the site or the backend reads every one of them', unread, []);
+
+// And named where the reader would look for it. The daily job is the only
+// thing that sends a customer to Google, so if that link moves, this is the
+// test that says where it went.
+ok('the review link is read by the daily job',
+   fs.readFileSync(path.join(root, 'api', 'daily.js'), 'utf8').includes('review_url'), true);
 
 // --- and applying them actually changes the page -----------------------
 const nodes = {};

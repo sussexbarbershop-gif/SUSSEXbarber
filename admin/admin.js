@@ -718,15 +718,217 @@ function renderBookings() {
             <td>${escapeHtml(b.barberName || 'Any')}</td>
             <td>${escapeHtml(b.date)}</td>
             <td>${escapeHtml(b.time)}</td>
-            <td class="cell-muted cell-nowrap" title="${escapeAttr(bookedAtFull(b.bookedAt))}">${escapeHtml(bookedAgo(b.bookedAt))}</td>
+            <td class="cell-muted cell-nowrap" title="${escapeAttr(bookedAtFull(b.bookedAt))}">${escapeHtml(bookedAgo(b.bookedAt))}${
+                // Only the ones we took ourselves are marked. Marking both
+                // would put a label on every row in the table, which is the
+                // same as marking none.
+                b.source === 'shop' ? ' <span class="cell-muted" title="Taken by the shop, not booked on the website">· by phone</span>' : ''}</td>
             <td>${b.date < day
                     ? '<span class="cell-muted">Past</span>'
-                    : '<span class="status-badge confirmed">● Booked</span>'}</td>
+                    : '<span class="status-badge confirmed">● Booked</span>' +
+                      // Whether the morning reminder can reach them. Only the
+                      // absence is marked: a note on every row that does have
+                      // an address would be a note on most of the table.
+                      (b.hasEmail ? '' : '<span class="cell-muted cell-nowrap" title="No email address, so no reminder can be sent"> no reminder</span>')}</td>
             <td>
                 <button class="btn btn-danger btn-sm" onclick="cancelBookingById('${escapeAttr(b.id)}')" title="Cancel this booking">Cancel</button>
             </td>
         </tr>
     `).join('');
+}
+
+// ---- A booking taken over the phone ---------------------------------------
+//
+// The panel had no way to write one down. Half the shop's bookings arrive by
+// phone or through the door, and they were going into a paper diary the
+// website could not see — so the site offered slots that were already gone,
+// and the takings on the Reports page were the online half of the shop.
+//
+// Nothing here decides anything. It collects the same six answers the booking
+// form collects and posts them; every rule — who is on the floor, whether the
+// chair is free, what the service costs, who gets a booking that named nobody
+// — is applied by the server, by the same code the website goes through. The
+// only thing this file knows about availability is what the server told it.
+
+let shopBookingTime = '';
+let shopBookingTimesToken = 0;
+
+function openShopBookingModal() {
+    const modal = document.getElementById('shopBookingModal');
+    if (!modal) return;
+    document.getElementById('shopBookingForm').reset();
+    shopBookingTime = '';
+
+    // The services the shop actually sells, priced by the server when the row
+    // is written. No price is shown: everyone who signs in shares this
+    // password, and what the shop charges is on Reports behind the PIN.
+    const service = document.getElementById('shopBookService');
+    service.innerHTML = services.map(s =>
+        `<option value="${escapeAttr(s.nameEN)}">${escapeHtml(s.nameEN)}</option>`).join('');
+
+    // "Any Available" first and chosen, as on the website. It is the common
+    // answer — most people ringing up want a haircut, not a particular pair of
+    // hands — and it is the one the shop's own order was written for.
+    const barber = document.getElementById('shopBookBarber');
+    barber.innerHTML = [`<option value="${escapeAttr(ANY_BARBER)}">${escapeHtml(ANY_BARBER)}</option>`]
+        .concat(barbers.filter(b => b.name !== ANY_BARBER)
+            .map(b => `<option value="${escapeAttr(b.name)}">${escapeHtml(b.name)}</option>`))
+        .join('');
+
+    // Today, because the call is nearly always about today or tomorrow. The
+    // shop's date, not the device's — a phone half an hour into tomorrow would
+    // otherwise open on a day the shop has not reached.
+    const date = document.getElementById('shopBookDate');
+    date.value = today();
+    date.min = today();
+
+    modal.classList.add('active');
+    loadShopBookingTimes();
+    // Not the date field: it is already filled in. The first thing actually
+    // being asked is which service.
+    setTimeout(() => document.getElementById('shopBookService').focus(), 50);
+}
+
+function closeShopBookingModal() {
+    document.getElementById('shopBookingModal').classList.remove('active');
+    // Anything still in flight is for a dialog nobody is looking at.
+    shopBookingTimesToken++;
+}
+
+function setShopBookingStatus(text) {
+    const status = document.getElementById('shopBookTimeStatus');
+    if (status) status.textContent = text;
+}
+
+/**
+ * The times for the chosen date and barber, from the server.
+ *
+ * `past=1`, so this morning's slots are still offered — the shop is allowed to
+ * write down an appointment that has already started, and the website's
+ * fifteen-minute notice is for a stranger filling in a form, not for somebody
+ * standing at the counter.
+ *
+ * The token is a guard against the answers arriving out of order: change the
+ * date twice quickly and the first request can land last, painting the grid
+ * for a day nobody is looking at any more.
+ */
+async function loadShopBookingTimes() {
+    const grid = document.getElementById('shopBookTimes');
+    if (!grid) return;
+    const date = document.getElementById('shopBookDate').value;
+    const barber = document.getElementById('shopBookBarber').value || ANY_BARBER;
+
+    shopBookingTime = '';
+    grid.innerHTML = '';
+    if (!date) return setShopBookingStatus('Choose a date first.');
+
+    const mine = ++shopBookingTimesToken;
+    setShopBookingStatus('Loading times…');
+
+    let all = [];
+    let unavailable = [];
+    try {
+        const url = `${API_URL}?date=${encodeURIComponent(date)}` +
+                    `&barber=${encodeURIComponent(barber === ANY_BARBER ? '' : barber)}` +
+                    `&slots=1&past=1`;
+        const res = await fetch(url, { cache: 'no-store' });
+        const data = await res.json();
+        all = Array.isArray(data && data.slots) ? data.slots : [];
+        unavailable = Array.isArray(data && data.unavailable) ? data.unavailable : [];
+    } catch (err) {
+        if (mine !== shopBookingTimesToken) return;
+        // Left empty rather than guessed at. A grid drawn from a failed
+        // request would show every slot free, and the first thing the shop
+        // would know about it is the server refusing the booking.
+        return setShopBookingStatus('Could not reach the server. Try again.');
+    }
+    if (mine !== shopBookingTimesToken) return;
+
+    if (all.length === 0) {
+        return setShopBookingStatus(barber === ANY_BARBER
+            ? 'The shop is closed that day.'
+            : `${barber} does not work that day.`);
+    }
+
+    grid.innerHTML = all.map(t => {
+        const taken = unavailable.indexOf(t) !== -1;
+        return `<button type="button" class="slot-chip" ${taken ? 'disabled' : ''}
+                        aria-pressed="false"
+                        aria-label="${escapeAttr(t)} — ${taken ? 'already booked' : 'available'}"
+                        onclick="chooseShopBookingTime(this, '${escapeAttr(t)}')">
+                    <span class="slot-chip-time">${escapeHtml(t)}</span>
+                    ${taken ? '<span class="slot-chip-note">Booked</span>' : ''}
+                </button>`;
+    }).join('');
+
+    const free = all.length - all.filter(t => unavailable.indexOf(t) !== -1).length;
+    setShopBookingStatus(free === 0
+        ? 'Every time that day is taken.'
+        : `${free} of ${all.length} times free. Pick one.`);
+}
+
+function chooseShopBookingTime(button, label) {
+    document.querySelectorAll('#shopBookTimes .slot-chip').forEach(chip => {
+        chip.classList.remove('selected');
+        chip.setAttribute('aria-pressed', 'false');
+    });
+    button.classList.add('selected');
+    button.setAttribute('aria-pressed', 'true');
+    shopBookingTime = label;
+    setShopBookingStatus(`${label} chosen.`);
+}
+
+async function submitShopBooking(e) {
+    e.preventDefault();
+    if (!adminPassword) return showToast('Session expired — please sign in again', 'error');
+    if (!shopBookingTime) {
+        setShopBookingStatus('Choose a time before adding this to the diary.');
+        return showToast('Choose a time', 'error');
+    }
+
+    const submit = document.getElementById('shopBookSubmit');
+    // Two taps on a slow connection is two bookings, and the second one would
+    // be refused by the index — but only after both had been sent.
+    submit.disabled = true;
+    submit.textContent = 'Adding…';
+
+    try {
+        const answer = await apiPost({
+            action: 'addBookingByShop',
+            password: adminPassword,
+            date: document.getElementById('shopBookDate').value,
+            time: shopBookingTime,
+            barber: document.getElementById('shopBookBarber').value,
+            service: document.getElementById('shopBookService').value,
+            name: document.getElementById('shopBookName').value.trim(),
+            phone: document.getElementById('shopBookPhone').value.trim(),
+            email: document.getElementById('shopBookEmail').value.trim()
+        });
+
+        if (!answer || answer.status !== 'success') {
+            const why = (answer && answer.message) || 'Could not add that booking';
+            setShopBookingStatus(why);
+            showToast(why, 'error');
+            // The grid is redrawn: the usual reason a booking is refused is
+            // that the chair went while the call was going on, and the times
+            // on screen are now a picture of a minute ago.
+            loadShopBookingTimes();
+            return;
+        }
+
+        // Who it actually landed with. "Any Available" is a question, and the
+        // server's answer to it is the thing the shop needs to say out loud to
+        // the customer still on the phone.
+        closeShopBookingModal();
+        showToast(`Booked with ${answer.barber || 'the shop'}`, 'success');
+        await fetchLiveBookings();
+    } catch (err) {
+        console.error('Could not add the booking', err);
+        showToast('Could not reach the server', 'error');
+    } finally {
+        submit.disabled = false;
+        submit.textContent = 'Add to diary';
+    }
 }
 
 function setBookingFilter(filter) {
@@ -895,7 +1097,11 @@ const CMS_FIELDS = {
     cms_contact_address: 'contact_address',
     cms_instagram_url: 'instagram_url',
     cms_maps_url: 'maps_url',
-    cms_maps_embed_url: 'maps_embed_url'
+    cms_maps_embed_url: 'maps_embed_url',
+    // Not read by the website — the daily job reads it. It lives here because
+    // this is the page that saves settings, and a setting the panel does not
+    // send is a setting the next complete save deletes.
+    cms_review_url: 'review_url'
 };
 
 function renderCms() {
@@ -2032,6 +2238,14 @@ async function fetchLiveBookings() {
                 date: b.date || '',
                 time: b.time || '',
                 bookedAt: b.bookedAt || '',
+                // 'shop' when somebody in the panel wrote it down. Worth
+                // showing: a wrong number on a booking the customer typed is
+                // theirs to have mistyped, and one on a booking we took over
+                // the phone is ours to have misheard — and only one of those
+                // is worth ringing back about.
+                source: b.source || 'web',
+                // Whether a reminder can reach them, not the address itself.
+                hasEmail: b.hasEmail === true,
                 status: 'Confirmed'
             }));
             saveBookings();

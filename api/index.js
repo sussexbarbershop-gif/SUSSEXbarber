@@ -20,7 +20,8 @@
  *   BLOB_READ_WRITE_TOKEN  optional; needed only to upload images
  */
 
-const { db, readConfig, readRotaConfig, indexToIso, WEEKDAY_NAMES } = require('./_lib/db');
+const { db, readConfig, readRotaConfig, indexToIso, WEEKDAY_NAMES,
+        withNewColumns } = require('./_lib/db');
 const rota = require('./_lib/rota');
 const { isAuthorized, isPinCorrect, isOwner, reportsPinIsSet, issueUnlockPass,
         UNLOCK_MINUTES, throttleFailedLogin, resetFailedLogins } = require('./_lib/auth');
@@ -141,7 +142,9 @@ module.exports = async function handler(req, res) {
 
 // Reachable by the tests, which drive the real rules rather than a copy of
 // them. Vercel only ever calls the default export above.
-module.exports.refuseBooking = (config, payload) => refuseBooking(config, payload);
+module.exports.refuseBooking = (config, payload, byShop) =>
+  refuseBooking(config, payload, byShop);
+module.exports.addBooking = (payload, res, byShop) => addBooking(payload, res, byShop);
 module.exports.shopNow = shopNow;
 module.exports.isOwnOrigin = isOwnOrigin;
 
@@ -192,8 +195,15 @@ async function handleGet(req, res) {
     // Slots today that have already gone. The browser hides these itself, but
     // from the visitor's own clock — a phone set wrong, or a customer in
     // another timezone, would still be shown them.
+    //
+    // `past=1` leaves them in, for the panel: the shop is allowed to write
+    // down an appointment that has already started, and greying out the whole
+    // morning would make the one thing this is for impossible. It is not a
+    // way in — nothing is written by a GET, and the write still checks the
+    // password. All it discloses is which of this morning's slots had no
+    // booking, which the shop window shows anyone walking past.
     const now = shopNow();
-    if (dateParam === now.date) {
+    if (dateParam === now.date && trimmed(q.past) !== '1') {
       const cutoff = now.minutes + rota.MIN_NOTICE_MINUTES;
       const day = rota.hoursForDay(config, dateParam);
       if (day && day.open === true) {
@@ -207,6 +217,24 @@ async function handleGet(req, res) {
           }
         }
       }
+    }
+
+    // `slots=1` asks for the times that exist as well as the ones that are
+    // gone, and answers an object rather than a bare array so nothing that
+    // reads the old shape has to change.
+    //
+    // The website works the first list out for itself — it has the opening
+    // hours already and a round trip per calendar square would be absurd — and
+    // rota-agreement.test.js exists to keep that copy honest against this one.
+    // The panel does not get a copy. A third would be a third thing to keep in
+    // step, and the failure when it drifts is silent: a time offered that the
+    // server will refuse, discovered with a customer on the phone.
+    if (trimmed(q.slots) === '1') {
+      return json(res, {
+        slots: rota.slotsForDate(config, dateParam, wanted,
+                                 trimmed(q.past) === '1' ? '' : now.date, now.minutes),
+        unavailable
+      });
     }
 
     return json(res, unavailable);
@@ -248,13 +276,13 @@ async function handlePost(req, res) {
     //
     // created_at comes with it so the panel can put the booking that arrived
     // most recently at the top, which is the one nobody has seen yet.
-    const rows = await sql`
+    const rows = await withNewColumns(() => sql`
       SELECT id,
              to_char(booked_on, 'YYYY-MM-DD') AS booked_on,
-             booked_at, service, barber, customer_name, phone,
+             booked_at, service, barber, customer_name, phone, email, source,
              to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at
         FROM bookings WHERE status = 'active'
-       ORDER BY booked_on, booked_at`;
+       ORDER BY booked_on, booked_at`);
     return json(res, rows.map(r => ({
       id: r.id,
       date: r.booked_on,
@@ -263,6 +291,12 @@ async function handlePost(req, res) {
       barber: r.barber,
       name: r.customer_name,
       phone: r.phone,
+      // Whether there is an address to reach them on, not the address itself.
+      // The panel only needs to show whether a reminder can go out; handing
+      // every customer's email to every screen the diary is open on is a
+      // larger thing to leak than it looks, and nothing here uses it.
+      hasEmail: !!String(r.email || '').trim(),
+      source: r.source || 'web',
       bookedAt: r.created_at
     })));
   }
@@ -313,7 +347,32 @@ async function handlePost(req, res) {
     })));
   }
 
-  if (!action || action === 'addBooking') return await addBooking(payload, res);
+  if (!action || action === 'addBooking') return await addBooking(payload, res, false);
+
+  // The shop writing a booking down itself — someone on the phone, or standing
+  // at the counter.
+  //
+  // The panel password, not the PIN. Taking a booking *is* the work: a barber
+  // who answers the phone has to be able to write it in, and putting the
+  // owner's PIN in front of that would mean ringing the owner to book a
+  // haircut. The PIN guards what the shop *is* — its prices, its hours, its
+  // takings — not its diary.
+  //
+  // Everything below this line is the same code the public form runs: the
+  // rota, the one-chair index, the shop's own order for a booking that names
+  // nobody, the service list the price is read from. Only the two rules that
+  // exist because the form is public and anonymous are lifted, and
+  // refuseBooking says why at each of them. A second way to write a row would
+  // have been a second set of rules to keep in step, and they would not have
+  // stayed in step.
+  if (action === 'addBookingByShop') {
+    if (!isAuthorized(payload)) {
+      await throttleFailedLogin();
+      return json(res, { status: 'error', message: 'Unauthorized' }, 401);
+    }
+    return await addBooking(payload, res, true);
+  }
+
   if (action === 'cancelBooking' || action === 'cancel') return await cancelBooking(payload, res);
 
   // The takings. Behind the panel password and a second PIN, because the
@@ -392,7 +451,7 @@ async function handlePost(req, res) {
  */
 const MOST_PER_CUSTOMER = 10;
 
-async function refuseBooking(config, payload) {
+async function refuseBooking(config, payload, byShop) {
   const date = trimmed(payload.date);
   const time = trimmed(payload.time);
 
@@ -421,7 +480,15 @@ async function refuseBooking(config, payload) {
 
   const now = shopNow();
   if (date < now.date) return 'That date has already passed';
-  if (date === now.date && minutes < now.minutes + rota.MIN_NOTICE_MINUTES) {
+  // Fifteen minutes' notice is for the public form, where nobody is in the
+  // room. The shop taking a booking is: the customer is on the phone or at the
+  // counter, and "can you do half past, it's twenty past now" is the ordinary
+  // case. Refusing that would send them back to writing it on paper, which is
+  // the whole problem this is here to fix.
+  //
+  // Earlier today is allowed too, for the same reason — a walk-in written down
+  // after they have left is still a row the takings should have.
+  if (!byShop && date === now.date && minutes < now.minutes + rota.MIN_NOTICE_MINUTES) {
     return 'That time has passed. Please choose a later one.';
   }
 
@@ -446,19 +513,33 @@ async function refuseBooking(config, payload) {
            AND booked_on >= ${now.date}`
   ]);
 
-  if (Number(mine[0].held) >= MOST_PER_CUSTOMER) {
+  // The limit exists because the form is public and anonymous. It says so in
+  // its own refusal — "please call us to add another" — and the shop is what
+  // the customer reaches when they do. Enforcing it against the shop as well
+  // would make that sentence a lie.
+  if (!byShop && Number(mine[0].held) >= MOST_PER_CUSTOMER) {
     return 'That number already has several appointments booked. Please call us to add another.';
   }
 
+  // Told apart from a slot that is merely full, because they are two different
+  // things to be told. On the public form both read as "pick another time" and
+  // that was near enough; the shop typing a booking in needs to know whether
+  // it is chasing a free chair or a day nobody works.
+  if (rota.barbersWorkingAt(config, date, minutes).length === 0) {
+    return 'Nobody is working at that time';
+  }
+
   if (!rota.isSlotFree(config, date, time, held.map(r => r.barber), wanted)) {
-    return 'Someone else booked that time while you were filling this in. Please choose another.';
+    return byShop
+      ? 'Every chair at that time is taken'
+      : 'Someone else booked that time while you were filling this in. Please choose another.';
   }
   return '';
 }
 
-async function addBooking(payload, res) {
+async function addBooking(payload, res, byShop) {
   const config = await readRotaConfig();
-  const refusal = await refuseBooking(config, payload);
+  const refusal = await refuseBooking(config, payload, byShop);
   if (refusal) return json(res, { status: 'error', message: refusal });
 
   const date = trimmed(payload.date);
@@ -490,7 +571,8 @@ async function addBooking(payload, res) {
   // which is how two people ever got the same last chair.
   const candidates = asked ? [asked] : [];
   const written = await insertBooking(sql, {
-    date, clock, service, price, payload, config, time, asked, candidates
+    date, clock, service, price, payload, config, time, asked, candidates,
+    source: byShop ? 'shop' : 'web'
   });
 
   if (written.error) return json(res, { status: 'error', message: written.error });
@@ -502,7 +584,14 @@ async function addBooking(payload, res) {
     service, price, barber: written.barber
   });
   await Promise.allSettled([
-    sendBookingNotice(record),
+    // Not when the shop typed it in. The notification exists to tell the shop
+    // something arrived while nobody was watching the panel; sending it to the
+    // person who is looking at the panel, about the thing they just did, is
+    // noise — and noise is how a notification stops being read.
+    byShop ? Promise.resolve(false) : sendBookingNotice(record),
+    // The confirmation still goes, if they left an address. A customer who
+    // rang up and gave their email wants the same proof as one who used the
+    // form, and it is the only copy of the time they will have.
     sendCustomerConfirmation(record, config)
   ]);
 
@@ -525,6 +614,7 @@ function normaliseBarber(value) {
  */
 async function insertBooking(sql, ctx) {
   const { date, clock, service, price, payload, config, time, asked } = ctx;
+  const source = ctx.source === 'shop' ? 'shop' : 'web';
   const clash = 'Someone else booked that time while you were filling this in. Please choose another.';
 
   // Barbers this request has already been refused. Carried rather than
@@ -545,11 +635,12 @@ async function insertBooking(sql, ctx) {
     }
 
     try {
-      await sql`
+      await withNewColumns(() => sql`
         INSERT INTO bookings (booked_on, booked_at, service, barber, customer_name,
-                              phone, email, price)
+                              phone, email, price, source)
         VALUES (${date}, ${clock}, ${service}, ${barber}, ${trimmed(payload.name)},
-                ${trimmed(payload.phone)}, ${trimmed(payload.email)}, ${price})`;
+                ${trimmed(payload.phone)}, ${trimmed(payload.email)}, ${price},
+                ${source})`);
       return { barber };
     } catch (err) {
       if (!String(err.message || '').includes('bookings_one_chair')) throw err;
