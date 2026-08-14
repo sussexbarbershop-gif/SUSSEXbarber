@@ -3,13 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sussex Barber Shop | Book Online in Wassenaar</title>
+    <!-- The words somebody types come first. Almost nobody searching for a
+         haircut in Wassenaar knows the shop by name yet, so leading with the
+         name spends the most valuable part of the title on the one word the
+         searcher did not use. "Kapper" and "barbier" are here because the
+         customers are Dutch and that is what they type. -->
+    <title>Barber in Wassenaar — Kapper &amp; Barbier | Sussex Barber Shop</title>
 
     <!-- What a search result and a shared link look like. Without these Google
          picks its own snippet from whatever text it finds first, and a link
          pasted into WhatsApp arrives as a bare URL with no name, no picture and
          nothing saying what it is. Customers send this to each other. -->
-    <meta name="description" content="Barber shop in Wassenaar. Book a haircut, beard trim or hot towel shave online in under a minute. Van Hogendorpstraat 10, open Monday to Saturday.">
+    <meta name="description" content="Barbier en kapper in Wassenaar. Book a haircut, beard trim or hot towel shave online in under a minute. Van Hogendorpstraat 10, open Monday to Saturday.">
     <link rel="canonical" href="https://sussexbarber.nl/">
 
     <meta property="og:type" content="website">
@@ -22,6 +27,10 @@
     <meta property="og:image" content="https://sussexbarber.nl/assets/hero_bg_shop.jpg">
     <meta property="og:image:width" content="1436">
     <meta property="og:image:height" content="808">
+    <!-- What the picture is, for anyone whose reader describes it rather than
+         shows it. A shared link is often the first thing a customer sees. -->
+    <meta property="og:image:alt" content="Inside Sussex Barber Shop: barber chairs facing a mirrored counter against an exposed brick wall.">
+    <meta name="twitter:image:alt" content="Inside Sussex Barber Shop: barber chairs facing a mirrored counter against an exposed brick wall.">
     <meta property="og:locale" content="en_GB">
     <meta property="og:locale:alternate" content="nl_NL">
 
@@ -196,6 +205,21 @@
           "dayOfWeek": ["Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
           "opens": "10:00", "closes": "18:00" }
       ],
+      "currenciesAccepted": "EUR",
+      "areaServed": { "@type": "City", "name": "Wassenaar" },
+      "knowsLanguage": ["nl", "en"],
+      "potentialAction": {
+        "@type": "ReserveAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://sussexbarber.nl/",
+          "actionPlatform": [
+            "http://schema.org/DesktopWebPlatform",
+            "http://schema.org/MobileWebPlatform"
+          ]
+        },
+        "result": { "@type": "Reservation", "name": "Book an appointment" }
+      },
       "sameAs": ["https://www.instagram.com/sussexbarbershop"]
     }
     </script>
@@ -2171,9 +2195,59 @@
             { src:'assets/IMG_8569.JPEG', name:'Gallery 6' },
         ];
 
-        // The Google Sheet is the only store. Nothing about the shop is kept on
-        // the visitor's device; the DEFAULT_* lists below are a static fallback
-        // for the first paint and for when the Sheet cannot be reached.
+        // Nothing about the shop is kept on the visitor's device; the DEFAULT_*
+        // lists below are a static fallback for the first paint and for when
+        // the server cannot be reached.
+
+        /**
+         * Move down the page without writing it into the address bar.
+         *
+         * Every nav link is an in-page anchor, so reading the page left the
+         * address at sussexbarber.nl/#gallery — and that is the address people
+         * then copy and send. A customer receives a link to the gallery when
+         * what was meant was the shop.
+         *
+         * The anchors still work when someone arrives with one; they are just
+         * cleaned up afterwards, so what is in the bar is always the address
+         * worth sharing.
+         */
+        (function keepTheAddressClean() {
+            const scrollTo = id => {
+                const target = id && document.getElementById(id);
+                if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                return Boolean(target);
+            };
+
+            document.addEventListener('click', e => {
+                const link = e.target.closest('a[href^="#"]');
+                if (!link) return;
+                const href = link.getAttribute('href');
+
+                // A bare "#" is a button wearing a link's clothes. Let it do
+                // nothing rather than jump to the top and leave a stray hash.
+                if (href === '#') { e.preventDefault(); return; }
+
+                if (!scrollTo(href.slice(1))) return;   // not ours; leave it alone
+                e.preventDefault();
+                history.replaceState(null, '', location.pathname + location.search);
+            });
+
+            // Arriving with one — from an old link, or a search result that
+            // picked up a section. Honour it, then tidy the bar.
+            //
+            // setTimeout rather than requestAnimationFrame: a tab opened in the
+            // background is not painting, so rAF does not run and the address
+            // would stay dirty until somebody looked at it — which is exactly
+            // when the link gets copied.
+            if (location.hash) {
+                const wanted = location.hash.slice(1);
+                setTimeout(() => {
+                    if (scrollTo(wanted)) {
+                        history.replaceState(null, '', location.pathname + location.search);
+                    }
+                }, 0);
+            }
+        })();
 
         // ---- Populate Services List (Price List Section) ----
         function renderServicesList(services) {
@@ -2594,12 +2668,32 @@
                 data.telephone = phone.replace(/[^\d+]/g, '');
             }
 
-            const prices = (config.services || []).map(s => Number(s.price))
-                .filter(p => Number.isFinite(p) && p > 0);
-            if (prices.length) {
+            const priced = (config.services || [])
+                .filter(s => Number.isFinite(Number(s.price)) && Number(s.price) > 0);
+            if (priced.length) {
+                const prices = priced.map(s => Number(s.price));
                 const low = Math.min(...prices);
                 const high = Math.max(...prices);
                 data.priceRange = low === high ? `€${low}` : `€${low}–€${high}`;
+
+                // The actual price list, not just its range. This is what lets a
+                // search result say "Skin Fade €28" rather than only naming the
+                // shop, and it is the shop's own list — so it cannot go stale
+                // the way a hand-written copy would.
+                data.hasOfferCatalog = {
+                    '@type': 'OfferCatalog',
+                    name: 'Services',
+                    itemListElement: priced.map(s => ({
+                        '@type': 'Offer',
+                        priceCurrency: 'EUR',
+                        price: String(Number(s.price)),
+                        itemOffered: {
+                            '@type': 'Service',
+                            name: s.nameEN || s.nameNL,
+                            ...(s.duration ? { serviceType: 'Barbering' } : {})
+                        }
+                    }))
+                };
             }
 
             const address = String(settings.contact_address || '').trim();
@@ -2607,6 +2701,11 @@
                 const parts = address.split(',').map(p => p.trim()).filter(Boolean);
                 if (parts.length >= 2) data.address.streetAddress = parts[0];
             }
+
+            // The shop's own map link, not one written in here. A stub would be
+            // a wrong answer dressed as a right one.
+            const map = String(settings.maps_url || '').trim();
+            if (/^https:\/\//.test(map)) data.hasMap = map;
 
             node.textContent = JSON.stringify(data, null, 2);
         }

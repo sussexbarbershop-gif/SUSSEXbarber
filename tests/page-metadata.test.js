@@ -104,6 +104,34 @@ ok('closed days are left out', /h\.open === true/.test(updater), true);
 // site rather than ignoring it.
 ok('and it is written back as JSON', /JSON\.stringify\(data/.test(updater), true);
 
+console.log('--- the address stays worth sharing ---');
+// Every link in the nav is an in-page anchor, so reading the page left the
+// address at sussexbarber.nl/#gallery — and that is the address people then
+// copy and send. A customer receives a link to the gallery when what was meant
+// was the shop.
+const cleanerSource = (html.match(/function keepTheAddressClean\(\)[\s\S]*?\n        \}\)\(\);/) || [''])[0];
+// The comments explain why one thing was chosen over another, and name the
+// thing that was rejected. Reading them as code reports the very mistake they
+// are there to prevent.
+const cleaner = cleanerSource
+  .split('\n').filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
+ok('in-page links are handled', cleaner !== '', true);
+ok('the hash is never written', /history\.replaceState/.test(cleaner), true);
+ok('and the section is still reached', /scrollIntoView/.test(cleaner), true);
+// Arriving with a hash — an old link, or a search result that picked up a
+// section — has to work and then be tidied.
+ok('an arriving hash is honoured', /if \(location\.hash\)/.test(cleaner), true);
+// rAF does not run in a tab that is not painting, and a link is copied from a
+// background tab as often as a foreground one.
+ok('and tidied without waiting for a paint',
+   /requestAnimationFrame/.test(cleaner), false);
+// A bare "#" is a button wearing a link's clothes; jumping to the top and
+// leaving a stray hash is not what it means.
+ok('a bare hash does nothing', /href === '#'/.test(cleaner), true);
+// An anchor pointing at something the page does not have must be left to the
+// browser rather than silently swallowed.
+ok('an unknown anchor is left alone', /if \(!scrollTo\(.*\) return;/.test(cleaner), true);
+
 console.log('--- the time picker for a screen reader ---');
 // The whole grid is replaced when a date or barber changes. A sighted customer
 // sees that at once; without a live region nobody else is told anything.
