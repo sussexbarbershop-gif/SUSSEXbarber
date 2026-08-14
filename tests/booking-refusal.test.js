@@ -31,14 +31,20 @@ const config = {
 };
 
 // --- the database, as far as refuseBooking() is concerned -------------------
-// It asks one question: who already holds this slot. A tagged template that
-// answers with the fixture is the whole of it.
+// It asks two questions: who already holds this slot, and how many
+// appointments this number is holding. A tagged template that answers both
+// from the fixtures is the whole of it.
 //
 // The driver is stood in for rather than installed, so the suite runs on a
 // clone with only the dev dependencies and never opens a connection. Nothing
 // below this line knows it is not talking to Postgres.
 let slotHolders = [];
-const fakeSql = () => Promise.resolve(slotHolders.map(name => ({ barber: name })));
+let heldByCustomer = 0;
+const fakeSql = (strings) => {
+  const sql = strings.raw.join('?');
+  if (/count\(\*\)/.test(sql)) return Promise.resolve([{ held: heldByCustomer }]);
+  return Promise.resolve(slotHolders.map(name => ({ barber: name })));
+};
 
 const Module = require('module');
 const realLoad = Module._load;
@@ -63,12 +69,14 @@ const ok = (label, actual, want) => {
 
 const why = patch => {
   slotHolders = patch.holders || [];
+  heldByCustomer = patch.alreadyHeld || 0;
   const payload = Object.assign({
     // A Tuesday, far enough ahead that the suite does not expire.
     date: '2099-09-08', time: '11:00 AM', name: 'Ahmed', phone: '0612345678',
     barber: 'Hemen', service: 'Classic Haircut'
   }, patch);
   delete payload.holders;
+  delete payload.alreadyHeld;
   return api.refuseBooking(config, payload);
 };
 
@@ -157,6 +165,24 @@ async function main() {
   refused('but Amir is not',         { holders:['Hemen'], barber:'Amir' }, false);
   refused('no preference, one left', { holders:['Hemen'], barber:ANY_BARBER }, false);
   refused('no preference, none left',{ holders:['Hemen','Amir'], barber:ANY_BARBER }, true);
+  await Promise.all(checks.splice(0));
+
+  console.log('--- one number cannot hold the whole diary ---');
+  // The form is public and asks for a name and a number, so there is nothing
+  // between it and a script that fills a month. A real customer books one
+  // haircut, occasionally two.
+  refused('nine already held', { alreadyHeld: 9 }, false);
+  refused('ten is where it stops', { alreadyHeld: 10 }, true);
+  refused('and beyond', { alreadyHeld: 40 }, true);
+  await Promise.all(checks.splice(0));
+
+  console.log('--- a barber the shop does not have ---');
+  refused('a made-up name', { barber: 'Nobody' }, true);
+  // 'Any', 'Any Available' and nothing at all all mean the same thing. 'Any'
+  // used to slip past the rota check and then be stored as a barber's name.
+  refused('"Any" is nobody',           { barber: 'Any' }, false);
+  refused('"Any Available" is nobody', { barber: ANY_BARBER }, false);
+  refused('and so is blank',           { barber: '' }, false);
   await Promise.all(checks.splice(0));
 
   console.log('--- the message says which rule was hit ---');

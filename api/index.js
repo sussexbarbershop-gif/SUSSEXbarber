@@ -25,7 +25,8 @@ const rota = require('./_lib/rota');
 const { isAuthorized, isPinCorrect, isOwner, reportsPinIsSet, issueUnlockPass,
         UNLOCK_MINUTES, throttleFailedLogin, resetFailedLogins } = require('./_lib/auth');
 const { readReports } = require('./_lib/reports');
-const { sendBookingNotice, sendCustomerConfirmation, sendCancellationNotice } = require('./_lib/mail');
+const { sendBookingNotice, sendCustomerConfirmation, sendCancellationNotice,
+        sendCustomerCancellation } = require('./_lib/mail');
 
 /**
  * Bumped when this file changes in a way the site depends on, and reported
@@ -130,6 +131,11 @@ async function handleGet(req, res) {
     const config = await readConfig();
     config.status = 'success';
     config.backendVersion = BACKEND_VERSION;
+    // The shop's date, so nothing downstream has to work it out from a device
+    // clock. The panel was calling half past midnight in Amsterdam "yesterday",
+    // which put the Today filter on the wrong day and marked tomorrow's
+    // appointments as past.
+    config.today = shopNow().date;
     return json(res, config);
   }
 
@@ -341,6 +347,16 @@ async function handlePost(req, res) {
  * Checked here and not only in the browser: the form is public, so nothing is
  * enforced until the server says so.
  */
+/**
+ * How many appointments one phone number may hold at once.
+ *
+ * The form is public and asks for nothing but a name and a number, so there is
+ * nothing between it and a script that fills the diary for a month. A real
+ * customer books one haircut, occasionally two; ten is far past anything the
+ * shop would see and still far short of a day's work to fill.
+ */
+const MOST_PER_CUSTOMER = 10;
+
 async function refuseBooking(config, payload) {
   const date = trimmed(payload.date);
   const time = trimmed(payload.time);
@@ -374,8 +390,11 @@ async function refuseBooking(config, payload) {
     return 'That time has passed. Please choose a later one.';
   }
 
-  const wanted = trimmed(payload.barber);
-  if (wanted && wanted !== rota.ANY_BARBER && wanted !== 'Any') {
+  // '' from here on means nobody was asked for. 'Any' used to slip past this
+  // check and then be stored as though it were somebody's name.
+  const wanted = normaliseBarber(payload.barber);
+  if (wanted) {
+    if (config.barberNames.indexOf(wanted) === -1) return 'We have no barber by that name';
     if (rota.isBarberOnLeave(config, wanted, date)) return wanted + ' is away on that date';
     if (!rota.isBarberWorkingAt(config, wanted, date, minutes)) {
       return wanted + ' does not work at that time';
@@ -383,10 +402,19 @@ async function refuseBooking(config, payload) {
   }
 
   const sql = db();
-  const held = await sql`
-    SELECT barber FROM bookings
-     WHERE booked_on = ${date} AND booked_at = ${rota.minutesToClock(minutes)}
-       AND status = 'active'`;
+  const [held, mine] = await Promise.all([
+    sql`SELECT barber FROM bookings
+         WHERE booked_on = ${date} AND booked_at = ${rota.minutesToClock(minutes)}
+           AND status = 'active'`,
+    sql`SELECT count(*) AS held FROM bookings
+         WHERE phone_key = ${phoneKey(phone)} AND status = 'active'
+           AND booked_on >= ${now.date}`
+  ]);
+
+  if (Number(mine[0].held) >= MOST_PER_CUSTOMER) {
+    return 'That number already has several appointments booked. Please call us to add another.';
+  }
+
   if (!rota.isSlotFree(config, date, time, held.map(r => r.barber), wanted)) {
     return 'Someone else booked that time while you were filling this in. Please choose another.';
   }
@@ -398,52 +426,106 @@ async function addBooking(payload, res) {
   const refusal = await refuseBooking(config, payload);
   if (refusal) return json(res, { status: 'error', message: refusal });
 
-  const minutes = rota.clockToMinutes(trimmed(payload.time));
-  const barber = trimmed(payload.barber) === rota.ANY_BARBER ? '' : trimmed(payload.barber);
-  const service = trimmed(payload.service);
+  const date = trimmed(payload.date);
+  const time = trimmed(payload.time);
+  const minutes = rota.clockToMinutes(time);
+  const clock = rota.minutesToClock(minutes);
+  const asked = normaliseBarber(payload.barber);
   const sql = db();
 
-  // The price the browser sent is not the price that is recorded. It came from
-  // a public form and can say anything; the shop's own list is the only thing
-  // that decides what a Skin Fade costs. Unknown service, no price — the
-  // booking still stands, because the diary is what matters and the barber can
-  // read the board.
-  const priced = await sql`
-    SELECT price FROM services
+  // The service is the shop's, not the request's. Anything that is not on the
+  // list is refused rather than stored: a diary row reading "Free Haircut" is
+  // a row somebody wrote, and the price would have come out null and quietly
+  // vanished from the takings.
+  const service = trimmed(payload.service);
+  const known = await sql`
+    SELECT name_en, price FROM services
      WHERE name_en = ${service} OR name_nl = ${service}
      ORDER BY position LIMIT 1`;
-  const price = priced.length ? Number(priced[0].price) : null;
-
-  try {
-    await sql`
-      INSERT INTO bookings (booked_on, booked_at, service, barber, customer_name,
-                            phone, email, price)
-      VALUES (${trimmed(payload.date)}, ${rota.minutesToClock(minutes)},
-              ${service}, ${barber}, ${trimmed(payload.name)},
-              ${trimmed(payload.phone)}, ${trimmed(payload.email)}, ${price})`;
-  } catch (err) {
-    // bookings_one_chair. Two requests for the same barber and moment arrived
-    // together and the database refused the second — which is the point of the
-    // index, and the reason there is no lock here.
-    if (String(err.message || '').includes('bookings_one_chair')) {
-      return json(res, {
-        status: 'error',
-        message: 'Someone else booked that time while you were filling this in. Please choose another.'
-      });
-    }
-    throw err;
+  if (!known.length) {
+    return json(res, { status: 'error', message: 'Please choose one of the services offered' });
   }
+  // The price the browser sent is not the price recorded. It came from a
+  // public form and can say anything.
+  const price = Number(known[0].price);
+
+  // Nobody asked for anyone, so the shop decides — in its own order, and only
+  // among those actually on the floor. Written down rather than left empty:
+  // an empty barber column is the one thing the one-chair index cannot hold,
+  // which is how two people ever got the same last chair.
+  const candidates = asked ? [asked] : [];
+  const written = await insertBooking(sql, {
+    date, clock, service, price, payload, config, time, asked, candidates
+  });
+
+  if (written.error) return json(res, { status: 'error', message: written.error });
 
   // After the row is safely written. A booking must never fail because an
   // email did. The row, not the payload — so the notification quotes the price
-  // that was recorded rather than the one the browser claimed.
-  const written = Object.assign({}, payload, { service, barber, price });
+  // and the barber that were recorded, not what the browser claimed.
+  const record = Object.assign({}, payload, {
+    service, price, barber: written.barber
+  });
   await Promise.allSettled([
-    sendBookingNotice(written),
-    sendCustomerConfirmation(written, config)
+    sendBookingNotice(record),
+    sendCustomerConfirmation(record, config)
   ]);
 
-  return json(res, { status: 'success', message: 'Booking added' });
+  return json(res, { status: 'success', message: 'Booking added', barber: written.barber });
+}
+
+/** 'Any Available', 'Any' and '' all mean the same thing: nobody was asked for. */
+function normaliseBarber(value) {
+  const name = trimmed(value);
+  return (name === rota.ANY_BARBER || name === 'Any') ? '' : name;
+}
+
+/**
+ * Write the row, working down the shop's order when nobody was asked for.
+ *
+ * The database is what decides, not a check beforehand: two requests can both
+ * read the same chair as free. When the index refuses one, that barber is
+ * taken and the next in the order is tried — which is exactly what the shop
+ * would do at the counter.
+ */
+async function insertBooking(sql, ctx) {
+  const { date, clock, service, price, payload, config, time, asked } = ctx;
+  const clash = 'Someone else booked that time while you were filling this in. Please choose another.';
+
+  // Barbers this request has already been refused. Carried rather than
+  // re-read: each query is its own trip, and a loop that trusts the next read
+  // to show the row that just beat it is a loop that can pick the same barber
+  // again. There are only so many chairs, so this ends.
+  const refused = [];
+
+  for (let attempt = 0; attempt <= (config.barberNames || []).length; attempt++) {
+    let barber = asked;
+    if (!asked) {
+      const held = await sql`
+        SELECT barber FROM bookings
+         WHERE booked_on = ${date} AND booked_at = ${clock} AND status = 'active'`;
+      barber = rota.nextFreeBarber(config, date, time,
+                                   held.map(r => r.barber).concat(refused));
+      if (!barber) return { error: clash };
+    }
+
+    try {
+      await sql`
+        INSERT INTO bookings (booked_on, booked_at, service, barber, customer_name,
+                              phone, email, price)
+        VALUES (${date}, ${clock}, ${service}, ${barber}, ${trimmed(payload.name)},
+                ${trimmed(payload.phone)}, ${trimmed(payload.email)}, ${price})`;
+      return { barber };
+    } catch (err) {
+      if (!String(err.message || '').includes('bookings_one_chair')) throw err;
+      // Someone took that chair between the read and the write. If the
+      // customer named them, that is the end of it — they asked for that
+      // barber and must not be quietly given another.
+      if (asked) return { error: clash };
+      refused.push(barber);
+    }
+  }
+  return { error: clash };
 }
 
 async function cancelBooking(payload, res) {
@@ -471,12 +553,19 @@ async function cancelBooking(payload, res) {
   }
 
   const r = rows[0];
-  await Promise.allSettled([sendCancellationNotice({
+  const cancelled = {
     date: r.booked_on,
     time: rota.minutesToLabel(rota.parseClock(r.booked_at)),
     name: r.customer_name, phone: r.phone, email: r.email,
     service: r.service, barber: r.barber
-  })]);
+  };
+  // The shop, and the customer. They were emailed when the appointment was
+  // made, so silence when it comes off reads as "did that work?".
+  const config = await readConfig();
+  await Promise.allSettled([
+    sendCancellationNotice(cancelled),
+    sendCustomerCancellation(cancelled, config)
+  ]);
 
   return json(res, { status: 'success', message: 'Booking canceled' });
 }

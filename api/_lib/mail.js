@@ -191,4 +191,39 @@ async function sendCustomerConfirmation(booking, config) {
   });
 }
 
-module.exports = { sendBookingNotice, sendCancellationNotice, sendCustomerConfirmation, isEmail };
+/**
+ * Tell the customer their appointment is off.
+ *
+ * They were emailed when it was made, so silence when it is cancelled reads as
+ * "did that work?" — and the one thing worse than a lost appointment is not
+ * being sure whether it is lost.
+ */
+async function sendCustomerCancellation(booking, config) {
+  const to = String(booking.email || '').trim();
+  if (!isEmail(to)) return false;
+
+  const settings = (config && config.settings) || {};
+  const phone = String(settings.contact_phone || '').trim();
+
+  const lines = [
+    `Hello ${booking.name || ''},`,
+    '',
+    `Your appointment at ${SHOP_NAME} has been cancelled.`,
+    '',
+    line('Was:', `${booking.date || ''} at ${booking.time || ''}`),
+    line('Service:', booking.service || ''),
+    '',
+    'Nothing else is needed. Book again on the website whenever suits you'
+  ];
+  if (phone) lines.push(`, or call us on ${phone}`);
+  lines.push('.', '', 'See you soon.');
+
+  return send({
+    to,
+    subject: `Cancelled — ${booking.date || ''} at ${booking.time || ''}`,
+    text: lines.join('\n') + '\n'
+  });
+}
+
+module.exports = { sendBookingNotice, sendCancellationNotice,
+                   sendCustomerConfirmation, sendCustomerCancellation, isEmail };

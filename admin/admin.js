@@ -161,6 +161,25 @@ async function saveToServer(partial) {
 }
 
 // ---- State ----
+/**
+ * Today, in the shop.
+ *
+ * Not the device's today. The panel worked it out with toISOString(), which is
+ * UTC — so at half past midnight in Wassenaar it still said yesterday, and the
+ * owner reading the diary from another country got a different answer again.
+ * The Today filter was on the wrong day and tomorrow's appointments were
+ * marked Past. The server sends the shop's date with the config; until that
+ * lands, the device's guess is better than nothing.
+ */
+let shopToday = new Date().toISOString().split('T')[0];
+const today = () => shopToday;
+
+/** `days` before or after the shop's today, as 'YYYY-MM-DD'. */
+function shopDayOffset(days) {
+    const at = new Date(shopToday + 'T00:00:00Z');
+    return new Date(at.getTime() + days * 86400000).toISOString().split('T')[0];
+}
+
 let currentPage = 'bookings';
 let bookings = [];
 let services = [];
@@ -188,6 +207,7 @@ async function fetchLiveCMS() {
             // The visit counter is a row in the settings table.
             visitCount = parseInt(settings.visit_count || '0', 10) || 0;
         }
+        if (data.today) shopToday = data.today;
         if (data.barbers && data.barbers.length > 0) barbers = data.barbers;
         if (data.gallery && data.gallery.length > 0) {
             galleryImages = data.gallery.map((g, i) => ({ id: i + 1, src: g, name: 'Img ' + (i + 1) }));
@@ -617,15 +637,15 @@ function listCaption(count, noun) {
 function visibleBookings() {
     let filtered = forChosenBarber(bookings);
 
-    const today = new Date().toISOString().split('T')[0];
-    const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+    const day = today();
+    const weekAgo = shopDayOffset(-7);
 
     if (bookingFilter === 'today') {
-        filtered = filtered.filter(b => b.date === today);
+        filtered = filtered.filter(b => b.date === day);
     } else if (bookingFilter === 'week') {
         filtered = filtered.filter(b => b.date >= weekAgo);
     } else if (bookingFilter === 'upcoming') {
-        filtered = filtered.filter(b => b.date >= today);
+        filtered = filtered.filter(b => b.date >= day);
     }
 
     // Newest arrival first — the booking that came in last is the one nobody
@@ -646,7 +666,7 @@ function renderBookings() {
     // list came down with the config and the select stayed empty.
     renderBarberFilters();
 
-    const today = new Date().toISOString().split('T')[0];
+    const day = today();
     const filtered = visibleBookings();
 
     const caption = document.getElementById('bookingsCaption');
@@ -682,7 +702,7 @@ function renderBookings() {
             <td>${escapeHtml(b.date)}</td>
             <td>${escapeHtml(b.time)}</td>
             <td class="cell-muted cell-nowrap" title="${escapeAttr(bookedAtFull(b.bookedAt))}">${escapeHtml(bookedAgo(b.bookedAt))}</td>
-            <td>${b.date < today
+            <td>${b.date < day
                     ? '<span class="cell-muted">Past</span>'
                     : '<span class="status-badge confirmed">● Booked</span>'}</td>
             <td>
@@ -964,7 +984,68 @@ function deleteGalleryImage(id) {
 
 
 // ---- Barbers ----
+/**
+ * The order the shop offers a barber when the customer asked for nobody.
+ *
+ * Stored as a setting rather than taken from the order of the cards above: the
+ * cards decide what the booking form looks like, and the owner should be able
+ * to put their fastest barber first without moving them to the front of the
+ * website. Anyone missing from the list is tried after everyone on it, so a
+ * barber added this morning is bookable before this has been thought about.
+ */
+function barberPriority() {
+    const known = barbers.map(b => String(b.name).trim())
+        .filter(n => n && n !== ANY_BARBER);
+    const saved = String(settings.barber_priority || '')
+        .split(',').map(n => n.trim()).filter(n => known.includes(n));
+    return saved.concat(known.filter(n => !saved.includes(n)));
+}
+
+function renderBarberPriority() {
+    const container = document.getElementById('barberPriorityList');
+    if (!container) return;
+
+    const order = barberPriority();
+    if (order.length === 0) {
+        container.innerHTML = '<p class="report-empty">No barbers yet.</p>';
+        return;
+    }
+
+    container.innerHTML = order.map((name, i) => `
+        <div class="priority-row">
+            <span class="priority-rank">${i + 1}</span>
+            <span class="priority-name">${escapeHtml(name)}</span>
+            <span class="priority-moves">
+                <button class="btn btn-secondary btn-sm" ${i === 0 ? 'disabled' : ''}
+                        onclick="moveBarberPriority(${i}, -1)" aria-label="Move up">↑</button>
+                <button class="btn btn-secondary btn-sm" ${i === order.length - 1 ? 'disabled' : ''}
+                        onclick="moveBarberPriority(${i}, 1)" aria-label="Move down">↓</button>
+            </span>
+        </div>`).join('');
+}
+
+async function moveBarberPriority(index, direction) {
+    const order = barberPriority();
+    const to = index + direction;
+    if (to < 0 || to >= order.length) return;
+    [order[index], order[to]] = [order[to], order[index]];
+
+    const next = Object.assign({}, settings, { barber_priority: order.join(',') });
+    // Drawn before the save so the list moves under the finger; the save is
+    // what makes it true, and puts it back if the server refuses.
+    settings = next;
+    renderBarberPriority();
+
+    if (await saveToServer({ settings: next })) {
+        showToast('Order saved', 'success');
+    } else {
+        await fetchLiveCMS();
+        renderBarberPriority();
+    }
+}
+
 function renderBarbers() {
+    renderBarberPriority();
     const container = document.getElementById('barbersContainer');
     if (!container) return;
 
@@ -1964,8 +2045,7 @@ function renderWeek() {
 function updateUpcomingBadge() {
     const badge = document.getElementById('pendingBadge');
     if (!badge) return;
-    const today = new Date().toISOString().split('T')[0];
-    const upcoming = forChosenBarber(bookings).filter(b => b.date >= today).length;
+    const upcoming = forChosenBarber(bookings).filter(b => b.date >= today()).length;
     badge.textContent = upcoming;
     badge.style.display = upcoming > 0 ? 'inline' : 'none';
 }
@@ -2142,7 +2222,7 @@ function exportBookingsCSV() {
     // silently mangles anything outside Latin-1 — a customer called Ayşe came
     // out of the spreadsheet wrong.
     downloadCSV(
-        `sussex-bookings-${new Date().toISOString().split('T')[0]}.csv`,
+        `sussex-bookings-${today()}.csv`,
         [['ID', 'Date', 'Time', 'Booked at', 'Customer Name', 'Phone', 'Barber',
           'Service', 'Status']].concat(rows.map(b => [
             b.id || '', b.date || '', b.time || '', bookedAtFull(b.bookedAt),

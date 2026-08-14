@@ -133,6 +133,12 @@ async function readConfig() {
 async function readRotaConfig() {
   const config = await readConfig();
   config.barberNames = config.barbers.map(b => b.name);
+  // Who gets a booking that named nobody, in the shop's own order. A setting
+  // rather than a column: it is a preference the owner changes now and then,
+  // not a fact about a barber, and it must not disturb the order the cards
+  // appear in on the booking form.
+  config.barberPriority = String(config.settings.barber_priority || '')
+    .split(',').map(n => n.trim()).filter(Boolean);
   return config;
 }
 

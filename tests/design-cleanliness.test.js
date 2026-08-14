@@ -142,6 +142,9 @@ function grabByBraces(src, name) {
   const rotaFor = () => [{ day: 'Tuesday', working: true }];
   const escapeAttr = s => s;
   const escapeHtml = s => s;
+  // The cards are what this checks; the priority list beside them draws into
+  // its own element and has its own test.
+  const renderBarberPriority = () => {};
   eval(grabByBraces(adminJs, 'renderBarbers'));
   renderBarbers();
 

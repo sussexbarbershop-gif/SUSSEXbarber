@@ -220,8 +220,48 @@ function isSlotFree(config, dateStr, slotLabel, holders, wanted) {
   return anonymous < uncommitted.length;
 }
 
+/**
+ * Who takes a booking that named nobody, or '' when there is no one left.
+ *
+ * "No preference" used to be stored as no preference: an empty barber column,
+ * which the one-chair index deliberately ignores because it cannot count. Two
+ * such bookings arriving together for the last free chair were both accepted.
+ *
+ * Naming a barber at the moment of booking fixes that at the root — the index
+ * covers every row again — and the shop gets a diary that says who is cutting
+ * rather than leaving it to be worked out on the morning.
+ *
+ * The order is the shop's own, from `barberPriority`; anyone rostered but not
+ * on that list is tried afterwards, so a barber added this morning is still
+ * bookable before the owner has thought about where they belong.
+ */
+function nextFreeBarber(config, dateStr, slotLabel, holders) {
+  const minutes = clockToMinutes(slotLabel);
+  if (minutes === null) return '';
+
+  const working = barbersWorkingAt(config, dateStr, minutes);
+  if (working.length === 0) return '';
+
+  const named = [];
+  let anonymous = 0;
+  (holders || []).forEach(h => {
+    const who = String(h || '').trim();
+    if (!who || who === ANY_BARBER || who === 'Any') anonymous++;
+    else if (named.indexOf(who) === -1) named.push(who);
+  });
+
+  const priority = (config.barberPriority || []).map(n => String(n).trim());
+  const ranked = priority.filter(n => working.indexOf(n) !== -1)
+    .concat(working.filter(n => priority.indexOf(n) === -1));
+
+  const free = ranked.filter(n => named.indexOf(n) === -1);
+  // Rows written before this existed hold a chair without saying whose. They
+  // still take one, so the same number of chairs comes off the end.
+  return free.length > anonymous ? free[0] : '';
+}
+
 module.exports = {
-  SLOT_MINUTES, MIN_NOTICE_MINUTES, ANY_BARBER, WEEKDAY_NAMES,
+  SLOT_MINUTES, MIN_NOTICE_MINUTES, ANY_BARBER, WEEKDAY_NAMES, nextFreeBarber,
   parseClock, clockToMinutes, minutesToLabel, minutesToClock, weekdayNameFor,
   hoursForDay, isClosedOn, barberDayEntry, isBarberOnLeave,
   isBarberWorkingAt, barbersWorkingAt, slotsForDate, isSlotFree

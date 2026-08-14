@@ -190,12 +190,22 @@ async function main() {
 
   say('--- it is called after the row is written, not before ---');
   const api = fs.readFileSync(path.join(__dirname, '..', 'api', 'index.js'), 'utf8');
-  const add = api.slice(api.indexOf('async function addBooking'));
-  const insertAt = add.indexOf('INSERT INTO bookings');
+  const add = api.slice(api.indexOf('async function addBooking'),
+                        api.indexOf('/** \'Any Available\''));
+  // The row is written by insertBooking(), which works down the shop's order
+  // when nobody was asked for. Nothing is emailed until it has come back with
+  // a barber — a customer told their appointment is booked, before the row
+  // that says so exists, is the one failure that cannot be taken back.
+  const writeAt = add.indexOf('await insertBooking(');
   const noticeAt = add.indexOf('sendBookingNotice(');
-  ok('the insert comes first', insertAt !== -1 && noticeAt > insertAt, true);
+  ok('the write comes first', writeAt !== -1 && noticeAt > writeAt, true);
+  ok('and a refusal sends nothing at all',
+     add.indexOf('if (written.error)') < noticeAt, true);
   // allSettled, not all: one address bouncing must not stop the other email.
   ok('and neither email can fail the other', /Promise\.allSettled/.test(add), true);
+  // What was recorded, not what was asked for: with no preference the barber
+  // is decided at the moment of writing, and the email has to name that one.
+  ok('the email quotes the row', /barber: written\.barber/.test(add), true);
 
   console.error = realError;
   console.warn = realWarn;
