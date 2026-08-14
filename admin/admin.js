@@ -2280,13 +2280,19 @@ const ADMIN_I18N = {
 
 let currentAdminLang = 'en';
 
+/** Two languages, so the button is the other one. */
+function toggleAdminLanguage() {
+    setAdminLanguage(currentAdminLang === 'en' ? 'nl' : 'en');
+}
+
 function setAdminLanguage(lang) {
     if (!ADMIN_I18N[lang]) return;
     currentAdminLang = lang;
     localStorage.setItem('sussex_admin_lang', lang);
 
-    const select = document.getElementById('adminLangSelect');
-    if (select) select.value = lang;
+    // The button says which language you are reading, the way the site's does.
+    const button = document.getElementById('adminLangBtn');
+    if (button) button.textContent = lang.toUpperCase();
 
     const dict = ADMIN_I18N[lang];
     document.querySelectorAll('[data-admin-i18n]').forEach(el => {

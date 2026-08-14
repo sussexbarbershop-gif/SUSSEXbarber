@@ -64,5 +64,25 @@ const unstyled = [...classes].filter(c => !new RegExp('\\.' + c + '\\b').test(cs
 console.log('classes in use:', classes.size);
 ok('every class the panel uses is styled', unstyled, []);
 
+// --- a colour that does not exist ---------------------------------------
+// The language control had colour:var(--text-main) written into it. There is
+// no --text-main in this stylesheet, so the label was whatever it inherited —
+// which nothing catches, because a bad variable is not an error, it is just
+// ignored.
+// Comments describe the bug this check exists for, and name the variable that
+// caused it, so reading them as code would report the very mistake they
+// explain.
+const withoutComments = text => text
+  .replace(/<!--[\s\S]*?-->/g, '')
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .split('\n').filter(l => !/^\s*(\/\/|\*)/.test(l)).join('\n');
+
+const declared = new Set([...css.matchAll(/(--[\w-]+)\s*:/g)].map(m => m[1]));
+const used = new Set([...withoutComments(css + html + js)
+  .matchAll(/var\((--[\w-]+)/g)].map(m => m[1]));
+const unknown = [...used].filter(name => !declared.has(name));
+console.log('custom properties in use:', used.size);
+ok('every var() names one the stylesheet defines', unknown, []);
+
 console.log(failed === 0 ? '\nAll admin page tests passed.' : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);

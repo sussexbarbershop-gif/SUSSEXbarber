@@ -796,3 +796,25 @@ textarea.form-control { resize: vertical; line-height: 1.6; }
 /* readonly until it is touched, so nothing fills it on sight. It must not look
    disabled in the meantime. */
 .pin-input[readonly] { background: var(--bg-input); cursor: text; }
+
+/* The same control the site has in its header: a small bordered pill showing
+   the language you are reading, which gives you the other one when pressed.
+   It was a <select> with its colours written inline, one of which named a
+   variable this stylesheet does not have. */
+.lang-toggle {
+    /* Measured against the site's own button rather than guessed at: 36px
+       tall, 12px type at weight 500, 12px either side, an 8px corner. */
+    height: 36px;
+    padding: 0 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+}
+.lang-toggle:hover { border-color: var(--gold); color: var(--gold-text); }
+.lang-toggle:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
