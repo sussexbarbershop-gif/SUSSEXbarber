@@ -163,14 +163,33 @@
                         <div class="gold-line"></div>
                         <p>The takings, the prices, the hours and the staff.</p>
 
-                        <form id="ownerPinForm" autocomplete="off">
-                            <div class="form-group">
-                                <label for="ownerPin">Owner's PIN</label>
-                                <input type="password" id="ownerPin" inputmode="numeric"
-                                       autocomplete="off" placeholder="••••">
-                            </div>
-                            <button type="submit" class="btn-login">Unlock</button>
-                        </form>
+                        <!-- Deliberately not a <form>, and deliberately not
+                             type="password".
+
+                             It was both, and the browser drew the obvious
+                             conclusion: a password box on the admin domain
+                             being submitted must be a sign-in. It offered to
+                             save the PIN over the panel password, and it
+                             offered the panel password back as a suggestion
+                             the next time the PIN was asked for. Either one
+                             ends with the two secrets confused, which defeats
+                             the whole point of there being two.
+
+                             A text box masked by CSS is not a credential to
+                             any password manager. readonly until focus stops
+                             the ones that fill on sight regardless, and the
+                             data-*-ignore attributes ask the rest politely. -->
+                        <div class="form-group">
+                            <label for="ownerPin">Owner's PIN</label>
+                            <input type="text" id="ownerPin" class="pin-input"
+                                   inputmode="numeric" pattern="[0-9]*"
+                                   autocomplete="off" autocorrect="off"
+                                   autocapitalize="off" spellcheck="false"
+                                   readonly data-lpignore="true" data-1p-ignore
+                                   data-bwignore data-form-type="other"
+                                   aria-label="Owner's PIN" placeholder="••••">
+                        </div>
+                        <button type="button" id="ownerPinSubmit" class="btn-login">Unlock</button>
 
                         <div id="ownerPinError" class="login-error"></div>
 

@@ -777,3 +777,22 @@ textarea.form-control { resize: vertical; line-height: 1.6; }
 .priority-moves { display: flex; gap: 6px; }
 .priority-moves .btn { padding: 4px 10px; line-height: 1; }
 .priority-moves .btn[disabled] { opacity: .35; cursor: not-allowed; }
+
+/* The PIN box is a text box wearing a disguise.
+   type="password" is what made the browser call this a sign-in: it offered to
+   save the PIN over the panel password, and offered the panel password back
+   when the PIN was next asked for. Two secrets, quietly becoming one.
+   -webkit-text-security covers Chrome, Edge, Safari and every phone browser
+   the shop will ever see; text-security is the standard spelling for whatever
+   comes next. Where neither lands the PIN is visible while it is typed, which
+   is a fair trade for it not being confused with the password. */
+.pin-input {
+    -webkit-text-security: disc;
+    text-security: disc;
+    letter-spacing: .3em;
+    font-family: 'Inter', sans-serif;
+}
+.pin-input::placeholder { letter-spacing: normal; -webkit-text-security: none; }
+/* readonly until it is touched, so nothing fills it on sight. It must not look
+   disabled in the meantime. */
+.pin-input[readonly] { background: var(--bg-input); cursor: text; }

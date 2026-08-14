@@ -11,6 +11,7 @@ const path = require('path');
 const api = fs.readFileSync(path.join(__dirname, '..', 'api', 'index.js'), 'utf8');
 const panel = fs.readFileSync(path.join(__dirname, '..', 'admin', 'admin.js'), 'utf8');
 const markup = fs.readFileSync(path.join(__dirname, '..', 'admin', 'index.html'), 'utf8');
+const css = fs.readFileSync(path.join(__dirname, '..', 'admin', 'admin.css'), 'utf8');
 
 let failed = 0;
 const ok = (label, actual, want) => {
@@ -238,7 +239,8 @@ ok('every owner request carries the pass',
 console.log('--- and nothing is in the markup to leak ---');
 // The page ships the lock, not the numbers.
 ok('the section exists', /id="page-reports"/.test(markup), true);
-ok('with a PIN form', /id="ownerPinForm"/.test(markup), true);
+ok('with a place to type the PIN', /id="ownerPin"/.test(markup), true);
+ok('and a button to send it', /id="ownerPinSubmit"/.test(markup), true);
 ok('and an empty place for the figures',
    /<div id="reportsContent"[^>]*><\/div>/.test(markup), true);
 // It carried style="display:none" from when a sibling card was the lock and
@@ -256,8 +258,21 @@ hidden.forEach(id => {
   const shows = new RegExp("getElementById\\('" + id + "'\\)[\\s\\S]{0,400}style\\.display");
   ok(`${id} is turned back on somewhere`, shows.test(panel), true);
 });
-ok('the field does not show what is typed',
-   /<input type="password" id="ownerPin"/.test(markup), true);
+// Masked, but not with type="password". That is what made the browser call
+// this a sign-in: it offered to save the PIN over the panel password, and
+// offered the panel password back the next time the PIN was asked for. Two
+// secrets quietly becoming one is the one thing this lock cannot survive.
+const pinField = (markup.match(/<input[^>]*id="ownerPin"[^>]*>/) || [''])[0];
+ok('the PIN box is not a password field', /type="password"/.test(pinField), false);
+ok('what is typed is still hidden',
+   /\.pin-input\s*\{[^}]*text-security:\s*disc/.test(css), true);
+ok('and it carries the masking class', /class="[^"]*pin-input/.test(pinField), true);
+// A password manager fills on sight and asks questions later.
+ok('nothing may fill it before it is touched', /\breadonly\b/.test(pinField), true);
+ok('and the managers are asked to leave it alone',
+   /data-lpignore|data-1p-ignore/.test(pinField), true);
+// A <form> with a password field in it is the shape browsers watch for.
+ok('it is not a form', /id="ownerPinForm"/.test(markup), false);
 
 console.log('--- a refresh lands back where it was ---');
 ok('the page is remembered in the address bar', /function pageFromHash\(\)/.test(panel), true);

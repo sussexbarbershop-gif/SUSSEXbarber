@@ -241,8 +241,25 @@ document.addEventListener('DOMContentLoaded', () => {
     setupNavigation();
     setupSidebar();
 
-    const pinForm = document.getElementById('ownerPinForm');
-    if (pinForm) pinForm.addEventListener('submit', submitOwnerPin);
+    // No form to submit — see the markup for why. The button and the Enter key
+    // do what a submit would have.
+    const pinButton = document.getElementById('ownerPinSubmit');
+    if (pinButton) pinButton.addEventListener('click', submitOwnerPin);
+
+    const pinField = document.getElementById('ownerPin');
+    if (pinField) {
+        pinField.addEventListener('keydown', e => {
+            if (e.key === 'Enter') submitOwnerPin(e);
+        });
+        // It ships readonly so nothing fills it before anyone has asked for
+        // it. Every way a person can reach the box clears that — focus alone
+        // is the usual trick and is not enough: it does not fire in a window
+        // that has not been given focus yet, and a box that will not take a
+        // PIN is worse than a box a password manager fills.
+        ['focus', 'pointerdown', 'touchstart', 'click', 'keydown'].forEach(event => {
+            pinField.addEventListener(event, () => pinField.removeAttribute('readonly'));
+        });
+    }
 
     // The pass runs out on its own. Without this the page it unlocked stays on
     // screen until something else redraws it, and the first save after ten
