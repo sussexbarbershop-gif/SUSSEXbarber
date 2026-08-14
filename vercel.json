@@ -7,9 +7,9 @@
     }
   ],
   "redirects": [
-    { "source": "/ADMIN", "destination": "/admin" },
-    { "source": "/ADMIN/", "destination": "/admin" },
-    { "source": "/Admin", "destination": "/admin" },
-    { "source": "/Admin/", "destination": "/admin" }
+    { "source": "/ADMIN", "destination": "/admin", "permanent": false },
+    { "source": "/ADMIN/", "destination": "/admin", "permanent": false },
+    { "source": "/Admin", "destination": "/admin", "permanent": false },
+    { "source": "/Admin/", "destination": "/admin", "permanent": false }
   ]
 }

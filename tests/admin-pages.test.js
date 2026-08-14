@@ -106,10 +106,18 @@ const lands = src => {
 // And the file it is all pointing at is really there.
 ok('which is a real page',
    fs.existsSync(path.join(root, 'index.html')), true);
-// A permanent redirect is cached by the browser for good. This is a
-// convenience, not a decision, so it stays a temporary one.
-ok('and none of them are permanent',
-   redirects.some(r => r.permanent === true), false);
+// A permanent redirect is a 308, which the browser caches for good: change
+// the panel's address later and every device that ever typed the wrong casing
+// keeps going to the old one, with nothing on the server able to stop it. This
+// is a convenience, not a decision, so it has to be a 307.
+//
+// Stated on every rule, and checked that way. Leaving it out does not mean
+// "temporary" — Vercel's default is permanent, so the first version of this
+// shipped as a 308 while a test that only looked for `permanent === true`
+// passed. Absent is the failure, not the pass.
+redirects.forEach(r => {
+  ok(`${r.source} says so, and says temporary`, r.permanent, false);
+});
 
 console.log(failed === 0 ? '\nAll admin page tests passed.' : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);
