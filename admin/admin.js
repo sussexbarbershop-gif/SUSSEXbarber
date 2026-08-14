@@ -571,6 +571,9 @@ function renderBarberFilters() {
         select.innerHTML = options;
         select.value = barberFilter;
         select.onchange = () => setBarberFilter(select.value);
+        // Last, because it reads the value and the options it has just been
+        // given. Safe to call again: it repaints the one that is already there.
+        buildPicker(select);
     });
 }
 
@@ -737,6 +740,180 @@ function renderBookings() {
     `).join('');
 }
 
+// ---- Dropdowns the panel draws itself -------------------------------------
+//
+// A native <select> opens a list drawn by the operating system. color-scheme
+// got it to open dark rather than white, and that is where CSS stops: the
+// typeface, the padding and the blue highlight belong to Windows and macOS.
+// On a panel that is gold on charcoal it reads as a piece of another program.
+//
+// The <select> stays. It keeps the options, it keeps the value, and it still
+// fires `change` — so renderBarberFilters' onchange and the inline
+// onchange="loadShopBookingTimes()" in the markup carry on working and nothing
+// else in this file had to learn about any of it. Only the part you can see is
+// replaced.
+
+const ICON_CHEVRON = '<svg class="picker-arrow" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"></path></svg>';
+
+/** Every open dropdown but one. Two open at once is two lists over each other. */
+function closeOtherPickers(keep) {
+    document.querySelectorAll('.picker.is-open').forEach(other => {
+        if (other !== keep) setPickerOpen(other, false);
+    });
+}
+
+function setPickerOpen(picker, open) {
+    const toggle = picker.querySelector('.picker-toggle');
+    const menu = picker.querySelector('.picker-menu');
+    picker.classList.toggle('is-open', open);
+    toggle.setAttribute('aria-expanded', String(open));
+    menu.hidden = !open;
+    if (!open) return;
+    closeOtherPickers(picker);
+    // Open on the current choice rather than at the top, so a shop with twelve
+    // services does not start every time from "Classic Haircut".
+    const active = menu.querySelector('[aria-selected="true"]') || menu.firstElementChild;
+    if (active) {
+        menu.querySelectorAll('.is-active').forEach(o => o.classList.remove('is-active'));
+        active.classList.add('is-active');
+        active.scrollIntoView({ block: 'nearest' });
+    }
+}
+
+/**
+ * Wrap a <select> in one of these, or repaint the one it already has.
+ *
+ * Safe to call again whenever the options change — which is every time the
+ * barber list is rebuilt or the booking dialog opens.
+ */
+function buildPicker(select) {
+    if (!select) return;
+    let picker = select.parentElement;
+    if (!picker || !picker.classList.contains('picker')) {
+        picker = document.createElement('div');
+        picker.className = 'picker' +
+            (select.classList.contains('barber-filter') ? ' is-compact' : '');
+        select.parentNode.insertBefore(picker, select);
+        picker.appendChild(select);
+        select.classList.add('picker-native');
+        // Out of the tab order and out of the accessibility tree: the button
+        // below is what a keyboard and a screen reader deal with. Still
+        // focusable by the browser, which is what keeps `required` working.
+        select.setAttribute('tabindex', '-1');
+        select.setAttribute('aria-hidden', 'true');
+        picker.insertAdjacentHTML('beforeend',
+            `<button type="button" class="picker-toggle" aria-haspopup="listbox" aria-expanded="false">` +
+            `<span class="picker-value"></span>${ICON_CHEVRON}</button>` +
+            `<ul class="picker-menu" role="listbox" hidden></ul>`);
+        wirePicker(picker);
+    }
+    paintPicker(picker);
+}
+
+function paintPicker(picker) {
+    const select = picker.querySelector('.picker-native');
+    const menu = picker.querySelector('.picker-menu');
+    const chosen = select.selectedIndex;
+
+    picker.querySelector('.picker-value').textContent =
+        chosen >= 0 ? select.options[chosen].text : '';
+
+    // The <label for="..."> points at the select, which nothing can see now,
+    // so the button has to carry the name itself.
+    const label = select.id
+        ? document.querySelector(`label[for="${select.id}"]`) : null;
+    const name = select.getAttribute('aria-label') ||
+                 (label ? label.textContent.replace(/\s+/g, ' ').trim() : '');
+    if (name) picker.querySelector('.picker-toggle').setAttribute('aria-label', name);
+
+    menu.innerHTML = Array.from(select.options).map((option, i) => `
+        <li class="picker-option" role="option" data-index="${i}"
+            aria-selected="${i === chosen}">
+            <span>${escapeHtml(option.text)}</span>${i === chosen ? ICON_CHECK : ''}
+        </li>`).join('');
+}
+
+function wirePicker(picker) {
+    const select = picker.querySelector('.picker-native');
+    const toggle = picker.querySelector('.picker-toggle');
+    const menu = picker.querySelector('.picker-menu');
+
+    const isOpen = () => picker.classList.contains('is-open');
+    const close = (refocus) => {
+        setPickerOpen(picker, false);
+        if (refocus) toggle.focus();
+    };
+
+    const choose = (option) => {
+        select.selectedIndex = Number(option.dataset.index);
+        paintPicker(picker);
+        // Everything that cares is listening to the select, not to this.
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        close(true);
+    };
+
+    const move = (step) => {
+        const options = Array.from(menu.querySelectorAll('.picker-option'));
+        if (!options.length) return;
+        const at = options.findIndex(o => o.classList.contains('is-active'));
+        const next = options[Math.min(options.length - 1, Math.max(0, at + step))];
+        options.forEach(o => o.classList.remove('is-active'));
+        next.classList.add('is-active');
+        next.scrollIntoView({ block: 'nearest' });
+    };
+
+    toggle.addEventListener('click', () => setPickerOpen(picker, !isOpen()));
+
+    menu.addEventListener('click', e => {
+        const option = e.target.closest('.picker-option');
+        if (option) choose(option);
+    });
+    // Following the mouse as well, so arrowing down and then reaching for the
+    // pointer does not leave two things looking chosen.
+    menu.addEventListener('mousemove', e => {
+        const option = e.target.closest('.picker-option');
+        if (!option || option.classList.contains('is-active')) return;
+        menu.querySelectorAll('.is-active').forEach(o => o.classList.remove('is-active'));
+        option.classList.add('is-active');
+    });
+
+    picker.addEventListener('keydown', e => {
+        if (!isOpen()) {
+            if (['Enter', ' ', 'ArrowDown', 'ArrowUp'].includes(e.key)) {
+                e.preventDefault();
+                setPickerOpen(picker, true);
+            }
+            return;
+        }
+        // Stopped here, not passed on: Escape closes the innermost open thing.
+        // Nothing above listens for it today, but the day the dialog does,
+        // one key press must not shut the list and the dialog together.
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            return close(true);
+        }
+        // Tab moves on rather than being swallowed — but the list must not be
+        // left hanging open over whatever is focused next.
+        if (e.key === 'Tab') return close(false);
+        if (e.key === 'ArrowDown') { e.preventDefault(); return move(1); }
+        if (e.key === 'ArrowUp') { e.preventDefault(); return move(-1); }
+        if (e.key === 'Home') { e.preventDefault(); return move(-999); }
+        if (e.key === 'End') { e.preventDefault(); return move(999); }
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            const active = menu.querySelector('.is-active');
+            if (active) choose(active);
+        }
+    });
+}
+
+// Clicking anywhere else closes it. On the document rather than per dropdown,
+// so opening a second one does not depend on the first having noticed.
+document.addEventListener('click', e => {
+    if (!e.target.closest('.picker')) closeOtherPickers(null);
+});
+
 // ---- A booking taken over the phone ---------------------------------------
 //
 // The panel had no way to write one down. Half the shop's bookings arrive by
@@ -774,6 +951,11 @@ function openShopBookingModal() {
         .concat(barbers.filter(b => b.name !== ANY_BARBER)
             .map(b => `<option value="${escapeAttr(b.name)}">${escapeHtml(b.name)}</option>`))
         .join('');
+
+    // Both lists are the panel's own, not the operating system's. Done after
+    // the options are in, since it paints what it finds.
+    buildPicker(service);
+    buildPicker(barber);
 
     // Today, because the call is nearly always about today or tomorrow. The
     // shop's date, not the device's — a phone half an hour into tomorrow would

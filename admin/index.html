@@ -561,7 +561,11 @@
                         into the diary under the same rules as the website.
                     </p>
 
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                    <!-- A class rather than an inline grid, so it can stack on
+                         a phone. Side by side these two are 140px wide inside
+                         the dialog's padding, and "Any Available" does not fit
+                         in 140px next to an arrow. -->
+                    <div class="field-row">
                         <div class="form-group cms-field">
                             <label for="shopBookService">Service</label>
                             <select id="shopBookService" required></select>
@@ -591,7 +595,7 @@
                         <input type="text" id="shopBookName" placeholder="e.g. Ahmed" required>
                     </div>
 
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                    <div class="field-row">
                         <div class="form-group cms-field">
                             <label for="shopBookPhone">Phone</label>
                             <input type="tel" id="shopBookPhone" placeholder="06 12345678" required>

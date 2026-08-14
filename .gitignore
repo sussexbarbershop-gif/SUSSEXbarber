@@ -1,1 +1,5 @@
 node_modules/
+
+# Editor and agent scratch. settings.local.json is per-machine, and
+# launch.json only describes how to serve this folder locally.
+.claude/

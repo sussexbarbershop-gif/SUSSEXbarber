@@ -141,5 +141,60 @@ ok('out-of-order answers are dropped', /mine !== shopBookingTimesToken/.test(loa
 // A grid drawn from a failed request would show every slot free.
 ok('a failed request draws nothing', /Could not reach the server/.test(loader), true);
 
+// --- the dropdowns the panel draws itself ------------------------------
+//
+// A native <select> opens a list drawn by the operating system, so its
+// typeface, its padding and its blue highlight are Windows's and macOS's. CSS
+// reaches the closed box and nothing inside the open one.
+//
+// The whole design rests on one thing: the <select> is still there. It keeps
+// the options, it keeps the value, and it still fires `change` — so every
+// caller that reads select.value or hangs an onchange off it carries on
+// working, and nothing else in the file had to learn about any of this. If
+// that ever stops being true, the barber filter silently stops filtering.
+console.log('--- dropdowns ---');
+const picker = (js.match(/function buildPicker\([\s\S]*?^}/m) || [''])[0];
+const wiring = (js.match(/function wirePicker\([\s\S]*?^}/m) || [''])[0];
+
+ok('the select is kept, not replaced', /picker\.appendChild\(select\)/.test(picker), true);
+ok('and the change event is still fired',
+   /select\.dispatchEvent\(new Event\('change'/.test(wiring), true);
+ok('from the select itself, which is what everything listens to',
+   /select\.selectedIndex = Number\(/.test(wiring), true);
+
+// Called wherever options are written, or the list shows yesterday's barbers.
+const filters = (js.match(/function renderBarberFilters\(\)[\s\S]*?^}/m) || [''])[0];
+ok('the barber filters get one', /buildPicker\(select\)/.test(filters), true);
+const opener = (js.match(/function openShopBookingModal\(\)[\s\S]*?^}/m) || [''])[0];
+ok('the service list gets one', /buildPicker\(service\)/.test(opener), true);
+ok('the barber list gets one', /buildPicker\(barber\)/.test(opener), true);
+// It has to be safe to call twice: both of those run every time.
+ok('and calling it again repaints rather than nesting',
+   /classList\.contains\('picker'\)/.test(picker), true);
+
+// A control that a mouse can use and a keyboard cannot is not finished.
+['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Home', 'End'].forEach(key => {
+  ok(`${key} is handled`, wiring.includes(`'${key}'`), true);
+});
+ok('Tab moves on rather than being swallowed', /e\.key === 'Tab'/.test(wiring), true);
+// Escape belongs to the innermost open thing.
+ok('and Escape is not passed up to the dialog', /stopPropagation/.test(wiring), true);
+ok('clicking elsewhere closes it', /closeOtherPickers\(null\)/.test(js), true);
+ok('and two are never open at once', /closeOtherPickers\(picker\)/.test(js), true);
+
+// The <label for> points at a select nothing can see any more.
+ok('the button carries the field\'s name',
+   /setAttribute\('aria-label'/.test(js), true);
+ok('the list says what it is', /role="listbox"/.test(js), true);
+ok('and each row does', /role="option"/.test(js), true);
+ok('with the chosen one marked', /aria-selected="\$\{i === chosen\}"/.test(js), true);
+ok('and the button says whether it is open', /aria-expanded/.test(js), true);
+// display:none on a required field makes the browser refuse to submit with an
+// error nobody can see the cause of.
+const cssSrc = fs.readFileSync(path.join(__dirname, '..', 'admin', 'admin.css'), 'utf8');
+const native = (cssSrc.match(/select\.picker-native \{([^}]*)\}/) || ['', ''])[1];
+ok('the hidden select is still focusable', /display:\s*none/.test(native), false);
+ok('and is out of the way', /opacity:\s*0/.test(native), true);
+
 console.log(failed === 0 ? '\nAll wiring tests passed.' : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);

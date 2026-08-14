@@ -36,7 +36,12 @@ const timeInputs = rule('.hours-row .time-inputs');
 ok('.time-inputs wraps', /flex-wrap:\s*wrap/.test(timeInputs || ''), true);
 
 console.log('--- the mobile stylesheet ---');
-const mobile = (css.match(/@media\s*\(max-width:\s*768px\)\s*\{([\s\S]*?)\n\}/) || [])[1] || '';
+// Every one of them, not the first. There was one block for a long time and
+// this read it with a single match — so the day a second appeared above it,
+// every rule in the real one stopped being checked and ten assertions failed
+// at once, pointing at rules that had not moved.
+const mobile = [...css.matchAll(/@media\s*\(max-width:\s*768px\)\s*\{([\s\S]*?)\n\}/g)]
+  .map(m => m[1]).join('\n');
 ok('a max-width:768px block exists', mobile.length > 0, true);
 ok('rota rows are restacked on a phone', /\.hours-row\s*\{[^}]*display:\s*grid/.test(mobile), true);
 ok('the dialog becomes a full-height sheet', /\.modal\s*\{[^}]*height:\s*100dvh/.test(mobile), true);
