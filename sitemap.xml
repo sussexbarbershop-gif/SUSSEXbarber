@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  One page, so one entry. The site is a single document with the booking form,
+  the services, the gallery and the map all on it; the #anchors in the nav are
+  not separate pages and listing them would tell Google there are six pages
+  where there is one.
+
+  robots.txt points here. It said so before this file existed, which meant the
+  first thing any crawler was told about the site was a 404.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://sussexbarber.nl/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>

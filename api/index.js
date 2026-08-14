@@ -95,6 +95,29 @@ const phoneKey = v => {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
+/**
+ * Did this request come from one of our own pages?
+ *
+ * A browser sets Origin on a cross-origin POST and Referer on a same-origin
+ * one, and neither can be set by a page on another site — so this is a fair
+ * test of "a visitor is reading the shop's website". It is not a fair test of
+ * "a person is not lying to us": anyone writing the request by hand writes the
+ * header too. Used only where forging it buys nothing worth having.
+ */
+function isOwnOrigin(req) {
+  const headers = (req && req.headers) || {};
+  const from = headers.origin || headers.referer || '';
+  if (!from) return false;
+  let host;
+  try { host = new URL(from).host; } catch (err) { return false; }
+  // The site answers on its own domain, on the vercel.app address, and on the
+  // per-deployment previews.
+  return host === headers.host ||
+         host === 'sussexbarber.nl' ||
+         /(^|\.)sussexbarber\.nl$/.test(host) ||
+         /\.vercel\.app$/.test(host);
+}
+
 // ---------------------------------------------------------------------------
 
 module.exports = async function handler(req, res) {
@@ -120,6 +143,7 @@ module.exports = async function handler(req, res) {
 // them. Vercel only ever calls the default export above.
 module.exports.refuseBooking = (config, payload) => refuseBooking(config, payload);
 module.exports.shopNow = shopNow;
+module.exports.isOwnOrigin = isOwnOrigin;
 
 // ---- GET ------------------------------------------------------------------
 
@@ -137,16 +161,6 @@ async function handleGet(req, res) {
     // appointments as past.
     config.today = shopNow().date;
     return json(res, config);
-  }
-
-  if (action === 'trackVisit') {
-    const sql = db();
-    const rows = await sql`
-      INSERT INTO settings (key, value) VALUES ('visit_count', '1')
-      ON CONFLICT (key) DO UPDATE
-        SET value = (COALESCE(NULLIF(settings.value, '')::bigint, 0) + 1)::text
-      RETURNING value`;
-    return json(res, { status: 'success', visits: Number(rows[0].value) });
   }
 
   // Availability for one date: the slots that are NOT bookable, which is what
@@ -251,6 +265,27 @@ async function handlePost(req, res) {
       phone: r.phone,
       bookedAt: r.created_at
     })));
+  }
+
+  // One page view, counted.
+  //
+  // A GET that anybody could hold down: it was a public endpoint whose whole
+  // job was to increment a number, so a loop could put the visit count into
+  // the millions in an afternoon and the "visits that booked" figure with it.
+  //
+  // A POST from our own pages now. That does not make it unforgeable — a
+  // header can be typed by anyone who wants to — but it stops crawlers, link
+  // previewers and anything casual, which is what was actually inflating it.
+  // The figure was never precise enough to defend harder than that.
+  if (action === 'trackVisit') {
+    if (!isOwnOrigin(req)) return json(res, { status: 'success', visits: null });
+    const sql = db();
+    const rows = await sql`
+      INSERT INTO settings (key, value) VALUES ('visit_count', '1')
+      ON CONFLICT (key) DO UPDATE
+        SET value = (COALESCE(NULLIF(settings.value, '')::bigint, 0) + 1)::text
+      RETURNING value`;
+    return json(res, { status: 'success', visits: Number(rows[0].value) });
   }
 
   // A customer finding their own appointments. Unauthenticated by design — the
@@ -599,6 +634,22 @@ async function uploadImage(payload, res) {
 // ---- Saving what the panel changed ----------------------------------------
 
 /**
+ * The settings the website reads. A save carrying every one of these is a save
+ * built from a config that loaded properly, which is what makes it safe to
+ * treat as the complete set.
+ */
+const SITE_SETTINGS = ['hero_title', 'hero_subtitle', 'about_text',
+                       'contact_phone', 'contact_address', 'instagram_url',
+                       'maps_url', 'maps_embed_url'];
+
+/**
+ * Settings the panel does not send and must never lose. The visit counter is
+ * written by the site, not by the panel, and a save that dropped it would
+ * reset the shop's running total to nothing.
+ */
+const KEPT_SETTINGS = ['visit_count'];
+
+/**
  * Replace the site's content with what the panel sent.
  *
  * One transaction. The Apps Script wrote each sheet in turn, so a failure
@@ -610,11 +661,25 @@ async function saveCMS(payload, res) {
   const statements = [];
 
   if (payload.settings) {
-    Object.keys(payload.settings).forEach(key => {
+    const keys = Object.keys(payload.settings);
+    keys.forEach(key => {
       statements.push(sql`
         INSERT INTO settings (key, value) VALUES (${key}, ${String(payload.settings[key] ?? '')})
         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`);
     });
+
+    // A key the panel stopped sending used to sit in the table for ever, read
+    // by nothing. Cleared out — but only when the save is a complete one.
+    //
+    // The panel always sends the whole settings object, so a save that is
+    // missing the fields the site actually reads is a save built from a config
+    // that never loaded. Deleting everything absent from that would wipe the
+    // shop's own copy, so it is left alone instead.
+    if (SITE_SETTINGS.every(key => keys.includes(key))) {
+      statements.push(sql`
+        DELETE FROM settings
+         WHERE key <> ALL(${keys.concat(KEPT_SETTINGS)})`);
+    }
   }
 
   if (Array.isArray(payload.barbers)) {

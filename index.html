@@ -2116,14 +2116,21 @@
     <!-- Site content: loaded from the Google Sheet via the Apps Script -->
     <script>
     (function() {
-        // Count this page view in the Sheet, at most once per browsing session.
-        // Apps Script has a daily execution budget, and counting every reload
-        // would spend it on nothing. Fire-and-forget: a failure here must never
-        // affect what the visitor sees.
+        // Count this page view, at most once per browsing session — otherwise
+        // one visitor reading the prices, the gallery and the map is three.
+        //
+        // A POST, because the counter used to be a GET that anybody could hold
+        // down, and crawlers and link previewers were following it without
+        // meaning to. Fire-and-forget: a failure here must never affect what
+        // the visitor sees.
         try {
             if (!sessionStorage.getItem('sussex_visit_counted')) {
                 sessionStorage.setItem('sussex_visit_counted', '1');
-                fetch(`${API_URL}?action=trackVisit`).catch(() => {});
+                fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action: 'trackVisit' })
+                }).catch(() => {});
             }
         } catch (e) { /* private mode: skip counting rather than break the page */ }
 
@@ -2550,6 +2557,60 @@
         }
 
         /** Paint everything from one config object. */
+        /**
+         * Keep what Google is told in step with what the shop actually does.
+         *
+         * The opening hours, the phone number and the price range were written
+         * into the page by hand. They happened to be right; nothing kept them
+         * that way. Change a Monday in the panel and the site said one thing
+         * while the search result said another — and the search result is the
+         * one a customer reads before deciding to walk over.
+         *
+         * Rewritten from the same config the page draws itself from, so the two
+         * cannot drift. Google reads the DOM, so an edit here counts.
+         */
+        function updateStructuredData(config) {
+            const node = document.querySelector('script[type="application/ld+json"]');
+            if (!node) return;
+
+            let data;
+            try { data = JSON.parse(node.textContent); } catch (err) { return; }
+
+            const hours = (config.hours || []).filter(h => h.open === true && h.from && h.to);
+            if (hours.length) {
+                data.openingHoursSpecification = hours.map(h => ({
+                    '@type': 'OpeningHoursSpecification',
+                    dayOfWeek: h.day,
+                    opens: h.from,
+                    closes: h.to
+                }));
+            }
+
+            const settings = config.settings || {};
+            const phone = String(settings.contact_phone || '').trim();
+            // The same guard the visible number gets: a value with no digits in
+            // it is a placeholder or an error, not a telephone number.
+            if (phone && /\d/.test(phone) && !phone.startsWith('#')) {
+                data.telephone = phone.replace(/[^\d+]/g, '');
+            }
+
+            const prices = (config.services || []).map(s => Number(s.price))
+                .filter(p => Number.isFinite(p) && p > 0);
+            if (prices.length) {
+                const low = Math.min(...prices);
+                const high = Math.max(...prices);
+                data.priceRange = low === high ? `€${low}` : `€${low}–€${high}`;
+            }
+
+            const address = String(settings.contact_address || '').trim();
+            if (address) {
+                const parts = address.split(',').map(p => p.trim()).filter(Boolean);
+                if (parts.length >= 2) data.address.streetAddress = parts[0];
+            }
+
+            node.textContent = JSON.stringify(data, null, 2);
+        }
+
         function applyConfig(config) {
             const services = (config.services && config.services.length) ? config.services : DEFAULT_SERVICES;
             const hours = (config.hours && config.hours.length) ? config.hours : DEFAULT_HOURS;
@@ -2573,6 +2634,8 @@
             if (typeof renderCustomCalendar === 'function') renderCustomCalendar();
             if (typeof renderTimeChips === 'function') renderTimeChips();
             if (typeof updateBusinessStatus === 'function') updateBusinessStatus();
+
+            updateStructuredData(config);
 
             // Newly injected markup is English; restore the active language.
             if (typeof applyLanguage === 'function') applyLanguage(window.currentLang || 'en');

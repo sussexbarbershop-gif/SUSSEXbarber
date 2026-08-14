@@ -52,6 +52,25 @@ ok('and points at a file the site actually has',
    fs.existsSync(path.join(__dirname, '..', (ogImage || '').replace(/^https?:\/\/[^/]+\//, ''))), true);
 ok('twitter card is the large format', meta('name', 'twitter:card'), 'summary_large_image');
 
+console.log('--- and the sitemap robots.txt promises ---');
+const robots = fs.readFileSync(path.join(__dirname, '..', 'robots.txt'), 'utf8');
+const promised = (robots.match(/Sitemap:\s*(\S+)/i) || [])[1];
+ok('robots.txt names a sitemap', typeof promised === 'string', true);
+// It named one before the file existed, so the first thing any crawler was
+// told about the site was a 404.
+ok('and the file is there',
+   fs.existsSync(path.join(__dirname, '..', 'sitemap.xml')), true);
+const sitemap = fs.existsSync(path.join(__dirname, '..', 'sitemap.xml'))
+  ? fs.readFileSync(path.join(__dirname, '..', 'sitemap.xml'), 'utf8') : '';
+ok('it is a urlset', /<urlset[^>]*>[\s\S]*<\/urlset>/.test(sitemap), true);
+ok('every <url> is closed',
+   (sitemap.match(/<url>/g) || []).length === (sitemap.match(/<\/url>/g) || []).length, true);
+// A sitemap on one host and a canonical on another is a sitemap Google
+// rejects as being for somebody else's site.
+ok('and it lists the canonical address',
+   sitemap.includes('<loc>' + canonical + '/</loc>'), true);
+ok('robots points at that host too', (promised || '').startsWith(canonical), true);
+
 console.log('--- what Google is told about the business ---');
 const ld = (html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/) || [])[1];
 ok('there is structured data', typeof ld === 'string', true);
@@ -66,6 +85,24 @@ if (data) {
   ok('and opening hours', Array.isArray(data.openingHoursSpecification) &&
      data.openingHoursSpecification.length > 0, true);
 }
+
+// The hours, the phone number and the price range were written in by hand.
+// They happened to be right; nothing kept them that way, so changing a Monday
+// in the panel left the search result saying something the site did not.
+console.log('--- and kept in step with the shop ---');
+ok('the page rewrites it from the config', /function updateStructuredData\(config\)/.test(html), true);
+ok('whenever the config is applied',
+   /function applyConfig\([\s\S]*?updateStructuredData\(config\)/.test(html), true);
+const updater = (html.match(/function updateStructuredData\(config\)[\s\S]*?\n        \}/) || [''])[0];
+['openingHoursSpecification', 'telephone', 'priceRange'].forEach(field => {
+  ok(`${field} follows the shop`, updater.includes(field), true);
+});
+// Only days the shop is actually open belong in it — a closed Monday listed
+// with hours is worse than no Monday at all.
+ok('closed days are left out', /h\.open === true/.test(updater), true);
+// A malformed blob is worse than none: Google reports it against the whole
+// site rather than ignoring it.
+ok('and it is written back as JSON', /JSON\.stringify\(data/.test(updater), true);
 
 console.log('--- the time picker for a screen reader ---');
 // The whole grid is replaced when a date or barber changes. A sighted customer
