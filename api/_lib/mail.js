@@ -17,11 +17,16 @@
  *                    With Brevo this has to be the address that was verified.
  *   NOTIFY_EMAIL     where the shop's own notifications go
  *
- * Two providers rather than one because of a real constraint: the shop has no
- * domain, only sussexbarbershop.vercel.app, which belongs to Vercel and cannot
- * be verified. Single-sender verification is the only free way to reach
- * customers. If a domain is bought later, set RESEND_API_KEY instead and
- * nothing else changes.
+ * Two providers rather than one because of what used to be a real constraint:
+ * the shop had no domain, only a vercel.app address, which belongs to Vercel
+ * and cannot be verified. Single-sender verification was the only free way to
+ * reach customers.
+ *
+ * The shop has sussexbarber.nl now, so Resend is available: verify the domain
+ * with it, set RESEND_API_KEY instead of BREVO_API_KEY, and point MAIL_FROM at
+ * an address on the domain. Nothing here changes. Mail from a domain the shop
+ * owns is far less likely to be filed as spam than mail from a Gmail address
+ * sent by somebody else's server.
  *
  * Every function here swallows its failures, for the same reason the Apps
  * Script did: the booking is already saved by the time these run, and a

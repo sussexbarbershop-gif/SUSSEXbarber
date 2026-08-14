@@ -62,13 +62,19 @@ Optional:
 
 ## Email, and the two things that silently stop it
 
-**The shop has no domain.** The site is on `sussexbarber.vercel.app`, which is
-Vercel's. That rules out most providers: they will only let you send from a
-domain you have proved you own, and you cannot prove you own somebody else's.
+The shop had no domain when this was set up — the site was on a `vercel.app`
+address, which is Vercel's. That ruled out most providers: they will only let
+you send from a domain you have proved you own, and you cannot prove you own
+somebody else's.
 
-Brevo is the way round it. It verifies **one address** rather than a whole
+Brevo was the way round it. It verifies **one address** rather than a whole
 domain, by emailing that address a link, so the shop sends as its own Gmail,
 free. Free tier is 300 a day; this shop sends two per booking.
+
+**The shop has `sussexbarber.nl` now**, so that constraint is gone. Moving to
+Resend is worth doing when there is time: mail from a domain the shop owns is
+far less likely to be filed as spam than mail from a Gmail address sent by
+somebody else's server. See the end of this section.
 
 Two things will stop mail dead, and neither shows up as an error on the site —
 the booking is already saved by the time the email is attempted, and a failed
@@ -83,8 +89,23 @@ email must never turn a confirmed appointment into an error for the customer:
 
 Either way, the reason is in the Vercel log on a line starting `[mail]`.
 
-**If the shop buys a domain**, Resend is the better home for this: set
-`RESEND_API_KEY` instead of `BREVO_API_KEY` and change nothing else.
+### Moving to Resend
+
+Now that the shop owns `sussexbarber.nl`, this is available and better. In
+order:
+
+1. Sign up at **resend.com** with `sussexbarbershop@gmail.com`.
+2. **Domains** → **Add Domain** → `sussexbarber.nl`. It gives three DNS records
+   (DKIM, SPF, and a return-path). Add them in Namecheap under **Advanced DNS**
+   and wait for Resend to show **Verified**.
+3. **API Keys** → create one.
+4. In Vercel: set `RESEND_API_KEY`, change `MAIL_FROM` to an address on the
+   domain — `Sussex Barber Shop <booking@sussexbarber.nl>` — and **delete
+   `BREVO_API_KEY`**. The code prefers Brevo when both are set, so leaving it
+   there means nothing changes.
+5. Redeploy, make one test booking, and check both emails arrive.
+
+Nothing in the code changes. `MAIL_FROM` is parsed the same either way.
 
 ---
 

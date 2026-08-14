@@ -29,6 +29,17 @@ ok('and what it is for', /[Bb]ook/.test(description || ''), true);
 ok('the title says where too', /Wassenaar/.test((html.match(/<title>([^<]*)<\/title>/) || [])[1] || ''), true);
 ok('there is a canonical url', /<link rel="canonical" href="https?:\/\//.test(html), true);
 
+// Every absolute address the page states about itself has to be the same one.
+// They were all written out by hand, and when the site moved to its own domain
+// six of them had to change together — a canonical on one host and an og:url on
+// another is how a page gets indexed twice and ranked as neither.
+const canonical = (html.match(/<link rel="canonical" href="(https?:\/\/[^/"]+)/) || [])[1];
+const otherHosts = [...html.matchAll(/(?:content|href)="(https?:\/\/[^/"]+)/g)]
+  .map(m => m[1])
+  .filter(host => /sussex/i.test(host) && host !== canonical);
+console.log('the site calls itself:', canonical);
+ok('and says so consistently', [...new Set(otherHosts)], []);
+
 console.log('--- what a link shared in WhatsApp looks like ---');
 ['og:title', 'og:description', 'og:image', 'og:url', 'og:type'].forEach(p => {
   ok(`${p} is set`, typeof meta('property', p) === 'string', true);
