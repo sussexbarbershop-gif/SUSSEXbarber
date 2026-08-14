@@ -84,6 +84,53 @@ const unknown = [...used].filter(name => !declared.has(name));
 console.log('custom properties in use:', used.size);
 ok('every var() names one the stylesheet defines', unknown, []);
 
+// --- fields the panel draws, rather than the browser -------------------
+//
+// This has now gone wrong twice, the same way both times. .form-group styled
+// `input` by tag and nothing else, and .form-control was written for the
+// Website Text page and applied only there — so a <select> added anywhere else
+// fell through to the browser's own rendering: a white box with a white
+// dropdown, on a black panel.
+//
+// It is invisible to every other check. The markup is right, the class is
+// right, the page works; it simply looks like a different program.
+console.log('--- every field is styled by the panel ---');
+
+// Classes that carry a field's styling on their own, wherever they sit.
+const styledByClass = ['form-control', 'barber-filter']
+  .filter(name => css.includes('.' + name + ' {'));
+ok('the class-based field styles exist', styledByClass.length, 2);
+
+// And the tag-based ones, for a field inside a form group that carries no
+// class of its own — which is how every field in the modals is written.
+['input', 'select', 'textarea'].forEach(tag => {
+  ok(`.form-group ${tag} is styled`,
+     new RegExp('\\.form-group ' + tag + '[,\\s{]').test(css), true);
+});
+
+// A <select> keeps its native arrow unless appearance is cleared, and clearing
+// it without drawing one leaves a box that does not look like it opens.
+ok('a select has an arrow of its own', /\.form-group select \{[\s\S]*?background-image/.test(css), true);
+// A raw # ends the url() and the whole declaration is dropped, in silence.
+ok('and it survived being written into a url()', /%23/.test(css), true);
+
+// Now the fields themselves. Each must be reachable by one of the above.
+const groups = [...html.matchAll(/class="[^"]*\bform-group\b[^"]*"/g)].map(m => m.index);
+const inAGroup = at => groups.some(g => g < at && at - g < 800);
+const strays = [...html.matchAll(/<(select|textarea)\b[^>]*>/g)]
+  .filter(m => {
+    const cls = (m[0].match(/class="([^"]*)"/) || ['', ''])[1].split(/\s+/);
+    return !cls.some(c => styledByClass.includes(c)) && !inAGroup(m.index);
+  })
+  .map(m => (m[0].match(/id="([^"]*)"/) || ['', m[0]])[1]);
+ok('no field is left to the browser', strays, []);
+
+// The list a select drops down and the calendar behind a date field are drawn
+// by the platform, not by this stylesheet. Without color-scheme the browser
+// paints them light because that is its default, so the dropdown opened white
+// and the date field's icon was black on black.
+ok('native pickers are told which way round it is', /color-scheme:/.test(css), true);
+
 // --- getting to the panel at all --------------------------------------
 //
 // The panel lives at /admin, and static hosting is case-sensitive, so
