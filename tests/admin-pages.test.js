@@ -84,5 +84,32 @@ const unknown = [...used].filter(name => !declared.has(name));
 console.log('custom properties in use:', used.size);
 ok('every var() names one the stylesheet defines', unknown, []);
 
+// --- getting to the panel at all --------------------------------------
+//
+// The panel lives at /admin, and static hosting is case-sensitive, so
+// sussexbarber.nl/ADMIN was a 404 page from Vercel with no way back. Nobody
+// types it that way on purpose — a phone keyboard capitalises the first letter
+// in the address bar and the owner does not notice.
+//
+// Redirects rather than a copy of the panel at another path: one panel, one
+// address, and the wrong casing lands on it.
+console.log('--- the address the owner actually types ---');
+const vercel = JSON.parse(fs.readFileSync(path.join(root, '..', 'vercel.json'), 'utf8'));
+const redirects = vercel.redirects || [];
+const lands = src => {
+  const rule = redirects.find(r => r.source === src);
+  return rule ? rule.destination : null;
+};
+['/ADMIN', '/Admin', '/ADMIN/', '/Admin/'].forEach(src => {
+  ok(`${src} lands on the panel`, lands(src), '/admin');
+});
+// And the file it is all pointing at is really there.
+ok('which is a real page',
+   fs.existsSync(path.join(root, 'index.html')), true);
+// A permanent redirect is cached by the browser for good. This is a
+// convenience, not a decision, so it stays a temporary one.
+ok('and none of them are permanent',
+   redirects.some(r => r.permanent === true), false);
+
 console.log(failed === 0 ? '\nAll admin page tests passed.' : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);

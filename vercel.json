@@ -5,5 +5,11 @@
       "path": "/api/daily",
       "schedule": "0 7 * * *"
     }
+  ],
+  "redirects": [
+    { "source": "/ADMIN", "destination": "/admin" },
+    { "source": "/ADMIN/", "destination": "/admin" },
+    { "source": "/Admin", "destination": "/admin" },
+    { "source": "/Admin/", "destination": "/admin" }
   ]
 }
