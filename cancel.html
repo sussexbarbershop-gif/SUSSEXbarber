@@ -140,9 +140,14 @@
             post({ action: 'lookupCancel', token })
                 .then(answer => {
                     if (!answer || answer.status !== 'success') {
-                        // The server's own sentence when it has one — it is
-                        // more specific than anything this page could guess.
-                        return show((answer && answer.message) || t('notFound'));
+                        // This page's wording, not the server's. The server
+                        // does not know which language the email was written
+                        // in — the link does — and it has two sentences here
+                        // that both mean the same thing to a customer: ring
+                        // the shop. A Dutch page answering in English at the
+                        // one moment something has gone wrong is the worst
+                        // place to do it.
+                        return show(t('notFound'));
                     }
                     const b = answer.booking;
                     // Both of these are ordinary situations, not errors: a
@@ -171,7 +176,7 @@
                     .then(answer => {
                         if (!answer || answer.status !== 'success') {
                             reset();
-                            return show((answer && answer.message) || t('failed'));
+                            return show(t('failed'));
                         }
                         finish(t('doneTitle'), t('doneText'));
                     })

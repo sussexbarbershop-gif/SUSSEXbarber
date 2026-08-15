@@ -190,6 +190,12 @@ async function main() {
   const hooks = [...page.matchAll(/data-word="(\w+)"/g)].map(m => m[1]);
   ok('every hook has a word', hooks.filter(h => !words.includes(h)), []);
   ok('and the list is not empty', words.length > 10, true);
+  // Every sentence the page can show has to come from that list. The server
+  // does not know which language the email was written in — the link does —
+  // so answering with the server's own message put an English sentence on a
+  // Dutch page at the one moment something had gone wrong.
+  ok('nothing falls back to the server\'s English',
+     /answer\.message/.test(page), false);
 
   console.log(failed === 0 ? '\nAll email language tests passed.' : `\n${failed} FAILED`);
   process.exit(failed === 0 ? 0 : 1);
