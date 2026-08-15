@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cancel your appointment — Sussex Barber Shop</title>
+    <!-- Nothing to index. This page only means anything with a token in the
+         address, and the token belongs to one customer. -->
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <!-- no-referrer, not the site's usual strict-origin: the address bar holds
+         the token, and a referrer header would hand it to any third party this
+         page ever linked to. -->
+    <meta name="referrer" content="no-referrer">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com;">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link href="assets/tailwind.css" rel="stylesheet">
+</head>
+<body class="bg-white dark:bg-charcoal-900 text-gray-800 dark:text-gray-200 font-sans antialiased transition-colors duration-300">
+
+    <header class="border-b border-gray-200 dark:border-charcoal-800">
+        <div class="max-w-3xl mx-auto px-4 sm:px-6 py-5 flex items-center justify-between">
+            <a href="/" class="font-serif text-lg text-gray-900 dark:text-white hover:text-gold transition-colors">Sussex Barber Shop</a>
+            <a href="/" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gold transition-colors">&larr; Back to the site</a>
+        </div>
+    </header>
+
+    <main class="max-w-lg mx-auto px-4 sm:px-6 py-12 sm:py-20">
+        <div id="panel" class="border border-gray-200 dark:border-charcoal-800 rounded-xl p-6 sm:p-8">
+            <p id="state" class="text-sm text-gray-500 dark:text-gray-400" aria-live="polite">Finding your appointment…</p>
+
+            <div id="details" class="hidden">
+                <h1 class="font-serif text-2xl text-gray-900 dark:text-white mb-1">Cancel this appointment?</h1>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">This cannot be undone, but you can always book again.</p>
+
+                <dl class="border-l-2 border-gold pl-4 space-y-2 mb-8">
+                    <div class="flex gap-3"><dt class="w-20 text-sm text-gray-500 dark:text-gray-400 shrink-0">When</dt><dd id="dWhen" class="font-medium text-gray-900 dark:text-white"></dd></div>
+                    <div class="flex gap-3"><dt class="w-20 text-sm text-gray-500 dark:text-gray-400 shrink-0">Service</dt><dd id="dService" class="font-medium text-gray-900 dark:text-white"></dd></div>
+                    <div class="flex gap-3"><dt class="w-20 text-sm text-gray-500 dark:text-gray-400 shrink-0">Barber</dt><dd id="dBarber" class="font-medium text-gray-900 dark:text-white"></dd></div>
+                    <div class="flex gap-3"><dt class="w-20 text-sm text-gray-500 dark:text-gray-400 shrink-0">Name</dt><dd id="dName" class="font-medium text-gray-900 dark:text-white"></dd></div>
+                </dl>
+
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <!-- The destructive one is not the primary one. A page
+                         reached by tapping a link in an email should not have
+                         its loudest button be the irreversible one. -->
+                    <a href="/" class="flex-1 text-center px-5 py-3 rounded-lg border border-gray-300 dark:border-charcoal-700 text-gray-800 dark:text-gray-200 hover:border-gold hover:text-gold transition-colors font-medium">Keep it</a>
+                    <button id="confirm" type="button" class="flex-1 px-5 py-3 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition-colors">Yes, cancel it</button>
+                </div>
+            </div>
+
+            <div id="done" class="hidden">
+                <h1 id="doneTitle" class="font-serif text-2xl text-gray-900 dark:text-white mb-2"></h1>
+                <p id="doneText" class="text-gray-600 dark:text-gray-400 mb-8"></p>
+                <a href="/" class="inline-block px-6 py-3 rounded-lg bg-gold text-charcoal-900 font-semibold hover:opacity-90 transition-opacity">Book another time</a>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Why this page exists rather than a link that just cancels: antivirus
+        // gateways, link scanners and inbox previewers fetch every URL in an
+        // email to see where it goes. A one-click cancel would be triggered by
+        // software, and the customer would arrive to find their slot given
+        // away. Nothing here writes anything until the button is pressed.
+        (function () {
+            const token = new URLSearchParams(location.search).get('b') || '';
+            const $ = id => document.getElementById(id);
+
+            const say = (text) => { $('state').textContent = text; $('state').classList.remove('hidden'); };
+            const finish = (title, text) => {
+                $('state').classList.add('hidden');
+                $('details').classList.add('hidden');
+                $('doneTitle').textContent = title;
+                $('doneText').textContent = text;
+                $('done').classList.remove('hidden');
+            };
+
+            const post = (body) => fetch('/api', {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(body)
+            }).then(r => r.json());
+
+            if (!token) {
+                return say('This page needs the link from your confirmation email.');
+            }
+
+            post({ action: 'lookupCancel', token })
+                .then(answer => {
+                    if (!answer || answer.status !== 'success') {
+                        return say((answer && answer.message) ||
+                            'We could not find that booking. Please call the shop.');
+                    }
+                    const b = answer.booking;
+                    // Both of these are ordinary situations, not errors: a
+                    // second tap on the same link, or an email opened days
+                    // late. Neither should look like something went wrong.
+                    if (b.cancelled) {
+                        return finish('Already cancelled',
+                            'That appointment is already off. Nothing else is needed.');
+                    }
+                    if (b.past) {
+                        return finish('That appointment has passed',
+                            'There is nothing to cancel. We hope to see you again soon.');
+                    }
+
+                    $('dWhen').textContent = b.date + ' at ' + b.time;
+                    $('dService').textContent = b.service || '—';
+                    $('dBarber').textContent = b.barber || 'Any Available';
+                    $('dName').textContent = b.name || '—';
+                    $('state').classList.add('hidden');
+                    $('details').classList.remove('hidden');
+                })
+                .catch(() => say('We could not reach the shop. Please try again, or call us.'));
+
+            $('confirm').addEventListener('click', function () {
+                // Two taps on a slow connection would send two cancellations.
+                // The second is harmless — the row is already cancelled — but
+                // the button must still stop saying it is waiting to be used.
+                this.disabled = true;
+                this.textContent = 'Cancelling…';
+                post({ action: 'cancelByLink', token })
+                    .then(answer => {
+                        if (!answer || answer.status !== 'success') {
+                            this.disabled = false;
+                            this.textContent = 'Yes, cancel it';
+                            return say((answer && answer.message) || 'That did not work. Please call the shop.');
+                        }
+                        finish('Your appointment is cancelled',
+                               'Thank you for letting us know — we can offer the time to someone else.');
+                    })
+                    .catch(() => {
+                        this.disabled = false;
+                        this.textContent = 'Yes, cancel it';
+                        say('We could not reach the shop. Please try again, or call us.');
+                    });
+            });
+        })();
+    </script>
+</body>
+</html>

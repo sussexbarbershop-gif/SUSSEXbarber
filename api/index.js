@@ -21,11 +21,13 @@
  */
 
 const { db, readConfig, readRotaConfig, indexToIso, WEEKDAY_NAMES,
-        withNewColumns } = require('./_lib/db');
+        withNewSchema } = require('./_lib/db');
 const rota = require('./_lib/rota');
 const { isAuthorized, isPinCorrect, isOwner, reportsPinIsSet, issueUnlockPass,
-        UNLOCK_MINUTES, throttleFailedLogin, resetFailedLogins } = require('./_lib/auth');
+        UNLOCK_MINUTES, throttleFailedLogin, resetFailedLogins,
+        cancelToken, bookingFromCancelToken } = require('./_lib/auth');
 const { readReports } = require('./_lib/reports');
+const { tooMany, forget } = require('./_lib/limits');
 const { sendBookingNotice, sendCustomerConfirmation, sendCancellationNotice,
         sendCustomerCancellation } = require('./_lib/mail');
 
@@ -250,7 +252,26 @@ async function handleGet(req, res) {
 
 async function handlePost(req, res) {
   const payload = readBody(req);
-  const action = trimmed(payload.action);
+
+  // Both spellings settled here rather than at the two places that used to
+  // read them. A missing action means a booking — the site has posted one that
+  // way since the Apps Script — and `cancel` is the older name for
+  // `cancelBooking`. Left as they were, the limiter below would have counted
+  // `addBooking` and waved through the same request sent with no action at
+  // all, which is a rate limit with the door held open beside it.
+  let action = trimmed(payload.action) || 'addBooking';
+  if (action === 'cancel') action = 'cancelBooking';
+
+  // How much one address may do, counted in the database so it survives the
+  // cold start that resets everything else. Only the four actions that need no
+  // password are counted: the shop working the panel is signed in, and rate
+  // limiting the people who run the shop is how a busy Saturday turns into a
+  // panel that will not take a booking.
+  //
+  // First, before any of these does any work — a limit applied after the query
+  // has already run has not saved the database anything.
+  const enough = await tooMany(req, action);
+  if (enough) return json(res, { status: 'error', message: enough }, 429);
 
   if (action === 'adminLogin') {
     if (!process.env.ADMIN_PASSWORD) {
@@ -258,6 +279,10 @@ async function handlePost(req, res) {
     }
     if (isAuthorized(payload)) {
       resetFailedLogins();
+      // The owner signing in correctly is not a suspect. Without this, a long
+      // day of the shop opening the panel on the same wifi would eventually
+      // reach a limit meant for somebody guessing.
+      await forget(req, 'adminLogin');
       return json(res, { status: 'success' });
     }
     await throttleFailedLogin();
@@ -276,7 +301,7 @@ async function handlePost(req, res) {
     //
     // created_at comes with it so the panel can put the booking that arrived
     // most recently at the top, which is the one nobody has seen yet.
-    const rows = await withNewColumns(() => sql`
+    const rows = await withNewSchema(() => sql`
       SELECT id,
              to_char(booked_on, 'YYYY-MM-DD') AS booked_on,
              booked_at, service, barber, customer_name, phone, email, source,
@@ -347,7 +372,7 @@ async function handlePost(req, res) {
     })));
   }
 
-  if (!action || action === 'addBooking') return await addBooking(payload, res, false);
+  if (action === 'addBooking') return await addBooking(payload, res, false);
 
   // The shop writing a booking down itself — someone on the phone, or standing
   // at the counter.
@@ -373,7 +398,18 @@ async function handlePost(req, res) {
     return await addBooking(payload, res, true);
   }
 
-  if (action === 'cancelBooking' || action === 'cancel') return await cancelBooking(payload, res);
+  if (action === 'cancelBooking') return await cancelBooking(payload, res);
+
+  // The link in a confirmation email, in two halves.
+  //
+  // It is two and not one because of what reads email before a person does.
+  // Antivirus gateways, link scanners and inbox previewers fetch every URL in
+  // a message to see where it goes — so a link that cancelled on being opened
+  // would cancel appointments that nobody ever clicked, and the customer would
+  // arrive to find their slot gone. `lookupCancel` only reads, `cancelByLink`
+  // only acts, and nothing acts until somebody presses a button on a page.
+  if (action === 'lookupCancel') return await lookupCancel(payload, res);
+  if (action === 'cancelByLink') return await cancelByLink(payload, res);
 
   // The takings. Behind the panel password and a second PIN, because the
   // people who use the panel to run the diary are not necessarily the person
@@ -581,7 +617,10 @@ async function addBooking(payload, res, byShop) {
   // email did. The row, not the payload — so the notification quotes the price
   // and the barber that were recorded, not what the browser claimed.
   const record = Object.assign({}, payload, {
-    service, price, barber: written.barber
+    service, price, barber: written.barber,
+    // Signed over this row's id alone, so the link in the email can do one
+    // thing to one appointment and nothing else at all.
+    cancelToken: cancelToken(written.id)
   });
   await Promise.allSettled([
     // Not when the shop typed it in. The notification exists to tell the shop
@@ -635,13 +674,16 @@ async function insertBooking(sql, ctx) {
     }
 
     try {
-      await withNewColumns(() => sql`
+      // The id comes back, because the confirmation email carries a cancel
+      // link and a link that cancels one appointment has to name which.
+      const written = await withNewSchema(() => sql`
         INSERT INTO bookings (booked_on, booked_at, service, barber, customer_name,
                               phone, email, price, source)
         VALUES (${date}, ${clock}, ${service}, ${barber}, ${trimmed(payload.name)},
                 ${trimmed(payload.phone)}, ${trimmed(payload.email)}, ${price},
-                ${source})`);
-      return { barber };
+                ${source})
+        RETURNING id`);
+      return { barber, id: (written[0] || {}).id };
     } catch (err) {
       if (!String(err.message || '').includes('bookings_one_chair')) throw err;
       // Someone took that chair between the read and the write. If the
@@ -652,6 +694,77 @@ async function insertBooking(sql, ctx) {
     }
   }
   return { error: clash };
+}
+
+/**
+ * What a cancel link refers to, without touching it.
+ *
+ * The page shows this and asks. A booking that has already been cancelled, or
+ * has already happened, answers plainly rather than pretending — somebody who
+ * cancelled twice needs to be told it is done, not shown an error.
+ */
+async function lookupCancel(payload, res) {
+  const id = bookingFromCancelToken(payload.token);
+  if (!id) return json(res, { status: 'error', message: 'That link is not valid any more.' });
+
+  const sql = db();
+  const rows = await sql`
+    SELECT to_char(booked_on, 'YYYY-MM-DD') AS booked_on, booked_at,
+           service, barber, customer_name, status
+      FROM bookings WHERE id = ${id}`;
+  if (!rows.length) return json(res, { status: 'error', message: 'We could not find that booking.' });
+
+  const r = rows[0];
+  return json(res, {
+    status: 'success',
+    // No phone number and no email address. The token proves somebody has the
+    // email; it does not prove they are the customer, and a link forwarded to
+    // a colleague should not hand over the number it was sent to.
+    booking: {
+      date: r.booked_on,
+      time: rota.minutesToLabel(rota.parseClock(r.booked_at)),
+      service: r.service,
+      barber: r.barber,
+      name: r.customer_name,
+      cancelled: r.status === 'cancelled',
+      past: r.booked_on < shopNow().date
+    }
+  });
+}
+
+/** Cancel the one appointment the token names. */
+async function cancelByLink(payload, res) {
+  const id = bookingFromCancelToken(payload.token);
+  if (!id) return json(res, { status: 'error', message: 'That link is not valid any more.' });
+
+  const sql = db();
+  const rows = await sql`
+    UPDATE bookings
+       SET status = 'cancelled', cancelled_at = now()
+     WHERE id = ${id} AND status = 'active'
+    RETURNING to_char(booked_on, 'YYYY-MM-DD') AS booked_on,
+              booked_at, service, barber, customer_name, phone, email`;
+
+  // Already cancelled. Not an error: a second click on the same link, or a
+  // customer who also rang up, and both should be told the same calm thing.
+  if (!rows.length) {
+    return json(res, { status: 'success', message: 'That appointment is already cancelled.' });
+  }
+
+  const r = rows[0];
+  const cancelled = {
+    date: r.booked_on,
+    time: rota.minutesToLabel(rota.parseClock(r.booked_at)),
+    name: r.customer_name, phone: r.phone, email: r.email,
+    service: r.service, barber: r.barber
+  };
+  const config = await readConfig();
+  await Promise.allSettled([
+    sendCancellationNotice(cancelled),
+    sendCustomerCancellation(cancelled, config)
+  ]);
+
+  return json(res, { status: 'success', message: 'Booking cancelled' });
 }
 
 async function cancelBooking(payload, res) {

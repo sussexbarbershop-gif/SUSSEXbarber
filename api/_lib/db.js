@@ -27,8 +27,8 @@ function db() {
 }
 
 /**
- * The three columns the diary grew after it was already in use, added on
- * demand.
+ * The parts of the schema that arrived after the database was already in use,
+ * added on demand.
  *
  * `CREATE TABLE IF NOT EXISTS` does nothing whatsoever to a table that already
  * exists, so re-running db/schema.sql does not add a column to a live
@@ -37,42 +37,51 @@ function db() {
  * is not a deployment step, it is a trap.
  *
  * So the code repairs the shape itself, and only when it finds it wrong: the
- * normal path runs no extra query at all. `withNewColumns` catches the one
- * error Postgres raises for a column that is not there, runs the ALTERs, and
- * tries again. Every one of them is IF NOT EXISTS, so a second process racing
- * this does no harm.
+ * normal path runs no extra query at all. `withNewSchema` catches the two
+ * errors Postgres raises for a column or a table that is not there, runs the
+ * statements, and tries again. Every one of them is IF NOT EXISTS, so a second
+ * process racing this does no harm.
  */
-let columnsEnsured = null;
+let schemaEnsured = null;
 
-function ensureBookingColumns() {
-  if (!columnsEnsured) {
+function ensureSchema() {
+  if (!schemaEnsured) {
     const sql = db();
-    columnsEnsured = (async () => {
+    schemaEnsured = (async () => {
       await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'web'`;
       await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS reminded_at timestamptz`;
       await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS review_asked_at timestamptz`;
+      await sql`CREATE TABLE IF NOT EXISTS rate_limit (
+                  bucket    text NOT NULL,
+                  window_at timestamptz NOT NULL,
+                  hits      integer NOT NULL DEFAULT 0,
+                  PRIMARY KEY (bucket, window_at))`;
+      await sql`CREATE INDEX IF NOT EXISTS rate_limit_sweep ON rate_limit (window_at)`;
     })();
     // A failure must not be remembered as a success. Clearing it means the
     // next request tries again rather than every request after a blip
     // resolving instantly against a rejected promise.
-    columnsEnsured.catch(() => { columnsEnsured = null; });
+    schemaEnsured.catch(() => { schemaEnsured = null; });
   }
-  return columnsEnsured;
+  return schemaEnsured;
 }
 
-/** 42703 is undefined_column. The text is checked too: some drivers drop the code. */
-const isMissingColumn = err =>
-  String((err && err.code) || '') === '42703' ||
-  /column .* does not exist/i.test(String((err && err.message) || ''));
+/**
+ * 42703 is undefined_column, 42P01 undefined_table. The text is checked too:
+ * some drivers hand back the message without the code.
+ */
+const isMissingSchema = err =>
+  ['42703', '42P01'].includes(String((err && err.code) || '')) ||
+  /(column|relation) .* does not exist/i.test(String((err && err.message) || ''));
 
-/** Run a query; if it fails only because a column is missing, add it and retry once. */
-async function withNewColumns(run) {
+/** Run a query; if it fails only because the schema is behind, catch up and retry once. */
+async function withNewSchema(run) {
   try {
     return await run();
   } catch (err) {
-    if (!isMissingColumn(err)) throw err;
-    console.warn('[db] adding the booking columns this database did not have yet');
-    await ensureBookingColumns();
+    if (!isMissingSchema(err)) throw err;
+    console.warn('[db] bringing the schema up to date; this database was behind');
+    await ensureSchema();
     return await run();
   }
 }
@@ -195,4 +204,4 @@ async function readRotaConfig() {
 
 module.exports = { db, readConfig, readRotaConfig, hhmm, isoToIndex, indexToIso,
                    WEEKDAY_NAMES, WEEKDAY_NL,
-                   ensureBookingColumns, withNewColumns, isMissingColumn };
+                   ensureSchema, withNewSchema, isMissingSchema };

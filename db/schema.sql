@@ -179,6 +179,29 @@ CREATE INDEX IF NOT EXISTS bookings_by_phone
     WHERE status = 'active';
 
 -- ---------------------------------------------------------------------------
+-- How often one address may use the endpoints that need no password
+-- ---------------------------------------------------------------------------
+
+-- The way to damage a barber shop's diary is not to break into it. It is to
+-- book it: the form is public and meant to be, and a script typing a different
+-- phone number each time walks straight past the per-customer cap and fills
+-- next week.
+--
+-- Counted here rather than in the function's memory, because a fleet of
+-- serverless functions each start from zero and a count that resets on every
+-- cold start is not a count.
+CREATE TABLE IF NOT EXISTS rate_limit (
+    bucket    text NOT NULL,          -- 'addBooking:h:1.2.3.4'
+    window_at timestamptz NOT NULL,   -- the start of the window it counts
+    hits      integer NOT NULL DEFAULT 0,
+    PRIMARY KEY (bucket, window_at)
+);
+
+-- Only ever read by the daily sweep, which throws away windows that have
+-- passed. Nothing else looks at a row twice.
+CREATE INDEX IF NOT EXISTS rate_limit_sweep ON rate_limit (window_at);
+
+-- ---------------------------------------------------------------------------
 -- Columns added after the table already existed
 -- ---------------------------------------------------------------------------
 --

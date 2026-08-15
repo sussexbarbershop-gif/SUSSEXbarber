@@ -136,6 +136,56 @@ function resetFailedLogins(key) {
   failures.delete(key || 'global');
 }
 
+// ---------------------------------------------------------------------------
+// Cancelling from the email
+// ---------------------------------------------------------------------------
+
+/**
+ * A token that cancels one appointment and nothing else.
+ *
+ * The confirmation email used to carry no cancel link on purpose, and the
+ * reasoning is still right as far as it went: a link in an email is a way in
+ * that nothing else checks. What was wrong was the conclusion. A customer who
+ * cannot say no easily does not book elsewhere — they simply do not turn up,
+ * and the shop loses the whole slot instead of getting it back in time to sell.
+ *
+ * So the link exists and is made narrow instead. It carries the booking's own
+ * id and a signature over it, which means it can do exactly one thing to
+ * exactly one row. It is not a session, it grants nothing else, and it cannot
+ * be edited into a token for somebody else's appointment.
+ *
+ * Signed with ADMIN_PASSWORD, the one secret always present. Changing the
+ * panel password invalidates the links in emails already sent — those
+ * customers see "we could not find that booking" and are told to call, which
+ * is a fair outcome for a thing that happens once a year.
+ */
+function signCancel(id) {
+  const secret = String(process.env.ADMIN_PASSWORD || '');
+  return crypto.createHmac('sha256', secret)
+               .update('cancel:' + String(id)).digest('hex').slice(0, 32);
+}
+
+/** The token to put in a link, or '' when there is no secret to sign with. */
+function cancelToken(id) {
+  if (!process.env.ADMIN_PASSWORD || !id) return '';
+  return `${id}.${signCancel(id)}`;
+}
+
+/** The booking id a token stands for, or 0 if it does not stand for one. */
+function bookingFromCancelToken(token) {
+  if (!process.env.ADMIN_PASSWORD) return 0;
+  const [idPart, signature] = String(token || '').split('.');
+  const id = Number(idPart);
+  // A token for booking 0, or for "1e3", or for nothing at all.
+  if (!Number.isInteger(id) || id <= 0 || !signature) return 0;
+
+  const expected = signCancel(id);
+  if (signature.length !== expected.length) return 0;
+  const ok = crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+  return ok ? id : 0;
+}
+
 module.exports = { isAuthorized, isPinCorrect, isOwner, reportsPinIsSet,
                    issueUnlockPass, unlockPassIsValid, UNLOCK_MINUTES,
-                   throttleFailedLogin, resetFailedLogins };
+                   throttleFailedLogin, resetFailedLogins,
+                   cancelToken, bookingFromCancelToken };

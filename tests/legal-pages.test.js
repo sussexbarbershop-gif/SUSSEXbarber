@@ -103,9 +103,18 @@ ok('the reminder is described', /reminder on the morning/i.test(privacy), true);
 ok('and there is one to send', /async function sendReminder/.test(mail), true);
 ok('the cancellation note is described', /if the appointment is cancelled/i.test(privacy), true);
 ok('and there is one to send', /sendCustomerCancellation/.test(mail), true);
-ok('the review request is described', /thank-you the day after/i.test(privacy), true);
+ok('the review request is described', /thank-you a few hours after/i.test(privacy), true);
 ok('and there is one to send', /async function sendReviewRequest/.test(mail), true);
-ok('and it really is the day after', /shopDate\(-1\)/.test(daily), true);
+// It says "a few hours after your appointment", so the job has to be asking
+// about the day it is running on, and only about appointments already over.
+ok('and it really is the same day', /askForReviews\(sql, config, today/.test(daily), true);
+ok('once the chair is empty', /askingCutoff\(\)/.test(daily), true);
+
+// The cancel button is a link in an email that changes something. A privacy
+// page that does not mention it is describing a different product.
+ok('the cancel link is described', /link for cancelling that one appointment/i.test(privacy), true);
+ok('in Dutch too', /link om die ene afspraak te annuleren/i.test(privacy), true);
+ok('and one is really sent', /cancel\.html\?b=/.test(mail), true);
 
 // The claim that costs the most if it is wrong.
 ok('it says there is no tracking', /no advertising cookies|geen advertentiecookies/i.test(privacy), true);

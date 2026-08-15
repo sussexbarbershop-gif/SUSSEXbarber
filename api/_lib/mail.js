@@ -48,18 +48,22 @@ function splitFrom(value) {
   return { name: SHOP_NAME, email: String(value || '').trim() };
 }
 
-async function sendViaBrevo(key, { to, subject, text, replyTo }) {
+async function sendViaBrevo(key, { to, subject, text, html, replyTo }) {
   const from = splitFrom(process.env.MAIL_FROM || process.env.NOTIFY_EMAIL);
   if (!isEmail(from.email)) {
     console.error('[mail] MAIL_FROM is not a verified sender address:', from.email);
     return false;
   }
+  // Both parts, always. A client that will not render HTML — a watch, a
+  // screen reader, a mail rule — falls back to the text one, and a message
+  // sent as HTML alone arrives at those as nothing at all.
   const body = {
     sender: { name: from.name, email: from.email },
     to: [{ email: to }],
     subject,
     textContent: text
   };
+  if (html) body.htmlContent = html;
   if (replyTo) body.replyTo = { email: replyTo };
 
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
@@ -74,12 +78,13 @@ async function sendViaBrevo(key, { to, subject, text, replyTo }) {
   return true;
 }
 
-async function sendViaResend(key, { to, subject, text, replyTo }) {
+async function sendViaResend(key, { to, subject, text, html, replyTo }) {
   // onboarding@resend.dev works out of the box but only delivers to the
   // account owner's address — enough to prove the wiring, not enough to
   // confirm anything to a customer.
   const from = process.env.MAIL_FROM || `${SHOP_NAME} <onboarding@resend.dev>`;
   const body = { from, to: [to], subject, text };
+  if (html) body.html = html;
   if (replyTo) body.reply_to = [replyTo];
 
   const res = await fetch('https://api.resend.com/emails', {
@@ -114,6 +119,109 @@ async function send(message) {
     console.error('[mail] could not reach the mail provider:', err);
     return false;
   }
+}
+
+// ---------------------------------------------------------------------------
+// What the emails look like
+// ---------------------------------------------------------------------------
+
+/**
+ * Where the links point. The cancel button in a confirmation is useless if it
+ * points at a preview deployment, so this is the shop's own address unless
+ * something deliberately says otherwise.
+ */
+const SITE_URL = (process.env.SITE_URL || 'https://sussexbarber.nl').replace(/\/+$/, '');
+
+const esc = value => String(value == null ? '' : value)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/**
+ * One email, as HTML.
+ *
+ * Written the way email has to be written rather than the way the website is:
+ * tables for layout, every style inline, no stylesheet and no web font.
+ * Outlook renders with Word's engine and understands almost no CSS; Gmail
+ * strips <style> blocks on some clients and not others. A layout that depends
+ * on flexbox looks correct everywhere it is tested and collapses in the one
+ * place the customer reads it.
+ *
+ * Playfair Display is the site's headline face and cannot be loaded here, so
+ * the serif stack falls back to Georgia — near enough, and present everywhere.
+ *
+ * Light background on purpose. A dark email is inverted by some clients and
+ * left alone by others, and the version nobody checked is the one that comes
+ * out grey on grey.
+ */
+function shell({ preheader, heading, lead, rows, button, note, config }) {
+  const settings = (config && config.settings) || {};
+  const phone = String(settings.contact_phone || '').trim();
+  const address = String(settings.contact_address || '').trim()
+    .replace(/<br\s*\/?>/gi, ', ');
+
+  const detail = (rows || []).filter(r => r && r[1]).map(([label, value]) => `
+    <tr>
+      <td style="padding:7px 0;font:400 13px Arial,sans-serif;color:#6b6b6b;white-space:nowrap;vertical-align:top;">${esc(label)}</td>
+      <td style="padding:7px 0 7px 20px;font:700 15px Arial,sans-serif;color:#1a1a1a;">${esc(value)}</td>
+    </tr>`).join('');
+
+  // A bulletproof-ish button: a padded anchor on its own table cell. An <a>
+  // with a background and no table around it loses its colour in Outlook.
+  const cta = button ? `
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 4px;">
+      <tr><td style="background:#d4af37;border-radius:6px;">
+        <a href="${esc(button.url)}" style="display:inline-block;padding:14px 30px;font:700 14px Arial,sans-serif;color:#1a1a1a;text-decoration:none;letter-spacing:.4px;">${esc(button.label)}</a>
+      </td></tr>
+    </table>` : '';
+
+  return `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(heading)}</title></head>
+<body style="margin:0;padding:0;background:#f4f4f2;">
+<!-- The line the inbox shows next to the subject. Hidden in the email itself:
+     without it, clients pick the first words of the body, which is "Hello". -->
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${esc(preheader || '')}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f4f2;">
+  <tr><td align="center" style="padding:24px 12px;">
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:10px;overflow:hidden;">
+
+      <tr><td style="background:#121212;padding:26px 32px;">
+        <div style="font:600 21px Georgia,'Times New Roman',serif;color:#ffffff;letter-spacing:.5px;">${esc(SHOP_NAME)}</div>
+        <div style="font:400 11px Arial,sans-serif;color:#d4af37;letter-spacing:2.4px;text-transform:uppercase;padding-top:5px;">Wassenaar</div>
+      </td></tr>
+
+      <tr><td style="padding:32px 32px 8px;">
+        <div style="font:600 22px Georgia,'Times New Roman',serif;color:#1a1a1a;">${esc(heading)}</div>
+        <div style="font:400 15px/1.6 Arial,sans-serif;color:#4a4a4a;padding-top:12px;">${lead || ''}</div>
+      </td></tr>
+
+      ${detail ? `<tr><td style="padding:12px 32px 0;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+               style="background:#faf9f6;border-left:3px solid #d4af37;border-radius:0 6px 6px 0;">
+          <tr><td style="padding:16px 20px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">${detail}</table>
+          </td></tr>
+        </table>
+      </td></tr>` : ''}
+
+      ${cta || note ? `<tr><td style="padding:0 32px;">
+        ${cta}
+        ${note ? `<div style="font:400 13px/1.6 Arial,sans-serif;color:#6b6b6b;padding-top:16px;">${note}</div>` : ''}
+      </td></tr>` : ''}
+
+      <tr><td style="padding:28px 32px 30px;">
+        <div style="border-top:1px solid #eceae4;padding-top:18px;font:400 13px/1.7 Arial,sans-serif;color:#8a8a8a;">
+          ${address ? `${esc(address)}<br>` : ''}
+          ${phone ? `<a href="tel:${esc(phone.replace(/\s/g, ''))}" style="color:#8a7320;text-decoration:none;">${esc(phone)}</a><br>` : ''}
+          <a href="${SITE_URL}" style="color:#8a7320;text-decoration:none;">sussexbarber.nl</a>
+        </div>
+      </td></tr>
+
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
 }
 
 const line = (label, value) => `${label.padEnd(9)}${value}`;
@@ -171,6 +279,12 @@ async function sendCustomerConfirmation(booking, config) {
   const address = String(settings.contact_address || '').trim().replace(/<br\s*\/?>/gi, ', ');
   const barber = String(booking.barber || '').trim() || 'Any Available';
 
+  // One link, for one booking. See cancelToken() in auth.js for why this
+  // exists now when it deliberately did not before.
+  const cancelUrl = booking.cancelToken
+    ? `${SITE_URL}/cancel.html?b=${encodeURIComponent(booking.cancelToken)}`
+    : '';
+
   const lines = [
     `Hello ${booking.name || ''},`,
     '',
@@ -182,17 +296,38 @@ async function sendCustomerConfirmation(booking, config) {
   ];
   if (address) lines.push(line('Where:', address));
   lines.push('');
-  // No cancel link. Cancelling is done on the site with the phone number the
-  // booking was made under, and a link in an email would be a second way in
-  // that nothing else checks.
-  lines.push('To change or cancel, visit the website and use "Already booked?"');
-  if (phone) lines.push(`or call us on ${phone}.`);
+  if (cancelUrl) {
+    lines.push('Cannot make it? Cancel here:', cancelUrl, '');
+    lines.push('Otherwise there is nothing to do — just come in.');
+  } else {
+    lines.push('To change or cancel, visit the website and use "Already booked?"');
+  }
+  if (phone) lines.push(`Any questions, call us on ${phone}.`);
   lines.push('', 'See you soon.');
 
   return send({
     to,
     subject: `Your appointment — ${booking.date || ''} at ${booking.time || ''}`,
-    text: lines.join('\n') + '\n'
+    text: lines.join('\n') + '\n',
+    html: shell({
+      config,
+      preheader: `${booking.date || ''} at ${booking.time || ''} with ${barber}`,
+      heading: 'Your appointment is booked',
+      lead: `Hello ${esc(booking.name || '')}, we have you down for the following.`,
+      rows: [
+        ['When', `${booking.date || ''} at ${booking.time || ''}`],
+        ['Service', booking.service || ''],
+        ['Barber', barber],
+        ['Where', address]
+      ],
+      button: cancelUrl ? { label: 'Cancel this appointment', url: cancelUrl } : null,
+      note: cancelUrl
+        // Said in this order deliberately: the button is the loud thing on the
+        // page, and without a sentence beside it the email reads as though
+        // cancelling is what it is for.
+        ? 'Only if you cannot make it — otherwise there is nothing to do, just come in.'
+        : 'To change or cancel, use &ldquo;Already booked?&rdquo; on our website.'
+    })
   });
 }
 
@@ -221,12 +356,26 @@ async function sendCustomerCancellation(booking, config) {
     'Nothing else is needed. Book again on the website whenever suits you'
   ];
   if (phone) lines.push(`, or call us on ${phone}`);
-  lines.push('.', '', 'See you soon.');
+  lines.push('.', '', `${SITE_URL}`, '', 'See you soon.');
 
   return send({
     to,
     subject: `Cancelled — ${booking.date || ''} at ${booking.time || ''}`,
-    text: lines.join('\n') + '\n'
+    text: lines.join('\n') + '\n',
+    html: shell({
+      config,
+      preheader: `${booking.date || ''} at ${booking.time || ''} is off`,
+      heading: 'Your appointment is cancelled',
+      // The one thing to say plainly. Somebody reading this either cancelled
+      // it and wants confirmation, or did not and is about to ring up.
+      lead: `Hello ${esc(booking.name || '')}, that is done — nothing else is needed.`,
+      rows: [
+        ['Was', `${booking.date || ''} at ${booking.time || ''}`],
+        ['Service', booking.service || '']
+      ],
+      button: { label: 'Book another time', url: SITE_URL },
+      note: phone ? `Or call us on ${esc(phone)}.` : ''
+    })
   });
 }
 
@@ -251,6 +400,10 @@ async function sendReminder(booking, config) {
   const address = String(settings.contact_address || '').trim().replace(/<br\s*\/?>/gi, ', ');
   const barber = String(booking.barber || '').trim() || 'Any Available';
 
+  const cancelUrl = booking.cancelToken
+    ? `${SITE_URL}/cancel.html?b=${encodeURIComponent(booking.cancelToken)}`
+    : '';
+
   const lines = [
     `Hello ${booking.name || ''},`,
     '',
@@ -262,11 +415,13 @@ async function sendReminder(booking, config) {
   ];
   if (address) lines.push(line('Where:', address));
   lines.push('');
-  // The point of the sentence. A customer who cannot come and knows how to say
-  // so is worth more than one who is reminded and says nothing.
+  // The point of the whole email. A customer who cannot come and says so is
+  // worth more to the shop than one who is reminded and says nothing, because
+  // the slot can still be sold.
   lines.push('If you cannot make it, please let us know so we can offer the');
-  lines.push(phone ? `time to someone else — call us on ${phone}.`
-                   : 'time to someone else.');
+  lines.push('time to someone else.');
+  if (cancelUrl) lines.push('', cancelUrl);
+  if (phone) lines.push('', `Or call us on ${phone}.`);
   lines.push('', 'See you soon.');
 
   return send({
@@ -274,7 +429,23 @@ async function sendReminder(booking, config) {
     // never opened has still done its job.
     to,
     subject: `Today at ${booking.time || ''} — ${SHOP_NAME}`,
-    text: lines.join('\n') + '\n'
+    text: lines.join('\n') + '\n',
+    html: shell({
+      config,
+      preheader: `${booking.time || ''} with ${barber}`,
+      heading: 'Your appointment is today',
+      lead: `Hello ${esc(booking.name || '')}, just a reminder.`,
+      rows: [
+        ['Time', booking.time || ''],
+        ['Service', booking.service || ''],
+        ['Barber', barber],
+        ['Where', address]
+      ],
+      button: cancelUrl ? { label: 'I cannot make it', url: cancelUrl } : null,
+      note: cancelUrl
+        ? 'Letting us know means we can offer the time to someone else.'
+        : (phone ? `If you cannot make it, please call us on ${esc(phone)}.` : '')
+    })
   });
 }
 
@@ -302,8 +473,8 @@ async function sendReviewRequest(booking, config, reviewUrl) {
     `Hello ${booking.name || ''},`,
     '',
     barber
-      ? `Thank you for coming in yesterday — we hope ${barber} looked after you.`
-      : 'Thank you for coming in yesterday.',
+      ? `Thank you for coming in today — we hope ${barber} looked after you.`
+      : 'Thank you for coming in today.',
     '',
     'If you have a moment, a short review helps people in Wassenaar find us:',
     url,
@@ -320,7 +491,23 @@ async function sendReviewRequest(booking, config, reviewUrl) {
   return send({
     to,
     subject: `Thanks from ${SHOP_NAME}`,
-    text: lines.join('\n') + '\n'
+    text: lines.join('\n') + '\n',
+    html: shell({
+      config,
+      preheader: 'A quick review helps people in Wassenaar find us',
+      heading: 'Thank you for coming in',
+      lead: barber
+        ? `Hello ${esc(booking.name || '')}, we hope ${esc(barber)} looked after you today.`
+        : `Hello ${esc(booking.name || '')}, we hope you were well looked after today.`,
+      rows: [],
+      button: { label: 'Leave a review', url },
+      // Said plainly, and second. An email that only wants something is one
+      // people stop opening, and the shop would rather hear about a bad
+      // haircut than read about it in public.
+      note: 'If something was not right, reply to this email' +
+            (phone ? ` or call us on ${esc(phone)}` : '') +
+            ' — we would rather fix it.'
+    })
   });
 }
 

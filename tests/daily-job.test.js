@@ -88,7 +88,7 @@ const reset = () => {
   refuse = false; reviewUrl = '';
 };
 
-async function call(headers) {
+async function call(headers, job) {
   let answer = null;
   let code = 200;
   const res = {
@@ -96,7 +96,7 @@ async function call(headers) {
     setHeader() { return this; },
     send(text) { answer = JSON.parse(text); }
   };
-  await daily({ headers: headers || {} }, res);
+  await daily({ headers: headers || {}, query: job ? { job } : {} }, res);
   return { answer, code };
 }
 
@@ -168,26 +168,67 @@ async function main() {
   reviewUrl = 'https://g.page/r/example';
   dueYesterday = [row(3, 'Chloe', '10:00:00'), row(4, 'Dirk', '15:00:00')];
   result = await daily.runDailyJob();
-  ok('with a link set, yesterday\'s customers are asked', sent.map(s => s[1]), ['Chloe', 'Dirk']);
+  ok('with a link set, the day\'s customers are asked', sent.map(s => s[1]), ['Chloe', 'Dirk']);
   ok('and the link is the one from the panel', sent[0][2], 'https://g.page/r/example');
   ok('each one marked', updates, [['review_asked_at', 3], ['review_asked_at', 4]]);
-  ok('the query asked for yesterday', queried.find(q => q[0] === 'reviews')[1],
-     daily.shopDate(-1));
+  // Today, not yesterday. A customer asked the same evening still remembers
+  // the haircut and has their phone in their hand; by tomorrow it is one more
+  // thing in an inbox.
+  ok('the query asked for today', queried.find(q => q[0] === 'reviews')[1],
+     daily.shopDate(0));
 
   // Nothing is backfilled when the link is finally filled in: the query only
-  // ever looks at yesterday. Emailing every customer the shop has ever had, on
-  // one morning, from a domain with no sending history, is how a domain gets
-  // marked as spam — and it would take the booking confirmations down with it.
-  ok('and yesterday is one day, not everything before now',
+  // ever looks at one day. Emailing every customer the shop has ever had, in
+  // one go, from a domain with no sending history, is how a domain gets marked
+  // as spam — and it would take the booking confirmations down with it.
+  ok('and one day is one day',
      new Date(daily.shopDate(0)) - new Date(daily.shopDate(-1)), 86400000);
 
-  console.log('--- both rounds in one run ---');
+  console.log('--- long enough after the chair ---');
+  // The evening run happens after closing, so in practice everyone qualifies.
+  // The gap is for the run that fires early — a schedule edited, a job
+  // triggered by hand at four — where without it the shop would be asking for
+  // a review of a haircut the customer is still sitting in.
+  const cutoffAt = (hhmm) => {
+    const [h, m] = hhmm.split(':').map(Number);
+    // A Date whose *shop* clock reads hhmm. The suite runs with SHOP_TIMEZONE
+    // set to UTC, so this is simply that time in UTC.
+    return new Date(Date.UTC(2026, 0, 2, h, m));
+  };
+  ok('two hours back from eight in the evening', daily.askingCutoff(cutoffAt('20:00')), '18:00');
+  ok('and from four in the afternoon', daily.askingCutoff(cutoffAt('16:00')), '14:00');
+  // Postgres wraps `time` arithmetic round midnight: at one in the morning,
+  // now()::time - interval '2 hours' is 23:00, and a query written that way
+  // would quietly match the whole day.
+  ok('never round the back of midnight', daily.askingCutoff(cutoffAt('01:00')), '00:00');
+  ok('nor exactly at it', daily.askingCutoff(cutoffAt('00:00')), '00:00');
+
+  console.log('--- one round or the other ---');
+  // Two cron jobs, because a reminder is only useful before the appointment
+  // and a review only worth asking for after it.
+  reset();
+  reviewUrl = 'https://g.page/r/example';
+  dueToday = [row(1, 'Ahmed', '11:00:00')];
+  dueYesterday = [row(3, 'Chloe', '10:00:00')];
+  result = await daily.runDailyJob('morning');
+  ok('the morning reminds and does not ask', sent.map(s => s[0]), ['reminder']);
+  ok('and reports nothing asked', result.reviewsAsked, 0);
+
+  reset();
+  reviewUrl = 'https://g.page/r/example';
+  dueToday = [row(1, 'Ahmed', '11:00:00')];
+  dueYesterday = [row(3, 'Chloe', '10:00:00')];
+  result = await daily.runDailyJob('evening');
+  ok('the evening asks and does not remind', sent.map(s => s[0]), ['review']);
+  ok('and reports nothing reminded', result.reminded, 0);
+
   reset();
   reviewUrl = 'https://g.page/r/example';
   dueToday = [row(1, 'Ahmed', '11:00:00')];
   dueYesterday = [row(3, 'Chloe', '10:00:00')];
   result = await daily.runDailyJob();
-  ok('reminders and reviews together', sent.map(s => s[0]), ['reminder', 'review']);
+  // A run by hand, with no round named, does both.
+  ok('and by hand it does both', sent.map(s => s[0]), ['reminder', 'review']);
   ok('reported separately', [result.reminded, result.reviewsAsked], [1, 1]);
 
   console.log('--- an empty morning ---');
@@ -212,11 +253,23 @@ async function main() {
   // The route can be perfect and still never run. This is the one line that
   // makes it happen, and it lives in a file nothing else touches.
   const vercel = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'vercel.json'), 'utf8'));
-  ok('vercel.json has a cron', Array.isArray(vercel.crons) && vercel.crons.length > 0, true);
-  ok('pointing at this route', vercel.crons[0].path, '/api/daily');
-  // Once a day, in the morning. A Hobby account gets one run a day anyway, and
-  // a reminder is only useful before the appointment.
-  ok('once a day', /^\d+ \d+ \* \* \*$/.test(vercel.crons[0].schedule), true);
+  ok('vercel.json has crons', Array.isArray(vercel.crons), true);
+  // Two, and a Hobby account allows exactly two. Adding a third would not
+  // fail loudly — Vercel simply refuses the deployment.
+  ok('two of them', vercel.crons.length, 2);
+  ok('the morning one', vercel.crons[0].path, '/api/daily?job=morning');
+  ok('the evening one', vercel.crons[1].path, '/api/daily?job=evening');
+  vercel.crons.forEach(c => {
+    ok(`${c.path} runs once a day`, /^\d+ \d+ \* \* \*$/.test(c.schedule), true);
+  });
+  // Vercel's schedules are UTC. The shop is on Amsterdam time, an hour or two
+  // ahead, and it closes at six — so the evening run has to be late enough
+  // that the last customer has left and early enough not to be the middle of
+  // the night.
+  const hourOf = c => Number(c.schedule.split(' ')[1]);
+  ok('the reminder comes before the shop opens', hourOf(vercel.crons[0]) < 8, true);
+  ok('and the review after it shuts', hourOf(vercel.crons[1]) >= 17, true);
+  ok('but not overnight', hourOf(vercel.crons[1]) < 21, true);
 
   console.log(failed === 0 ? '\nAll daily job tests passed.' : `\n${failed} FAILED`);
   process.exit(failed === 0 ? 0 : 1);

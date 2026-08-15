@@ -2,8 +2,12 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     {
-      "path": "/api/daily",
+      "path": "/api/daily?job=morning",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/daily?job=evening",
+      "schedule": "0 18 * * *"
     }
   ],
   "redirects": [
