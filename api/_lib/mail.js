@@ -253,20 +253,22 @@ const barberName = (booking, lang) =>
   say(lang, ['Any Available', 'Elke Beschikbare Kapper']);
 
 /**
- * '02:30 PM' as a Dutch reader writes it: 14:30.
+ * A time as the shop writes it.
  *
- * The diary speaks twelve-hour time because that is what the booking form
- * shows, and the form shows it because the site was written in English. The
- * Netherlands does not use it. "om 02:30 PM" is not a time a Dutch customer
- * reads without stopping, and half past two in the morning is a real reading
- * of it.
+ * This began as a Dutch-only conversion, because '02:30 PM' is not a time a
+ * customer in Wassenaar reads without stopping — and half past two in the
+ * morning is a real reading of it. Then the obvious question: everybody in the
+ * Netherlands uses the twenty-four hour clock, the English speakers living
+ * there included, so who was the twelve-hour one ever for? Nobody. It was
+ * there because the site was written in English.
  *
- * Only the wording changes. Nothing stored moves, and the English emails still
- * say what the site says.
+ * So the whole site moved, and this is now the same in both languages. It
+ * stays as a function because a booking made before that change is still in
+ * the diary with a twelve-hour label in it, and the reminder for it goes out
+ * tomorrow morning.
  */
 function timeIn(lang, label) {
   const text = String(label || '').trim();
-  if (lang !== 'nl') return text;
   const m = text.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
   if (!m) return text;                       // already 24-hour, or unreadable
   let hours = parseInt(m[1], 10);
@@ -290,7 +292,7 @@ const line = (label, value) => `${label.padEnd(9)}${value}`;
 
 function bookingLines(b) {
   const out = [
-    line('When:', `${b.date || ''} at ${b.time || ''}`),
+    line('When:', `${b.date || ''} at ${timeIn('en', b.time)}`),
     line('Who:', b.name || ''),
     line('Phone:', b.phone || ''),
     line('Email:', String(b.email || '').trim() || '—'),
@@ -305,7 +307,7 @@ function bookingLines(b) {
 async function sendBookingNotice(booking) {
   const to = String(process.env.NOTIFY_EMAIL || '').trim();
   if (!isEmail(to)) return false;
-  const when = `${booking.date || ''} at ${booking.time || ''}`;
+  const when = `${booking.date || ''} at ${timeIn('en', booking.time)}`;
   return send({
     to,
     // The subject alone should be enough to read on a lock screen.
@@ -320,7 +322,7 @@ async function sendBookingNotice(booking) {
 async function sendCancellationNotice(booking) {
   const to = String(process.env.NOTIFY_EMAIL || '').trim();
   if (!isEmail(to)) return false;
-  const when = `${booking.date || ''} at ${booking.time || ''}`;
+  const when = `${booking.date || ''} at ${timeIn('en', booking.time)}`;
   return send({
     to,
     subject: `CANCELLED: ${booking.name || 'customer'} — ${when}`,

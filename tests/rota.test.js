@@ -83,7 +83,7 @@ console.log('--- a duplicated day must not double the chair ---');
 const doubled = JSON.parse(JSON.stringify(cfg));
 doubled.barberHours.Hemen = doubled.barberHours.Hemen.concat(doubled.barberHours.Hemen);
 ok('barber listed once', barbersWorkingAt(doubled,'2026-08-19',M('11:00')), ['Hemen']);
-ok('booked once is full', isSlotFree(doubled,'2026-08-19','11:00 AM',['Hemen'],''), false);
+ok('booked once is full', isSlotFree(doubled,'2026-08-19','11:00',['Hemen'],''), false);
 
 console.log('--- a barber with no rota at all ---');
 // Deliberate: before the owner fills a rota in, a barber works whenever the
@@ -111,16 +111,16 @@ ok('Thu 11:00',             barbersWorkingAt(cfg,'2026-08-20',M('11:00')), ['Ami
 ok('Tue Sep 1, Amir away',  barbersWorkingAt(cfg,'2026-09-01',M('11:00')), ['Hemen']);
 
 console.log('--- the double-booking bug ---');
-ok('Wed: Hemen booked -> Hemen busy',  isSlotFree(cfg,'2026-08-19','11:00 AM',['Hemen'],'Hemen'), false);
-ok('Sat: Hemen booked -> Amir free',   isSlotFree(cfg,'2026-08-22','11:00 AM',['Hemen'],'Amir'), true);
-ok('Sat: 2 of 3 booked -> Any free',   isSlotFree(cfg,'2026-08-22','11:00 AM',['Hemen','Amir'],''), true);
-ok('Sat: all 3 booked -> Any full',    isSlotFree(cfg,'2026-08-22','11:00 AM',['Hemen','Amir','Raman'],''), false);
-ok('Mon: Raman is the only chair',     isSlotFree(cfg,'2026-08-17','01:00 PM',['Raman'],''), false);
-ok('Wed: only Hemen works, booked',    isSlotFree(cfg,'2026-08-19','11:00 AM',['Hemen'],''), false);
-ok('Wed: Amir not rostered',           isSlotFree(cfg,'2026-08-19','11:00 AM',[],'Amir'), false);
-ok('Sat: 2 anon bookings, Raman free', isSlotFree(cfg,'2026-08-22','11:00 AM',['Any Available','Any Available'],'Raman'), true);
-ok('Sat: 3 anon bookings, none free',  isSlotFree(cfg,'2026-08-22','11:00 AM',['Any Available','Any Available','Any Available'],'Raman'), false);
-ok('break slot free for nobody',       isSlotFree(cfg,'2026-08-22','01:30 PM',[],''), false);
+ok('Wed: Hemen booked -> Hemen busy',  isSlotFree(cfg,'2026-08-19','11:00',['Hemen'],'Hemen'), false);
+ok('Sat: Hemen booked -> Amir free',   isSlotFree(cfg,'2026-08-22','11:00',['Hemen'],'Amir'), true);
+ok('Sat: 2 of 3 booked -> Any free',   isSlotFree(cfg,'2026-08-22','11:00',['Hemen','Amir'],''), true);
+ok('Sat: all 3 booked -> Any full',    isSlotFree(cfg,'2026-08-22','11:00',['Hemen','Amir','Raman'],''), false);
+ok('Mon: Raman is the only chair',     isSlotFree(cfg,'2026-08-17','13:00',['Raman'],''), false);
+ok('Wed: only Hemen works, booked',    isSlotFree(cfg,'2026-08-19','11:00',['Hemen'],''), false);
+ok('Wed: Amir not rostered',           isSlotFree(cfg,'2026-08-19','11:00',[],'Amir'), false);
+ok('Sat: 2 anon bookings, Raman free', isSlotFree(cfg,'2026-08-22','11:00',['Any Available','Any Available'],'Raman'), true);
+ok('Sat: 3 anon bookings, none free',  isSlotFree(cfg,'2026-08-22','11:00',['Any Available','Any Available','Any Available'],'Raman'), false);
+ok('break slot free for nobody',       isSlotFree(cfg,'2026-08-22','13:30',[],''), false);
 
 console.log('--- who takes a booking that named nobody ---');
 // "No preference" used to be stored as no preference — an empty barber column,
@@ -131,54 +131,54 @@ const ordered = Object.assign({}, cfg, { barberPriority: ['Raman', 'Hemen', 'Ami
 
 // Saturday: Hemen, Amir and Raman are all on the floor.
 ok('the first in the shop\'s order',
-   nextFreeBarber(ordered, '2026-08-22', '11:00 AM', []), 'Raman');
+   nextFreeBarber(ordered, '2026-08-22', '11:00', []), 'Raman');
 ok('then the second, once the first is taken',
-   nextFreeBarber(ordered, '2026-08-22', '11:00 AM', ['Raman']), 'Hemen');
+   nextFreeBarber(ordered, '2026-08-22', '11:00', ['Raman']), 'Hemen');
 ok('then the third',
-   nextFreeBarber(ordered, '2026-08-22', '11:00 AM', ['Raman', 'Hemen']), 'Amir');
+   nextFreeBarber(ordered, '2026-08-22', '11:00', ['Raman', 'Hemen']), 'Amir');
 ok('and nobody when the chairs are gone',
-   nextFreeBarber(ordered, '2026-08-22', '11:00 AM', ['Raman', 'Hemen', 'Amir']), '');
+   nextFreeBarber(ordered, '2026-08-22', '11:00', ['Raman', 'Hemen', 'Amir']), '');
 
 // The order is a preference, not a roster. Someone off that day is skipped.
 ok('Wednesday is Hemen\'s alone',
-   nextFreeBarber(ordered, '2026-08-19', '11:00 AM', []), 'Hemen');
+   nextFreeBarber(ordered, '2026-08-19', '11:00', []), 'Hemen');
 ok('Monday is Raman\'s alone',
-   nextFreeBarber(ordered, '2026-08-17', '01:00 PM', []), 'Raman');
+   nextFreeBarber(ordered, '2026-08-17', '13:00', []), 'Raman');
 ok('and Amir is away on the 1st',
-   nextFreeBarber(ordered, '2026-09-01', '11:00 AM', []), 'Hemen');
+   nextFreeBarber(ordered, '2026-09-01', '11:00', []), 'Hemen');
 
 console.log('--- a barber nobody has ranked yet ---');
 // Added this morning, before the owner has thought about where they belong.
 // They must still be reachable, or a new barber is quietly unbookable.
 const partial = Object.assign({}, cfg, { barberPriority: ['Amir'] });
 ok('the ranked one first',
-   nextFreeBarber(partial, '2026-08-22', '11:00 AM', []), 'Amir');
+   nextFreeBarber(partial, '2026-08-22', '11:00', []), 'Amir');
 ok('then whoever else is on the floor',
    ['Hemen', 'Raman'].includes(
-     nextFreeBarber(partial, '2026-08-22', '11:00 AM', ['Amir'])), true);
+     nextFreeBarber(partial, '2026-08-22', '11:00', ['Amir'])), true);
 
 console.log('--- with no order set at all ---');
 const unranked = Object.assign({}, cfg, { barberPriority: [] });
 ok('somebody is still picked',
    ['Hemen', 'Amir', 'Raman'].includes(
-     nextFreeBarber(unranked, '2026-08-22', '11:00 AM', [])), true);
+     nextFreeBarber(unranked, '2026-08-22', '11:00', [])), true);
 
 console.log('--- rows written before any of this existed ---');
 // They hold a chair without saying whose, so they still take one off the top.
 ok('an unnamed holder costs a chair',
-   nextFreeBarber(ordered, '2026-08-19', '11:00 AM', ['']), '');
+   nextFreeBarber(ordered, '2026-08-19', '11:00', ['']), '');
 ok('Saturday absorbs one',
-   nextFreeBarber(ordered, '2026-08-22', '11:00 AM', ['']), 'Raman');
+   nextFreeBarber(ordered, '2026-08-22', '11:00', ['']), 'Raman');
 ok('two of them, and one chair is left',
-   nextFreeBarber(ordered, '2026-08-22', '11:00 AM', ['', '']), 'Raman');
+   nextFreeBarber(ordered, '2026-08-22', '11:00', ['', '']), 'Raman');
 ok('three, and there is none',
-   nextFreeBarber(ordered, '2026-08-22', '11:00 AM', ['', '', '']), '');
+   nextFreeBarber(ordered, '2026-08-22', '11:00', ['', '', '']), '');
 ok('"Any Available" counts the same way',
-   nextFreeBarber(ordered, '2026-08-19', '11:00 AM', [ANY_BARBER]), '');
+   nextFreeBarber(ordered, '2026-08-19', '11:00', [ANY_BARBER]), '');
 
 console.log('--- times nobody works ---');
-ok('a shut Sunday', nextFreeBarber(ordered, '2026-08-16', '11:00 AM', []), '');
-ok('inside the break', nextFreeBarber(ordered, '2026-08-19', '01:30 PM', []), '');
+ok('a shut Sunday', nextFreeBarber(ordered, '2026-08-16', '11:00', []), '');
+ok('inside the break', nextFreeBarber(ordered, '2026-08-19', '13:30', []), '');
 ok('a time that is not a time', nextFreeBarber(ordered, '2026-08-19', 'lunch', []), '');
 
 console.log(failed === 0 ? '\nAll tests passed.' : `\n${failed} FAILED`);

@@ -135,7 +135,7 @@ async function main() {
   dueToday = [row(1, 'Ahmed', '11:00:00'), row(2, 'Bram', '14:30:00')];
   let result = await daily.runDailyJob();
   ok('everyone due today is emailed', sent.map(s => s[1]), ['Ahmed', 'Bram']);
-  ok('at the time they are booked for', sent.map(s => s[2]), ['11:00 AM', '02:30 PM']);
+  ok('at the time they are booked for', sent.map(s => s[2]), ['11:00', '14:30']);
   ok('and the count is reported', result.reminded, 2);
   // The whole safety story: the row records when it went, and the query only
   // picks up rows where that is empty. A second run sends nothing.

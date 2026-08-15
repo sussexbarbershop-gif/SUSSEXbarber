@@ -1008,12 +1008,16 @@
             return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
         }
 
+        // '14:30' for 870. It used to be '02:30 PM', because the site was
+        // written in English and that is the clock English writes. The shop is
+        // in the Netherlands, where nobody uses the twelve-hour one — the
+        // English speakers living there included.
+        //
+        // Must agree with minutesToLabel() in api/_lib/rota.js exactly;
+        // rota-agreement.test.js runs both over the same matrix and fails on
+        // the first disagreement.
         function minutesToLabel(total) {
-            let h = Math.floor(total / 60);
-            const mins = total % 60;
-            const period = h >= 12 ? 'PM' : 'AM';
-            if (h === 0) h = 12; else if (h > 12) h -= 12;
-            return `${String(h).padStart(2,'0')}:${String(mins).padStart(2,'0')} ${period}`;
+            return `${String(Math.floor(total / 60)).padStart(2,'0')}:${String(total % 60).padStart(2,'0')}`;
         }
 
         /** The shop's entry for a given weekday, or null if hours are unknown. */
@@ -1295,7 +1299,7 @@
             if (!selectedDate) {
                 statusText.innerText = 'Please choose a date first';
                 const placeholder = slotsForDate(new Date());
-                (placeholder.length ? placeholder : ['10:00 AM','11:00 AM','12:00 PM','01:00 PM']).forEach(t => {
+                (placeholder.length ? placeholder : ['10:00','11:00','12:00','13:00']).forEach(t => {
                     const chip = document.createElement('button');
                     chip.type = 'button';
                     chip.disabled = true;
@@ -1880,12 +1884,17 @@
             
             // Parse date and time
             const dateObj = new Date(b.date);
-            const timeParts = b.time.match(/(\d+):(\d+)\s+(AM|PM)/);
+            // Times are '14:30' now. The AM/PM branch stays because this reads
+            // window.lastBookingData, which a customer can still be holding in
+            // a tab opened before the change — and a calendar entry twelve
+            // hours out is worse than no calendar entry.
+            const timeParts = b.time.match(/(\d+):(\d+)\s*(AM|PM)?/i);
             if(timeParts) {
                 let hours = parseInt(timeParts[1], 10);
                 let mins = parseInt(timeParts[2], 10);
-                if(timeParts[3] === 'PM' && hours < 12) hours += 12;
-                if(timeParts[3] === 'AM' && hours === 12) hours = 0;
+                const period = (timeParts[3] || '').toUpperCase();
+                if(period === 'PM' && hours < 12) hours += 12;
+                if(period === 'AM' && hours === 12) hours = 0;
                 dateObj.setHours(hours, mins, 0);
             }
 

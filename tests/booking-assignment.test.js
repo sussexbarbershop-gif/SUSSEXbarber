@@ -106,7 +106,7 @@ async function book(patch) {
   await api({
     method: 'POST',
     body: JSON.stringify(Object.assign({
-      action: 'addBooking', date: '2099-09-08', time: '11:00 AM',
+      action: 'addBooking', date: '2099-09-08', time: '11:00',
       name: 'Ahmed', phone: '0612345678', service: 'Skin Fade'
     }, patch))
   }, res);

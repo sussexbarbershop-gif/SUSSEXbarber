@@ -118,7 +118,7 @@ async function main() {
 
   console.log('--- a booking, eight times an hour ---');
   reset();
-  const booking = { action: 'addBooking', date: '2099-09-08', time: '11:00 AM',
+  const booking = { action: 'addBooking', date: '2099-09-08', time: '11:00',
                     name: 'Ahmed', phone: '0612345678', service: 'Skin Fade' };
   const rule = limits.RULES.addBooking;
   let last = null;
@@ -158,7 +158,7 @@ async function main() {
   reset();
   const cancelRule = limits.RULES.cancelBooking;
   for (let i = 0; i <= cancelRule.perHour; i++) {
-    last = await post({ action: 'cancel', date: '2099-09-08', time: '11:00 AM', phone: '0612345678' }, '5.5.5.5');
+    last = await post({ action: 'cancel', date: '2099-09-08', time: '11:00', phone: '0612345678' }, '5.5.5.5');
   }
   ok('and `cancel` counts as `cancelBooking`', last.code, 429);
 

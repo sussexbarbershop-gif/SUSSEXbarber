@@ -58,7 +58,7 @@ const asMessage = call => ({
 });
 
 const booking = {
-  date: '2026-09-08', time: '11:00 AM', name: 'Ahmed', phone: '0612345678',
+  date: '2026-09-08', time: '11:00', name: 'Ahmed', phone: '0612345678',
   service: 'Skin Fade', barber: 'Hemen', price: 28
 };
 
@@ -79,8 +79,8 @@ async function main() {
   ok('to the configured address', notice.to, 'shop@example.com');
   ok('from the verified sender', notice.from, 'shop@example.com');
   ok('the subject carries who and when',
-     /Booking: Ahmed .* 2026-09-08 at 11:00 AM/.test(notice.subject), true);
-  ['Ahmed', '0612345678', 'Skin Fade', 'Hemen', '2026-09-08', '11:00 AM'].forEach(bit => {
+     /Booking: Ahmed .* 2026-09-08 at 11:00/.test(notice.subject), true);
+  ['Ahmed', '0612345678', 'Skin Fade', 'Hemen', '2026-09-08', '11:00'].forEach(bit => {
     ok(`the body carries "${bit}"`, notice.body.includes(bit), true);
   });
   ok('and the price', notice.body.includes('28'), true);
@@ -147,7 +147,7 @@ async function main() {
   const conf = asMessage(sent[0]);
   ok('to the address given', conf.to, 'ahmed@example.com');
   ok('the subject carries the appointment',
-     /Your appointment .* 2026-09-08 at 11:00 AM/.test(conf.subject), true);
+     /Your appointment .* 2026-09-08 at 11:00/.test(conf.subject), true);
   ok('it greets them by name', conf.body.includes('Ahmed'), true);
   ok('it names the service', conf.body.includes('Skin Fade'), true);
   ok('it gives the address', conf.body.includes('Van Hogendorpstraat 10'), true);

@@ -108,28 +108,33 @@ async function main() {
   ok('the service, which is the shop\'s own wording', /Skin Fade/.test(nl.text), true);
 
     console.log('--- the clock ---');
-  // The diary speaks twelve-hour time because the booking form does, and the
-  // form does because the site was written in English. The Netherlands does
-  // not use it: "om 02:30 PM" is not a time a Dutch customer reads without
-  // stopping, and half past two in the morning is a real reading of it.
+  // This started as a Dutch-only conversion: "om 02:30 PM" is not a time a
+  // customer in Wassenaar reads without stopping, and half past two in the
+  // morning is a real reading of it. Then the obvious question — everybody in
+  // the Netherlands uses the twenty-four hour clock, the English speakers
+  // living there included, so who was the twelve-hour one ever for? Nobody. It
+  // was there because the site was written in English. The whole site moved.
   ok('Dutch gets a 24-hour clock', /14:30/.test(nl.text), true);
-  ok('and no AM or PM at all', /\b(AM|PM)\b/.test(nl.text), false);
-  ok('nor in the subject', /\b(AM|PM)\b/.test(nl.subject), false);
-  ok('nor on the page', /\b(AM|PM)\b/.test(nl.html), false);
-
-  const nlEvening = await sent(mail.sendReminder, 'nl', { time: '05:30 PM' });
-  ok('the last slot of the day', /17:30/.test(nlEvening.text), true);
-  const nlMorning = await sent(mail.sendReminder, 'nl', { time: '10:00 AM' });
-  ok('and the first', /10:00/.test(nlMorning.text), true);
-  // The two that a naive conversion gets wrong.
-  const nlNoon = await sent(mail.sendReminder, 'nl', { time: '12:30 PM' });
-  ok('half past twelve is midday, not midnight', /12:30/.test(nlNoon.text), true);
-  const nlMidnight = await sent(mail.sendReminder, 'nl', { time: '12:15 AM' });
-  ok('and quarter past twelve at night is 00:15', /00:15/.test(nlMidnight.text), true);
-
-  // English is left exactly as the site shows it.
   const enTime = await sent(mail.sendReminder, 'en');
-  ok('English keeps the clock the site uses', /02:30 PM/.test(enTime.text), true);
+  ok('and so does English', /14:30/.test(enTime.text), true);
+  for (const [name, out] of [['Dutch', nl], ['English', enTime]]) {
+    ok(`no AM or PM in the ${name} text`, /\b(AM|PM)\b/.test(out.text), false);
+    ok(`nor its subject`, /\b(AM|PM)\b/.test(out.subject), false);
+    ok(`nor its page`, /\b(AM|PM)\b/.test(out.html), false);
+  }
+
+  // A booking taken before the site moved is still in the diary with a
+  // twelve-hour label in it, and its reminder goes out tomorrow morning.
+  const evening = await sent(mail.sendReminder, 'nl', { time: '05:30 PM' });
+  ok('an old label still reads right', /17:30/.test(evening.text), true);
+  // The two a naive conversion gets wrong.
+  const noon = await sent(mail.sendReminder, 'nl', { time: '12:30 PM' });
+  ok('half past twelve is midday, not midnight', /12:30/.test(noon.text), true);
+  const midnight = await sent(mail.sendReminder, 'nl', { time: '12:15 AM' });
+  ok('and quarter past twelve at night is 00:15', /00:15/.test(midnight.text), true);
+  // And one already in the new form is left alone rather than mangled.
+  const already = await sent(mail.sendReminder, 'en', { time: '09:00' });
+  ok('a 24-hour label passes through', /09:00/.test(already.text), true);
 
   console.log('--- the cancel link ---');
   ok('is in the Dutch email', /cancel\.html\?b=41\./.test(nl.text), true);

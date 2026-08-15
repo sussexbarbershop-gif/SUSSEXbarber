@@ -122,7 +122,7 @@ async function main() {
   rows[41] = booking(41);
   let answer = await post({ action: 'lookupCancel', token: good });
   ok('the booking is described', answer.status, 'success');
-  ok('when', [answer.booking.date, answer.booking.time], ['2099-09-08', '02:30 PM']);
+  ok('when', [answer.booking.date, answer.booking.time], ['2099-09-08', '14:30']);
   ok('and who with', answer.booking.barber, 'Saan');
   // The token proves somebody has the email. It does not prove they are the
   // customer, and a link forwarded to a colleague must not hand over the

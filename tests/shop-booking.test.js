@@ -128,7 +128,7 @@ async function post(body) {
 /** A booking as the panel sends it. */
 const byShop = patch => Object.assign({
   action: 'addBookingByShop', password: PASSWORD,
-  date: '2099-09-08', time: '11:00 AM',
+  date: '2099-09-08', time: '11:00',
   name: 'Ahmed', phone: '0612345678', service: 'Skin Fade'
 }, patch);
 
@@ -162,7 +162,7 @@ async function main() {
   ok('and marked as taken by the shop', rows[0].source, 'shop');
 
   reset();
-  await post({ action: 'addBooking', date: '2099-09-08', time: '11:00 AM',
+  await post({ action: 'addBooking', date: '2099-09-08', time: '11:00',
                name: 'Ahmed', phone: '0612345678', service: 'Skin Fade' });
   ok('a booking from the website still says web', rows[0].source, 'web');
 
@@ -201,7 +201,7 @@ async function main() {
   // customer reaches when they do.
   reset();
   mineCount = 10;
-  ({ answer } = await post({ action: 'addBooking', date: '2099-09-08', time: '11:00 AM',
+  ({ answer } = await post({ action: 'addBooking', date: '2099-09-08', time: '11:00',
                              name: 'A', phone: '0612345678', service: 'Skin Fade' }));
   ok('the website refuses an eleventh', answer.status, 'error');
   reset();
@@ -222,7 +222,7 @@ async function main() {
   ok('and named', /Bassam/.test(answer.message), true);
 
   reset();
-  ({ answer } = await post(byShop({ time: '06:00 PM' })));     // the shop shuts at six
+  ({ answer } = await post(byShop({ time: '18:00' })));     // the shop shuts at six
   ok('a time after closing is refused', answer.status, 'error');
 
   reset();
@@ -260,7 +260,7 @@ async function main() {
      posted.some(p => p[0] === 'shop-notice'), false);
 
   reset();
-  await post({ action: 'addBooking', date: '2099-09-08', time: '11:00 AM',
+  await post({ action: 'addBooking', date: '2099-09-08', time: '11:00',
                name: 'A', phone: '0612345678', service: 'Skin Fade',
                email: 'customer@example.com' });
   ok('a website booking still notifies the shop',

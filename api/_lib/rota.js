@@ -32,7 +32,13 @@ function parseClock(value) {
   return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
 }
 
-/** Minutes past midnight for the '02:30 PM' labels the booking form sends. */
+/**
+ * Minutes past midnight for a time label, '14:30' or '02:30 PM'.
+ *
+ * The suffix is still understood although nothing produces one any more: a
+ * confirmation email, a bookmark or a link sent before the site moved to the
+ * twenty-four hour clock has to resolve to the same minute it always did.
+ */
 function clockToMinutes(value) {
   const text = String(value == null ? '' : value).trim();
   const m = text.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
@@ -47,22 +53,31 @@ function clockToMinutes(value) {
   return hours * 60 + mins;
 }
 
-/** '02:30 PM' for 870. The format the diary and the chips both use. */
+/**
+ * '14:30' for 870. What the chips, the diary and the emails all show.
+ *
+ * It used to be '02:30 PM', because the site was written in English and that
+ * is the clock English writes. The shop is in the Netherlands, where the
+ * twelve-hour clock is not used by anybody — including the English speakers
+ * living there. "02:30 PM" is a time a customer in Wassenaar has to stop and
+ * convert, and half past two in the morning is a real reading of it.
+ *
+ * clockToMinutes() still understands the old form, so a link, a bookmark or a
+ * confirmation email sent before this change still resolves to the same
+ * minute.
+ */
 function minutesToLabel(total) {
-  let h = Math.floor(total / 60);
-  const mins = total % 60;
-  const period = h >= 12 ? 'PM' : 'AM';
-  if (h === 0) h = 12; else if (h > 12) h -= 12;
-  return `${String(h).padStart(2, '0')}:${String(mins).padStart(2, '0')} ${period}`;
+  return minutesToClock(total);
 }
 
 /**
  * '14:30' for 870 — the 24-hour form a Postgres `time` column takes.
  *
- * Distinct from minutesToLabel() on purpose. The diary and the chips speak
- * '02:30 PM' because that is what customers read; the database stores a time,
- * and handing it a twelve-hour string with a suffix is how you end up with
- * appointments twelve hours out.
+ * The same string as minutesToLabel() now, and still a separate function. What
+ * a customer is shown and what a database column accepts are two decisions
+ * that happen to agree today; collapsing them into one would mean the next
+ * change to the first silently becomes a change to the second, and an
+ * appointment written twelve hours out is not a thing you notice quickly.
  */
 function minutesToClock(total) {
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;

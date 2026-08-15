@@ -72,7 +72,7 @@ const why = patch => {
   heldByCustomer = patch.alreadyHeld || 0;
   const payload = Object.assign({
     // A Tuesday, far enough ahead that the suite does not expire.
-    date: '2099-09-08', time: '11:00 AM', name: 'Ahmed', phone: '0612345678',
+    date: '2099-09-08', time: '11:00', name: 'Ahmed', phone: '0612345678',
     barber: 'Hemen', service: 'Classic Haircut'
   }, patch);
   delete payload.holders;
@@ -130,15 +130,15 @@ async function main() {
     };
 
     const at = (time, want) => refused(`today ${time}`, { date: '2099-09-08', time }, want);
-    at('10:00 AM', true);    // long gone
-    at('03:30 PM', true);    // gone
-    at('04:00 PM', true);    // now — no notice at all
-    at('04:10 PM', true);    // inside the 15-minute notice
-    at('04:30 PM', false);   // far enough ahead
-    at('05:00 PM', false);
+    at('10:00', true);    // long gone
+    at('15:30', true);    // gone
+    at('16:00', true);    // now — no notice at all
+    at('16:10', true);    // inside the 15-minute notice
+    at('16:30', false);   // far enough ahead
+    at('17:00', false);
 
     // A later date is unaffected by the time of day. Wednesday is Hemen's.
-    refused('tomorrow at 10:00', { date: '2099-09-09', time: '10:00 AM' }, false);
+    refused('tomorrow at 10:00', { date: '2099-09-09', time: '10:00' }, false);
     await Promise.all(checks.splice(0));
 
     global.Date = RealDate;
@@ -146,18 +146,18 @@ async function main() {
 
   console.log('--- the rota is enforced, not just drawn ---');
   refused('Hemen on a Monday',      { date:'2099-09-07' }, true);
-  refused('Hemen during his break', { time:'01:30 PM' }, true);
+  refused('Hemen during his break', { time:'13:30' }, true);
   refused('Amir while away',        { date:'2099-09-01', barber:'Amir' }, true);
   refused('Sunday',                 { date:'2099-09-13' }, true);
-  refused('before opening',         { time:'09:00 AM' }, true);
-  refused('Raman before noon Mon',  { date:'2099-09-07', barber:'Raman', time:'11:00 AM' }, true);
-  refused('Raman at noon Mon',      { date:'2099-09-07', barber:'Raman', time:'12:00 PM' }, false);
+  refused('before opening',         { time:'09:00' }, true);
+  refused('Raman before noon Mon',  { date:'2099-09-07', barber:'Raman', time:'11:00' }, true);
+  refused('Raman at noon Mon',      { date:'2099-09-07', barber:'Raman', time:'12:00' }, false);
   await Promise.all(checks.splice(0));
 
   console.log('--- an appointment must finish before closing ---');
   // The website never offers 17:45, but the server is what actually decides.
-  refused('17:30 ends at 18:00', { time:'05:30 PM' }, false);
-  refused('17:45 would overrun', { time:'05:45 PM' }, true);
+  refused('17:30 ends at 18:00', { time:'17:30' }, false);
+  refused('17:45 would overrun', { time:'17:45' }, true);
   await Promise.all(checks.splice(0));
 
   console.log('--- the chair has to be free ---');
