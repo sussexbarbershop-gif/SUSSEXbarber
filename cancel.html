@@ -120,7 +120,7 @@
                 });
             }
 
-            const say = (text) => { $('state').textContent = text; $('state').classList.remove('hidden'); };
+            const show = (text) => { $('state').textContent = text; $('state').classList.remove('hidden'); };
             const finish = (title, text) => {
                 $('state').classList.add('hidden');
                 $('details').classList.add('hidden');
@@ -135,14 +135,14 @@
                 body: JSON.stringify(body)
             }).then(r => r.json());
 
-            if (!token) return say(t('needLink'));
+            if (!token) return show(t('needLink'));
 
             post({ action: 'lookupCancel', token })
                 .then(answer => {
                     if (!answer || answer.status !== 'success') {
                         // The server's own sentence when it has one — it is
                         // more specific than anything this page could guess.
-                        return say((answer && answer.message) || t('notFound'));
+                        return show((answer && answer.message) || t('notFound'));
                     }
                     const b = answer.booking;
                     // Both of these are ordinary situations, not errors: a
@@ -158,7 +158,7 @@
                     $('state').classList.add('hidden');
                     $('details').classList.remove('hidden');
                 })
-                .catch(() => say(t('offline')));
+                .catch(() => show(t('offline')));
 
             $('confirm').addEventListener('click', function () {
                 // Two taps on a slow connection would send two cancellations.
@@ -171,11 +171,11 @@
                     .then(answer => {
                         if (!answer || answer.status !== 'success') {
                             reset();
-                            return say((answer && answer.message) || t('failed'));
+                            return show((answer && answer.message) || t('failed'));
                         }
                         finish(t('doneTitle'), t('doneText'));
                     })
-                    .catch(() => { reset(); say(t('offline')); });
+                    .catch(() => { reset(); show(t('offline')); });
             });
         })();
     </script>
