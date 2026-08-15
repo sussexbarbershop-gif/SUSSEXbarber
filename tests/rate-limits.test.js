@@ -213,10 +213,16 @@ async function main() {
   ok('and it says how many', swept, 3);
 
   console.log('--- the limits themselves ---');
-  // A family of four booking from one wifi has to fit inside these, and a
-  // script filling eighty chairs must not. Numbers, so a change is deliberate.
-  ok('a booking', [rule.perHour, rule.perDay], [8, 20]);
+  // Written out, so that changing one is a decision somebody made rather than
+  // a number that drifted.
+  ok('a booking', [rule.perHour, rule.perDay], [4, 10]);
   ok('a day is more than an hour', rule.perDay > rule.perHour, true);
+  // An address is not a person: mobile carriers put hundreds of customers
+  // behind one of them, so two people on 4G in Wassenaar can arrive looking
+  // like one. Below four, a family booking together stops fitting — and
+  // turning real customers away is the damage this was written to prevent,
+  // arriving by the front door.
+  ok('and a family of four still fits', rule.perHour >= 4, true);
   Object.keys(limits.RULES).forEach(action => {
     const r = limits.RULES[action];
     ok(`${action} has both windows`, [typeof r.perHour, typeof r.perDay], ['number', 'number']);

@@ -21,33 +21,40 @@
 const { db, withNewSchema } = require('./db');
 
 /**
- * The rules, by action.
+ * The rules, by action. One place, so tightening them is one edit.
  *
  *   perHour   what a real customer could plausibly do in an hour
  *   perDay    what stops the hour limit being used sixteen times over
  *
- * A family of four booking from one wifi has to fit inside these, and a
- * script filling eighty chairs must not. That gap is wide, which is why the
- * numbers can be generous and still work.
+ * The numbers do not have to be tight to work, and there is a reason not to
+ * make them tighter than they need to be: **an address is not a person.**
+ * Mobile carriers put hundreds of customers behind one of them, so two people
+ * on 4G in Wassenaar can arrive here looking like one. Set these low enough
+ * and a busy Saturday turns real customers away — which is the damage this was
+ * written to prevent, arriving by the front door.
+ *
+ * So the gap is what does the work, not the ceiling. A customer books one
+ * haircut; a script books hundreds. Anywhere in between is a safe place to
+ * draw the line, and lower is only better up to the point where a family of
+ * four on one wifi stops fitting.
  */
 const RULES = {
-  // One customer books one haircut. Four is a family; ten in an hour from one
-  // address is not a household.
-  addBooking:    { perHour: 8,  perDay: 20 },
-  // Cancelling needs the date, the time and the phone number. Someone trying
-  // numbers to cancel a stranger's appointment gets ten tries an hour.
-  cancelBooking: { perHour: 10, perDay: 40 },
-  // A lookup by phone number, which is also the way to find out whether a
+  // One customer books one haircut. Four is a family from one address; a fifth
+  // within the hour is already unusual for a shop this size.
+  addBooking:    { perHour: 4,  perDay: 10 },
+  // Cancelling needs the date, the time and the phone number all three.
+  cancelBooking: { perHour: 5,  perDay: 15 },
+  // A lookup by phone number, which is also how you would find out whether a
   // given number belongs to a customer at all.
-  myBookings:    { perHour: 20, perDay: 60 },
+  myBookings:    { perHour: 10, perDay: 30 },
   // On top of the delay that already grows with each wrong answer. The owner
-  // mistyping their password three times must never be locked out, so this is
-  // set far above anything a person does and far below what guessing needs.
-  adminLogin:    { perHour: 15, perDay: 60 },
+  // mistyping their password must never be locked out of their own panel, and
+  // a correct password clears the count — so this only ever counts failures.
+  adminLogin:    { perHour: 8,  perDay: 30 },
   // Reading what a cancel link points at. The page asks once when it opens, so
   // a customer needs one; a token being brute-forced needs millions.
-  lookupCancel:  { perHour: 30, perDay: 100 },
-  cancelByLink:  { perHour: 10, perDay: 30 }
+  lookupCancel:  { perHour: 15, perDay: 50 },
+  cancelByLink:  { perHour: 5,  perDay: 15 }
 };
 
 /**
