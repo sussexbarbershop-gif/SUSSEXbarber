@@ -49,6 +49,7 @@ function ensureSchema() {
     const sql = db();
     schemaEnsured = (async () => {
       await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'web'`;
+      await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS lang text NOT NULL DEFAULT 'en'`;
       await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS reminded_at timestamptz`;
       await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS review_asked_at timestamptz`;
       await sql`CREATE TABLE IF NOT EXISTS rate_limit (

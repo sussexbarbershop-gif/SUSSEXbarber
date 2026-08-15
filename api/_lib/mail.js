@@ -224,6 +224,68 @@ function shell({ preheader, heading, lead, rows, button, note, config }) {
 </body></html>`;
 }
 
+// ---------------------------------------------------------------------------
+// In the customer's own language
+// ---------------------------------------------------------------------------
+
+/**
+ * The shop is in Wassenaar and most of its customers are Dutch, but the site
+ * opens in English and they have to press EN/NL to change it. Which they
+ * pressed is now recorded with the booking, so everything that follows arrives
+ * in the language they were actually reading.
+ *
+ * A confirmation is the first thing a customer sees from the shop in writing.
+ * Sending it in the wrong language is a small thing that says something.
+ *
+ * Anything not 'nl' is English, including a booking taken before this column
+ * existed and one the shop typed in itself. English is the safer default of
+ * the two: a Dutch customer reads it, an English-speaking one cannot read the
+ * other.
+ */
+const langOf = booking => (String((booking && booking.lang) || '').toLowerCase() === 'nl' ? 'nl' : 'en');
+
+/** Pick one of two. Kept tiny on purpose: two languages, no framework. */
+const say = (lang, pair) => (lang === 'nl' ? pair[1] : pair[0]);
+
+/** The barber column holds '' for "no preference", which each language names. */
+const barberName = (booking, lang) =>
+  String((booking && booking.barber) || '').trim() ||
+  say(lang, ['Any Available', 'Elke Beschikbare Kapper']);
+
+/**
+ * '02:30 PM' as a Dutch reader writes it: 14:30.
+ *
+ * The diary speaks twelve-hour time because that is what the booking form
+ * shows, and the form shows it because the site was written in English. The
+ * Netherlands does not use it. "om 02:30 PM" is not a time a Dutch customer
+ * reads without stopping, and half past two in the morning is a real reading
+ * of it.
+ *
+ * Only the wording changes. Nothing stored moves, and the English emails still
+ * say what the site says.
+ */
+function timeIn(lang, label) {
+  const text = String(label || '').trim();
+  if (lang !== 'nl') return text;
+  const m = text.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!m) return text;                       // already 24-hour, or unreadable
+  let hours = parseInt(m[1], 10);
+  const period = m[3].toUpperCase();
+  if (period === 'PM' && hours !== 12) hours += 12;
+  if (period === 'AM' && hours === 12) hours = 0;
+  return `${String(hours).padStart(2, '0')}:${m[2]}`;
+}
+
+const LABELS = {
+  when:    ['When', 'Wanneer'],
+  time:    ['Time', 'Tijd'],
+  was:     ['Was', 'Was'],
+  service: ['Service', 'Dienst'],
+  barber:  ['Barber', 'Kapper'],
+  where:   ['Where', 'Waar']
+};
+const label = (lang, key) => say(lang, LABELS[key]);
+
 const line = (label, value) => `${label.padEnd(9)}${value}`;
 
 function bookingLines(b) {
@@ -274,59 +336,73 @@ async function sendCustomerConfirmation(booking, config) {
   // not to be trusted just because the browser looked at it first.
   if (!isEmail(to)) return false;
 
+  const lang = langOf(booking);
   const settings = (config && config.settings) || {};
   const phone = String(settings.contact_phone || '').trim();
   const address = String(settings.contact_address || '').trim().replace(/<br\s*\/?>/gi, ', ');
-  const barber = String(booking.barber || '').trim() || 'Any Available';
+  const barber = barberName(booking, lang);
+  const when = `${booking.date || ''} ${say(lang, ['at', 'om'])} ${timeIn(lang, booking.time)}`;
 
   // One link, for one booking. See cancelToken() in auth.js for why this
   // exists now when it deliberately did not before.
   const cancelUrl = booking.cancelToken
-    ? `${SITE_URL}/cancel.html?b=${encodeURIComponent(booking.cancelToken)}`
+    ? `${SITE_URL}/cancel.html?b=${encodeURIComponent(booking.cancelToken)}&l=${lang}`
     : '';
 
   const lines = [
-    `Hello ${booking.name || ''},`,
+    say(lang, [`Hello ${booking.name || ''},`, `Hallo ${booking.name || ''},`]),
     '',
-    `Your appointment at ${SHOP_NAME} is booked.`,
+    say(lang, [`Your appointment at ${SHOP_NAME} is booked.`,
+               `Uw afspraak bij ${SHOP_NAME} staat genoteerd.`]),
     '',
-    line('When:', `${booking.date || ''} at ${booking.time || ''}`),
-    line('Service:', booking.service || ''),
-    line('Barber:', barber)
+    line(label(lang, 'when') + ':', when),
+    line(label(lang, 'service') + ':', booking.service || ''),
+    line(label(lang, 'barber') + ':', barber)
   ];
-  if (address) lines.push(line('Where:', address));
+  if (address) lines.push(line(label(lang, 'where') + ':', address));
   lines.push('');
   if (cancelUrl) {
-    lines.push('Cannot make it? Cancel here:', cancelUrl, '');
-    lines.push('Otherwise there is nothing to do — just come in.');
+    lines.push(say(lang, ['Cannot make it? Cancel here:', 'Kunt u niet komen? Annuleer hier:']),
+               cancelUrl, '');
+    lines.push(say(lang, ['Otherwise there is nothing to do — just come in.',
+                          'Verder hoeft u niets te doen — kom gewoon langs.']));
   } else {
-    lines.push('To change or cancel, visit the website and use "Already booked?"');
+    lines.push(say(lang, ['To change or cancel, visit the website and use "Already booked?"',
+                          'Wijzigen of annuleren kan op de website via "Already booked?"']));
   }
-  if (phone) lines.push(`Any questions, call us on ${phone}.`);
-  lines.push('', 'See you soon.');
+  if (phone) lines.push(say(lang, [`Any questions, call us on ${phone}.`,
+                                   `Vragen? Bel ons op ${phone}.`]));
+  lines.push('', say(lang, ['See you soon.', 'Tot snel.']));
 
   return send({
     to,
-    subject: `Your appointment — ${booking.date || ''} at ${booking.time || ''}`,
+    subject: say(lang, [`Your appointment — ${when}`, `Uw afspraak — ${when}`]),
     text: lines.join('\n') + '\n',
     html: shell({
       config,
-      preheader: `${booking.date || ''} at ${booking.time || ''} with ${barber}`,
-      heading: 'Your appointment is booked',
-      lead: `Hello ${esc(booking.name || '')}, we have you down for the following.`,
+      preheader: `${when} ${say(lang, ['with', 'bij'])} ${barber}`,
+      heading: say(lang, ['Your appointment is booked', 'Uw afspraak staat genoteerd']),
+      lead: say(lang, [
+        `Hello ${esc(booking.name || '')}, we have you down for the following.`,
+        `Hallo ${esc(booking.name || '')}, wij hebben het volgende voor u genoteerd.`
+      ]),
       rows: [
-        ['When', `${booking.date || ''} at ${booking.time || ''}`],
-        ['Service', booking.service || ''],
-        ['Barber', barber],
-        ['Where', address]
+        [label(lang, 'when'), when],
+        [label(lang, 'service'), booking.service || ''],
+        [label(lang, 'barber'), barber],
+        [label(lang, 'where'), address]
       ],
-      button: cancelUrl ? { label: 'Cancel this appointment', url: cancelUrl } : null,
+      button: cancelUrl
+        ? { label: say(lang, ['Cancel this appointment', 'Deze afspraak annuleren']), url: cancelUrl }
+        : null,
       note: cancelUrl
         // Said in this order deliberately: the button is the loud thing on the
         // page, and without a sentence beside it the email reads as though
         // cancelling is what it is for.
-        ? 'Only if you cannot make it — otherwise there is nothing to do, just come in.'
-        : 'To change or cancel, use &ldquo;Already booked?&rdquo; on our website.'
+        ? say(lang, ['Only if you cannot make it — otherwise there is nothing to do, just come in.',
+                     'Alleen als u niet kunt komen — verder hoeft u niets te doen, kom gewoon langs.'])
+        : say(lang, ['To change or cancel, use &ldquo;Already booked?&rdquo; on our website.',
+                     'Wijzigen of annuleren kan via &ldquo;Already booked?&rdquo; op onze website.'])
     })
   });
 }
@@ -342,39 +418,46 @@ async function sendCustomerCancellation(booking, config) {
   const to = String(booking.email || '').trim();
   if (!isEmail(to)) return false;
 
+  const lang = langOf(booking);
   const settings = (config && config.settings) || {};
   const phone = String(settings.contact_phone || '').trim();
+  const when = `${booking.date || ''} ${say(lang, ['at', 'om'])} ${timeIn(lang, booking.time)}`;
 
   const lines = [
-    `Hello ${booking.name || ''},`,
+    say(lang, [`Hello ${booking.name || ''},`, `Hallo ${booking.name || ''},`]),
     '',
-    `Your appointment at ${SHOP_NAME} has been cancelled.`,
+    say(lang, [`Your appointment at ${SHOP_NAME} has been cancelled.`,
+               `Uw afspraak bij ${SHOP_NAME} is geannuleerd.`]),
     '',
-    line('Was:', `${booking.date || ''} at ${booking.time || ''}`),
-    line('Service:', booking.service || ''),
+    line(label(lang, 'was') + ':', when),
+    line(label(lang, 'service') + ':', booking.service || ''),
     '',
-    'Nothing else is needed. Book again on the website whenever suits you'
+    say(lang, ['Nothing else is needed. Book again on the website whenever suits you.',
+               'Verder hoeft u niets te doen. Boek gerust opnieuw op de website wanneer het u uitkomt.'])
   ];
-  if (phone) lines.push(`, or call us on ${phone}`);
-  lines.push('.', '', `${SITE_URL}`, '', 'See you soon.');
+  if (phone) lines.push(say(lang, [`Or call us on ${phone}.`, `Of bel ons op ${phone}.`]));
+  lines.push('', `${SITE_URL}`, '', say(lang, ['See you soon.', 'Tot snel.']));
 
   return send({
     to,
-    subject: `Cancelled — ${booking.date || ''} at ${booking.time || ''}`,
+    subject: say(lang, [`Cancelled — ${when}`, `Geannuleerd — ${when}`]),
     text: lines.join('\n') + '\n',
     html: shell({
       config,
-      preheader: `${booking.date || ''} at ${booking.time || ''} is off`,
-      heading: 'Your appointment is cancelled',
+      preheader: say(lang, [`${when} is off`, `${when} gaat niet door`]),
+      heading: say(lang, ['Your appointment is cancelled', 'Uw afspraak is geannuleerd']),
       // The one thing to say plainly. Somebody reading this either cancelled
       // it and wants confirmation, or did not and is about to ring up.
-      lead: `Hello ${esc(booking.name || '')}, that is done — nothing else is needed.`,
+      lead: say(lang, [
+        `Hello ${esc(booking.name || '')}, that is done — nothing else is needed.`,
+        `Hallo ${esc(booking.name || '')}, dat is geregeld — verder hoeft u niets te doen.`
+      ]),
       rows: [
-        ['Was', `${booking.date || ''} at ${booking.time || ''}`],
-        ['Service', booking.service || '']
+        [label(lang, 'was'), when],
+        [label(lang, 'service'), booking.service || '']
       ],
-      button: { label: 'Book another time', url: SITE_URL },
-      note: phone ? `Or call us on ${esc(phone)}.` : ''
+      button: { label: say(lang, ['Book another time', 'Nieuwe afspraak maken']), url: SITE_URL },
+      note: phone ? say(lang, [`Or call us on ${esc(phone)}.`, `Of bel ons op ${esc(phone)}.`]) : ''
     })
   });
 }
@@ -395,56 +478,64 @@ async function sendReminder(booking, config) {
   const to = String(booking.email || '').trim();
   if (!isEmail(to)) return false;
 
+  const lang = langOf(booking);
   const settings = (config && config.settings) || {};
   const phone = String(settings.contact_phone || '').trim();
   const address = String(settings.contact_address || '').trim().replace(/<br\s*\/?>/gi, ', ');
-  const barber = String(booking.barber || '').trim() || 'Any Available';
+  const barber = barberName(booking, lang);
 
   const cancelUrl = booking.cancelToken
-    ? `${SITE_URL}/cancel.html?b=${encodeURIComponent(booking.cancelToken)}`
+    ? `${SITE_URL}/cancel.html?b=${encodeURIComponent(booking.cancelToken)}&l=${lang}`
     : '';
 
   const lines = [
-    `Hello ${booking.name || ''},`,
+    say(lang, [`Hello ${booking.name || ''},`, `Hallo ${booking.name || ''},`]),
     '',
-    `A reminder that your appointment at ${SHOP_NAME} is today.`,
+    say(lang, [`A reminder that your appointment at ${SHOP_NAME} is today.`,
+               `Een herinnering: uw afspraak bij ${SHOP_NAME} is vandaag.`]),
     '',
-    line('Time:', booking.time || ''),
-    line('Service:', booking.service || ''),
-    line('Barber:', barber)
+    line(label(lang, 'time') + ':', timeIn(lang, booking.time)),
+    line(label(lang, 'service') + ':', booking.service || ''),
+    line(label(lang, 'barber') + ':', barber)
   ];
-  if (address) lines.push(line('Where:', address));
+  if (address) lines.push(line(label(lang, 'where') + ':', address));
   lines.push('');
   // The point of the whole email. A customer who cannot come and says so is
   // worth more to the shop than one who is reminded and says nothing, because
   // the slot can still be sold.
-  lines.push('If you cannot make it, please let us know so we can offer the');
-  lines.push('time to someone else.');
+  lines.push(say(lang, ['If you cannot make it, please let us know so we can offer the time to someone else.',
+                        'Kunt u niet komen? Laat het ons weten, dan kunnen wij de tijd aan iemand anders aanbieden.']));
   if (cancelUrl) lines.push('', cancelUrl);
-  if (phone) lines.push('', `Or call us on ${phone}.`);
-  lines.push('', 'See you soon.');
+  if (phone) lines.push('', say(lang, [`Or call us on ${phone}.`, `Of bel ons op ${phone}.`]));
+  lines.push('', say(lang, ['See you soon.', 'Tot straks.']));
 
   return send({
-    // "Today" in the subject, because a reminder read on a lock screen and
+    // The time in the subject, because a reminder read on a lock screen and
     // never opened has still done its job.
     to,
-    subject: `Today at ${booking.time || ''} — ${SHOP_NAME}`,
+    subject: say(lang, [`Today at ${timeIn(lang, booking.time)} — ${SHOP_NAME}`,
+                        `Vandaag om ${timeIn(lang, booking.time)} — ${SHOP_NAME}`]),
     text: lines.join('\n') + '\n',
     html: shell({
       config,
-      preheader: `${booking.time || ''} with ${barber}`,
-      heading: 'Your appointment is today',
-      lead: `Hello ${esc(booking.name || '')}, just a reminder.`,
+      preheader: `${timeIn(lang, booking.time)} ${say(lang, ['with', 'bij'])} ${barber}`,
+      heading: say(lang, ['Your appointment is today', 'Uw afspraak is vandaag']),
+      lead: say(lang, [`Hello ${esc(booking.name || '')}, just a reminder.`,
+                       `Hallo ${esc(booking.name || '')}, even een herinnering.`]),
       rows: [
-        ['Time', booking.time || ''],
-        ['Service', booking.service || ''],
-        ['Barber', barber],
-        ['Where', address]
+        [label(lang, 'time'), timeIn(lang, booking.time)],
+        [label(lang, 'service'), booking.service || ''],
+        [label(lang, 'barber'), barber],
+        [label(lang, 'where'), address]
       ],
-      button: cancelUrl ? { label: 'I cannot make it', url: cancelUrl } : null,
+      button: cancelUrl
+        ? { label: say(lang, ['I cannot make it', 'Ik kan niet komen']), url: cancelUrl }
+        : null,
       note: cancelUrl
-        ? 'Letting us know means we can offer the time to someone else.'
-        : (phone ? `If you cannot make it, please call us on ${esc(phone)}.` : '')
+        ? say(lang, ['Letting us know means we can offer the time to someone else.',
+                     'Als u het laat weten, kunnen wij de tijd aan iemand anders aanbieden.'])
+        : (phone ? say(lang, [`If you cannot make it, please call us on ${esc(phone)}.`,
+                              `Kunt u niet komen, bel ons dan op ${esc(phone)}.`]) : '')
     })
   });
 }
@@ -465,48 +556,59 @@ async function sendReviewRequest(booking, config, reviewUrl) {
   const url = String(reviewUrl || '').trim();
   if (!url) return false;
 
+  const lang = langOf(booking);
   const settings = (config && config.settings) || {};
   const phone = String(settings.contact_phone || '').trim();
+  // Not barberName() here: with nobody named there is no one to thank by name,
+  // and "we hope Any Available looked after you" is not a sentence.
   const barber = String(booking.barber || '').trim();
 
+  const thanks = barber
+    ? say(lang, [`Thank you for coming in today — we hope ${barber} looked after you.`,
+                 `Bedankt voor uw bezoek vandaag — wij hopen dat ${barber} u goed geholpen heeft.`])
+    : say(lang, ['Thank you for coming in today.', 'Bedankt voor uw bezoek vandaag.']);
+
+  // Said plainly. An email that only wants something is one people stop
+  // opening, and the shop would rather hear about a bad haircut than read
+  // about it in public.
+  const ifWrong = say(lang, [
+    'If something was not right, reply to this email' +
+      (phone ? ` or call us on ${phone}` : '') + ' — we would rather fix it.',
+    'Was er iets niet goed? Antwoord op deze e-mail' +
+      (phone ? ` of bel ons op ${phone}` : '') + ' — wij lossen het liever op.'
+  ]);
+
   const lines = [
-    `Hello ${booking.name || ''},`,
+    say(lang, [`Hello ${booking.name || ''},`, `Hallo ${booking.name || ''},`]),
     '',
-    barber
-      ? `Thank you for coming in today — we hope ${barber} looked after you.`
-      : 'Thank you for coming in today.',
+    thanks,
     '',
-    'If you have a moment, a short review helps people in Wassenaar find us:',
+    say(lang, ['If you have a moment, a short review helps people in Wassenaar find us:',
+               'Heeft u even? Een korte review helpt mensen in Wassenaar ons te vinden:']),
     url,
     '',
-    // Said plainly. An email that only wants something is one people stop
-    // opening, and the shop would rather hear about a bad haircut than read
-    // about it in public.
-    'If something was not right, reply to this email instead' +
-      (phone ? ` or call us on ${phone}` : '') + ' — we would rather fix it.',
+    ifWrong,
     '',
-    'See you next time.'
+    say(lang, ['See you next time.', 'Tot de volgende keer.'])
   ];
 
   return send({
     to,
-    subject: `Thanks from ${SHOP_NAME}`,
+    subject: say(lang, [`Thanks from ${SHOP_NAME}`, `Bedankt van ${SHOP_NAME}`]),
     text: lines.join('\n') + '\n',
     html: shell({
       config,
-      preheader: 'A quick review helps people in Wassenaar find us',
-      heading: 'Thank you for coming in',
+      preheader: say(lang, ['A quick review helps people in Wassenaar find us',
+                            'Een korte review helpt mensen in Wassenaar ons te vinden']),
+      heading: say(lang, ['Thank you for coming in', 'Bedankt voor uw bezoek']),
       lead: barber
-        ? `Hello ${esc(booking.name || '')}, we hope ${esc(barber)} looked after you today.`
-        : `Hello ${esc(booking.name || '')}, we hope you were well looked after today.`,
+        ? say(lang, [`Hello ${esc(booking.name || '')}, we hope ${esc(barber)} looked after you today.`,
+                     `Hallo ${esc(booking.name || '')}, wij hopen dat ${esc(barber)} u vandaag goed geholpen heeft.`])
+        : say(lang, [`Hello ${esc(booking.name || '')}, we hope you were well looked after today.`,
+                     `Hallo ${esc(booking.name || '')}, wij hopen dat u vandaag goed geholpen bent.`]),
       rows: [],
-      button: { label: 'Leave a review', url },
-      // Said plainly, and second. An email that only wants something is one
-      // people stop opening, and the shop would rather hear about a bad
-      // haircut than read about it in public.
-      note: 'If something was not right, reply to this email' +
-            (phone ? ` or call us on ${esc(phone)}` : '') +
-            ' — we would rather fix it.'
+      button: { label: say(lang, ['Leave a review', 'Schrijf een review']), url },
+      note: esc(ifWrong)
     })
   });
 }

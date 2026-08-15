@@ -618,6 +618,10 @@ async function addBooking(payload, res, byShop) {
   // and the barber that were recorded, not what the browser claimed.
   const record = Object.assign({}, payload, {
     service, price, barber: written.barber,
+    // The language as it was written down, not as the browser sent it. The
+    // payload's copy is unchecked; this one is the value in the row, which is
+    // what every later email will be picked from.
+    lang: written.lang,
     // Signed over this row's id alone, so the link in the email can do one
     // thing to one appointment and nothing else at all.
     cancelToken: cancelToken(written.id)
@@ -654,6 +658,10 @@ function normaliseBarber(value) {
 async function insertBooking(sql, ctx) {
   const { date, clock, service, price, payload, config, time, asked } = ctx;
   const source = ctx.source === 'shop' ? 'shop' : 'web';
+  // Two languages, and anything else is English. Whatever the browser sent is
+  // going into a column and then into the choice of wording for four emails;
+  // it is not going in unchecked.
+  const lang = trimmed(payload.lang).toLowerCase() === 'nl' ? 'nl' : 'en';
   const clash = 'Someone else booked that time while you were filling this in. Please choose another.';
 
   // Barbers this request has already been refused. Carried rather than
@@ -678,12 +686,12 @@ async function insertBooking(sql, ctx) {
       // link and a link that cancels one appointment has to name which.
       const written = await withNewSchema(() => sql`
         INSERT INTO bookings (booked_on, booked_at, service, barber, customer_name,
-                              phone, email, price, source)
+                              phone, email, price, source, lang)
         VALUES (${date}, ${clock}, ${service}, ${barber}, ${trimmed(payload.name)},
                 ${trimmed(payload.phone)}, ${trimmed(payload.email)}, ${price},
-                ${source})
+                ${source}, ${lang})
         RETURNING id`);
-      return { barber, id: (written[0] || {}).id };
+      return { barber, id: (written[0] || {}).id, lang };
     } catch (err) {
       if (!String(err.message || '').includes('bookings_one_chair')) throw err;
       // Someone took that chair between the read and the write. If the
@@ -743,7 +751,7 @@ async function cancelByLink(payload, res) {
        SET status = 'cancelled', cancelled_at = now()
      WHERE id = ${id} AND status = 'active'
     RETURNING to_char(booked_on, 'YYYY-MM-DD') AS booked_on,
-              booked_at, service, barber, customer_name, phone, email`;
+              booked_at, service, barber, customer_name, phone, email, lang`;
 
   // Already cancelled. Not an error: a second click on the same link, or a
   // customer who also rang up, and both should be told the same calm thing.
@@ -756,7 +764,7 @@ async function cancelByLink(payload, res) {
     date: r.booked_on,
     time: rota.minutesToLabel(rota.parseClock(r.booked_at)),
     name: r.customer_name, phone: r.phone, email: r.email,
-    service: r.service, barber: r.barber
+    service: r.service, barber: r.barber, lang: r.lang
   };
   const config = await readConfig();
   await Promise.allSettled([
@@ -785,7 +793,7 @@ async function cancelBooking(payload, res) {
      WHERE booked_on = ${date} AND booked_at = ${rota.minutesToClock(minutes)}
        AND phone_key = ${key} AND status = 'active'
     RETURNING to_char(booked_on, 'YYYY-MM-DD') AS booked_on,
-              booked_at, service, barber, customer_name, phone, email`;
+              booked_at, service, barber, customer_name, phone, email, lang`;
 
   if (rows.length === 0) {
     return json(res, { status: 'error', message: 'Booking not found' });
@@ -796,7 +804,7 @@ async function cancelBooking(payload, res) {
     date: r.booked_on,
     time: rota.minutesToLabel(rota.parseClock(r.booked_at)),
     name: r.customer_name, phone: r.phone, email: r.email,
-    service: r.service, barber: r.barber
+    service: r.service, barber: r.barber, lang: r.lang
   };
   // The shop, and the customer. They were emailed when the appointment was
   // made, so silence when it comes off reads as "did that work?".

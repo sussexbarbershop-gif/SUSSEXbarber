@@ -157,7 +157,7 @@ async function runDailyJob(job) {
 /** Everybody in today's diary who left an address and has not been told yet. */
 async function sendReminders(sql, config, today) {
   const rows = await withNewSchema(() => sql`
-    SELECT id, booked_at, service, barber, customer_name, email
+    SELECT id, booked_at, service, barber, customer_name, email, lang
       FROM bookings
      WHERE booked_on = ${today}
        AND status = 'active'
@@ -174,6 +174,7 @@ async function sendReminders(sql, config, today) {
       time: rota.minutesToLabel(rota.parseClock(row.booked_at)),
       service: row.service,
       barber: row.barber,
+      lang: row.lang,
       // The morning of the appointment is when a customer discovers they
       // cannot come, so this is the email where saying so easily is worth the
       // most: a slot given back at nine can still be sold by two.
@@ -214,7 +215,7 @@ async function askForReviews(sql, config, today, cutoff) {
   if (!reviewUrl) return 0;
 
   const rows = await withNewSchema(() => sql`
-    SELECT id, booked_at, service, barber, customer_name, email
+    SELECT id, booked_at, service, barber, customer_name, email, lang
       FROM bookings
      WHERE booked_on = ${today}
        AND status = 'active'
@@ -231,7 +232,7 @@ async function askForReviews(sql, config, today, cutoff) {
       name: row.customer_name,
       email: row.email,
       service: row.service,
-      barber: row.barber
+      barber: row.barber, lang: row.lang
     }, config, reviewUrl);
     if (ok) {
       await sql`UPDATE bookings SET review_asked_at = now() WHERE id = ${row.id}`;

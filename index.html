@@ -1678,7 +1678,11 @@
                 email: emailVal,
                 service: selectedServiceName,
                 barber: document.getElementById('barber').value,
-                price: servicePrice
+                price: servicePrice,
+                // Which language they filled this in in, so the confirmation,
+                // the reminder and everything after it arrive in the same one.
+                // The page has always known; it simply never said.
+                lang: window.currentLang || 'en'
             };
 
             try {

@@ -138,6 +138,11 @@ CREATE TABLE IF NOT EXISTS bookings (
     -- database and not on the shop's, which is worse than not having one. The
     -- API is the only writer and it writes one of two literals.
     source        text NOT NULL DEFAULT 'web',
+    -- Which language the booking was made in, so every email that follows
+    -- arrives in the one the customer was reading. Most of this shop's
+    -- customers are Dutch; the site's default is English, and a confirmation
+    -- in the wrong language is the first thing they see of us in writing.
+    lang          text NOT NULL DEFAULT 'en',
     -- When the morning reminder went out, and when the review was asked for.
     -- Timestamps rather than flags so a duplicate is impossible: the daily job
     -- selects on IS NULL, and a job that runs twice sends nothing the second
@@ -215,5 +220,6 @@ CREATE INDEX IF NOT EXISTS rate_limit_sweep ON rate_limit (window_at);
 -- second time. The API also runs these itself the first time it needs one of
 -- them, so forgetting to run this file is not how the shop finds out.
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'web';
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS lang text NOT NULL DEFAULT 'en';
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS reminded_at timestamptz;
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS review_asked_at timestamptz;
