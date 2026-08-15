@@ -39,22 +39,22 @@ const { db, withNewSchema } = require('./db');
  * four on one wifi stops fitting.
  */
 const RULES = {
-  // One customer books one haircut. Four is a family from one address; a fifth
-  // within the hour is already unusual for a shop this size.
-  addBooking:    { perHour: 4,  perDay: 10 },
+  // One customer books one haircut. Four is a family from one address; eight
+  // in an hour is not a household, and a script does not stop at eight.
+  addBooking:    { perHour: 8,  perDay: 20 },
   // Cancelling needs the date, the time and the phone number all three.
-  cancelBooking: { perHour: 5,  perDay: 15 },
+  cancelBooking: { perHour: 10, perDay: 40 },
   // A lookup by phone number, which is also how you would find out whether a
   // given number belongs to a customer at all.
-  myBookings:    { perHour: 10, perDay: 30 },
+  myBookings:    { perHour: 20, perDay: 60 },
   // On top of the delay that already grows with each wrong answer. The owner
   // mistyping their password must never be locked out of their own panel, and
   // a correct password clears the count — so this only ever counts failures.
-  adminLogin:    { perHour: 8,  perDay: 30 },
+  adminLogin:    { perHour: 15, perDay: 60 },
   // Reading what a cancel link points at. The page asks once when it opens, so
   // a customer needs one; a token being brute-forced needs millions.
-  lookupCancel:  { perHour: 15, perDay: 50 },
-  cancelByLink:  { perHour: 5,  perDay: 15 }
+  lookupCancel:  { perHour: 30, perDay: 100 },
+  cancelByLink:  { perHour: 10, perDay: 30 }
 };
 
 /**
