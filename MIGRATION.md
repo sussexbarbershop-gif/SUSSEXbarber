@@ -32,7 +32,8 @@ row to the last every time somebody picked a date.
   `IF NOT EXISTS`.
 - **Backend** — one Vercel function, [`api/index.js`](api/index.js), with its
   parts in [`api/_lib/`](api/_lib), plus [`api/daily.js`](api/daily.js) which
-  nothing calls but the clock.
+  nothing calls but the clock, and [`.github/workflows/nudge.yml`](.github/workflows/nudge.yml)
+  which is the clock for the reminder.
 - **Front end** — [`index.html`](index.html) and [`admin/`](admin), both
   calling `/api` on their own origin, and two static pages:
   [`privacy.html`](privacy.html) and [`terms.html`](terms.html).
@@ -52,7 +53,7 @@ for Production, Preview and Development alike:
 | `NOTIFY_EMAIL` | where booking notifications go |
 | `RESEND_API_KEY` | a Resend API key |
 | `MAIL_FROM` | `Sussex Barber Shop <booking@sussexbarber.nl>` — an address on the verified domain |
-| `CRON_SECRET` | any long random string. Vercel sends it back on the daily job; without it that job refuses to run at all |
+| `CRON_SECRET` | any long random string. Both Vercel and GitHub send it back on the scheduled jobs, so the same value has to be in both; without it they refuse to run at all |
 
 Optional:
 
@@ -64,34 +65,63 @@ Optional:
 
 ---
 
-## The daily job
+## The jobs nobody presses
 
-`vercel.json` schedules one call to `/api/daily` at **07:00 UTC** — 09:00 in
-Amsterdam in summer, 08:00 in winter. Both are before the shop opens, which is
-all that matters: a reminder that arrives after the appointment is worse than
-none.
+Two rounds on `/api/daily`, and they are scheduled by two different services
+for a reason worth understanding before changing either.
 
-It does two rounds, and both only ever reach a customer who left an email
-address:
+| Round | When | Scheduled by |
+|---|---|---|
+| `?job=soon` | every 15 minutes, 06:00–17:00 UTC | GitHub Actions |
+| `?job=evening` | 18:00 UTC — 20:00 in Amsterdam in summer, 19:00 in winter | Vercel |
 
-1. **Reminds** everybody booked in today.
-2. **Thanks** everybody who came in yesterday and asks them for a review —
-   but only once `review_url` is filled in on the panel's Website Text page.
-   Empty means no such email is sent at all.
+**`soon` is the reminder**, sent about an hour before the appointment. There
+was a nine-in-the-morning round as well and it was dropped: two emails for one
+haircut is one more than anybody wants, and an hour before is when a reminder
+is actually read. It runs every quarter of an hour because "an hour before"
+cannot be done once a day when appointments run from ten until six — and a
+Vercel Hobby cron runs once a day. Hence GitHub.
 
-Each row records the moment its email went out, and the queries only pick up
-rows where that is still empty. So running the job twice sends nothing the
-second time, and nothing is ever backfilled: the review round only ever looks
-at yesterday, so setting the link months from now asks yesterday's customers
-and nobody else. Emailing every customer the shop has ever had on one morning
-is how a domain gets marked as spam, and it would take the booking
-confirmations down with it.
+**`evening` thanks** everybody who came in that day and asks for a review, but
+only once `review_url` is filled in on the panel's Website Text page. Empty
+means no such email is sent at all. It also sweeps the rate-limit counters.
 
-**`CRON_SECRET` must be set.** Vercel attaches it as `Authorization: Bearer …`
-to the scheduled call once the variable exists on the project; without it the
-route refuses everything, including Vercel. A public URL that emails the whole
-diary is not something to leave open while somebody remembers to configure it.
-The run is logged on a line starting `[daily]` with what it sent.
+Each row records the moment its email went out and the queries only pick up
+rows where that is still empty, so running either twice sends nothing the
+second time. Nothing is ever backfilled: both rounds look at one day only, so
+setting the review link months from now asks that evening's customers and
+nobody else. Emailing every customer the shop has ever had in one go is how a
+domain gets marked as spam, and it would take the booking confirmations down
+with it.
+
+### Both need `CRON_SECRET`, in two places
+
+Vercel attaches it as `Authorization: Bearer …` to its scheduled call once the
+variable exists on the project. GitHub sends the same header from the same
+value, held as a repository secret: **Settings → Secrets and variables →
+Actions → New repository secret**, named `CRON_SECRET`.
+
+They must match. Without it the route refuses everything, Vercel and GitHub
+included — a public URL that emails the whole diary is not something to leave
+open while somebody remembers to configure it. Changing it in Vercel needs a
+redeploy, and needs the GitHub copy changed too.
+
+Runs are logged on a line starting `[daily]`.
+
+### When the reminders stop
+
+Every reminder the shop sends now depends on GitHub Actions, and GitHub
+disables a scheduled workflow in a repository that has seen no activity for
+sixty days. A shop that is running well does not push code, so this will happen
+eventually. GitHub emails the repository owner when it does — and the workflow
+is re-enabled from the **Actions** tab with one button.
+
+There is a second pair of eyes for it. The evening job runs on Vercel, which
+cannot be disabled that way, and counts anything from that day that should have
+been reminded and was not. It reports rather than repairs — sending a reminder
+at eight in the evening for an appointment that was at two is worse than saying
+nothing — and writes the number into the log with the rest. Zero every day
+means the reminders are running.
 
 ---
 
@@ -126,9 +156,9 @@ works identically without it:
 | When | What |
 |---|---|
 | the booking is made | a confirmation |
-| the morning of it | a reminder |
+| about an hour before it | a reminder |
 | if it is cancelled | a note saying so |
-| the day after | a thank-you, and a review link — only if `review_url` is set |
+| a few hours after it | a thank-you, and a review link — only if `review_url` is set |
 
 The shop gets its own notification when a booking arrives on the website. It
 does **not** get one for a booking it typed in itself.

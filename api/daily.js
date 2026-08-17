@@ -4,21 +4,23 @@
  * Vercel calls this twice a day (see vercel.json), and the query string says
  * which round it is:
  *
- *   morning   Reminds everybody booked in today that they are booked in today.
- *   evening   Thanks everybody who came in today and asks them for a review.
- *   soon      Catches the ones the morning run could not: somebody who books
- *             at ten past ten for four o'clock did not exist when it ran.
- *             Every quarter of an hour, from GitHub Actions rather than
- *             Vercel, because a Hobby account's cron runs once a day.
+ *   soon      The reminder, about an hour before the appointment. Every
+ *             quarter of an hour, from GitHub Actions — Vercel's own scheduler
+ *             runs a job once a day on this plan, which cannot do "an hour
+ *             before" for appointments spread across a working day.
+ *   evening   Thanks everybody who came in today and asks them for a review,
+ *             sweeps the rate-limit counters, and counts anything the reminder
+ *             round should have caught and did not.
  *
- * Two runs and not one because of when each is worth sending. A reminder is
- * only useful before the appointment. A review is only worth asking for while
- * the haircut is still fresh — the same evening, a customer remembers it and
- * has their phone in their hand; by tomorrow it is one more thing in an inbox.
+ * There was a third, at nine in the morning, reminding everybody booked in
+ * that day. It is gone: two emails for one haircut is one more than anybody
+ * wants, and an hour before is when a reminder is actually read.
  *
- * A Vercel Hobby account allows two cron jobs, each running once a day, which
- * is exactly this and no more. That is the reason the evening round asks about
- * today rather than watching the clock: it gets one chance, after closing.
+ * A review is only worth asking for while the haircut is still fresh — the
+ * same evening, a customer remembers it and has their phone in their hand; by
+ * tomorrow it is one more thing in an inbox. That round gets one chance a day,
+ * after closing, which is why it asks about the whole day rather than watching
+ * the clock.
  *
  * Both only reach customers who left an email address, and both are sent at
  * most once — the row records when it went, and the queries only pick up rows
@@ -151,35 +153,44 @@ async function runDailyJob(job) {
     return { job, date: today, reminded: nudged, reviewsAsked: 0, countersSwept: 0 };
   }
 
-  const morning = job !== 'evening';
-  const evening = job !== 'morning';
-
-  const reminded = morning ? await sendReminders(sql, config, today) : 0;
   // Today, not yesterday. A customer asked the same evening still remembers
   // the haircut and has their phone in their hand; by tomorrow it is one more
   // thing in an inbox.
-  const asked = evening ? await askForReviews(sql, config, today, askingCutoff()) : 0;
+  const asked = await askForReviews(sql, config, today, askingCutoff());
   // The rate limiter writes a row per address per window and reads none of
-  // them twice. Cleared on the morning run rather than on the way in: a DELETE
-  // on every booking is a second write for nothing.
-  const swept = morning ? await sweepOldCounters(sql) : 0;
-  return { job: job || 'both', date: today, reminded, reviewsAsked: asked, countersSwept: swept };
+  // them twice. Cleared here rather than on the way in: a DELETE on every
+  // booking is a second write for nothing.
+  const swept = await sweepOldCounters(sql);
+  // And a look back over the day, because every reminder now comes from a
+  // scheduler that is not Vercel's. See missedReminders().
+  const missed = await missedReminders(sql, today);
+  return { job: job || 'evening', date: today, reviewsAsked: asked,
+           countersSwept: swept, remindersMissed: missed };
 }
 
 /**
- * How far ahead the through-the-day run looks, and how long a booking has to
- * have been sitting there before it counts.
+ * How far ahead the reminder looks, and how long a booking has to have been
+ * sitting there before it counts.
  *
- * Ninety minutes because the job runs every quarter of an hour and a missed
- * run must not cost somebody their reminder. Two hours of age because a
- * customer who booked twenty minutes ago does not need reminding of it — they
- * would get a confirmation and a reminder within the same hour, which reads as
- * a shop that has lost track of itself.
+ * An hour, because that is when a reminder is worth reading: early enough to
+ * set off, late enough that it is still the thing you are about to do. There
+ * was a nine-in-the-morning round as well, and it was dropped — two emails for
+ * one haircut is one more than anybody wants, and the shop would rather the
+ * one it sends be the useful one.
+ *
+ * The job runs every quarter of an hour, so in practice this fires between
+ * forty-five and sixty minutes before. A late run fires later and still fires.
+ *
+ * Two hours of age, because somebody who booked twenty minutes ago does not
+ * need reminding of it: they would have a confirmation and a reminder in the
+ * same hour, which reads as a shop that has lost track of itself. A customer
+ * who books within two hours of their own appointment gets no reminder, and
+ * does not need one.
  */
-const SOON_MINUTES = 90;
+const SOON_MINUTES = 60;
 const SETTLED_HOURS = 2;
 
-/** 'HH:MM' ninety minutes from now, or '23:59' if that would pass midnight. */
+/** 'HH:MM' an hour from now, or '23:59' if that would pass midnight. */
 function soonCutoff(at) {
   const [h, m] = shopTime(at).split(':').map(Number);
   const minutes = h * 60 + m + SOON_MINUTES;
@@ -249,6 +260,39 @@ async function sendReminders(sql, config, today, until) {
     }
   }
   return sent;
+}
+
+/**
+ * Anybody who should have been reminded today and was not.
+ *
+ * Every reminder now comes from GitHub Actions rather than from Vercel, and
+ * GitHub's scheduler has a habit worth guarding against: it disables a
+ * workflow in a repository that has seen no activity for sixty days. A shop
+ * that is running well does not push code, so that will happen eventually —
+ * and the failure is silent. Reminders would simply stop, and nobody would
+ * notice until a customer said they had not had one.
+ *
+ * So the evening run, which is Vercel's and cannot stop the same way, counts
+ * what the other one should have caught. Nothing is sent and nothing is
+ * fixed — it writes a number into the log beside the rest. Zero every day
+ * means the reminders are running; a day where it is not zero is the day to
+ * look at GitHub.
+ */
+async function missedReminders(sql, today) {
+  const rows = await withNewSchema(() => sql`
+    SELECT count(*) AS missed
+      FROM bookings
+     WHERE booked_on = ${today}
+       AND status = 'active'
+       AND email <> ''
+       AND reminded_at IS NULL
+       -- Booked long enough before the appointment that a reminder was due.
+       AND created_at < now() - make_interval(hours => ${SETTLED_HOURS}::int)`);
+  const missed = Number((rows[0] || {}).missed || 0);
+  if (missed > 0) {
+    console.warn(`[daily] ${missed} bookings today were never reminded — is the GitHub Actions workflow still enabled?`);
+  }
+  return missed;
 }
 
 /**

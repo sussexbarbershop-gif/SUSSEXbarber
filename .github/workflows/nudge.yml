@@ -1,25 +1,27 @@
-# The reminder for a booking the morning run never saw.
+# The reminder, about an hour before the appointment.
 #
-# Vercel schedules /api/daily twice a day (vercel.json) and a Hobby account
-# gets no more than that — each cron runs once. Which leaves a hole the size of
-# most of the shop's day: somebody who books at ten past ten for four o'clock
-# gets no reminder, because the morning run happened an hour before they
-# existed.
+# This is the only reminder the shop sends, and it does not run on Vercel.
+# Vercel's scheduler runs a job once a day on this plan, and "an hour before"
+# cannot be done once a day when appointments are spread from ten until six. So
+# it is called from here every quarter of an hour instead: free, next to the
+# code it calls, and needing no account the shop does not already have. The
+# route decides who to write to; this only knocks on the door.
 #
-# So this calls the same route every quarter of an hour. It is free, it lives
-# next to the code it calls, and it needs no account the shop does not already
-# have. The route decides what to do; this only knocks on the door.
-#
-# Two things worth knowing about GitHub's scheduler, because neither is
-# obvious and both would otherwise be found the hard way:
+# Two things worth knowing about GitHub's scheduler, because neither is obvious
+# and both would otherwise be found the hard way:
 #
 #   1. It is not punctual. A run can be several minutes late when GitHub is
-#      busy. The route looks ninety minutes ahead for that reason — a late run,
-#      or a skipped one, still catches the appointment.
+#      busy, so a reminder may arrive forty-five minutes before rather than
+#      sixty. That is the right way round: late and sent beats early and wrong.
 #   2. It stops on its own. GitHub disables scheduled workflows in a repository
 #      with no activity for sixty days, and emails the owner when it does. A
-#      shop that is not being worked on does not push for sixty days easily, so
-#      this is a real thing to watch for rather than a footnote.
+#      shop that is running well does not push code, so this will happen
+#      eventually — and every reminder the shop sends depends on it.
+#
+#      There is a second pair of eyes for that. The evening job on Vercel,
+#      which cannot be disabled the same way, counts anything today that should
+#      have been reminded and was not, and logs it. Zero every day means this
+#      is running.
 #
 # Setup, once: Settings -> Secrets and variables -> Actions -> New repository
 # secret, named CRON_SECRET, holding the same value as the one in Vercel. The

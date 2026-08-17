@@ -18,11 +18,18 @@ const SECRET = 'a-cron-secret';
 // --- the database ----------------------------------------------------------
 let dueToday = [];        // rows the reminder query would find
 let dueYesterday = [];    // rows the review query would find
+let missedCount = 0;      // what the evening's look back over the day finds
 let updates = [];         // ['reminded_at', id] / ['review_asked_at', id]
 let queried = [];         // which selects were actually run
 
 const fakeSql = (strings, ...values) => {
   const sql = strings.raw.join('?');
+  // Checked before the reminder query, which it otherwise looks exactly like:
+  // both ask about today's unreminded bookings, and only one of them counts.
+  if (/count\(\*\) AS missed/.test(sql)) {
+    queried.push(['missed', values[0], sql.replace(/\s+/g, ' '), values]);
+    return Promise.resolve([{ missed: missedCount }]);
+  }
   if (/reminded_at IS NULL/.test(sql)) {
     // The statement as well as its parameters. A stood-in database cannot
     // apply a WHERE clause, so the only way to know the right rows would have
@@ -88,7 +95,7 @@ const row = (id, name, at) => ({
 
 const reset = () => {
   dueToday = []; dueYesterday = []; updates = []; queried = []; sent = [];
-  refuse = false; reviewUrl = '';
+  refuse = false; reviewUrl = ''; missedCount = 0;
 };
 
 async function call(headers, job) {
@@ -133,11 +140,14 @@ async function main() {
   ({ code } = await call({ authorization: `Bearer ${SECRET}` }));
   ok('Vercel\'s own call runs', code, 200);
 
-  console.log('--- reminding this morning\'s appointments ---');
+  console.log('--- the reminder, an hour before ---');
+  // One reminder, not two. There was a nine-in-the-morning round as well and
+  // it was dropped: two emails for one haircut is one more than anybody wants,
+  // and an hour before is when a reminder is actually read.
   reset();
   dueToday = [row(1, 'Ahmed', '11:00:00'), row(2, 'Bram', '14:30:00')];
-  let result = await daily.runDailyJob();
-  ok('everyone due today is emailed', sent.map(s => s[1]), ['Ahmed', 'Bram']);
+  let result = await daily.runDailyJob('soon');
+  ok('everyone due is emailed', sent.map(s => s[1]), ['Ahmed', 'Bram']);
   ok('at the time they are booked for', sent.map(s => s[2]), ['11:00', '14:30']);
   ok('and the count is reported', result.reminded, 2);
   // The whole safety story: the row records when it went, and the query only
@@ -149,7 +159,7 @@ async function main() {
   reset();
   refuse = true;
   dueToday = [row(1, 'Ahmed', '11:00:00')];
-  result = await daily.runDailyJob();
+  result = await daily.runDailyJob('soon');
   ok('it was attempted', sent.length, 1);
   // Marking first would mean a provider having a bad five minutes costs those
   // customers their reminder for good.
@@ -206,18 +216,10 @@ async function main() {
   ok('never round the back of midnight', daily.askingCutoff(cutoffAt('01:00')), '00:00');
   ok('nor exactly at it', daily.askingCutoff(cutoffAt('00:00')), '00:00');
 
-  console.log('--- the hole the morning run leaves ---');
-  // Somebody who books at ten past ten for four o'clock gets no reminder at
-  // all: the morning run happened an hour before they existed. That is not a
-  // rare case, it is most of a barber shop's day.
+  console.log('--- which rows the reminder asks for ---');
   reset();
   dueToday = [row(9, 'Femke', '16:00:00')];
   result = await daily.runDailyJob('soon');
-  ok('the through-the-day run finds them', sent.map(s => s[1]), ['Femke']);
-  ok('and reports it as a reminder', result.reminded, 1);
-  // Same column as the morning run writes, which is the whole reason nobody
-  // ever gets two: the morning run has already marked everything it saw.
-  ok('marked the same way', updates, [['reminded_at', 9]]);
   ok('it asks the reminder query', queried[0][0], 'reminders');
   ok('for today', queried[0][1], daily.shopDate(0));
   // It runs every quarter of an hour and must not do the evening's work.
@@ -239,38 +241,24 @@ async function main() {
   // refuses at three in the afternoon on a live database.
   ok('with the types written down', /::time/.test(soonSql) && /::int/.test(soonSql), true);
 
-  console.log('--- and the morning run still takes the whole day ---');
-  reset();
-  dueToday = [row(1, 'Ahmed', '11:00:00')];
-  await daily.runDailyJob('morning');
-  const morningArgs = queried[0][3];
-  // The same statement, with nothing to narrow by. Two queries would have been
-  // two places for the rules to drift apart.
-  ok('the same query, asked with no cutoff',
-     morningArgs.filter(v => v === null).length >= 3, true);
-  ok('so nothing is left out of it', sent.map(s => s[1]), ['Ahmed']);
-
-  // Ninety minutes ahead, because the job can be several minutes late and a
-  // missed run must not cost somebody their reminder.
+  console.log('--- an hour ahead, and not round the back of midnight ---');
   const at = (hhmm) => {
     const [h, m] = hhmm.split(':').map(Number);
     return new Date(Date.UTC(2026, 0, 2, h, m));
   };
-  ok('it looks ninety minutes ahead', daily.soonCutoff(at('14:00')), '15:30');
-  ok('and again from the hour', daily.soonCutoff(at('09:15')), '10:45');
+  ok('an hour ahead', daily.soonCutoff(at('14:00')), '15:00');
+  ok('and again off the hour', daily.soonCutoff(at('09:15')), '10:15');
   // Postgres wraps `time` arithmetic round midnight; this must not.
-  ok('and stops at the end of the day', daily.soonCutoff(at('23:30')), '23:59');
-  ok('even exactly at eleven', daily.soonCutoff(at('22:30')), '23:59');
+  ok('it stops at the end of the day', daily.soonCutoff(at('23:30')), '23:59');
+  ok('and exactly at eleven', daily.soonCutoff(at('23:00')), '23:59');
 
   console.log('--- one round or the other ---');
-  // Two cron jobs, because a reminder is only useful before the appointment
-  // and a review only worth asking for after it.
   reset();
   reviewUrl = 'https://g.page/r/example';
   dueToday = [row(1, 'Ahmed', '11:00:00')];
   dueYesterday = [row(3, 'Chloe', '10:00:00')];
-  result = await daily.runDailyJob('morning');
-  ok('the morning reminds and does not ask', sent.map(s => s[0]), ['reminder']);
+  result = await daily.runDailyJob('soon');
+  ok('the reminder round reminds and does not ask', sent.map(s => s[0]), ['reminder']);
   ok('and reports nothing asked', result.reviewsAsked, 0);
 
   reset();
@@ -279,24 +267,42 @@ async function main() {
   dueYesterday = [row(3, 'Chloe', '10:00:00')];
   result = await daily.runDailyJob('evening');
   ok('the evening asks and does not remind', sent.map(s => s[0]), ['review']);
-  ok('and reports nothing reminded', result.reminded, 0);
 
+  console.log('--- and the evening watches the reminder round ---');
+  // Every reminder now comes from GitHub Actions, and GitHub disables a
+  // scheduled workflow in a repository that has seen no activity for sixty
+  // days. A shop that is running well does not push code, so that will happen
+  // — and reminders would simply stop with nobody noticing.
   reset();
   reviewUrl = 'https://g.page/r/example';
-  dueToday = [row(1, 'Ahmed', '11:00:00')];
   dueYesterday = [row(3, 'Chloe', '10:00:00')];
-  result = await daily.runDailyJob();
-  // A run by hand, with no round named, does both.
-  ok('and by hand it does both', sent.map(s => s[0]), ['reminder', 'review']);
-  ok('reported separately', [result.reminded, result.reviewsAsked], [1, 1]);
+  missedCount = 3;
+  result = await daily.runDailyJob('evening');
+  ok('it counts what was never reminded', result.remindersMissed, 3);
+  const missedSql = (queried.find(q => q[0] === 'missed') || [])[2] || '';
+  ok('over today', queried.find(q => q[0] === 'missed')[1], daily.shopDate(0));
+  ok('among the ones that had an address', /email <> ''/.test(missedSql), true);
+  ok('and were booked long enough ahead to be due one',
+     /created_at < now\(\) - make_interval/.test(missedSql), true);
+  // It reports, it does not repair. Sending them at eight in the evening for an
+  // appointment that was at two would be worse than saying nothing.
+  ok('and sends nothing itself', sent.map(s => s[0]), ['review']);
 
-  console.log('--- an empty morning ---');
   reset();
   reviewUrl = 'https://g.page/r/example';
-  result = await daily.runDailyJob();
-  ok('sends nothing', sent, []);
-  ok('writes nothing', updates, []);
-  ok('and says so', [result.reminded, result.reviewsAsked], [0, 0]);
+  result = await daily.runDailyJob('evening');
+  ok('a day where nothing was missed says zero', result.remindersMissed, 0);
+
+  console.log('--- a quiet day ---');
+  reset();
+  reviewUrl = 'https://g.page/r/example';
+  result = await daily.runDailyJob('evening');
+  ok('the evening sends nothing', sent, []);
+  ok('and writes nothing', updates, []);
+  ok('and says so', [result.reviewsAsked, result.remindersMissed], [0, 0]);
+  reset();
+  result = await daily.runDailyJob('soon');
+  ok('and so does the reminder round', [sent.length, result.reminded], [0, 0]);
 
   console.log('--- the date is the shop\'s ---');
   // Vercel runs in UTC. Reading "today" off the server would have the job
@@ -313,26 +319,21 @@ async function main() {
   // makes it happen, and it lives in a file nothing else touches.
   const vercel = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'vercel.json'), 'utf8'));
   ok('vercel.json has crons', Array.isArray(vercel.crons), true);
-  // Two, and a Hobby account allows exactly two. Adding a third would not
-  // fail loudly — Vercel simply refuses the deployment.
-  ok('two of them', vercel.crons.length, 2);
-  ok('the morning one', vercel.crons[0].path, '/api/daily?job=morning');
-  ok('the evening one', vercel.crons[1].path, '/api/daily?job=evening');
-  vercel.crons.forEach(c => {
-    ok(`${c.path} runs once a day`, /^\d+ \d+ \* \* \*$/.test(c.schedule), true);
-  });
+  // One. There were two, and the morning reminder was dropped: two emails for
+  // one haircut is one more than anybody wants.
+  ok('one of them', vercel.crons.length, 1);
+  ok('the evening one', vercel.crons[0].path, '/api/daily?job=evening');
+  ok('running once a day', /^\d+ \d+ \* \* \*$/.test(vercel.crons[0].schedule), true);
   // Vercel's schedules are UTC. The shop is on Amsterdam time, an hour or two
-  // ahead, and it closes at six — so the evening run has to be late enough
-  // that the last customer has left and early enough not to be the middle of
-  // the night.
+  // ahead, and it closes at six — so this has to be late enough that the last
+  // customer has left and early enough not to be the middle of the night.
   const hourOf = c => Number(c.schedule.split(' ')[1]);
-  ok('the reminder comes before the shop opens', hourOf(vercel.crons[0]) < 8, true);
-  ok('and the review after it shuts', hourOf(vercel.crons[1]) >= 17, true);
-  ok('but not overnight', hourOf(vercel.crons[1]) < 21, true);
+  ok('after the shop shuts', hourOf(vercel.crons[0]) >= 17, true);
+  ok('but not overnight', hourOf(vercel.crons[0]) < 21, true);
 
   console.log('--- and the one Vercel cannot schedule ---');
-  // A Hobby account gets two crons, each once a day. Every quarter of an hour
-  // has to come from somewhere else, and GitHub already has the code.
+  // Vercel runs a cron once a day on this plan, and "an hour before" cannot be
+  // done once a day when appointments run from ten until six.
   const wf = fs.readFileSync(
     path.join(__dirname, '..', '.github', 'workflows', 'nudge.yml'), 'utf8');
   ok('there is a workflow', wf.length > 0, true);
