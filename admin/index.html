@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- viewport-fit=cover so env(safe-area-inset-*) resolves to a real number.
+         The panel is worked from a phone behind the counter as much as from a
+         desk, and a dialog's footer buttons sit under the home indicator
+         without it. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Sussex Admin Panel</title>
     <meta name="robots" content="noindex, nofollow">
     <meta http-equiv="X-XSS-Protection" content="1; mode=block">

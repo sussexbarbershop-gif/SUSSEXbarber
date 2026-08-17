@@ -2,7 +2,13 @@
 <html lang="en" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- viewport-fit=cover is what makes env(safe-area-inset-*) resolve to a
+         real number on an iPhone. Without it every safe-area rule in the
+         stylesheet computes to zero and the bottom of a sheet sits under the
+         home indicator, which is exactly how it looks when nobody has thought
+         about it. No maximum-scale and no user-scalable=no: a customer who
+         needs to zoom in on a price is entitled to. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <!-- The words somebody types come first. Almost nobody searching for a
          haircut in Wassenaar knows the shop by name yet, so leading with the
          name spends the most valuable part of the title on the one word the
@@ -165,6 +171,104 @@
             .service-card:hover { transform: none; }
         }
 
+        /* ================= ON A PHONE =================
+           Nine bookings in ten are made on one, so this is not the small
+           screen — it is the screen. What follows was written after measuring
+           the page at 375px rather than guessing at it. */
+
+        /* One vocabulary for movement. There were eight different
+           duration-and-easing pairs on the page, all of them whatever was
+           typed at the time, and the difference between them is exactly what
+           makes an interface feel assembled rather than designed.
+
+           The curve is the same one iOS and Android both use for a control
+           responding to a finger: leaves quickly, arrives gently. */
+        :root {
+            --ease: cubic-bezier(0.32, 0.72, 0, 1);
+            --press: 120ms;    /* a finger going down — must feel instant */
+            --move: 260ms;     /* something crossing the screen */
+        }
+
+        /* The three hundred milliseconds a browser waits to see whether a tap
+           is going to become a double-tap zoom. On a booking form that is the
+           difference between a control that answers and one that hesitates. */
+        a, button, [role="button"], input, select, textarea,
+        .service-card, .gallery-img, label {
+            touch-action: manipulation;
+        }
+
+        /* A finger gets no hover, so without this a tap has no feedback at all
+           until the screen changes — and on a slow connection that is a long
+           way from instant. The scale is small on purpose: enough to feel,
+           not enough to see as movement.
+
+           Only where a finger is the input. A mouse has hover states already
+           and does not need the button shrinking under it. */
+        @media (hover: none) {
+            a:active, button:active, [role="button"]:active,
+            .service-card:active, .gallery-img:active {
+                transform: scale(0.97);
+                transition: transform var(--press) var(--ease);
+            }
+            /* Except the ones that are already the size of the screen —
+               scaling a full-width sheet reads as the page flexing. */
+            #mobileMenu:active, .no-press:active { transform: none; }
+        }
+
+        /* Everything a thumb has to hit is at least 44px, which is the width
+           of the pad of an adult thumb and the number both Apple and Google
+           publish. Thirteen things on this page were under it — the menu
+           button at 40, every link inside the menu at 32, the phone number at
+           28. They were all hit eventually; "eventually" is the cost.
+
+           Height and padding, not font size. Making the text bigger to reach
+           the target would redesign the page to fix a touch problem. */
+        @media (max-width: 767px) {
+            .mobile-link {
+                min-height: 44px;
+                display: flex;
+                align-items: center;
+                padding: 0 1.5rem;
+            }
+            #mobileMenuBtn, #langToggleBtn {
+                min-width: 44px;
+                min-height: 44px;
+            }
+            .tap-44 {
+                min-height: 44px;
+                display: inline-flex;
+                align-items: center;
+            }
+        }
+
+        /* An iPhone draws a home indicator over the bottom of the screen, and
+           anything pinned there sits underneath it — a sheet's last row, a
+           close button, the bottom of a menu. `viewport-fit=cover` on the
+           viewport tag is what makes env() resolve to anything; without it
+           these are all zero and this does nothing at all. */
+        .safe-bottom { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+        .safe-top    { padding-top: max(0px, env(safe-area-inset-top)); }
+
+        /* A sheet that has been scrolled to its end passes the scroll to the
+           page behind it, which then moves under the sheet. `contain` stops
+           that at the sheet's own edge. */
+        .sheet-scroll {
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* And none of it for somebody who has asked their phone to stop moving
+           things. The press feedback goes too: it is the one that fires most
+           often, and a control that jumps on every tap is exactly what the
+           setting is turned on to avoid. */
+        @media (prefers-reduced-motion: reduce) {
+            :root { --press: 0.01ms; --move: 0.01ms; }
+            a:active, button:active, [role="button"]:active,
+            .service-card:active, .gallery-img:active { transform: none; }
+            .reveal { opacity: 1; transform: none; transition: none; }
+            html { scroll-behavior: auto; }
+        }
+
         /* Custom Scrollbar */
         ::-webkit-scrollbar {
             width: 8px;
@@ -271,7 +375,7 @@
                          to toggle, nothing stored, nothing to disagree with the phone. -->
 
                     <a href="#booking" class="hidden sm:block whitespace-nowrap bg-transparent text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-charcoal-700 px-4 sm:px-6 py-2 rounded-lg text-xs sm:text-sm font-semibold tracking-wider uppercase hover:bg-gold hover:text-charcoal-900 hover:border-gold transition-colors duration-300" data-translate="My Bookings">My Bookings</a>
-                    <a href="#booking" class="whitespace-nowrap bg-gold text-charcoal-900 px-4 sm:px-6 py-2 rounded-lg text-xs sm:text-sm font-semibold tracking-wider uppercase hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-charcoal-900 transition-colors duration-300">Book Now</a>
+                    <a href="#booking" class="tap-44 whitespace-nowrap bg-gold text-charcoal-900 px-4 sm:px-6 py-2 rounded-lg text-xs sm:text-sm font-semibold tracking-wider uppercase hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-charcoal-900 transition-colors duration-300">Book Now</a>
                     
                     <!-- Mobile Menu Button -->
                     <button id="mobileMenuBtn" type="button" aria-label="Open menu" class="md:hidden p-2 text-gray-700 dark:text-gray-300 focus:outline-none hover:bg-gray-100 dark:hover:bg-charcoal-800 rounded-lg transition-colors">
@@ -297,7 +401,7 @@
         
         <div class="mt-8 pt-8 border-t border-gray-200 dark:border-charcoal-700 flex flex-col items-center w-64 space-y-4">
             <p class="text-sm uppercase tracking-widest text-gray-500" data-translate="Call Us">Call Us</p>
-            <a href="tel:+31653730803" class="text-xl text-gold cms-contact-phone">+31 6 53730803</a>
+            <a href="tel:+31653730803" class="tap-44 text-xl text-gold cms-contact-phone">+31 6 53730803</a>
         </div>
     </div>
     <script>
@@ -714,7 +818,7 @@
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
-            <div id="barberPickerList" class="overflow-y-auto p-2"></div>
+            <div id="barberPickerList" class="overflow-y-auto p-2 sheet-scroll safe-bottom"></div>
         </div>
     </div>
 
@@ -728,7 +832,7 @@
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
-            <div id="servicePickerList" class="overflow-y-auto p-2"></div>
+            <div id="servicePickerList" class="overflow-y-auto p-2 sheet-scroll safe-bottom"></div>
         </div>
     </div>
 
@@ -796,7 +900,7 @@
                     </div>
 
                     <div class="mt-5 sm:mt-6">
-                        <a href="https://www.instagram.com/sussexbarbershop" target="_blank" rel="noopener noreferrer" data-cms-link="instagram" class="inline-flex items-center space-x-3 text-gray-600 dark:text-gray-400 hover:text-gold dark:hover:text-gold transition-colors group">
+                        <a href="https://www.instagram.com/sussexbarbershop" target="_blank" rel="noopener noreferrer" data-cms-link="instagram" class="tap-44 inline-flex items-center space-x-3 text-gray-600 dark:text-gray-400 hover:text-gold dark:hover:text-gold transition-colors group">
                             <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-gray-300 dark:border-charcoal-700 flex items-center justify-center group-hover:border-gold transition-colors text-sm">
                                 IG
                             </div>
@@ -865,8 +969,8 @@
                     <!-- These went nowhere for as long as the site has been
                          taking names, phone numbers and email addresses from
                          people in the Netherlands. Two real pages now. -->
-                    <a href="/privacy.html" class="hover:text-gold transition-colors" data-translate="Privacy Policy">Privacy Policy</a>
-                    <a href="/terms.html" class="hover:text-gold transition-colors" data-translate="Terms of Service">Terms of Service</a>
+                    <a href="/privacy.html" class="tap-44 hover:text-gold transition-colors" data-translate="Privacy Policy">Privacy Policy</a>
+                    <a href="/terms.html" class="tap-44 hover:text-gold transition-colors" data-translate="Terms of Service">Terms of Service</a>
                 </div>
             </div>
         </div>
