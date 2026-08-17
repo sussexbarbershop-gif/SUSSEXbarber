@@ -36,8 +36,12 @@ const serviceList = el({ innerHTML: '' });
 const barberLabel = el({ textContent: '' });
 const serviceLabel = el({ textContent: '' });
 const servicePrice = el({ textContent: '' });
-const barberSheet = el({ hidden: false, classList: { add(c) { if (c === 'hidden') barberSheet.hidden = true; }, remove(c) { if (c === 'hidden') barberSheet.hidden = false; } } });
-const serviceSheet = el({ hidden: false, classList: { add(c) { if (c === 'hidden') serviceSheet.hidden = true; }, remove(c) { if (c === 'hidden') serviceSheet.hidden = false; } } });
+// These two track one class and one class only, so "contains" has to answer
+// for it as well as "add" and "remove". Without it the sheets could be opened
+// and closed but not asked whether they were open — and the first line of code
+// that asked fell over inside a test about something else entirely.
+const barberSheet = el({ hidden: false, classList: { add(c) { if (c === 'hidden') barberSheet.hidden = true; }, remove(c) { if (c === 'hidden') barberSheet.hidden = false; }, contains(c) { return c === 'hidden' ? barberSheet.hidden : false; } } });
+const serviceSheet = el({ hidden: false, classList: { add(c) { if (c === 'hidden') serviceSheet.hidden = true; }, remove(c) { if (c === 'hidden') serviceSheet.hidden = false; }, contains(c) { return c === 'hidden' ? serviceSheet.hidden : false; } } });
 
 const continueBtn = el({ disabled: true });
 
@@ -58,6 +62,14 @@ global.document = {
   })
 };
 global.window = {};
+
+// Opening a sheet also holds the page still behind it — see holdPage() in
+// index.html, and touch.test.js for what it is for. That lives in a different
+// script block and is not one of the functions lifted out below, so it is
+// stood in for: this file is about which sheet opens and what it does to the
+// form, not about scrolling.
+let pageHeld = 0;
+global.holdPage = hold => { pageHeld = Math.max(0, pageHeld + (hold ? 1 : -1)); };
 let toasts = [];
 function showToast(msg) { toasts.push(msg); }
 function updateDesktopLiveSummary() {}
@@ -68,8 +80,10 @@ let bookedTimesList = [];
 
 eval([
   'escapeText', 'escapeAttribute', 'setPickerLabelState', 'updateStep1Ready',
-  'renderBarberCards', 'updateBarberPickerLabel', 'chooseBarber', 'closeBarberPicker',
-  'renderServiceCards', 'updateServicePickerLabel', 'chooseService', 'closeServicePicker'
+  'renderBarberCards', 'updateBarberPickerLabel', 'chooseBarber',
+  'openBarberPicker', 'closeBarberPicker',
+  'renderServiceCards', 'updateServicePickerLabel', 'chooseService',
+  'openServicePicker', 'closeServicePicker'
 ].map(grab).join('\n'));
 
 let failed = 0;
@@ -201,6 +215,25 @@ renderBarberCards([{ name: ANY_BARBER }, { name: '<img onerror=x>' }]);
 ok('a barber name cannot inject markup', barberList.innerHTML.includes('<img'), false);
 renderServiceCards([{ nameEN: '<img onerror=x>', duration: 30, price: 10 }]);
 ok('a service name cannot inject markup', serviceList.innerHTML.includes('<img'), false);
+
+console.log('--- and the page stays where it was left ---');
+// A sheet covers the screen on a phone. Without this the page scrolled behind
+// it while it was open, and closing the sheet left the customer somewhere
+// further down the form than they started.
+pageHeld = 0;
+openBarberPicker();
+ok('opening a sheet holds the page', pageHeld, 1);
+closeBarberPicker();
+ok('and closing it lets go', pageHeld, 0);
+
+// Closing what is already closed must not release a hold it never took: the
+// service sheet can be open at the same time, and it would be the one let go.
+pageHeld = 0;
+openServicePicker();
+closeBarberPicker();
+ok('closing a shut sheet releases nothing', pageHeld, 1);
+closeServicePicker();
+ok('and the one that was open still does', pageHeld, 0);
 
 console.log(failed === 0 ? '\nAll picker tests passed.' : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);

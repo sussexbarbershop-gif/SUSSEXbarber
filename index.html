@@ -185,9 +185,39 @@
            responding to a finger: leaves quickly, arrives gently. */
         :root {
             --ease: cubic-bezier(0.32, 0.72, 0, 1);
-            --press: 120ms;    /* a finger going down — must feel instant */
-            --move: 260ms;     /* something crossing the screen */
+            --press: 140ms;    /* a finger going down — must feel instant */
+            --move: 420ms;     /* something crossing the screen */
+            --settle: 900ms;   /* something arriving as you scroll to it */
         }
+
+        /* Slower than the first attempt, which was correct and invisible.
+           260ms for a panel crossing the screen is the number an interface
+           guideline gives you, and at that speed nobody sees the movement —
+           the menu is simply there, and the work put into how it arrives is
+           work nobody is ever shown.
+
+           So: 420ms for anything travelling, and colour changes off Tailwind's
+           150ms default, which is quick enough to read as an instant swap. The
+           press stays short, because that one has to answer the finger.
+
+           These are not slow. 420ms is under half a second; the difference is
+           that you can see it happen. */
+        a, button, [role="button"], .service-card, .gallery-img,
+        .nav-link, .mobile-link {
+            transition-duration: var(--move);
+            transition-timing-function: var(--ease);
+        }
+        /* The overlays, which travel furthest and so benefit most. */
+        #mobileMenu { transition-duration: var(--move) !important; }
+        #lightbox, #lightbox img,
+        #barberPickerSheet, #servicePickerSheet {
+            transition-duration: var(--move);
+            transition-timing-function: var(--ease);
+        }
+        /* And the sections rising into place on the way down the page. This one
+           is allowed to be leisurely: it happens once per section, while you
+           are reading something else. */
+        .reveal { transition-duration: var(--settle); }
 
         /* The three hundred milliseconds a browser waits to see whether a tap
            is going to become a double-tap zoom. On a booking form that is the
@@ -365,7 +395,12 @@
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
                         <span data-translate="Call">Call</span>
                     </a>
-                    <button id="langToggleBtn" onclick="toggleLanguage()" type="button" aria-label="Toggle Language" class="px-3 h-9 rounded-lg text-xs font-medium border border-gray-300 dark:border-charcoal-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-charcoal-800 transition-colors flex items-center justify-center shadow-sm">
+                    <!-- Sized off Book Now beside it rather than off itself. It
+                         was h-9 and text-xs against that button's py-2 and
+                         sm:text-sm, so at the same forty-four pixels tall it
+                         still read as the smaller of the two — the letters were
+                         two points down. Same padding, same text, same shape. -->
+                    <button id="langToggleBtn" onclick="toggleLanguage()" type="button" aria-label="Toggle Language" class="tap-44 px-4 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-semibold tracking-wider border border-gray-300 dark:border-charcoal-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-charcoal-800 transition-colors duration-300 flex items-center justify-center shadow-sm">
                         EN
                     </button>
                     
@@ -405,14 +440,64 @@
         </div>
     </div>
     <script>
-        document.getElementById('mobileMenuBtn').addEventListener('click', function() {
-            document.getElementById('mobileMenu').classList.remove('translate-x-full');
-        });
-        document.getElementById('closeMobileMenuBtn').addEventListener('click', function() {
-            document.getElementById('mobileMenu').classList.add('translate-x-full');
-        });
+        /**
+         * Hold the page still while something is open on top of it.
+         *
+         * With the menu open, dragging still scrolled the page behind it — you
+         * could feel it moving under the overlay, and closing the menu left you
+         * somewhere else on the page than where you started.
+         *
+         * overflow:hidden on <body> is the usual answer and it does not work on
+         * iOS Safari, which scrolls the page anyway. Fixing the body does work,
+         * but takes the scroll position to zero — so it is remembered here and
+         * put back on the way out, which is why this is a function and not two
+         * lines at each call site.
+         */
+        let scrollHeldAt = 0;
+        let scrollHolders = 0;
+        function holdPage(hold) {
+            // Counted, not a flag. The lightbox can open over the booking form
+            // while a sheet is already up, and whichever closed first used to
+            // release the page for both.
+            scrollHolders = Math.max(0, scrollHolders + (hold ? 1 : -1));
+            if (hold && scrollHolders === 1) {
+                scrollHeldAt = window.scrollY;
+                document.body.style.position = 'fixed';
+                document.body.style.top = `-${scrollHeldAt}px`;
+                document.body.style.left = '0';
+                document.body.style.right = '0';
+            } else if (!hold && scrollHolders === 0) {
+                document.body.style.position = '';
+                document.body.style.top = '';
+                document.body.style.left = '';
+                document.body.style.right = '';
+                window.scrollTo(0, scrollHeldAt);
+            }
+        }
+
+        const mobileMenu = document.getElementById('mobileMenu');
+        const openMobileMenu = () => {
+            mobileMenu.classList.remove('translate-x-full');
+            holdPage(true);
+        };
+        const closeMobileMenu = () => {
+            if (mobileMenu.classList.contains('translate-x-full')) return;
+            mobileMenu.classList.add('translate-x-full');
+            holdPage(false);
+        };
+
+        document.getElementById('mobileMenuBtn').addEventListener('click', openMobileMenu);
+        document.getElementById('closeMobileMenuBtn').addEventListener('click', closeMobileMenu);
         document.querySelectorAll('.mobile-link').forEach(link => {
-            link.addEventListener('click', () => document.getElementById('mobileMenu').classList.add('translate-x-full'));
+            // The page has to be released before the browser jumps to the
+            // anchor, or it jumps while <body> is still fixed and lands at the
+            // top instead.
+            link.addEventListener('click', closeMobileMenu);
+        });
+        // Escape closes it, for a phone with a keyboard attached and for anyone
+        // who reaches for it out of habit.
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeMobileMenu();
         });
     </script>
 
@@ -1907,9 +1992,12 @@
             lightbox.classList.remove('opacity-0');
             lightboxImg.classList.remove('scale-95');
             lightboxImg.classList.add('scale-100');
+            holdPage(true);
         }
 
         function closeLightbox() {
+            if (lightbox.classList.contains('hidden')) return;
+            holdPage(false);
             lightbox.classList.add('opacity-0');
             lightboxImg.classList.remove('scale-100');
             lightboxImg.classList.add('scale-95');
@@ -2482,11 +2570,11 @@
 
         function openBarberPicker() {
             const sheet = document.getElementById('barberPickerSheet');
-            if (sheet) sheet.classList.remove('hidden');
+            if (sheet) { sheet.classList.remove('hidden'); holdPage(true); }
         }
         function closeBarberPicker() {
             const sheet = document.getElementById('barberPickerSheet');
-            if (sheet) sheet.classList.add('hidden');
+            if (sheet && !sheet.classList.contains('hidden')) { sheet.classList.add('hidden'); holdPage(false); }
         }
 
         /** Applies a barber choice made in the picker: everything selecting a
@@ -2620,11 +2708,11 @@
 
         function openServicePicker() {
             const sheet = document.getElementById('servicePickerSheet');
-            if (sheet) sheet.classList.remove('hidden');
+            if (sheet) { sheet.classList.remove('hidden'); holdPage(true); }
         }
         function closeServicePicker() {
             const sheet = document.getElementById('servicePickerSheet');
-            if (sheet) sheet.classList.add('hidden');
+            if (sheet && !sheet.classList.contains('hidden')) { sheet.classList.add('hidden'); holdPage(false); }
         }
 
         function chooseService(name) {

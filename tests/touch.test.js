@@ -98,6 +98,59 @@ ok('at 44px', (phone.match(/min-(height|width):\s*44px/g) || []).length >= 3, tr
   ok(`${label} is a thumb-sized target`, /tap-44/.test(tag), true);
 });
 
+console.log('--- the page behind an open overlay ---');
+// With the menu open you could still drag the page behind it — you could feel
+// it moving under the overlay, and closing the menu left you somewhere else on
+// the page than where you started.
+const hold = (html.match(/function holdPage\(hold\)[\s\S]*?\n        \}/) || [''])[0];
+ok('something holds the page', hold !== '', true);
+// overflow:hidden on <body> is the usual answer and iOS Safari ignores it.
+ok('by fixing the body, not by hiding its overflow',
+   /position = 'fixed'/.test(hold), true);
+// Fixing the body takes the scroll position to zero, so it has to be put back.
+ok('remembering where you were', /scrollHeldAt = window\.scrollY/.test(hold), true);
+ok('and going back to it', /window\.scrollTo\(0, scrollHeldAt\)/.test(hold), true);
+// The lightbox can open over a sheet. Whichever closed first used to release
+// the page for both.
+ok('counted, so two overlays do not release it early',
+   /scrollHolders/.test(hold), true);
+// Every one of them, or the one that was missed is the one that fails.
+['openMobileMenu', 'closeMobileMenu', 'openBarberPicker', 'closeBarberPicker',
+ 'openServicePicker', 'closeServicePicker', 'openLightbox', 'closeLightbox']
+  .forEach(fn => {
+    // To the end of the function, not a fixed number of characters — openLightbox
+    // carries enough comment to push its holdPage call past any window guessed at.
+    const body = (html.match(new RegExp(
+      '(?:const |function )' + fn + '[\\s\\S]*?\\n        \\}')) || [''])[0];
+    ok(`${fn} holds or releases it`, /holdPage\(/.test(body), true);
+  });
+
+console.log('--- the two buttons in the header ---');
+// The language button was h-9 and text-xs against Book Now's py-2 and
+// sm:text-sm. At the same forty-four pixels tall it still read as the smaller
+// of the two, because the letters were two points down.
+const lang = (html.match(/<button id="langToggleBtn"[^>]*>/) || [''])[0];
+const book = (html.match(/<a[^>]*>Book Now</) || [''])[0];
+ok('the language button is thumb-sized', /tap-44/.test(lang), true);
+ok('no fixed height fighting it', /\bh-9\b/.test(lang), false);
+['text-xs', 'sm:text-sm', 'py-2', 'rounded-lg'].forEach(cls => {
+  ok(`and matches Book Now on ${cls}`,
+     lang.includes(cls) && book.includes(cls), true);
+});
+
+console.log('--- slow enough to be seen ---');
+// 260ms for a panel crossing the screen is the number a guideline gives you,
+// and at that speed nobody sees the movement: the menu is simply there, and
+// the work put into how it arrives is work nobody is ever shown.
+const ms = name => Number((style.match(new RegExp('--' + name + ':\\s*(\\d+)ms')) || [])[1]);
+ok('travel is visible', ms('move') >= 350, true);
+// And not so slow that it is in the way. Under half a second.
+ok('but not in the way', ms('move') <= 500, true);
+ok('a section arriving can take longer', ms('settle') > ms('move'), true);
+// The press is the exception: that one answers a finger and must stay short.
+ok('the press stays quick', ms('press') <= 150, true);
+ok('the overlays use the travel duration', /#mobileMenu \{ transition-duration: var\(--move\)/.test(style), true);
+
 console.log('--- and none of it for somebody who asked it to stop ---');
 const reduced = (style.match(/@media \(prefers-reduced-motion: reduce\)\s*\{([\s\S]*?)\n        \}/g) || []).join('');
 ok('reduced motion is honoured', reduced.length > 0, true);
