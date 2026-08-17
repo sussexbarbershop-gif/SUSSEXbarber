@@ -29,7 +29,18 @@ const ok = (label, actual, want) => {
 
 const PAGES = ['index.html', 'privacy.html', 'terms.html', 'cancel.html',
                path.join('admin', 'index.html')];
-const FILES = [path.join('admin', 'admin.js')];
+// The backend too. Everything in here is templated SQL, and a stray backtick
+// inside a SQL comment ends the template literal — which is how `booked_at <=
+// $2`, written to explain a cast, turned api/daily.js into a syntax error.
+// Node would have said so on the next deploy; this says so now.
+const FILES = [
+  path.join('admin', 'admin.js'),
+  path.join('api', 'index.js'),
+  path.join('api', 'daily.js'),
+  ...fs.readdirSync(path.join(root, 'api', '_lib'))
+    .filter(f => f.endsWith('.js'))
+    .map(f => path.join('api', '_lib', f))
+];
 
 /** Every <script> with a body, and where in the file it starts. */
 function inlineScripts(html) {

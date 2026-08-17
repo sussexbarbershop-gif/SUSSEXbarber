@@ -6,6 +6,10 @@
  *
  *   morning   Reminds everybody booked in today that they are booked in today.
  *   evening   Thanks everybody who came in today and asks them for a review.
+ *   soon      Catches the ones the morning run could not: somebody who books
+ *             at ten past ten for four o'clock did not exist when it ran.
+ *             Every quarter of an hour, from GitHub Actions rather than
+ *             Vercel, because a Hobby account's cron runs once a day.
  *
  * Two runs and not one because of when each is worth sending. A reminder is
  * only useful before the appointment. A review is only worth asking for while
@@ -139,6 +143,14 @@ async function runDailyJob(job) {
   const sql = db();
   const config = await readConfig();
   const today = shopDate(0);
+
+  // The one that runs through the day, and does nothing at all most times it
+  // runs. See sendReminders() for what it is actually for.
+  if (job === 'soon') {
+    const nudged = await sendReminders(sql, config, today, soonCutoff());
+    return { job, date: today, reminded: nudged, reviewsAsked: 0, countersSwept: 0 };
+  }
+
   const morning = job !== 'evening';
   const evening = job !== 'morning';
 
@@ -154,8 +166,43 @@ async function runDailyJob(job) {
   return { job: job || 'both', date: today, reminded, reviewsAsked: asked, countersSwept: swept };
 }
 
-/** Everybody in today's diary who left an address and has not been told yet. */
-async function sendReminders(sql, config, today) {
+/**
+ * How far ahead the through-the-day run looks, and how long a booking has to
+ * have been sitting there before it counts.
+ *
+ * Ninety minutes because the job runs every quarter of an hour and a missed
+ * run must not cost somebody their reminder. Two hours of age because a
+ * customer who booked twenty minutes ago does not need reminding of it — they
+ * would get a confirmation and a reminder within the same hour, which reads as
+ * a shop that has lost track of itself.
+ */
+const SOON_MINUTES = 90;
+const SETTLED_HOURS = 2;
+
+/** 'HH:MM' ninety minutes from now, or '23:59' if that would pass midnight. */
+function soonCutoff(at) {
+  const [h, m] = shopTime(at).split(':').map(Number);
+  const minutes = h * 60 + m + SOON_MINUTES;
+  if (minutes >= 24 * 60) return '23:59';
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+}
+
+/**
+ * Everybody in today's diary who left an address and has not been told yet.
+ *
+ * With no `until`, this is the morning run: everyone booked in today.
+ *
+ * With one, it is the run that goes through the day every quarter of an hour —
+ * and its whole purpose is the hole the morning run leaves. A customer who
+ * books at ten past ten for four o'clock gets no reminder at all, because the
+ * morning run happened an hour before they existed. That is not a rare case;
+ * it is most of a barber shop's day.
+ *
+ * Both write the same `reminded_at`, which is what stops anybody getting two.
+ * The morning run has already marked everything it saw, so this one can only
+ * ever find bookings made after it — exactly the ones it is for.
+ */
+async function sendReminders(sql, config, today, until) {
   const rows = await withNewSchema(() => sql`
     SELECT id, booked_at, service, barber, customer_name, email, lang
       FROM bookings
@@ -163,6 +210,15 @@ async function sendReminders(sql, config, today) {
        AND status = 'active'
        AND email <> ''
        AND reminded_at IS NULL
+       -- Null on the morning run, when the whole day is wanted.
+       --
+       -- Cast, rather than left to Postgres to work out. A parameter arrives
+       -- over the wire with no type on it, and comparing a time column to one
+       -- is the kind of thing that resolves in testing and refuses at three in
+       -- the afternoon on a live database.
+       AND (${until || null}::text IS NULL OR booked_at <= ${until || null}::time)
+       AND (${until || null}::text IS NULL
+            OR created_at < now() - make_interval(hours => ${SETTLED_HOURS}::int))
      ORDER BY booked_at
      LIMIT ${MOST_PER_RUN}`);
 
@@ -222,7 +278,7 @@ async function askForReviews(sql, config, today, cutoff) {
        AND email <> ''
        AND review_asked_at IS NULL
        -- Long enough after the appointment that they have left the chair.
-       AND booked_at <= ${cutoff}
+       AND booked_at <= ${cutoff}::time
      ORDER BY booked_at
      LIMIT ${MOST_PER_RUN}`);
 
@@ -247,4 +303,5 @@ async function askForReviews(sql, config, today, cutoff) {
 module.exports.runDailyJob = runDailyJob;
 module.exports.shopDate = shopDate;
 module.exports.askingCutoff = askingCutoff;
+module.exports.soonCutoff = soonCutoff;
 module.exports.isTheCron = isTheCron;

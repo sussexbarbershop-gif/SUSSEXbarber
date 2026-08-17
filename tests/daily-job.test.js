@@ -24,7 +24,10 @@ let queried = [];         // which selects were actually run
 const fakeSql = (strings, ...values) => {
   const sql = strings.raw.join('?');
   if (/reminded_at IS NULL/.test(sql)) {
-    queried.push(['reminders', values[0]]);
+    // The statement as well as its parameters. A stood-in database cannot
+    // apply a WHERE clause, so the only way to know the right rows would have
+    // been asked for is to read what was asked.
+    queried.push(['reminders', values[0], sql.replace(/\s+/g, ' '), values]);
     return Promise.resolve(dueToday);
   }
   if (/review_asked_at IS NULL/.test(sql)) {
@@ -140,7 +143,7 @@ async function main() {
   // The whole safety story: the row records when it went, and the query only
   // picks up rows where that is empty. A second run sends nothing.
   ok('each one is marked as sent', updates, [['reminded_at', 1], ['reminded_at', 2]]);
-  ok('the query asked for today', queried[0], ['reminders', daily.shopDate(0)]);
+  ok('the query asked for today', queried[0].slice(0, 2), ['reminders', daily.shopDate(0)]);
 
   console.log('--- a send that did not go ---');
   reset();
@@ -202,6 +205,62 @@ async function main() {
   // would quietly match the whole day.
   ok('never round the back of midnight', daily.askingCutoff(cutoffAt('01:00')), '00:00');
   ok('nor exactly at it', daily.askingCutoff(cutoffAt('00:00')), '00:00');
+
+  console.log('--- the hole the morning run leaves ---');
+  // Somebody who books at ten past ten for four o'clock gets no reminder at
+  // all: the morning run happened an hour before they existed. That is not a
+  // rare case, it is most of a barber shop's day.
+  reset();
+  dueToday = [row(9, 'Femke', '16:00:00')];
+  result = await daily.runDailyJob('soon');
+  ok('the through-the-day run finds them', sent.map(s => s[1]), ['Femke']);
+  ok('and reports it as a reminder', result.reminded, 1);
+  // Same column as the morning run writes, which is the whole reason nobody
+  // ever gets two: the morning run has already marked everything it saw.
+  ok('marked the same way', updates, [['reminded_at', 9]]);
+  ok('it asks the reminder query', queried[0][0], 'reminders');
+  ok('for today', queried[0][1], daily.shopDate(0));
+  // It runs every quarter of an hour and must not do the evening's work.
+  ok('and never asks for reviews', queried.some(q => q[0] === 'reviews'), false);
+  ok('nor sweeps the counters', result.countersSwept, 0);
+
+  // A stood-in database applies no WHERE clause, so the only way to know the
+  // right rows were asked for is to read the statement.
+  const soonSql = queried[0][2];
+  const soonArgs = queried[0][3];
+  ok('it narrows by time', /booked_at <= \?::time/.test(soonSql), true);
+  ok('and passes a cutoff to narrow by', soonArgs.includes(daily.soonCutoff()), true);
+  // A customer who booked twenty minutes ago does not need reminding of it:
+  // a confirmation and a reminder in the same hour reads as a shop that has
+  // lost track of itself.
+  ok('and skips one just booked', /created_at < now\(\) - make_interval/.test(soonSql), true);
+  // Cast, not left to Postgres to infer. A parameter arrives with no type on
+  // it, and this is the kind of comparison that resolves in testing and
+  // refuses at three in the afternoon on a live database.
+  ok('with the types written down', /::time/.test(soonSql) && /::int/.test(soonSql), true);
+
+  console.log('--- and the morning run still takes the whole day ---');
+  reset();
+  dueToday = [row(1, 'Ahmed', '11:00:00')];
+  await daily.runDailyJob('morning');
+  const morningArgs = queried[0][3];
+  // The same statement, with nothing to narrow by. Two queries would have been
+  // two places for the rules to drift apart.
+  ok('the same query, asked with no cutoff',
+     morningArgs.filter(v => v === null).length >= 3, true);
+  ok('so nothing is left out of it', sent.map(s => s[1]), ['Ahmed']);
+
+  // Ninety minutes ahead, because the job can be several minutes late and a
+  // missed run must not cost somebody their reminder.
+  const at = (hhmm) => {
+    const [h, m] = hhmm.split(':').map(Number);
+    return new Date(Date.UTC(2026, 0, 2, h, m));
+  };
+  ok('it looks ninety minutes ahead', daily.soonCutoff(at('14:00')), '15:30');
+  ok('and again from the hour', daily.soonCutoff(at('09:15')), '10:45');
+  // Postgres wraps `time` arithmetic round midnight; this must not.
+  ok('and stops at the end of the day', daily.soonCutoff(at('23:30')), '23:59');
+  ok('even exactly at eleven', daily.soonCutoff(at('22:30')), '23:59');
 
   console.log('--- one round or the other ---');
   // Two cron jobs, because a reminder is only useful before the appointment
@@ -270,6 +329,25 @@ async function main() {
   ok('the reminder comes before the shop opens', hourOf(vercel.crons[0]) < 8, true);
   ok('and the review after it shuts', hourOf(vercel.crons[1]) >= 17, true);
   ok('but not overnight', hourOf(vercel.crons[1]) < 21, true);
+
+  console.log('--- and the one Vercel cannot schedule ---');
+  // A Hobby account gets two crons, each once a day. Every quarter of an hour
+  // has to come from somewhere else, and GitHub already has the code.
+  const wf = fs.readFileSync(
+    path.join(__dirname, '..', '.github', 'workflows', 'nudge.yml'), 'utf8');
+  ok('there is a workflow', wf.length > 0, true);
+  ok('every fifteen minutes', /cron: '\*\/15 /.test(wf), true);
+  ok('calling the soon round', /job=soon/.test(wf), true);
+  // Without the header the route refuses it, which is the point of the route.
+  ok('with the secret', /Authorization: Bearer \$CRON_SECRET/.test(wf), true);
+  ok('read from the repository, not written into the file',
+     /secrets\.CRON_SECRET/.test(wf), true);
+  ok('and the secret is never echoed', /echo .*\$CRON_SECRET/.test(wf), false);
+  // A 401 has to turn the run red. Without --fail curl reports success on any
+  // answer at all, and a workflow that is green while sending nothing is worse
+  // than one that is not there.
+  ok('a refusal fails the run', /--fail/.test(wf), true);
+  ok('and it says so when the secret is missing', /CRON_SECRET is not set/.test(wf), true);
 
   console.log(failed === 0 ? '\nAll daily job tests passed.' : `\n${failed} FAILED`);
   process.exit(failed === 0 ? 0 : 1);

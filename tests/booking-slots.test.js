@@ -60,6 +60,25 @@ const ok = (label, actual, want) => {
 };
 const D = s => new Date(s + 'T00:00:00');
 
+// The clock is held still for the whole file, and this is not a nicety.
+//
+// These dates were a comfortably distant August when they were written. Time
+// walked into them: 2026-08-17 became today, so the "times that have already
+// gone" filter took half of Monday away and seven checks went red — on Mondays
+// only. A suite that fails one day in seven is a suite people learn to ignore
+// on Mondays, which is worse than one that fails outright.
+//
+// Frozen rather than made relative, because the dates are not the point. They
+// describe a shape — a Monday that opens late, a Wednesday with a break, a
+// Sunday that is shut — and a shape does not depend on when it is looked at.
+// The block at the foot freezes to its own moment and restores to this one.
+const TrueDate = Date;
+const FROZEN = new TrueDate(2026, 7, 14, 9, 0, 0);   // Friday 14 August, 09:00
+global.Date = class extends TrueDate {
+  constructor(...args) { return args.length ? new TrueDate(...args) : new TrueDate(FROZEN); }
+  static now() { return FROZEN.getTime(); }
+};
+
 // Aug 2026: 16 Sun, 17 Mon, 18 Tue, 19 Wed, 20 Thu, 21 Fri, 22 Sat
 console.log('--- the mobile action bar and duplicate Call/Directions buttons are gone ---');
 // A floating round Book button and a floating round Contact button used to sit
