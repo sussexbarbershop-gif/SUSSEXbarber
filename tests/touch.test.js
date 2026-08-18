@@ -302,6 +302,14 @@ ok('nothing listens to scroll', /addEventListener\('scroll'/.test(html), false);
 // before the first callback arrives.
 ok('and it starts at the top', /nav\.classList\.add\('at-top'\)/.test(html), true);
 
+console.log('--- and if the observer is not there at all ---');
+// The staggered grids start at opacity 0 and are brought back by the class the
+// observer adds. Without it the services and the gallery would be blank space
+// rather than a list — everything visible and no animation is the right way
+// for this to fail.
+ok('there is a way out', /!\('IntersectionObserver' in window\)/.test(html), true);
+ok('and it shows everything', /forEach\(el => el\.classList\.add\('active'\)\)/.test(html), true);
+
 console.log('--- the wizard steps ---');
 // A step is a whole panel of content arriving, which is the case the
 // emphasized curve exists for.

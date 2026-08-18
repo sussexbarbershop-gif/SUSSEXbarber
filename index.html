@@ -1584,7 +1584,16 @@
             });
         }, { threshold: 0.15, rootMargin: '0px 0px -8% 0px' });
 
-        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+        // Belt and braces. The staggered grids start at opacity 0 and are
+        // brought back by the class this observer adds, so a browser without
+        // IntersectionObserver would show the services and the gallery as
+        // blank space rather than as a list. Everything visible, no animation,
+        // which is the right way for this to fail.
+        if (!('IntersectionObserver' in window)) {
+            document.querySelectorAll('.reveal').forEach(el => el.classList.add('active'));
+        } else {
+            document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+        }
 
         // Photographs fade in as they finish loading, rather than popping into
         // place one after another in whatever order the network delivered them.
