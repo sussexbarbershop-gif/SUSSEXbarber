@@ -86,8 +86,12 @@ ok('no dark colour hardcoded outside the variables', offendingLines, []);
 // var(--typo, fallback) is silent: the name does not exist, the fallback wins,
 // and it wins in both themes. --border and --card were never declared, so the
 // Today cards kept dark borders on a light page.
-const declared = new Set([...adminCss.matchAll(/^\s*(--[a-z-]+):/gm)].map(m => m[1]));
-const referenced = [...adminCssRules.matchAll(/var\(\s*(--[a-z-]+)/g)].map(m => m[1]);
+// Digits count. The motion tokens are named --m3-long-2 after the standard
+// they come from, and a class of [a-z-] reads that as "--m" — which is neither
+// declared nor referenced, so the check reported a variable that does not
+// exist and missed every one that does.
+const declared = new Set([...adminCss.matchAll(/^\s*(--[a-z0-9-]+):/gm)].map(m => m[1]));
+const referenced = [...adminCssRules.matchAll(/var\(\s*(--[a-z0-9-]+)/g)].map(m => m[1]);
 ok('every variable used is one that exists',
    [...new Set(referenced)].filter(v => !declared.has(v)), []);
 

@@ -43,7 +43,37 @@
     --radius: 12px;
     --radius-sm: 8px;
     --radius-lg: 16px;
-    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* ---- The same motion system the website uses ----------------------
+       Material Design 3's tokens, so that a barber moving between the site
+       and the panel is not moving between two different pieces of software.
+       See the long note in index.html for what the two families are for;
+       the short version is that standard is for a colour changing and
+       emphasized is for something arriving or leaving. */
+    --m3-standard:              cubic-bezier(0.2, 0, 0, 1);
+    --m3-emphasized:            cubic-bezier(0.2, 0, 0, 1);
+    --m3-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+    --m3-short-3:      150ms;
+    --m3-medium-2:     300ms;
+    --m3-medium-4:     400ms;
+    --m3-long-2:       500ms;
+
+    --press: var(--m3-short-3);
+    --tint:  var(--m3-medium-2);
+    --move:  var(--m3-long-2);
+    --enter: var(--m3-emphasized-decelerate);
+
+    /* `all` was doing a great deal of work here — every property on every
+       element, including layout ones, on every state change. Narrowed to the
+       five that are ever actually meant, which is also the difference between
+       animating on the compositor and animating on the main thread.
+       Transform is in the list because half a dozen hover states lift by a
+       pixel or two and were relying on `all` to carry them. */
+    --transition: color var(--tint) var(--m3-standard),
+                  background-color var(--tint) var(--m3-standard),
+                  border-color var(--tint) var(--m3-standard),
+                  box-shadow var(--tint) var(--m3-standard),
+                  transform var(--m3-medium-2) var(--m3-standard);
 }
 
 /* The panel follows the device, the way the site does. These used to sit on
@@ -118,7 +148,7 @@ input, textarea, select { -webkit-user-select: auto; user-select: auto; }
     max-width: 420px;
     box-shadow: var(--shadow-lg);
     text-align: center;
-    animation: fadeInUp 0.6s ease-out;
+    animation: fadeInUp var(--m3-long-2) var(--enter);
 }
 
 /* Two flat versions of the mark instead of one inverted image: inverting the
@@ -179,7 +209,7 @@ input, textarea, select { -webkit-user-select: auto; user-select: auto; }
 .admin-layout { display: none; min-height: 100vh; }
 .admin-layout.active { display: flex; }
 
-.sidebar { width: 260px; background: var(--bg-sidebar); border-right: 1px solid var(--border-color); height: 100vh; position: fixed; left: 0; top: 0; z-index: 40; display: flex; flex-direction: column; transition: transform 0.3s ease; }
+.sidebar { width: 260px; background: var(--bg-sidebar); border-right: 1px solid var(--border-color); height: 100dvh; position: fixed; left: 0; top: 0; z-index: 40; display: flex; flex-direction: column; transition: transform var(--move) var(--enter); }
 .sidebar-header { padding: 24px 20px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 12px; }
 .sidebar-header img { width: 44px; height: auto; }
 .sidebar-header .brand-logo-light { display: none; }
@@ -219,7 +249,7 @@ input, textarea, select { -webkit-user-select: auto; user-select: auto; }
 
 .content-area { padding: 32px; }
 
-.page-section { display: none; animation: fadeIn 0.3s ease; }
+.page-section { display: none; }
 .page-section.active { display: block; }
 
 /* STATS */
@@ -270,7 +300,7 @@ tbody tr:last-child td { border-bottom: none; }
 /* MODAL */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 50; justify-content: center; align-items: center; padding: 20px; }
 .modal-overlay.active { display: flex; }
-.modal { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); animation: fadeInUp 0.3s ease; }
+.modal { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
 .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid var(--border-color); }
 .modal-header h3 { font-size: 16px; font-weight: 600; }
 .modal-close { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; transition: var(--transition); }
@@ -421,6 +451,60 @@ select.picker-native {
 .slot-chip:disabled .slot-chip-time { text-decoration: line-through; }
 .slot-chip-note { font-size: 10px; opacity: 0.8; }
 
+/* ---- The panel's own arrivals -----------------------------------------
+   Every page in here appeared complete the instant it was switched to, and
+   a table of thirty bookings appearing at once is a slab of text landing.
+   The same rows a beat apart are a list being read out.
+
+   Capped at twelve, and short: this is somebody's Saturday morning, and a
+   barber looking for the next appointment must not be made to wait for an
+   animation to finish before the row they want is legible. */
+@media (prefers-reduced-motion: no-preference) {
+    .page-section.active { animation: page-in var(--m3-medium-4) var(--enter) both; }
+    @keyframes page-in {
+        from { opacity: 0; transform: translateY(8px); }
+        to   { opacity: 1; transform: none; }
+    }
+    tbody tr { animation: row-in var(--m3-medium-2) var(--enter) both; }
+    tbody tr:nth-child(n+13) { animation-delay: 0ms; }
+    tbody tr:nth-child(1)  { animation-delay: 0ms; }
+    tbody tr:nth-child(2)  { animation-delay: 18ms; }
+    tbody tr:nth-child(3)  { animation-delay: 36ms; }
+    tbody tr:nth-child(4)  { animation-delay: 54ms; }
+    tbody tr:nth-child(5)  { animation-delay: 72ms; }
+    tbody tr:nth-child(6)  { animation-delay: 90ms; }
+    tbody tr:nth-child(7)  { animation-delay: 108ms; }
+    tbody tr:nth-child(8)  { animation-delay: 126ms; }
+    tbody tr:nth-child(9)  { animation-delay: 144ms; }
+    tbody tr:nth-child(10) { animation-delay: 162ms; }
+    tbody tr:nth-child(11) { animation-delay: 180ms; }
+    tbody tr:nth-child(12) { animation-delay: 198ms; }
+    @keyframes row-in {
+        from { opacity: 0; transform: translateY(4px); }
+        to   { opacity: 1; transform: none; }
+    }
+    /* The sheet the picker drops, and the dialogs. */
+    .picker-menu { animation: menu-in var(--m3-medium-2) var(--enter) both; }
+    @keyframes menu-in {
+        from { opacity: 0; transform: translateY(-6px) scale(.98); }
+        to   { opacity: 1; transform: none; }
+    }
+    .modal { animation: modal-in var(--m3-medium-4) var(--enter) both; }
+    @keyframes modal-in {
+        from { opacity: 0; transform: translateY(12px) scale(.98); }
+        to   { opacity: 1; transform: none; }
+    }
+}
+
+/* The gold ring the browser cannot draw for itself. :focus-visible, so a
+   barber tapping a button with a thumb never summons one. */
+.btn:focus-visible, .nav-item:focus-visible, .filter-tab:focus-visible,
+.picker-toggle:focus-visible, .slot-chip:focus-visible,
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+}
+
 /* ---- Worked from a phone behind the counter ---------------------------
    The same three things the website needed, for the same reasons, and none
    of them visible on the desk where this gets looked at. */
@@ -467,7 +551,7 @@ button, a, input, select, textarea,
 }
 
 /* TOAST */
-.toast { position: fixed; bottom: 32px; right: 32px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 14px 20px; display: flex; align-items: center; gap: 10px; font-size: 14px; box-shadow: var(--shadow-lg); z-index: 100; animation: slideUp 0.3s ease; max-width: 360px; }
+.toast { position: fixed; bottom: 32px; right: 32px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 14px 20px; display: flex; align-items: center; gap: 10px; font-size: 14px; box-shadow: var(--shadow-lg); z-index: 100; animation: slideUp var(--m3-medium-4) var(--enter); max-width: 360px; }
 .toast.success { border-left: 3px solid var(--green); }
 .toast.error { border-left: 3px solid var(--red); }
 .toast.info { border-left: 3px solid var(--blue); }

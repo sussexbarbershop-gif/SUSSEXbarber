@@ -22,6 +22,36 @@ const ok = (label, actual, want) => {
     (pass ? '' : `   got=${JSON.stringify(actual)} want=${JSON.stringify(want)}`));
 };
 
+console.log('--- the stylesheet parses at all ---');
+// A stray brace does not throw. The browser drops whatever it cannot make
+// sense of and carries on, so the page renders with a section of the design
+// simply missing — and the failure looks like "the header never got its
+// shadow" rather than like a syntax error, which is a long way to walk back.
+const braces = (src, what) => {
+  const open = (src.match(/\{/g) || []).length;
+  const close = (src.match(/\}/g) || []).length;
+  ok(`${what}: braces balance`, [open, close], [open, open]);
+};
+braces(style, 'the page\'s own styles');
+braces(fs.readFileSync(path.join(root, 'admin', 'admin.css'), 'utf8'), 'the panel');
+// An @media or @supports with no body is the other half of the same mistake.
+ok('no empty rules left behind', /\{\s*\}/.test(style), false);
+// var() with a name nothing declares is silent: the property is simply
+// invalid and the element keeps whatever it had.
+//
+// A var() with a fallback is a different thing and is fine — `var(--i, 0)` is
+// how the stagger reads an index that JavaScript sets per element, and the
+// fallback is what it uses until that happens. The rule is: no fallback, then
+// something had better declare it.
+{
+  const declared = new Set([...style.matchAll(/^\s*(--[a-z0-9-]+)\s*:/gm)].map(m => m[1]));
+  const bare = [...style.matchAll(/var\(\s*(--[a-z0-9-]+)\s*\)/g)].map(m => m[1]);
+  ok('every var() without a fallback names something declared',
+     [...new Set(bare.filter(v => !declared.has(v)))], []);
+  // And the one that does have a fallback is set by something.
+  ok('the stagger index is set from script', /setProperty\('--i'/.test(html), true);
+}
+
 console.log('--- what the viewport tag has to say ---');
 const viewport = (html.match(/<meta name="viewport" content="([^"]*)"/) || ['', ''])[1];
 ok('it is set', viewport.length > 0, true);
