@@ -171,29 +171,6 @@
             .service-card:hover { transform: none; }
         }
 
-        /* Barber card. The photo used to zoom 10% over 700ms while the card
-           itself lifted over 300ms — two movements of different sizes at
-           different speeds on one hover, which reads as a lurch rather than a
-           response. Both are on the site's own tokens now, and the zoom is a
-           twenty-fifth rather than a tenth: enough to say the card noticed the
-           cursor, not enough to shove the face sideways. */
-        .barber-card {
-            transition: transform var(--move) var(--ease),
-                        box-shadow var(--move) var(--ease);
-        }
-        .barber-card__photo {
-            transition: transform var(--move) var(--ease);
-        }
-        @media (hover: hover) {
-            .barber-card:hover { transform: translateY(-4px); }
-            .barber-card:hover .barber-card__photo { transform: scale(1.04); }
-        }
-        @media (prefers-reduced-motion: reduce) {
-            .barber-card, .barber-card__photo { transition: none; }
-            .barber-card:hover { transform: none; }
-            .barber-card:hover .barber-card__photo { transform: none; }
-        }
-
         /* Where a link from the menu comes to rest.
 
            The nav is fixed, so a jump to #services put the top of that section
@@ -204,16 +181,32 @@
            scroll-padding-top on the scrolling element, not scroll-margin-top on
            each section. Same result for the sections that exist, and it also
            covers the ones that do not yet: a heading added next year, an anchor
-           in a link somebody pastes into Instagram, the browser restoring a
-           position on reload. Nobody has to remember to add it to a list.
+           somebody pastes into Instagram, the browser restoring a position on
+           reload. Nobody has to remember to add it to a list.
 
-           --nav-h is published by the script below from what the bar actually
-           measures, so this follows a bar that changes height rather than a
-           number somebody wrote down once. 5rem is the fallback for the moment
-           before that runs, and 1rem of air so the heading is not flush against
-           the bar. */
+           Exactly the bar's height, with nothing added. A rem of air on top
+           looked like the sensible thing and was not: it lands the section an
+           inch low, so a strip of the section *above* shows between the bar and
+           the new one, border and all. The sections carry py-14 of their own —
+           56px above the heading — so the room is already there.
+
+           --nav-h is published by the script further down from what the bar
+           actually measures, so this follows a bar that changes height rather
+           than a number somebody wrote down once. 5rem is the fallback for the
+           moment before that runs. */
         html {
-            scroll-padding-top: calc(var(--nav-h, 5rem) + 1rem);
+            scroll-padding-top: var(--nav-h, 5rem);
+        }
+
+        /* Barber card. The same hover as the price list: it lifts a little
+           and that is all. There was a zoom on the photo as well — 10% first,
+           then 4% — and at every size it was the wrong gesture. A card that
+           enlarges its own picture under the cursor draws the eye to the
+           movement rather than to the barber, and these sit five in a row.
+           The lift says the card noticed; nothing else needs to happen. */
+        @media (prefers-reduced-motion: reduce) {
+            .barber-card { transition: none; }
+            .barber-card:hover { transform: none; }
         }
 
         /* ================= ON A PHONE =================
@@ -580,14 +573,15 @@
         }
 
         /* ---- Anything raised off the page ------------------------------- */
-        .service-card, .gallery-img {
+        .service-card, .gallery-img, .barber-card {
             box-shadow: var(--lift-1);
             transition: transform var(--m3-medium-4) var(--m3-standard),
                         box-shadow var(--m3-medium-4) var(--m3-standard),
                         filter var(--m3-medium-4) var(--m3-standard);
         }
         @media (hover: hover) {
-            .service-card:hover { transform: translateY(-3px); box-shadow: var(--lift-2); }
+            .service-card:hover,
+            .barber-card:hover  { transform: translateY(-3px); box-shadow: var(--lift-2); }
             .gallery-img:hover  { box-shadow: var(--lift-3); }
         }
 
@@ -3318,7 +3312,7 @@
                 // extra contrast - the brightness/contrast stack elsewhere on the
                 // site did that to snapshots that did not need it.
                 const photo = b.image
-                    ? `<img src="${escapeAttribute(b.image)}" alt="${escapeAttribute(name)}" class="barber-card__photo w-full h-full object-cover">`
+                    ? `<img src="${escapeAttribute(b.image)}" alt="${escapeAttribute(name)}" class="w-full h-full object-cover">`
                     : `<div class="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-charcoal-700 text-gray-500 dark:text-gray-400 font-serif font-bold text-3xl sm:text-5xl">${escapeText(name.charAt(0).toUpperCase())}</div>`;
 
                 return `
