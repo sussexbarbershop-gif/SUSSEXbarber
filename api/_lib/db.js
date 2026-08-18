@@ -259,14 +259,20 @@ async function customerFor({ phone, name, email }) {
   if (!key) return null;
 
   const sql = db();
-  const rows = await sql`
+  // Through withNewSchema, because on a database that predates this table the
+  // first booking is what discovers it is missing. Without it the insert throws
+  // undefined_table, addBooking sees an error it has no case for, and the
+  // customer is told the booking failed — which it had not, it had not been
+  // attempted. Every other query that touches a newer column already goes this
+  // way; this one was written outside it.
+  const rows = await withNewSchema(() => sql`
     INSERT INTO customers (phone_key, name, email)
     VALUES (${key}, ${String(name || '').trim()}, ${String(email || '').trim()})
     ON CONFLICT (phone_key) DO UPDATE
       SET name      = COALESCE(NULLIF(EXCLUDED.name, ''), customers.name),
           email     = COALESCE(NULLIF(EXCLUDED.email, ''), customers.email),
           last_seen = now()
-    RETURNING id`;
+    RETURNING id`);
   return rows.length ? rows[0].id : null;
 }
 
