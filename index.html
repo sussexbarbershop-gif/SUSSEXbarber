@@ -3229,11 +3229,19 @@
 
                 return `
                 <div class="group bg-gray-50 dark:bg-charcoal-800 rounded-lg sm:rounded-xl overflow-hidden shadow-md sm:shadow-lg border border-gray-200 dark:border-charcoal-700 sm:hover:-translate-y-2 transition-transform duration-300">
-                    <div class="w-full aspect-square sm:aspect-[3/4] overflow-hidden">${photo}</div>
-                    <div class="p-2.5 sm:p-6">
-                        <h3 class="text-sm sm:text-xl font-medium text-gray-900 dark:text-white truncate">${escapeText(name)}</h3>
-                        <p class="text-gold text-[10px] sm:text-xs uppercase tracking-wide sm:tracking-widest mt-0.5 sm:mt-2 mb-1 sm:mb-4" data-translate="Barber">Barber</p>
-                        <p class="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400 truncate sm:whitespace-normal">${escapeText(schedule)}</p>
+                    <!-- Square at every width. It used to go 3:4 from sm up,
+                         which made a tall card out of a portrait crop and left
+                         the row half again as deep as it needed to be. -->
+                    <div class="w-full aspect-square overflow-hidden">${photo}</div>
+                    <!-- Name and days on one line, wrapping only when they will
+                         not fit. This was three stacked lines - name, the word
+                         "Barber", then the days - on a page whose heading
+                         already says these are the barbers. Dropping the label
+                         and putting the other two side by side takes about half
+                         the height off the card. -->
+                    <div class="px-2.5 py-2 sm:px-4 sm:py-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                        <h3 class="text-sm sm:text-lg font-medium text-gray-900 dark:text-white truncate">${escapeText(name)}</h3>
+                        <p class="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400 truncate">${escapeText(schedule)}</p>
                     </div>
                 </div>`;
             }).join('');

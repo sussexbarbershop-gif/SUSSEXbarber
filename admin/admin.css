@@ -330,7 +330,11 @@ tbody tr:last-child td { border-bottom: none; }
 .toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); background: white; }
 
 /* GALLERY */
-.gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+/* auto-fit, not auto-fill. auto-fill keeps the empty columns it made room
+   for, so five barbers on a wide screen sat in the first five of seven
+   tracks with a third of the row blank to their right. auto-fit collapses
+   the ones nothing landed in and the cards share the width instead. */
+.gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
 .gallery-item { position: relative; border-radius: var(--radius); overflow: hidden; aspect-ratio: 1; border: 1px solid var(--border-color); background: var(--bg-input); cursor: pointer; transition: var(--transition); }
 @media (hover: hover) { .gallery-item:hover { border-color: var(--gold); transform: scale(1.02); } }
 .gallery-item img { width: 100%; height: 100%; object-fit: cover; }
