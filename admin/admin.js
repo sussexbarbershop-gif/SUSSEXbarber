@@ -298,13 +298,34 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ---- Auth ----
+/**
+ * Signed in means both halves, not one.
+ *
+ * The panel remembers two things: a flag that says to draw the panel, and the
+ * password that every request to the server is signed with. They are written
+ * together, and if they are ever read apart the result is a panel that looks
+ * completely normal and cannot do anything — because the diary it is showing
+ * came out of the local cache, and the first thing that actually needs the
+ * server comes back "Unauthorized".
+ *
+ * That is a miserable thing to debug from the outside: nothing looks wrong
+ * until you press something, and then the message is about authorisation on a
+ * screen you are plainly already authorised to be looking at.
+ *
+ * So both, or neither.
+ */
 function checkAuth() {
-    const isLoggedIn = sessionStorage.getItem('sussex_admin_auth');
-    if (isLoggedIn === 'true') {
-        showAdmin();
-    } else {
-        showLogin();
+    const flagged = sessionStorage.getItem('sussex_admin_auth') === 'true';
+    const password = sessionStorage.getItem('sussex_admin_pw');
+    if (flagged && password) return showAdmin();
+
+    if (flagged && !password) {
+        // Half a session. Clear the rest of it rather than leave a flag that
+        // will do the same thing again on the next reload.
+        sessionStorage.removeItem('sussex_admin_auth');
+        console.warn('[auth] signed-in flag with no password — signing out');
     }
+    showLogin();
 }
 
 function showLogin() {
@@ -2166,10 +2187,18 @@ async function submitOwnerPin(e) {
     try {
         const result = await apiPost({ action: 'unlock', password: adminPassword, pin });
         if (result.status !== 'success') {
-            error.textContent = result.message || 'That PIN is not right';
+            // "Unauthorized" here is not about the PIN at all — it is the panel
+            // password being refused, which means this session is no longer one
+            // the server accepts. Passing that word through put it under a PIN
+            // box, where the only thing it could be read as was "wrong PIN",
+            // and no amount of retyping the right PIN would ever change it.
+            const stale = /unauthorized/i.test(result.message || '');
+            error.textContent = stale
+                ? 'Your sign-in has expired. Log out and sign in again.'
+                : (result.message || 'That PIN is not right');
             error.classList.add('is-shown');
             field.value = '';
-            field.focus();
+            if (!stale) field.focus();
             return;
         }
         sessionStorage.setItem(UNLOCK_KEY,
