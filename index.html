@@ -126,30 +126,27 @@
             transform: translateY(0);
         }
 
-        /* Gallery hover: the photo lifts and brightens, so it reads as
-           something you can open before you click it. No outline - the photo
-           itself is the subject, and a border round it only competes. Kept to
-           transform and shadow, both composited, so a grid of six photos does
-           not repaint on every mouse move. */
-        .gallery-img {
-            transition: transform .4s ease, box-shadow .4s ease, filter .4s ease;
-        }
-        .gallery-img:hover,
-        .gallery-img:focus-visible {
-            transform: scale(1.03);
-            box-shadow: 0 10px 26px rgba(0, 0, 0, .3);
-            filter: brightness(1.06);
-            position: relative;
-            z-index: 1;
-        }
-        /* A finger cannot hover: on a touch screen the scale only fires on tap
+        /* The gallery photo had its own hover: scale, a brightness bump and a
+           shadow written out in full. The barber card had another. The price
+           list had a third. Three cards on one page, three answers to the same
+           question, none of them agreeing.
+
+           They are one rule now — see "Anything raised off the page" further
+           down, which lifts them all by the same amount with the same shadow.
+           A hover is a card saying it noticed the cursor; it does not need to
+           be a different sentence in each section.
+
+           What is left here is only what is specific to a photo: the tap
+           behaviour, and the focus ring a keyboard needs. */
+
+        /* A finger cannot hover: on a touch screen the lift only fires on tap
            and shifts the photo under the finger that is opening it. */
         @media (hover: none) {
-            .gallery-img:hover { transform: none; box-shadow: none; filter: none; }
+            .gallery-img:hover { transform: none; box-shadow: none; }
         }
         @media (prefers-reduced-motion: reduce) {
             .gallery-img { transition: none; }
-            .gallery-img:hover { transform: none; }
+            .gallery-img:hover, .gallery-img:focus-visible { transform: none; }
         }
 
         /* Service card hover: the card lifts, and that is all it does. No gold
@@ -573,6 +570,8 @@
         }
 
         /* ---- Anything raised off the page ------------------------------- */
+        .gallery-img:focus-visible { transform: translateY(-3px); box-shadow: var(--lift-2); }
+
         .service-card, .gallery-img, .barber-card {
             box-shadow: var(--lift-1);
             transition: transform var(--m3-medium-4) var(--m3-standard),
@@ -581,8 +580,8 @@
         }
         @media (hover: hover) {
             .service-card:hover,
-            .barber-card:hover  { transform: translateY(-3px); box-shadow: var(--lift-2); }
-            .gallery-img:hover  { box-shadow: var(--lift-3); }
+            .barber-card:hover,
+            .gallery-img:hover  { transform: translateY(-3px); box-shadow: var(--lift-2); }
         }
 
         /* ---- Where the keyboard is -------------------------------------
@@ -3212,10 +3211,21 @@
             // second after a close the sheet is neither open nor hidden — and
             // both of these were being asked the wrong question during it.
             if (!sheet || sheet.classList.contains('sheet-open')) return;
+            // The page is pinned first, and the sheet shown after.
+            //
+            // It used to be the other way round, and the reflow that pinning
+            // causes — position:fixed takes the body out of flow, so the whole
+            // document is laid out again — landed in the same frame as the
+            // sheet's first. The animation lost its opening frames and the page
+            // behind it jumped: half a flash, which is exactly what it looked
+            // like.
+            //
+            // Doing it first spends that reflow while nothing is moving. By the
+            // time the sheet starts travelling the page underneath is settled.
+            holdPage(true);
             sheet.classList.remove('hidden');
             void sheet.offsetWidth;                 // let the closed state land
             sheet.classList.add('sheet-open');
-            holdPage(true);
         }
 
         /**
