@@ -361,6 +361,42 @@ async function main() {
   ok('a refusal fails the run', /--fail/.test(wf), true);
   ok('and it says so when the secret is missing', /CRON_SECRET is not set/.test(wf), true);
 
+
+console.log('--- the reminders do not depend on one scheduler ---');
+// GitHub Actions is meant to call the soon round every quarter of an hour and
+// did not run once in twelve hours across two schedules — documented
+// behaviour, not a fault: a scheduled run "can be delayed during periods of
+// high load" and at peak times "may not run at all". For an email that has to
+// arrive an hour before an appointment, best-effort is not a schedule.
+{
+  const api = fs.readFileSync(path.join(__dirname, '..', 'api', 'index.js'), 'utf8');
+  const panel = fs.readFileSync(path.join(__dirname, '..', 'admin', 'admin.js'), 'utf8');
+
+  ok('the panel can run a round', /action === 'runReminders'/.test(api), true);
+  // The panel password. The browser must never hold CRON_SECRET, and this
+  // action can do nothing the panel cannot already do.
+  const block = (api.match(/action === 'runReminders'[\s\S]*?\n  \}/) || [''])[0];
+  ok('behind the panel password', /isAuthorized\(payload\)/.test(block), true);
+  ok('and never the cron secret', /CRON_SECRET/.test(block), false);
+  // The same round, not a second copy of it. Two ways to decide who gets an
+  // email is two sets of rules that will not stay in step.
+  ok('running the same round the scheduler runs',
+     /runDailyJob\('soon'\)/.test(block), true);
+
+  ok('the panel calls it', /action: 'runReminders'/.test(panel), true);
+  ok('on a timer', /setInterval\(keepRemindersRunning/.test(panel), true);
+  // A panel left open overnight has a browser that suspended its timers.
+  ok('and when the tab is picked up again',
+     /visibilitychange[\s\S]{0,120}keepRemindersRunning/.test(panel), true);
+  // A barber did not ask for this and cannot act on it failing.
+  const keeper = (panel.match(/async function keepRemindersRunning\(\)[\s\S]*?\n\}/) || [''])[0];
+  ok('silently, either way', /showToast/.test(keeper), false);
+  // Whichever trigger arrives first does the work; the second finds the rows
+  // already marked. That only holds because the round is idempotent.
+  ok('and it is safe for both to arrive at once',
+     /reminded_at IS NULL/.test(fs.readFileSync(path.join(__dirname, '..', 'api', 'daily.js'), 'utf8')), true);
+}
+
   console.log(failed === 0 ? '\nAll daily job tests passed.' : `\n${failed} FAILED`);
   process.exit(failed === 0 ? 0 : 1);
 }
