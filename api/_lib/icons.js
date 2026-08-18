@@ -19,29 +19,39 @@
  * charcoal. A picture with a transparent background keeps it — laid on the
  * charcoal — because a transparent icon lands on whatever colour the launcher
  * paints behind it, and half the phones in the world paint white.
+ *
+ * What this deliberately does not do is decide how big the mark should be.
+ * The first version did: it shrank whatever arrived to 82% of the icon, or
+ * 72% for the cropped pair, on the reasoning that an uploaded logo comes with
+ * no margin of its own. That was written before the panel had an editor.
+ *
+ * Now the owner drags and zooms against a dashed circle that says everything
+ * inside it is kept, and presses Save on a picture they have composed. A
+ * second shrink here made the phone disagree with the preview they were
+ * looking at — the mark landed noticeably smaller than they had placed it,
+ * and zooming in only closed part of the gap. So the square that arrives is
+ * the square that ships, and the circle in the panel is the whole truth.
  */
 
 // The same charcoal as the hero, the panel and the emails.
 const BACKGROUND = { r: 0x12, g: 0x12, b: 0x12, alpha: 1 };
 
 /**
- * What gets made, and how much of the canvas the picture fills in each.
+ * What gets made. Every one of them is the uploaded square at a new size.
  *
- * `maskable` at 0.72 rather than the 0.66 the logo needed: an uploaded icon
- * is usually already square and already has its own margin, where the logo
- * crop was a wide mark with none. Still inside the guaranteed circle for
- * anything square — a square at 0.72 has a diagonal of 1.02, which is over
- * 0.8 — so it is drawn at 0.72 of the *width* and a square picture's corners
- * may be shaved by a strict circular mask. That is the trade every square
- * app icon makes; the alternative is 0.56, which looks like a stamp.
+ * The maskable pair is not drawn smaller than the rest any more, and the
+ * reason is the panel: the editor draws the guaranteed circle over the canvas
+ * while the owner is composing, so the margin a cropped icon needs is decided
+ * by eye, once, in the place where it can be seen. Deciding it a second time
+ * here only moved the mark away from where they put it.
  */
 const SIZES = [
-  { file: 'favicon-32.png',        size: 32,  fill: 0.92, purpose: 'favicon' },
-  { file: 'apple-touch-icon.png',  size: 180, fill: 0.82, purpose: 'apple' },
-  { file: 'icon-192.png',          size: 192, fill: 0.82, purpose: 'any' },
-  { file: 'icon-512.png',          size: 512, fill: 0.82, purpose: 'any' },
-  { file: 'icon-maskable-192.png', size: 192, fill: 0.72, purpose: 'maskable' },
-  { file: 'icon-maskable-512.png', size: 512, fill: 0.72, purpose: 'maskable' }
+  { file: 'favicon-32.png',        size: 32,  purpose: 'favicon' },
+  { file: 'apple-touch-icon.png',  size: 180, purpose: 'apple' },
+  { file: 'icon-192.png',          size: 192, purpose: 'any' },
+  { file: 'icon-512.png',          size: 512, purpose: 'any' },
+  { file: 'icon-maskable-192.png', size: 192, purpose: 'maskable' },
+  { file: 'icon-maskable-512.png', size: 512, purpose: 'maskable' }
 ];
 
 /** The settings key each file's URL is remembered under. */
@@ -74,12 +84,17 @@ async function makeIconSet(bytes) {
   if (!meta.width || !meta.height) throw new Error('not an image');
 
   const out = [];
-  for (const { file, size, fill } of SIZES) {
-    const inner = Math.round(size * fill);
+  for (const { file, size } of SIZES) {
+    // 'contain' rather than 'cover': the panel always sends a square, so this
+    // is a plain resize — but a square is not something to assume of a caller
+    // that has not been written yet, and cropping one by surprise is worse
+    // than letting the charcoal show at the sides.
     const fitted = await source.clone()
-      .resize(inner, inner, { fit: 'inside', withoutEnlargement: false,
-                              background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .resize(size, size, { fit: 'contain', background: BACKGROUND })
       .toBuffer();
+    // Still composited onto opaque charcoal rather than sent as-is, so a
+    // picture with a transparent background does not land on whatever colour
+    // the launcher paints.
     const png = await sharp({
       create: { width: size, height: size, channels: 4, background: BACKGROUND }
     }).composite([{ input: fitted, gravity: 'centre' }])

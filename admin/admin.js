@@ -837,6 +837,39 @@ function setIconStatus(text) {
     if (el) el.textContent = text;
 }
 
+/**
+ * The icon that is on people's phones right now, drawn in the editor.
+ *
+ * Without this the box says "No picture yet" however many times it has been
+ * changed, so the only way to see the current icon is to install the site —
+ * and the only way to adjust it is to find the original file again and start
+ * from nothing. Loading it means Reset goes back to what is live, and a small
+ * change is a small change.
+ *
+ * crossOrigin, because the icons are served from the blob store and drawing a
+ * cross-origin picture onto a canvas taints it. A tainted canvas throws on
+ * toDataURL — so without this line the editor would look perfectly normal and
+ * fail on Save, which is the worst place to find out.
+ */
+function loadSavedIcon() {
+    // Not over a picture the owner has already chosen and is part-way through
+    // placing, which is what leaving this page and coming back would do.
+    if (iconImage) return;
+    const url = settings.icon_512 || settings.icon_apple;
+    if (!url) return;
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onerror = () => setIconStatus('');
+    img.onload = () => {
+        if (iconImage) return;                 // a file was chosen while this loaded
+        iconImage = img;
+        fitIcon();
+        setIconStatus('This is the icon in use. Drag or zoom to change it.');
+    };
+    img.src = url;
+}
+
 /** A file chosen from the phone. Read here; nothing is sent until Save. */
 function loadIconImage(input) {
     const file = input && input.files && input.files[0];
@@ -1519,6 +1552,7 @@ function renderCms() {
         const el = document.getElementById(id);
         if (el) el.value = settings[CMS_FIELDS[id]] || '';
     });
+    loadSavedIcon();
 }
 
 async function saveCMSData() {

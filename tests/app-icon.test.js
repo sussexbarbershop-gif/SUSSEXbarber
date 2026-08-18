@@ -47,19 +47,27 @@ console.log('--- the six files ---');
 // A phone asks for more than one, and the two purposes are not
 // interchangeable: `any` is drawn as it is, `maskable` is cropped by Android
 // to whatever shape the launcher uses and is promised only its middle 80%.
-const sizes = [...icons.matchAll(/file: '([\w.-]+)',\s*size: (\d+),\s*fill: ([\d.]+)/g)]
-  .map(m => ({ file: m[1], size: Number(m[2]), fill: Number(m[3]) }));
+const sizes = [...icons.matchAll(/file: '([\w.-]+)',\s*size: (\d+),\s*purpose: '(\w+)'/g)]
+  .map(m => ({ file: m[1], size: Number(m[2]), purpose: m[3] }));
 ok('six of them', sizes.length, 6);
 ok('192 and 512 in both purposes',
    [192, 512].every(n => sizes.filter(s => s.size === n).length === 2), true);
 ok('a favicon for the tab', sizes.some(s => s.size === 32), true);
 ok('and an apple-touch-icon, which iOS reads instead of the manifest',
    sizes.some(s => s.file === 'apple-touch-icon.png'), true);
-// The cropped pair is drawn smaller, because some of it is going to be cut.
-const maskable = sizes.filter(s => /maskable/.test(s.file));
-const plain = sizes.filter(s => /^icon-\d/.test(s.file));
-ok('the cropped ones are drawn smaller than the ones that are not',
-   maskable.every(m => plain.every(p => m.fill < p.fill)), true);
+// And the server does not resize the mark inside them. It used to shrink
+// every upload to 82% of the icon, which was right when the only input was a
+// bare logo and wrong the moment the panel grew an editor: the owner composed
+// against the circle, pressed Save, and got something visibly smaller than
+// the preview. The margin is theirs to set now, so nothing here may reinstate
+// one behind them.
+ok('the server adds no margin of its own', /fill/.test(icons), false);
+// Which only works while the panel is honest about what survives the crop:
+// inset 10% is the middle 80%, which is all Android guarantees.
+const panelCss = fs.readFileSync(path.join(__dirname, '..', 'admin', 'admin.css'), 'utf8');
+const safe = (panelCss.match(/\.icon-safe \{[^}]*\}/) || [''])[0];
+ok('the panel draws the circle that is kept', /inset:\s*10%/.test(safe), true);
+ok('and draws it as a circle', /border-radius:\s*50%/.test(safe), true);
 
 console.log('--- and they are written as one thing ---');
 const route = (api.match(/async function uploadAppIcon[\s\S]*?\n\}/) || [''])[0];
@@ -110,6 +118,21 @@ ok('and a wheel, at a desk', /'wheel'/.test(panel), true);
 // Dragging the picture must not also scroll the page under it.
 ok('dragging does not scroll the page behind it',
    /\.icon-stage \{[\s\S]{0,300}touch-action: none/.test(css), true);
+
+console.log('--- the icon already in use ---');
+// Opening the editor on an empty box means the only way to see the current
+// icon is to install the site, and the only way to change it slightly is to
+// find the original file and start again.
+ok('the page opens on the icon that is live', /renderCms[\s\S]{0,200}loadSavedIcon\(\)/.test(panel), true);
+const loader = (panel.match(/function loadSavedIcon\(\)[\s\S]*?\n\}/) || [''])[0];
+ok('it reads the saved URL', /settings\.icon_512/.test(loader), true);
+// The icons come from the blob store. Drawing a cross-origin picture onto a
+// canvas taints it, and a tainted canvas throws on toDataURL — so without
+// this the editor looks fine and fails at the moment of saving.
+ok('and asks for it in a way the canvas can export',
+   /crossOrigin = 'anonymous'/.test(loader), true);
+// Not over a picture the owner is part-way through placing.
+ok('it does not overwrite a chosen file', /if \(iconImage\) return/.test(loader), true);
 
 console.log('--- what is actually sent ---');
 const save = (panel.match(/async function saveAppIcon\(\)[\s\S]*?\n\}/) || [''])[0];
