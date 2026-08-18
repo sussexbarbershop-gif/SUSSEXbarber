@@ -176,18 +176,79 @@
            screen — it is the screen. What follows was written after measuring
            the page at 375px rather than guessing at it. */
 
-        /* One vocabulary for movement. There were eight different
-           duration-and-easing pairs on the page, all of them whatever was
-           typed at the time, and the difference between them is exactly what
-           makes an interface feel assembled rather than designed.
+        /* ---- A motion system, rather than a set of opinions ---------------
+           These are Material Design 3's published tokens, used because they
+           are somebody else's decision. There were eight different
+           duration-and-easing pairs on this page, every one of them whatever
+           was typed at the time, and the difference between "a curve I liked"
+           and "the curve, everywhere" is what separates an interface that
+           feels assembled from one that feels designed.
 
-           The curve is the same one iOS and Android both use for a control
-           responding to a finger: leaves quickly, arrives gently. */
+           The two families matter and are easy to confuse:
+
+           STANDARD is for small, ordinary changes — a colour, a border, a
+           chip becoming selected. It is unhurried and even.
+
+           EMPHASIZED is for things that arrive and leave: a sheet, the menu,
+           a section rising into place. It starts slowly, covers most of the
+           distance fast, and eases into its resting position. That long tail
+           is what reads as weight — the thing has mass and is settling,
+           rather than stopping because a timer ran out.
+
+           Their split forms are for one-way journeys. Something entering
+           should decelerate into place; something leaving should accelerate
+           out, because nobody needs to watch it go. */
         :root {
-            --ease: cubic-bezier(0.32, 0.72, 0, 1);
-            --press: 140ms;    /* a finger going down — must feel instant */
-            --move: 420ms;     /* something crossing the screen */
-            --settle: 900ms;   /* something arriving as you scroll to it */
+            --m3-standard:               cubic-bezier(0.2, 0, 0, 1);
+            --m3-standard-decelerate:    cubic-bezier(0, 0, 0, 1);
+            --m3-standard-accelerate:    cubic-bezier(0.3, 0, 1, 1);
+            --m3-emphasized:             cubic-bezier(0.2, 0, 0, 1);
+            --m3-emphasized-decelerate:  cubic-bezier(0.05, 0.7, 0.1, 1);
+            --m3-emphasized-accelerate:  cubic-bezier(0.3, 0, 0.8, 0.15);
+
+            /* Durations, also M3's. Named for length rather than for use, so
+               that choosing one is a decision about how far the thing travels
+               and not about what it happens to be. */
+            --m3-short-3:      150ms;
+            --m3-short-4:      200ms;
+            --m3-medium-2:     300ms;
+            --m3-medium-4:     400ms;
+            --m3-long-2:       500ms;
+            --m3-long-4:       600ms;
+            --m3-extra-long-2: 800ms;
+
+            /* And what this site calls them. Three names, because three is how
+               many kinds of movement a barber shop's website actually has. */
+            --ease:   var(--m3-emphasized);
+            --enter:  var(--m3-emphasized-decelerate);
+            --leave:  var(--m3-emphasized-accelerate);
+            /* short-3 and not short-4: a press has to answer the finger, and
+               two hundred milliseconds is long enough to feel like a wait. */
+            --press:  var(--m3-short-3);      /* a finger going down */
+            --move:   var(--m3-long-2);       /* something crossing the screen */
+            --settle: var(--m3-extra-long-2); /* something arriving as you scroll */
+            --tint:   var(--m3-medium-2);     /* a colour changing under a cursor */
+
+            /* ---- Depth ---------------------------------------------------
+               Two shadows, not one. A single blurred drop is the look of a
+               sticker lying on the page; real depth is a tight contact shadow
+               where the object meets the surface plus a wide ambient one for
+               the light it blocks. The pair is what makes a card look raised
+               rather than drawn. */
+            --lift-1: 0 1px 2px rgba(18,18,18,.06), 0 4px 12px rgba(18,18,18,.05);
+            --lift-2: 0 2px 4px rgba(18,18,18,.07), 0 10px 26px rgba(18,18,18,.08);
+            --lift-3: 0 4px 8px rgba(18,18,18,.09), 0 20px 48px rgba(18,18,18,.12);
+            /* Gold, at the strengths this page uses it for a glow. */
+            --glow: 0 0 0 1px rgba(212,175,55,.35), 0 6px 20px rgba(212,175,55,.22);
+        }
+        /* On a dark background a black shadow does nothing at all — there is
+           nothing for it to darken. Depth there comes from a lit edge instead. */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --lift-1: 0 1px 2px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.04);
+                --lift-2: 0 4px 12px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.06);
+                --lift-3: 0 12px 34px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.08);
+            }
         }
 
         /* Slower than the first attempt, which was correct and invisible.
@@ -217,7 +278,82 @@
         /* And the sections rising into place on the way down the page. This one
            is allowed to be leisurely: it happens once per section, while you
            are reading something else. */
-        .reveal { transition-duration: var(--settle); }
+        .reveal {
+            transition-duration: var(--settle);
+            transition-timing-function: var(--enter);
+        }
+
+        /* ---- A grid that arrives as a sequence ---------------------------
+           Six barber cards appearing together is one event: a slab of content
+           switching on. The same six arriving forty milliseconds apart is a
+           hand dealing them out, and the eye follows it — which is the whole
+           difference between an animation and a transition.
+
+           Forty is deliberately small. Long enough to read as an order,
+           short enough that the last card is not still on its way while the
+           customer is reaching for the first. Six cards is a quarter of a
+           second from first to last.
+
+           Capped at ten. A gallery can hold thirty photos, and the thirtieth
+           arriving a second and a quarter after the first is not a stagger,
+           it is a queue. */
+        .stagger > * {
+            opacity: 0;
+            transform: translateY(14px);
+            transition: opacity var(--m3-long-4) var(--enter),
+                        transform var(--m3-long-4) var(--enter);
+            transition-delay: calc(min(var(--i, 0), 10) * 40ms);
+        }
+        .stagger.active > * { opacity: 1; transform: none; }
+
+        /* ---- Scroll-driven, where the browser can ------------------------
+           The same reveals again, run off the scroll position rather than off
+           a JavaScript observer — so they follow the finger instead of firing
+           once at a threshold and playing out on their own.
+
+           Behind @supports because this is not Baseline: around eighty-five
+           per cent of browsers have it and Firefox stable does not. The
+           observer below stays exactly as it was and remains what everybody
+           else gets, which is the point of writing it this way round. Nothing
+           here is required for the page to work; it is the version with the
+           better hinge on the door. */
+        @supports (animation-timeline: view()) {
+            @media (prefers-reduced-motion: no-preference) {
+                .reveal {
+                    opacity: 1;
+                    transform: none;
+                    animation: rise-in linear both;
+                    animation-timeline: view();
+                    /* Starts as the element's top edge comes into the
+                       viewport, finishes a third of the way up the screen —
+                       so it is settled well before it is being read, rather
+                       than still moving under the eye. */
+                    animation-range: entry 0% cover 30%;
+                }
+                @keyframes rise-in {
+                    from { opacity: 0; transform: translateY(28px); }
+                    to   { opacity: 1; transform: none; }
+                }
+
+                /* A grid does not need dealing out here. Each card has its own
+                   timeline and enters when it personally comes into view, so
+                   the stagger is the layout itself — the second row arrives
+                   after the first because it is lower down, which is both
+                   free and more truthful than a fixed delay.
+
+                   The container stops moving when its children do, or the
+                   whole grid would slide up while each card slid up inside it. */
+                .stagger { animation: none; opacity: 1; transform: none; }
+                .stagger > * {
+                    opacity: 1;
+                    transform: none;
+                    transition: none;
+                    animation: rise-in linear both;
+                    animation-timeline: view();
+                    animation-range: entry 0% cover 22%;
+                }
+            }
+        }
 
         /* The two pickers, which had no movement at all. They were shown and
            hidden with `hidden`, so every duration set above them was applied to
@@ -334,6 +470,107 @@
             .reveal { opacity: 1; transform: none; transition: none; }
             html { scroll-behavior: auto; }
         }
+
+        /* ================= THE PARTS A FINGER LANDS ON =================
+           A booking is four taps: a service, a barber, a day, a time. These
+           four are most of what the customer ever touches, and until now they
+           changed state by swapping colours between one frame and the next.
+
+           Everything below moves on transform, opacity and box-shadow only.
+           None of the three causes layout, so a grid of eighteen time chips
+           animates on the compositor and stays smooth on an old phone. Animate
+           width or top and every frame reflows the page. */
+
+        /* ---- Time chips --------------------------------------------------
+           The one that matters most: it is the last decision, and the moment
+           the booking becomes real. It lifts very slightly and takes a gold
+           glow, over 300ms — long enough to be seen answering. */
+        #timeChipsGrid button {
+            transition: transform var(--m3-medium-2) var(--m3-standard),
+                        box-shadow var(--m3-medium-2) var(--m3-standard),
+                        background-color var(--tint) var(--m3-standard),
+                        border-color var(--tint) var(--m3-standard),
+                        color var(--tint) var(--m3-standard);
+        }
+        #timeChipsGrid button[aria-pressed="true"] {
+            transform: translateY(-2px);
+            box-shadow: var(--glow);
+        }
+        #timeChipsGrid button:disabled { transform: none; box-shadow: none; }
+
+        /* The empty grid while the server is being asked. A slow sweep of
+           light across the placeholders, which says "waiting" without a
+           spinner — a spinner in the middle of a form reads as an error about
+           to happen. */
+        #timeChipsGrid button:disabled:not([aria-label*="booked"]) {
+            background-image: linear-gradient(100deg,
+                transparent 30%,
+                rgba(212,175,55,.10) 50%,
+                transparent 70%);
+            background-size: 220% 100%;
+            animation: sweep 2.2s var(--m3-standard) infinite;
+        }
+        @keyframes sweep {
+            from { background-position: 180% 0; }
+            to   { background-position: -80% 0; }
+        }
+
+        /* ---- The day squares in the calendar ---------------------------- */
+        #calendarDaysGrid button {
+            transition: transform var(--m3-medium-2) var(--m3-standard),
+                        box-shadow var(--m3-medium-2) var(--m3-standard),
+                        background-color var(--tint) var(--m3-standard),
+                        color var(--tint) var(--m3-standard);
+        }
+        #calendarDaysGrid button[aria-pressed="true"]:not(:disabled) {
+            transform: scale(1.06);
+            box-shadow: var(--glow);
+        }
+
+        /* ---- The two picker buttons, and the cards inside them ----------- */
+        .picker-row { transition: background-color var(--tint) var(--m3-standard); }
+        #barberPickerList > *, #servicePickerList > * {
+            transition: background-color var(--tint) var(--m3-standard),
+                        transform var(--press) var(--m3-standard);
+        }
+
+        /* ---- Anything raised off the page ------------------------------- */
+        .service-card, .gallery-img {
+            box-shadow: var(--lift-1);
+            transition: transform var(--m3-medium-4) var(--m3-standard),
+                        box-shadow var(--m3-medium-4) var(--m3-standard),
+                        filter var(--m3-medium-4) var(--m3-standard);
+        }
+        @media (hover: hover) {
+            .service-card:hover { transform: translateY(-3px); box-shadow: var(--lift-2); }
+            .gallery-img:hover  { box-shadow: var(--lift-3); }
+        }
+
+        /* ---- Where the keyboard is -------------------------------------
+           The browser's own focus ring is a hairline that disappears against
+           gold and is invisible on the dark theme. This is the same idea,
+           drawn in the shop's colour and given room to breathe.
+
+           :focus-visible, not :focus — a ring around a button somebody just
+           tapped with a thumb is noise, and it is what made the old one look
+           like a bug. */
+        a:focus-visible, button:focus-visible, [role="button"]:focus-visible,
+        input:focus-visible, select:focus-visible, textarea:focus-visible {
+            outline: 2px solid #d4af37;
+            outline-offset: 3px;
+            border-radius: 6px;
+            transition: outline-offset var(--press) var(--m3-standard);
+        }
+
+        /* ---- Headings ---------------------------------------------------
+           text-wrap: balance evens the line lengths of a heading instead of
+           leaving one word alone on the last line, which is the single most
+           common thing that makes typesetting look unconsidered. It costs
+           nothing and browsers without it simply wrap as before. */
+        h1, h2, h3 { text-wrap: balance; }
+        /* And prose, where the concern is the opposite: not even lines but no
+           orphan at the end of a paragraph. */
+        p { text-wrap: pretty; }
 
         /* Custom Scrollbar */
         ::-webkit-scrollbar {
@@ -647,7 +884,7 @@
                  and specialties — so a barber added or removed in the panel never
                  reached it. Two columns on a phone keeps six staff to a screen or
                  two instead of one wide card each. -->
-            <div id="cms-barbers-grid" class="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6 lg:gap-8"></div>
+            <div id="cms-barbers-grid" class="stagger reveal grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6 lg:gap-8"></div>
         </div>
     </section>
 
@@ -660,7 +897,7 @@
                 <h2 class="font-serif text-3xl sm:text-4xl text-gray-900 dark:text-white mb-4">Our Services</h2>
                 <div class="w-16 h-px bg-gold mx-auto"></div>
             </div>
-            <div class="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4" id="servicesListContainer">
+            <div class="stagger reveal grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4" id="servicesListContainer">
                 <!-- Dynamically populated from admin panel data -->
             </div>
         </div>
@@ -974,7 +1211,7 @@
                 <div class="w-16 h-px bg-gold mx-auto"></div>
             </div>
             <!-- Masonry Grid -->
-            <div id="cms-gallery-grid" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-4">
+            <div id="cms-gallery-grid" class="stagger reveal grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-4">
                 <!-- One image so the section is not empty before the Sheet answers.
                      renderGalleryGrid() replaces the lot. Shown as taken, not run
                      through a brightness/contrast stack - a real photo of the shop
@@ -1207,13 +1444,31 @@
         darkMode.addEventListener('change', (e) => paintMapForTheme(e.matches));
 
         // --- 4. Scroll Entrance Animations ---
+        //
+        // A browser that understands scroll-driven animations does all of this
+        // in CSS, off the scroll position, without waking the main thread —
+        // and gets a better version, because each card enters on its own
+        // rather than the group entering on a threshold. This is what
+        // everybody else gets, and what the page has always done.
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('active');
+                if (!entry.isIntersecting) return;
+                // Number the children so the CSS can deal them out one after
+                // another. Done here rather than at render time because a grid
+                // is filled from the config long after this script runs, and
+                // because a card that is never seen never needs an index.
+                if (entry.target.classList.contains('stagger')) {
+                    [...entry.target.children].forEach((child, i) => {
+                        child.style.setProperty('--i', i);
+                    });
                 }
+                entry.target.classList.add('active');
+                // Once it has arrived it has arrived. Leaving them observed
+                // meant a long page kept a callback alive for every section in
+                // it, for the whole visit.
+                observer.unobserve(entry.target);
             });
-        }, { threshold: 0.15 });
+        }, { threshold: 0.15, rootMargin: '0px 0px -8% 0px' });
 
         document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
