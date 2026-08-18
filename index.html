@@ -171,6 +171,29 @@
             .service-card:hover { transform: none; }
         }
 
+        /* Barber card. The photo used to zoom 10% over 700ms while the card
+           itself lifted over 300ms — two movements of different sizes at
+           different speeds on one hover, which reads as a lurch rather than a
+           response. Both are on the site's own tokens now, and the zoom is a
+           twenty-fifth rather than a tenth: enough to say the card noticed the
+           cursor, not enough to shove the face sideways. */
+        .barber-card {
+            transition: transform var(--move) var(--ease),
+                        box-shadow var(--move) var(--ease);
+        }
+        .barber-card__photo {
+            transition: transform var(--move) var(--ease);
+        }
+        @media (hover: hover) {
+            .barber-card:hover { transform: translateY(-4px); }
+            .barber-card:hover .barber-card__photo { transform: scale(1.04); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .barber-card, .barber-card__photo { transition: none; }
+            .barber-card:hover { transform: none; }
+            .barber-card:hover .barber-card__photo { transform: none; }
+        }
+
         /* ================= ON A PHONE =================
            Nine bookings in ten are made on one, so this is not the small
            screen — it is the screen. What follows was written after measuring
@@ -919,15 +942,25 @@
             scrollHolders = Math.max(0, scrollHolders + (hold ? 1 : -1));
             if (hold && scrollHolders === 1) {
                 scrollHeldAt = window.scrollY;
+                // The width the scrollbar was taking. position:fixed takes the
+                // page out of flow and the scrollbar goes with it, so without
+                // this every pixel of the page slides sideways by that much the
+                // instant a sheet opens — and slides back when it closes. It
+                // reads as a flinch, and it is the whole page doing it, not the
+                // sheet. Zero on a phone and on any browser with overlay
+                // scrollbars, where there is nothing to compensate for.
+                const gutter = window.innerWidth - document.documentElement.clientWidth;
                 document.body.style.position = 'fixed';
                 document.body.style.top = `-${scrollHeldAt}px`;
                 document.body.style.left = '0';
                 document.body.style.right = '0';
+                if (gutter > 0) document.body.style.paddingRight = `${gutter}px`;
             } else if (!hold && scrollHolders === 0) {
                 document.body.style.position = '';
                 document.body.style.top = '';
                 document.body.style.left = '';
                 document.body.style.right = '';
+                document.body.style.paddingRight = '';
                 // <html> carries scroll-smooth, so this scrollTo was *animated*:
                 // unpinning the body puts the page at the top, and the journey
                 // back down to where the customer actually was played out in
@@ -3224,11 +3257,11 @@
                 // extra contrast - the brightness/contrast stack elsewhere on the
                 // site did that to snapshots that did not need it.
                 const photo = b.image
-                    ? `<img src="${escapeAttribute(b.image)}" alt="${escapeAttribute(name)}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">`
+                    ? `<img src="${escapeAttribute(b.image)}" alt="${escapeAttribute(name)}" class="barber-card__photo w-full h-full object-cover">`
                     : `<div class="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-charcoal-700 text-gray-500 dark:text-gray-400 font-serif font-bold text-3xl sm:text-5xl">${escapeText(name.charAt(0).toUpperCase())}</div>`;
 
                 return `
-                <div class="group bg-gray-50 dark:bg-charcoal-800 rounded-lg sm:rounded-xl overflow-hidden shadow-md sm:shadow-lg border border-gray-200 dark:border-charcoal-700 sm:hover:-translate-y-2 transition-transform duration-300">
+                <div class="barber-card bg-gray-50 dark:bg-charcoal-800 rounded-lg sm:rounded-xl overflow-hidden shadow-md sm:shadow-lg border border-gray-200 dark:border-charcoal-700">
                     <!-- Square at every width. It used to go 3:4 from sm up,
                          which made a tall card out of a portrait crop and left
                          the row half again as deep as it needed to be. -->
