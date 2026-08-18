@@ -194,6 +194,28 @@
             .barber-card:hover .barber-card__photo { transform: none; }
         }
 
+        /* Where a link from the menu comes to rest.
+
+           The nav is fixed, so a jump to #services put the top of that section
+           underneath it — and the heading was the part it covered. "Our
+           Services" arrived with its top half missing, on every tap of the
+           menu.
+
+           scroll-padding-top on the scrolling element, not scroll-margin-top on
+           each section. Same result for the sections that exist, and it also
+           covers the ones that do not yet: a heading added next year, an anchor
+           in a link somebody pastes into Instagram, the browser restoring a
+           position on reload. Nobody has to remember to add it to a list.
+
+           --nav-h is published by the script below from what the bar actually
+           measures, so this follows a bar that changes height rather than a
+           number somebody wrote down once. 5rem is the fallback for the moment
+           before that runs, and 1rem of air so the heading is not flush against
+           the bar. */
+        html {
+            scroll-padding-top: calc(var(--nav-h, 5rem) + 1rem);
+        }
+
         /* ================= ON A PHONE =================
            Nine bookings in ten are made on one, so this is not the small
            screen — it is the screen. What follows was written after measuring
@@ -973,6 +995,45 @@
                 root.style.scrollBehavior = was;
             }
         }
+
+        /**
+         * Publish the height of the fixed bar, so the sections know how far to
+         * stop short of it.
+         *
+         * It was written down as 6rem, which was right for the bar as it is and
+         * wrong the moment anything changed it — a longer word in Dutch wrapping
+         * the nav to two lines, a taller logo, another button. Nothing would
+         * have failed; headings would just have started arriving underneath it
+         * again, in whichever language nobody was testing.
+         *
+         * The CSS carries 5rem as a fallback for the moment before this runs,
+         * so a jump from a link clicked immediately still lands clear.
+         */
+        (function trackNavHeight() {
+            const bar = document.querySelector('nav');
+            if (!bar) return;
+            const publish = () => document.documentElement.style
+                .setProperty('--nav-h', `${Math.round(bar.getBoundingClientRect().height)}px`);
+            publish();
+            // ResizeObserver rather than the resize event: the bar also changes
+            // height when its contents do — a language switch rewrapping it —
+            // and the window never resizes for that.
+            // The observer is kept on window rather than dropped on the floor.
+            // One with a live observation is supposed to stay alive on its own,
+            // and mostly does; holding it costs nothing and does not depend on
+            // that being true in every browser the shop's customers use.
+            if (window.ResizeObserver) {
+                window.__navHeightObserver = new ResizeObserver(publish);
+                window.__navHeightObserver.observe(bar);
+            }
+            // The resize listener stays either way. It is the one that fires
+            // when a phone is turned on its side, which is the case that
+            // actually happens.
+            window.addEventListener('resize', publish);
+            // Fonts land after first paint and the bar is sized by its text,
+            // so measure again once they have.
+            if (document.fonts && document.fonts.ready) document.fonts.ready.then(publish);
+        })();
 
         const mobileMenu = document.getElementById('mobileMenu');
         const openMobileMenu = () => {
