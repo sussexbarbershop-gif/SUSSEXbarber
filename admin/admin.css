@@ -330,11 +330,18 @@ tbody tr:last-child td { border-bottom: none; }
 .toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); background: white; }
 
 /* GALLERY */
-/* auto-fit, not auto-fill. auto-fill keeps the empty columns it made room
-   for, so five barbers on a wide screen sat in the first five of seven
-   tracks with a third of the row blank to their right. auto-fit collapses
-   the ones nothing landed in and the cards share the width instead. */
-.gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+/* auto-fit rather than auto-fill: auto-fill keeps the empty columns it made
+   room for, so five barbers on a wide screen sat in the first five of seven
+   tracks with a third of the row blank to their right.
+   
+   Capped at 260px rather than 1fr, and centred. With 1fr the tracks absorb
+   whatever is left, which is right for five cards and absurd for one — and
+   the Gallery page shares this grid, where a shop with no photos yet has
+   only the "+ Add" tile. That stretched to the full width of the page. The
+   cap holds the card at a card's size and the centring splits what is left
+   evenly instead of piling it up on the right. */
+.gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 260px));
+                gap: 16px; justify-content: center; }
 .gallery-item { position: relative; border-radius: var(--radius); overflow: hidden; aspect-ratio: 1; border: 1px solid var(--border-color); background: var(--bg-input); cursor: pointer; transition: var(--transition); }
 @media (hover: hover) { .gallery-item:hover { border-color: var(--gold); transform: scale(1.02); } }
 .gallery-item img { width: 100%; height: 100%; object-fit: cover; }
