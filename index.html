@@ -3572,6 +3572,29 @@
          * Rewritten from the same config the page draws itself from, so the two
          * cannot drift. Google reads the DOM, so an edit here counts.
          */
+        /**
+         * Point the tab icon at whatever the shop uploaded.
+         *
+         * The manifest is served from the settings already, so a home-screen
+         * icon needs nothing here. A <link rel="icon"> is read from the DOM
+         * though, and the committed file is what is in the markup — so a shop
+         * that has chosen its own icon would still get the old one in the tab.
+         *
+         * The href in the markup stays as the fallback. If this never runs, or
+         * nothing has been uploaded, the page keeps the icon it shipped with,
+         * which is the right way round.
+         */
+        function updateIcons(config) {
+            const settings = (config && config.settings) || {};
+            const swap = (selector, url) => {
+                if (!url) return;
+                const link = document.querySelector(selector);
+                if (link && link.href !== url) link.href = url;
+            };
+            swap('link[rel="icon"]', settings.icon_favicon);
+            swap('link[rel="apple-touch-icon"]', settings.icon_apple);
+        }
+
         function updateStructuredData(config) {
             const node = document.querySelector('script[type="application/ld+json"]');
             if (!node) return;
@@ -3664,6 +3687,7 @@
             if (typeof updateBusinessStatus === 'function') updateBusinessStatus();
 
             updateStructuredData(config);
+            updateIcons(config);
 
             // Newly injected markup is English; restore the active language.
             if (typeof applyLanguage === 'function') applyLanguage(window.currentLang || 'en');

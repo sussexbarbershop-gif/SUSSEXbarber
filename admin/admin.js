@@ -291,6 +291,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // And the customer reminders, which have no reliable scheduler of their
     // own. See keepRemindersRunning() for why the panel carries them.
     startReminderChecks();
+
+    // The icon editor draws itself once, so the box is not an empty white
+    // square until somebody chooses a file.
+    wireIconStage();
 });
 
 // ---- Auth ----
@@ -742,6 +746,205 @@ function renderBookings() {
             </td>
         </tr>
     `).join('');
+}
+
+// ---- The app icon --------------------------------------------------------
+//
+// What a phone shows once somebody adds the site to their home screen. It used
+// to be cut from the logo by a script on a laptop, which is fine right up until
+// the logo changes and the only person who can redo it is whoever wrote the
+// script. This is that job, moved into the panel.
+//
+// The crop happens here rather than on the server, because choosing one is a
+// thing you do by eye — and the only way to choose confidently is to watch the
+// circle while you drag. What travels is the square that results. The server
+// turns it into the six files a phone asks for and never hears about zoom.
+
+const ICON_BG = '#121212';
+let iconImage = null;
+let iconView = { scale: 1, x: 0, y: 0 };   // x and y are the picture's centre
+let iconBaseScale = 1;                     // what "100%" means for this picture
+
+function iconCanvas() { return document.getElementById('iconCanvas'); }
+
+/** Repaint the preview: charcoal, then the picture where it has been put. */
+function drawIcon() {
+    const canvas = iconCanvas();
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const size = canvas.width;
+
+    ctx.fillStyle = ICON_BG;
+    ctx.fillRect(0, 0, size, size);
+    if (!iconImage) {
+        ctx.fillStyle = 'rgba(255,255,255,.35)';
+        ctx.font = '500 22px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('No picture yet', size / 2, size / 2);
+        return;
+    }
+
+    const scale = iconBaseScale * iconView.scale;
+    const w = iconImage.naturalWidth * scale;
+    const h = iconImage.naturalHeight * scale;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(iconImage, iconView.x - w / 2, iconView.y - h / 2, w, h);
+}
+
+/** Start again, with the picture centred and whole. */
+function fitIcon() {
+    if (!iconImage) return;
+    const size = iconCanvas().width;
+    // Contain, not cover: a picture that arrives square is shown whole, and one
+    // that does not is not silently cropped before anybody has decided how.
+    iconBaseScale = Math.min(size / iconImage.naturalWidth, size / iconImage.naturalHeight);
+    iconView = { scale: 1, x: size / 2, y: size / 2 };
+    const zoom = document.getElementById('iconZoom');
+    if (zoom) zoom.value = 100;
+    drawIcon();
+}
+
+function resetIcon() { fitIcon(); setIconStatus(''); }
+
+function setIconZoom(percent) {
+    iconView.scale = Math.max(0.5, Math.min(3, Number(percent) / 100));
+    drawIcon();
+}
+
+function setIconStatus(text) {
+    const el = document.getElementById('iconStatus');
+    if (el) el.textContent = text;
+}
+
+/** A file chosen from the phone. Read here; nothing is sent until Save. */
+function loadIconImage(input) {
+    const file = input && input.files && input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onerror = () => setIconStatus('Could not read that file.');
+    reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => setIconStatus('That file is not a picture the browser can open.');
+        img.onload = () => {
+            iconImage = img;
+            fitIcon();
+            setIconStatus('Drag to move it, slide to zoom, then Save.');
+        };
+        img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+    // So choosing the same file twice in a row still fires.
+    input.value = '';
+}
+
+/**
+ * Dragging, and pinching.
+ *
+ * Pointer events rather than mouse and touch handled separately: one set of
+ * handlers covers a finger, a mouse and a stylus, and the two-finger case
+ * falls out of keeping a map of which pointers are currently down.
+ */
+function wireIconStage() {
+    const stage = document.querySelector('.icon-stage');
+    const canvas = iconCanvas();
+    if (!stage || !canvas) return;
+
+    const down = new Map();
+    let lastSpread = 0;
+
+    // The canvas is 512 across and drawn at 200, so a finger moving ten screen
+    // pixels has to move the picture by rather more than ten.
+    //
+    // Guarded, because an element inside a display:none page measures zero and
+    // this would divide by it — one NaN in the offsets and the picture is gone
+    // with nothing on screen to say why. Nothing hidden can be dragged, so the
+    // fallback of 1 is never actually used; it is here so that a bug of that
+    // shape cannot exist rather than because it currently does.
+    const toCanvas = n => {
+        const shown = stage.getBoundingClientRect().width;
+        return shown ? n * (canvas.width / shown) : n;
+    };
+
+    stage.addEventListener('pointerdown', e => {
+        stage.setPointerCapture(e.pointerId);
+        down.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        lastSpread = 0;
+    });
+
+    stage.addEventListener('pointermove', e => {
+        if (!down.has(e.pointerId) || !iconImage) return;
+        const prev = down.get(e.pointerId);
+        down.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+        if (down.size === 1) {
+            iconView.x += toCanvas(e.clientX - prev.x);
+            iconView.y += toCanvas(e.clientY - prev.y);
+            drawIcon();
+            return;
+        }
+        // Two fingers: the distance between them is the zoom.
+        const two = [...down.values()];
+        const spread = Math.hypot(two[0].x - two[1].x, two[0].y - two[1].y);
+        if (lastSpread) {
+            const zoom = document.getElementById('iconZoom');
+            const next = Math.max(50, Math.min(300, Number(zoom.value) * (spread / lastSpread)));
+            zoom.value = Math.round(next);
+            setIconZoom(next);
+        }
+        lastSpread = spread;
+    });
+
+    const release = e => { down.delete(e.pointerId); lastSpread = 0; };
+    stage.addEventListener('pointerup', release);
+    stage.addEventListener('pointercancel', release);
+
+    // A wheel, for whoever does this at a desk.
+    stage.addEventListener('wheel', e => {
+        if (!iconImage) return;
+        e.preventDefault();
+        const zoom = document.getElementById('iconZoom');
+        const next = Math.max(50, Math.min(300, Number(zoom.value) - e.deltaY * 0.15));
+        zoom.value = Math.round(next);
+        setIconZoom(next);
+    }, { passive: false });
+
+    drawIcon();
+}
+
+/** Send the square as it looks now. The server makes the six sizes from it. */
+async function saveAppIcon() {
+    if (!iconImage) return setIconStatus('Choose a picture first.');
+    if (!adminPassword) return showToast('Session expired — please sign in again', 'error');
+
+    const btn = document.getElementById('iconSaveBtn');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    setIconStatus('');
+    try {
+        // PNG rather than JPEG. This is usually line art on a flat colour,
+        // which is exactly what JPEG smears — and the server re-encoding it
+        // afterwards cannot put back what arrived already damaged.
+        const dataUrl = iconCanvas().toDataURL('image/png');
+        const answer = await apiPost(asOwner({
+            action: 'uploadAppIcon', password: adminPassword, dataUrl
+        }));
+        if (!answer || answer.status !== 'success') {
+            const why = (answer && answer.message) || 'Could not save that icon';
+            setIconStatus(why);
+            return showToast(why, 'error');
+        }
+        // Straight into the copy the panel is holding, so a Website Text save a
+        // moment later does not send a settings object that predates this.
+        Object.assign(settings, answer.icons || {});
+        showToast('Icon saved — remove the old shortcut and add it again to see it', 'success');
+        setIconStatus('Saved.');
+    } catch (err) {
+        console.error('Could not save the icon', err);
+        showToast('Could not reach the server', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save icon';
+    }
 }
 
 // ---- Dropdowns the panel draws itself -------------------------------------

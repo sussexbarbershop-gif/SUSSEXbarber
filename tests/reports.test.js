@@ -251,8 +251,27 @@ ok('which is not hidden by the markup',
    /<div id="reportsContent"[^>]*display:\s*none/.test(markup), false);
 
 // Anything the panel hides in the markup has to be something it also shows.
+//
+// Except a file input, which is a different thing wearing the same style. It
+// is hidden because the browser's own "Choose file" control cannot be made to
+// look like anything, and it is reached by calling .click() on it from a real
+// button — so it is never shown, and never should be. Asking it to prove it
+// can be would be asking it to stop working the way every upload on the web
+// works.
 const hidden = [...markup.matchAll(/id="([\w-]+)"[^>]*style="[^"]*display:\s*none/g)]
+  .map(m => m[1])
+  .filter(id => !new RegExp('<input[^>]*type="file"[^>]*id="' + id + '"').test(markup));
+
+// And the exemption is not a hole: a file input that nothing clicks is just as
+// broken as a panel that nothing shows.
+const fileInputs = [...markup.matchAll(/<input[^>]*type="file"[^>]*id="([\w-]+)"/g)]
   .map(m => m[1]);
+fileInputs.forEach(id => {
+  ok(`${id} is opened by something`,
+     new RegExp("getElementById\\('" + id + "'\\)[\\s\\S]{0,80}\\.click\\(\\)")
+       .test(markup + panel), true);
+});
+
 console.log('hidden in the markup:', hidden.join(', ') || '(none)');
 hidden.forEach(id => {
   const shows = new RegExp("getElementById\\('" + id + "'\\)[\\s\\S]{0,400}style\\.display");

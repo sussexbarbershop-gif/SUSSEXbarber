@@ -36,7 +36,7 @@ api/
     limits.js       how often one number may book
     reports.js      the takings, for the owner's page
 db/schema.sql       the database, and why each column is the way it is
-tests/              37 files, run by `npm test`
+tests/              38 files, run by `npm test`
 MIGRATION.md        how the backend works and what to set up from nothing
 ```
 

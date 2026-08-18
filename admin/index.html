@@ -404,6 +404,40 @@
                                 <p class="cms-hint">Customers who left an email address are thanked the day after their appointment and asked for a review here. Leave it empty and no such email is sent. In your Google Business Profile: <em>Read reviews &rarr; Get more reviews</em>, and copy the short link.</p>
                                 <input type="url" id="cms_review_url" class="form-control" placeholder="https://g.page/r/...">
                             </div>
+
+                            <!-- The icon a phone shows once somebody adds the
+                                 site to their home screen. Here rather than in
+                                 a script on somebody's laptop, because the
+                                 shop should never have to ask to change it. -->
+                            <div class="form-group cms-field">
+                                <label class="cms-label">10. App Icon</label>
+                                <p class="cms-hint">What your shop looks like on a customer's home screen and in their browser tab. Drag to move it, use the slider to zoom. Everything inside the circle is kept — Android crops the corners off.</p>
+
+                                <div class="icon-editor">
+                                    <div class="icon-stage">
+                                        <canvas id="iconCanvas" width="512" height="512" aria-label="App icon preview"></canvas>
+                                        <!-- The circle is the part every phone
+                                             keeps. Drawn over the canvas, not
+                                             on it, so it is never saved. -->
+                                        <div class="icon-safe" aria-hidden="true"></div>
+                                    </div>
+
+                                    <div class="icon-controls">
+                                        <input type="file" id="iconFile" accept="image/*" style="display:none" onchange="loadIconImage(this)">
+                                        <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('iconFile').click()">Choose a picture</button>
+
+                                        <label class="icon-zoom-label" for="iconZoom">Zoom</label>
+                                        <input type="range" id="iconZoom" min="50" max="300" value="100" oninput="setIconZoom(this.value)" aria-label="Zoom">
+
+                                        <div class="icon-buttons">
+                                            <button type="button" class="btn btn-secondary btn-sm" onclick="resetIcon()">Reset</button>
+                                            <button type="button" class="btn btn-primary btn-sm" id="iconSaveBtn" onclick="saveAppIcon()">Save icon</button>
+                                        </div>
+                                        <p class="cms-hint" id="iconStatus" aria-live="polite" style="margin:0"></p>
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
                 </div>

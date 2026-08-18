@@ -91,12 +91,29 @@ ok('and the counter is never pruned', /KEPT_SETTINGS/.test(save), true);
 // The guard is the whole point: the panel builds its save from the config it
 // loaded, so a save missing the site's own fields is one built from nothing.
 // Deleting everything absent from that would wipe the shop.
+//
+// A setting the site reads has to be safe from that prune, and there are two
+// ways to be safe rather than one. SITE_SETTINGS is the Website Text form —
+// the panel always sends those, so a complete save contains them. KEPT_SETTINGS
+// is everything written by something other than that form: the visit counter,
+// and the app icon URLs, which the upload writes and the form has never heard
+// of. Requiring those to be in SITE_SETTINGS would be requiring the form to
+// send fields it does not have.
 const listed = (api.match(/const SITE_SETTINGS = \[([\s\S]*?)\];/) || ['', ''])[1];
+const keptNames = (api.match(/const KEPT_SETTINGS = ([\s\S]*?);/) || ['', ''])[1];
+const iconKeys = [...fs.readFileSync(path.join(__dirname, '..', 'api', '_lib', 'icons.js'), 'utf8')
+  .matchAll(/'(icon_\w+)'/g)].map(m => m[1]);
+const safe = key =>
+  listed.includes(`'${key}'`) ||
+  keptNames.includes(`'${key}'`) ||
+  // KEPT_SETTINGS names the icon list rather than spelling it out.
+  (keptNames.includes('ICON_SETTINGS') && iconKeys.includes(key));
+
 const readBySite = [...site.matchAll(/settings\.(\w+)/g)].map(m => m[1]);
 const missing = [...new Set(readBySite)]
-  .filter(key => key !== 'contact_phone' && !listed.includes(`'${key}'`));
+  .filter(key => key !== 'contact_phone' && !safe(key));
 console.log('the site reads:', [...new Set(readBySite)].join(', '));
-ok('every setting the site reads is one the guard checks for', missing, []);
+ok('every setting the site reads survives a prune', missing, []);
 
 const kept = (api.match(/const KEPT_SETTINGS = \[([^\]]*)\]/) || ['', ''])[1];
 ok('the visit count is kept', /visit_count/.test(kept), true);

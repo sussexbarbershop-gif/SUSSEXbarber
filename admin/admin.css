@@ -1099,3 +1099,71 @@ textarea.form-control { resize: vertical; line-height: 1.6; }
 }
 @media (hover: hover) { .lang-toggle:hover { border-color: var(--gold); color: var(--gold-text); } }
 .lang-toggle:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* ---- The app icon editor ----------------------------------------------
+   A square of canvas, a circle drawn over it, and a slider. The circle is
+   the point: Android crops every icon to a circle or a squircle depending
+   on the launcher, and the only way to choose a crop confidently is to see
+   what will survive it while you are choosing.
+
+   Drawn over the canvas rather than onto it, so nothing guide-shaped is
+   ever in the file that gets saved. */
+.icon-editor {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+.icon-stage {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    flex-shrink: 0;
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    /* A finger dragging the picture must not also scroll the page. */
+    touch-action: none;
+    cursor: grab;
+}
+.icon-stage:active { cursor: grabbing; }
+.icon-stage canvas { width: 100%; height: 100%; display: block; }
+.icon-safe {
+    position: absolute;
+    inset: 10%;                       /* the middle 80%, which is what is kept */
+    border: 2px dashed rgba(212,175,55,.8);
+    border-radius: 50%;
+    pointer-events: none;
+}
+/* And the corners it will take off, so the trade is visible rather than
+   described. */
+.icon-safe::after {
+    content: '';
+    position: absolute;
+    inset: -12.5%;
+    border-radius: 22%;
+    border: 1px solid rgba(255,255,255,.18);
+}
+
+.icon-controls {
+    flex: 1 1 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 180px;
+}
+.icon-zoom-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-secondary);
+    margin-bottom: -8px;
+}
+#iconZoom {
+    width: 100%;
+    accent-color: var(--gold);
+    /* 44px of height to grab, whatever the track looks like. */
+    height: 44px;
+    touch-action: none;
+}
+.icon-buttons { display: flex; gap: 8px; flex-wrap: wrap; }

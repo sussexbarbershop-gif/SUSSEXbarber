@@ -7,9 +7,31 @@
     }
   ],
   "redirects": [
-    { "source": "/ADMIN", "destination": "/admin", "permanent": false },
-    { "source": "/ADMIN/", "destination": "/admin", "permanent": false },
-    { "source": "/Admin", "destination": "/admin", "permanent": false },
-    { "source": "/Admin/", "destination": "/admin", "permanent": false }
+    {
+      "source": "/ADMIN",
+      "destination": "/admin",
+      "permanent": false
+    },
+    {
+      "source": "/ADMIN/",
+      "destination": "/admin",
+      "permanent": false
+    },
+    {
+      "source": "/Admin",
+      "destination": "/admin",
+      "permanent": false
+    },
+    {
+      "source": "/Admin/",
+      "destination": "/admin",
+      "permanent": false
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/manifest.webmanifest",
+      "destination": "/api/manifest"
+    }
   ]
 }

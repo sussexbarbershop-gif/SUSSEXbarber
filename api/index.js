@@ -528,7 +528,7 @@ async function handlePost(req, res) {
   // of them and a hand-written request would still have saved a new price
   // list, because the only thing that had ever been checked was the password
   // every barber knows.
-  if (['reports', 'unlock', 'saveCMS', 'uploadImage'].includes(action)) {
+  if (['reports', 'unlock', 'saveCMS', 'uploadImage', 'uploadAppIcon'].includes(action)) {
     if (!isAuthorized(payload)) {
       await throttleFailedLogin();
       return json(res, { status: 'error', message: 'Unauthorized' }, 401);
@@ -569,6 +569,7 @@ async function handlePost(req, res) {
   }
 
   if (action === 'uploadImage') return await uploadImage(payload, res);
+  if (action === 'uploadAppIcon') return await uploadAppIcon(payload, res);
 
   if (action === 'saveCMS') return await saveCMS(payload, res);
 
@@ -1056,6 +1057,63 @@ async function uploadImage(payload, res) {
   return json(res, { status: 'success', url: blob.url });
 }
 
+/**
+ * A new set of home-screen icons, from a picture the owner chose.
+ *
+ * Owner-only, with the rest of the branding: this is what the shop looks like
+ * on somebody's phone, which is the same kind of decision as the price list.
+ *
+ * The six files are written under one fixed path per size and the URLs are
+ * saved into settings here rather than handed back for the panel to save.
+ * Two round trips would mean a set of icons could exist in storage that
+ * nothing pointed at, every time a save was interrupted.
+ */
+async function uploadAppIcon(payload, res) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    return json(res, {
+      status: 'error',
+      message: 'Image uploads are not configured. Add BLOB_READ_WRITE_TOKEN in Vercel.'
+    });
+  }
+  const parts = String(payload.dataUrl || '').split(',');
+  if (parts.length !== 2) {
+    return json(res, { status: 'error', message: 'Malformed image data' });
+  }
+  const source = Buffer.from(parts[1], 'base64');
+  if (!source.length) return json(res, { status: 'error', message: 'That file is empty' });
+
+  let made;
+  try {
+    const { makeIconSet } = require('./_lib/icons');
+    made = await makeIconSet(source);
+  } catch (err) {
+    console.error('[icon] could not read that image:', err);
+    return json(res, { status: 'error', message: 'That file is not a readable image' });
+  }
+
+  const { put } = require('@vercel/blob');
+  const sql = db();
+  const urls = {};
+  const statements = [];
+  for (const { file, bytes, setting } of made) {
+    // addRandomSuffix, so a browser holding the old icon in its cache is not
+    // shown it for a week. The settings row is what points at the current one.
+    const blob = await put(`icons/${file}`, bytes, {
+      access: 'public', contentType: 'image/png', addRandomSuffix: true
+    });
+    urls[setting] = blob.url;
+    statements.push(sql`
+      INSERT INTO settings (key, value) VALUES (${setting}, ${blob.url})
+      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`);
+  }
+  // One transaction: a half-written set is an icon that does not match itself
+  // across the tab, the home screen and the splash screen.
+  await sql.transaction(statements);
+
+  console.log('[icon] new set from', (source.length / 1024).toFixed(0) + 'KB');
+  return json(res, { status: 'success', icons: urls });
+}
+
 // ---- Saving what the panel changed ----------------------------------------
 
 /**
@@ -1071,8 +1129,12 @@ const SITE_SETTINGS = ['hero_title', 'hero_subtitle', 'about_text',
  * Settings the panel does not send and must never lose. The visit counter is
  * written by the site, not by the panel, and a save that dropped it would
  * reset the shop's running total to nothing.
+ *
+ * The icon URLs are the same shape of thing: written by uploadAppIcon, never
+ * present in the Website Text form, and a save that pruned them would take the
+ * shop's icon off the home screen of every phone it is on.
  */
-const KEPT_SETTINGS = ['visit_count'];
+const KEPT_SETTINGS = ['visit_count'].concat(require('./_lib/icons').ICON_SETTINGS);
 
 /**
  * Replace the site's content with what the panel sent.
