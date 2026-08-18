@@ -562,6 +562,120 @@
             transition: outline-offset var(--press) var(--m3-standard);
         }
 
+        /* ---- The first thing anybody sees --------------------------------
+           The hero arrived complete, in one frame, with the page. Three lines
+           that arrive a moment apart read as a shop opening its door; three
+           lines that are simply there read as a screenshot.
+
+           On load rather than on scroll, because it is already in view — and
+           deliberately short. A first-time visitor is here to find out whether
+           the shop is open, not to watch a title assemble itself, so the whole
+           sequence is over in under a second.
+
+           No opacity on the section itself: the photograph is the page's first
+           impression and fading it in would be a wash of nothing while the
+           network is still busy. Only the words move. */
+        @media (prefers-reduced-motion: no-preference) {
+            #hero h1, #hero p, #hero a {
+                animation: hero-in var(--m3-long-4) var(--enter) both;
+            }
+            #hero p { animation-delay: 90ms; }
+            #hero a { animation-delay: 180ms; }
+            @keyframes hero-in {
+                from { opacity: 0; transform: translateY(16px); }
+                to   { opacity: 1; transform: none; }
+            }
+        }
+
+        /* ---- A button filling, rather than changing colour ----------------
+           Every button on the page swapped its background between one frame
+           and the next. This grows the new colour out from under the label
+           instead, which costs nothing — it is one pseudo-element and a
+           transform — and is the difference between a control that reacts and
+           one that simply is different now.
+
+           Only on a device with a pointer. A finger already has the press
+           state, and on a touch screen this fires on tap and finishes after
+           the page has moved on. */
+        @media (hover: hover) {
+            .fill-btn { position: relative; overflow: hidden; isolation: isolate; }
+            .fill-btn::before {
+                content: '';
+                position: absolute;
+                inset: 0;
+                background: currentColor;
+                opacity: 0;
+                transform: scaleY(0);
+                transform-origin: bottom;
+                transition: transform var(--m3-medium-4) var(--m3-standard),
+                            opacity var(--m3-medium-4) var(--m3-standard);
+                z-index: -1;
+            }
+            .fill-btn:hover::before { opacity: .12; transform: scaleY(1); }
+        }
+
+        /* ---- Photographs, once they have actually arrived -----------------
+           A gallery image pops into place the instant the last byte lands,
+           which on a slow connection is six pops in no particular order.
+
+           Visible by default and faded only once a script says so: if this
+           file never runs, every photograph is simply there, which is the
+           right way round for the failure. */
+        .fade-in-img { opacity: 1; }
+        .js-fades .fade-in-img {
+            opacity: 0;
+            transition: opacity var(--m3-long-2) var(--m3-standard);
+        }
+        .js-fades .fade-in-img.is-loaded { opacity: 1; }
+
+        /* ---- Work the browser can skip -----------------------------------
+           A section below the fold is laid out and painted on load like any
+           other. content-visibility lets the browser leave it alone until it
+           is near the screen — with contain-intrinsic-size so the scrollbar
+           does not lurch as each one is finally measured.
+
+           Not on the hero or the booking form: those two are wanted
+           immediately, and the second is what the page is for. */
+        #gallery, #contact {
+            content-visibility: auto;
+            contain-intrinsic-size: auto 600px;
+        }
+
+        /* ---- The header, once you have left the top -----------------------
+           It looked the same over the hero photograph as it did over a white
+           section three screens down: a full-strength bar with a border,
+           sitting on top of an image it was in the way of.
+
+           Now it starts as almost nothing — no border, barely a tint — and
+           gathers weight as the page moves under it. Nothing here is
+           decoration: the point is that at the top the photograph is the
+           subject, and further down the nav is a surface things scroll under
+           and needs an edge to say so.
+
+           Driven by a class the observer at the foot of the page adds, so
+           there is no scroll listener running on every frame. */
+        nav {
+            transition: background-color var(--m3-long-2) var(--m3-standard),
+                        border-color var(--m3-long-2) var(--m3-standard),
+                        box-shadow var(--m3-long-2) var(--m3-standard),
+                        backdrop-filter var(--m3-long-2) var(--m3-standard);
+        }
+        nav.at-top {
+            background-color: transparent;
+            border-color: transparent;
+            box-shadow: none;
+            backdrop-filter: blur(2px);
+        }
+        nav:not(.at-top) { box-shadow: var(--lift-1); }
+        /* Over the hero photograph the links have to be legible against a dark
+           image regardless of the device's theme, and the shop's own light
+           theme would otherwise put charcoal text on it. */
+        @media (prefers-color-scheme: light) {
+            nav.at-top a, nav.at-top button { color: #fff; }
+            nav.at-top .cms-contact-phone-link,
+            nav.at-top #langToggleBtn { border-color: rgba(255,255,255,.35); }
+        }
+
         /* ---- Headings ---------------------------------------------------
            text-wrap: balance evens the line lengths of a heading instead of
            leaving one word alone on the last line, which is the single most
@@ -682,8 +796,8 @@
                          every dark: utility into a prefers-color-scheme query. Nothing
                          to toggle, nothing stored, nothing to disagree with the phone. -->
 
-                    <a href="#booking" class="hidden sm:block whitespace-nowrap bg-transparent text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-charcoal-700 px-4 sm:px-6 py-2 rounded-lg text-xs sm:text-sm font-semibold tracking-wider uppercase hover:bg-gold hover:text-charcoal-900 hover:border-gold transition-colors duration-300" data-translate="My Bookings">My Bookings</a>
-                    <a href="#booking" class="tap-44 whitespace-nowrap bg-gold text-charcoal-900 px-4 sm:px-6 py-2 rounded-lg text-xs sm:text-sm font-semibold tracking-wider uppercase hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-charcoal-900 transition-colors duration-300">Book Now</a>
+                    <a href="#booking" class="fill-btn hidden sm:block whitespace-nowrap bg-transparent text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-charcoal-700 px-4 sm:px-6 py-2 rounded-lg text-xs sm:text-sm font-semibold tracking-wider uppercase hover:bg-gold hover:text-charcoal-900 hover:border-gold transition-colors duration-300" data-translate="My Bookings">My Bookings</a>
+                    <a href="#booking" class="fill-btn tap-44 whitespace-nowrap bg-gold text-charcoal-900 px-4 sm:px-6 py-2 rounded-lg text-xs sm:text-sm font-semibold tracking-wider uppercase hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-charcoal-900 transition-colors duration-300">Book Now</a>
                     
                     <!-- Mobile Menu Button -->
                     <button id="mobileMenuBtn" type="button" aria-label="Open menu" class="md:hidden p-2 text-gray-700 dark:text-gray-300 focus:outline-none hover:bg-gray-100 dark:hover:bg-charcoal-800 rounded-lg transition-colors">
@@ -799,7 +913,7 @@
                  another a moment later. -->
             <h1 id="cms-hero-title" class="font-serif text-3xl sm:text-5xl md:text-7xl mb-4 sm:mb-6 text-white leading-tight">Masterful Cuts,<br><span class="text-gold italic">Exceptional Service.</span></h1>
             <p id="cms-hero-subtitle" class="text-gray-300 text-base sm:text-lg md:text-xl mb-8 sm:mb-10 font-light tracking-wide">Experience premium grooming and hearty service in the heart of Wassenaar.</p>
-            <a href="#booking" class="border border-gold text-gold hover:bg-gold hover:text-charcoal-900 px-8 py-4 text-sm font-semibold tracking-wider uppercase transition-all duration-300 inline-block">Reserve Your Chair</a>
+            <a href="#booking" class="fill-btn border border-gold text-gold hover:bg-gold hover:text-charcoal-900 px-8 py-4 text-sm font-semibold tracking-wider uppercase transition-all duration-300 inline-block">Reserve Your Chair</a>
         </div>
     </section>
 
@@ -1471,6 +1585,54 @@
         }, { threshold: 0.15, rootMargin: '0px 0px -8% 0px' });
 
         document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+        // Photographs fade in as they finish loading, rather than popping into
+        // place one after another in whatever order the network delivered them.
+        //
+        // The class goes on <html> first: until it does, every image is opaque,
+        // so a failure here leaves the gallery visible rather than blank. An
+        // image already in the cache is complete before this runs and is marked
+        // at once — there is nothing to fade in from.
+        {
+            document.documentElement.classList.add('js-fades');
+            const watch = (img) => {
+                img.classList.add('fade-in-img');
+                if (img.complete) { img.classList.add('is-loaded'); return; }
+                img.addEventListener('load', () => img.classList.add('is-loaded'), { once: true });
+                // A photograph that will not load must not be left invisible on
+                // top of the layout it is still taking up.
+                img.addEventListener('error', () => img.classList.add('is-loaded'), { once: true });
+            };
+            document.querySelectorAll('#cms-gallery-grid img, #cms-barbers-grid img').forEach(watch);
+            // The gallery is filled from the config long after this runs.
+            new MutationObserver(records => {
+                records.forEach(r => r.addedNodes.forEach(node => {
+                    if (node.nodeType !== 1) return;
+                    if (node.tagName === 'IMG') watch(node);
+                    else node.querySelectorAll?.('img').forEach(watch);
+                }));
+            }).observe(document.body, { childList: true, subtree: true });
+        }
+
+        // The header knows whether the page has left the top.
+        //
+        // A sentinel and an observer rather than a scroll listener: a listener
+        // fires on every frame of every scroll for the whole visit, to answer
+        // a question whose answer changes twice. This one is called exactly
+        // when the top of the page crosses the top of the screen.
+        {
+            const nav = document.querySelector('nav');
+            const sentinel = document.createElement('div');
+            sentinel.setAttribute('aria-hidden', 'true');
+            sentinel.style.cssText = 'position:absolute;top:0;height:1px;width:1px;pointer-events:none';
+            document.body.prepend(sentinel);
+            if (nav) {
+                nav.classList.add('at-top');
+                new IntersectionObserver(([entry]) => {
+                    nav.classList.toggle('at-top', entry.isIntersecting);
+                }).observe(sentinel);
+            }
+        }
 
         // --- 5. (Testimonials carousel removed along with its section) ---
 

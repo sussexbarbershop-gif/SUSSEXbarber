@@ -213,6 +213,79 @@ ok('the restore turns smooth scrolling off for its one line',
    /scrollBehavior = 'auto'[\s\S]{0,120}window\.scrollTo\(0, scrollHeldAt\)/.test(hold), true);
 ok('and puts it back', /root\.style\.scrollBehavior = was/.test(hold), true);
 
+console.log('--- the first thing anybody sees ---');
+// The hero arrived complete, in one frame. Three lines a moment apart read as
+// a shop opening its door; three lines simply there read as a screenshot.
+ok('the hero lines are animated', /#hero h1, #hero p, #hero a \{/.test(style), true);
+ok('one after the other', /#hero p \{ animation-delay/.test(style) &&
+                          /#hero a \{ animation-delay/.test(style), true);
+// Short: a first-time visitor is here to find out whether the shop is open,
+// not to watch a title assemble itself.
+const lastDelay = Number((style.match(/#hero a \{ animation-delay: (\d+)ms/) || [])[1]);
+ok('and the whole sequence is brief', lastDelay > 0 && lastDelay <= 250, true);
+// The photograph is the page's first impression; fading it in would be a wash
+// of nothing while the network is still busy.
+ok('the photograph itself does not fade in', /#hero \{[^}]*opacity: 0/.test(style), false);
+
+console.log('--- photographs, once they have arrived ---');
+// A gallery image pops into place the instant the last byte lands, which on a
+// slow connection is six pops in no particular order.
+ok('they fade', /\.js-fades \.fade-in-img \{[^}]*opacity: 0/.test(style), true);
+// Visible by default, faded only once a script says so: if the file never
+// runs, every photograph is simply there.
+ok('but only once a script has said so', /^\s*\.fade-in-img \{ opacity: 1; \}/m.test(style), true);
+ok('and the script says so first of all', /classList\.add\('js-fades'\)/.test(html), true);
+// An image already in the cache is complete before this runs.
+ok('a cached image is not left invisible', /if \(img\.complete\)/.test(html), true);
+// And one that will not load must not sit invisible over the space it holds.
+ok('nor is a broken one', /addEventListener\('error'/.test(html), true);
+// The gallery is filled from the config long after this runs.
+ok('images added later are caught too', /new MutationObserver/.test(html), true);
+
+console.log('--- work the browser can skip ---');
+ok('the sections below the fold are deferred', /content-visibility: auto/.test(style), true);
+// Without an intrinsic size the scrollbar lurches as each one is measured.
+ok('with a size to reserve', /contain-intrinsic-size/.test(style), true);
+// Not the booking form. That is what the page is for.
+const cv = (style.match(/([^{}]*)\{\s*content-visibility: auto/) || ['', ''])[1];
+ok('and not the form', /#booking/.test(cv), false);
+ok('nor the hero', /#hero/.test(cv), false);
+
+console.log('--- the header knows where the page is ---');
+// It looked the same over the hero photograph as it did over a white section
+// three screens down: a full-strength bar with a border, in the way of an
+// image it was sitting on top of.
+ok('there is an at-top state', /nav\.at-top \{/.test(style), true);
+ok('which is transparent', /nav\.at-top \{[^}]*background-color: transparent/.test(style), true);
+ok('and gains an edge once it is not', /nav:not\(\.at-top\) \{[^}]*box-shadow/.test(style), true);
+// Over a dark photograph the links have to be legible whatever the device's
+// theme is, and the light theme would otherwise put charcoal on it.
+ok('the links stay legible over the photograph',
+   /nav\.at-top a, nav\.at-top button \{ color: #fff/.test(style), true);
+// A sentinel, not a scroll listener: a listener fires on every frame of every
+// scroll for the whole visit to answer a question whose answer changes twice.
+ok('driven by a sentinel', /sentinel/.test(html), true);
+ok('and an observer, not a scroll listener',
+   /new IntersectionObserver\(\(\[entry\]\) => \{\s*nav\.classList\.toggle\('at-top'/.test(html), true);
+ok('nothing listens to scroll', /addEventListener\('scroll'/.test(html), false);
+// It has to start in the at-top state, or the header is opaque for the moment
+// before the first callback arrives.
+ok('and it starts at the top', /nav\.classList\.add\('at-top'\)/.test(html), true);
+
+console.log('--- the wizard steps ---');
+// A step is a whole panel of content arriving, which is the case the
+// emphasized curve exists for.
+const twConfig = fs.readFileSync(path.join(root, 'tailwind.config.js'), 'utf8');
+ok('the steps use the emphasized-decelerate curve',
+   /slideInRight 0\.5s cubic-bezier\(0\.05, 0\.7, 0\.1, 1\)/.test(twConfig), true);
+ok('both directions', /slideInLeft 0\.5s cubic-bezier\(0\.05, 0\.7, 0\.1, 1\)/.test(twConfig), true);
+// Tailwind compiles that file at build time and cannot read the custom
+// properties in index.html, so the number is written twice and this is what
+// notices when the two drift.
+const emphDecel = (style.match(/--m3-emphasized-decelerate:\s*([^;]+);/) || ['', ''])[1].trim();
+ok('and it is the same curve the stylesheet names',
+   twConfig.includes(emphDecel), true);
+
 console.log('--- and none of it for somebody who asked it to stop ---');
 const reduced = (style.match(/@media \(prefers-reduced-motion: reduce\)\s*\{([\s\S]*?)\n        \}/g) || []).join('');
 ok('reduced motion is honoured', reduced.length > 0, true);
