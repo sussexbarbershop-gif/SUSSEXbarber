@@ -61,7 +61,8 @@ Optional:
 |---|---|---|
 | `BREVO_API_KEY` | a Brevo key | the old provider, from before the shop had a domain. **Brevo wins when both are set**, so leaving this here means Resend is never used |
 | `BLOB_READ_WRITE_TOKEN` | from Vercel → Storage → Blob | lets the panel upload gallery photos. Without it the rest of the panel works and only uploading is refused |
-| `SHOP_TIMEZONE` | `Europe/Amsterdam` | already the default; only set it if the shop moves |
+| `SHOP_TIMEZONE` |  `Europe/Amsterdam` | already the default; only set it if the shop moves |
+| `SITE_URL` | `https://sussexbarber.nl` | already the default. Where the links in an email point — the cancel button in a confirmation is useless if it points at a preview deployment |
 
 ---
 

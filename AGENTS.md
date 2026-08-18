@@ -17,7 +17,7 @@ missed haircut or a phone call the shop has to make.
 
 ```bash
 npm install
-npm test          # 1,234 checks, no database, no network, a few seconds
+npm test          # no database, no network, a few seconds
 ```
 
 If the suite is not green before you start, that is the first bug, not yours.
@@ -52,6 +52,41 @@ something that was never attempted.
 **5. The shop's clock, not the server's and not the visitor's.** `shopNow()`
 reads `Europe/Amsterdam`. Vercel runs in UTC. A phone set wrong is not a reason
 to refuse a booking.
+
+---
+
+## The one rule that is not optional
+
+**Whatever you change, change the writing about it in the same commit.**
+
+Not afterwards, not in a follow-up. The same commit, or the next person
+inherits a repository that lies to them — and a confident wrong explanation
+costs more than no explanation, because they will act on it.
+
+What that means in practice:
+
+| If you changed | Then also |
+|---|---|
+| how something works | the comment above it that says why |
+| a file's job, or added one | the file map in [README.md](README.md) |
+| an environment variable | the table in [MIGRATION.md](MIGRATION.md) |
+| a database column | `db/schema.sql`, both places, and the comment saying what it is for |
+| something that will catch the next person out | the list in this file |
+| a rule about bookings, hours or emails | the sentence in README that describes it |
+
+And when you fix a bug: write down what the bug *was*, not only what the code
+now does. "Compare on the shop's clock" tells the next person nothing. "The
+visitor's clock was deciding, so a phone set wrong was refused a slot it could
+have had" tells them why the obvious simplification is not one.
+
+`tests/docs-current.test.js` checks the parts of this a machine can check — that
+every file and test named in the writing exists, and that the counts are real
+rather than remembered. It cannot check whether an explanation is still true.
+That part is yours.
+
+This applies to a model as much as a person. If you are an AI reading this: the
+next agent to open this repository has your notes and nothing else. Leave them
+what you would have wanted.
 
 ---
 

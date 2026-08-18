@@ -30,7 +30,7 @@ api/
     limits.js       how often one number may book
     reports.js      the takings, for the owner's page
 db/schema.sql       the database, and why each column is the way it is
-tests/              34 files, run by `npm test`
+tests/              35 files, run by `npm test`
 MIGRATION.md        how the backend works and what to set up from nothing
 ```
 
@@ -83,7 +83,7 @@ npm test
 ```
 
 The tests need no database and no network — they read the source and drive the
-real functions. That is why there are 1,233 of them and they run in seconds.
+real functions, which is why the whole suite runs in seconds.
 
 There is no build step for the site. `assets/tailwind.css` is compiled and
 committed; if you add a Tailwind class, run:
@@ -111,6 +111,7 @@ twice. A few worth reading before making changes in their area:
 | `booking-clash` | two customers, one chair |
 | `daily-job` | a reminder sent twice, or not at all |
 | `image-upload` | a phone photo published with its GPS coordinates in it |
+| `docs-current` | this file describing a file that had been renamed away |
 
 ---
 
