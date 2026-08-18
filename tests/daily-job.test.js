@@ -337,7 +337,18 @@ async function main() {
   const wf = fs.readFileSync(
     path.join(__dirname, '..', '.github', 'workflows', 'nudge.yml'), 'utf8');
   ok('there is a workflow', wf.length > 0, true);
-  ok('every fifteen minutes', /cron: '\*\/15 /.test(wf), true);
+  const minutes = ((wf.match(/cron: '([^ ]+) /) || ['', ''])[1] || '').split(',').map(Number);
+  ok('four times an hour', minutes.length, 4);
+  // And never on the quarter marks. :00, :15, :30 and :45 are the four busiest
+  // minutes on GitHub — everybody writes */15, every one of those jobs is
+  // queued at the same instant, and a run under that load is delayed or
+  // dropped. This workflow was correct and active for eleven hours on */15
+  // and never ran once.
+  ok('and off the minutes everybody else uses',
+     minutes.filter(m => m % 15 === 0), []);
+  // Still evenly spread, or "four times an hour" is three in a row and a gap.
+  ok('spread across the hour',
+     minutes.every((m, i) => i === 0 || m - minutes[i - 1] === 15), true);
   ok('calling the soon round', /job=soon/.test(wf), true);
   // Without the header the route refuses it, which is the point of the route.
   ok('with the secret', /Authorization: Bearer \$CRON_SECRET/.test(wf), true);
