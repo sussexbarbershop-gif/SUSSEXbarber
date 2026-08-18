@@ -8,6 +8,12 @@ a phone number. The shop sees it immediately, gets an email, and works the
 diary from a panel at `/admin`. There are no accounts and no passwords for
 customers — a phone number is who you are.
 
+This repository is public. Nothing secret is in it and nothing secret may go
+into it — the database URL, the panel password, the owner's PIN and the API
+keys all live in Vercel's environment variables, and
+[MIGRATION.md](MIGRATION.md) lists what each one is for without ever giving a
+value. A pull request from a fork cannot read any of them.
+
 **Changing this code?** Read [AGENTS.md](AGENTS.md) first — the five things
 that will catch you out, and the house style. It is written for a person or a
 model arriving with no context.
