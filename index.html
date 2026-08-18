@@ -219,6 +219,42 @@
            are reading something else. */
         .reveal { transition-duration: var(--settle); }
 
+        /* The two pickers, which had no movement at all. They were shown and
+           hidden with `hidden`, so every duration set above them was applied to
+           something that appeared and vanished between one frame and the next —
+           a sheet covering the screen, arriving with no indication of where it
+           came from.
+
+           It comes up from the edge it is attached to, and the page behind it
+           dims as it rises. Off the transform and the opacity only, both of
+           which the compositor handles without touching layout, so it stays
+           smooth on a phone with a list of eleven services in it. */
+        .sheet-veil {
+            transition: opacity var(--move) var(--ease);
+        }
+        .sheet-panel {
+            transform: translateY(100%);
+            transition: transform var(--move) var(--ease);
+            will-change: transform;
+        }
+        .sheet-open .sheet-veil { opacity: 1; }
+        .sheet-open .sheet-panel { transform: translateY(0); }
+
+        /* On a wide screen it is a dialog in the middle rather than a sheet at
+           the bottom, so sliding it up from below the fold would be a long
+           journey from nowhere. It scales in from where it already is. */
+        @media (min-width: 640px) {
+            .sheet-panel { transform: scale(0.96); opacity: 0;
+                           transition: transform var(--move) var(--ease),
+                                       opacity var(--move) var(--ease); }
+            .sheet-open .sheet-panel { transform: scale(1); opacity: 1; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .sheet-panel, .sheet-veil { transition: none; }
+            .sheet-panel { transform: none; opacity: 1; }
+        }
+
         /* The three hundred milliseconds a browser waits to see whether a tap
            is going to become a double-tap zoom. On a booking form that is the
            difference between a control that answers and one that hesitates. */
@@ -471,7 +507,16 @@
                 document.body.style.top = '';
                 document.body.style.left = '';
                 document.body.style.right = '';
+                // <html> carries scroll-smooth, so this scrollTo was *animated*:
+                // unpinning the body puts the page at the top, and the journey
+                // back down to where the customer actually was played out in
+                // front of them every time they picked a barber. Turned off for
+                // the one line that has to be instant, and put back.
+                const root = document.documentElement;
+                const was = root.style.scrollBehavior;
+                root.style.scrollBehavior = 'auto';
                 window.scrollTo(0, scrollHeldAt);
+                root.style.scrollBehavior = was;
             }
         }
 
@@ -895,8 +940,8 @@
     <!-- Barber picker: a bottom sheet on a phone, a centred panel from sm: up -
          one list, tap a row, done. Populated by renderBarberCards(). -->
     <div id="barberPickerSheet" class="fixed inset-0 z-[80] hidden">
-        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeBarberPicker()"></div>
-        <div class="absolute inset-x-0 bottom-0 sm:inset-0 sm:m-auto sm:max-w-md sm:h-fit bg-white dark:bg-charcoal-900 rounded-t-2xl sm:rounded-2xl max-h-[75vh] overflow-hidden flex flex-col shadow-2xl">
+        <div class="sheet-veil absolute inset-0 bg-black/50 backdrop-blur-sm opacity-0" onclick="closeBarberPicker()"></div>
+        <div class="sheet-panel absolute inset-x-0 bottom-0 sm:inset-0 sm:m-auto sm:max-w-md sm:h-fit bg-white dark:bg-charcoal-900 rounded-t-2xl sm:rounded-2xl max-h-[75vh] overflow-hidden flex flex-col shadow-2xl">
             <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-charcoal-700 shrink-0">
                 <h3 class="font-serif text-lg text-gray-900 dark:text-white" data-translate="Choose your barber">Choose your barber</h3>
                 <button type="button" onclick="closeBarberPicker()" aria-label="Close" class="p-1.5 -mr-1.5 text-gray-500 hover:text-gold transition-colors">
@@ -909,8 +954,8 @@
 
     <!-- Service picker: same shape as the barber one, one service per row. -->
     <div id="servicePickerSheet" class="fixed inset-0 z-[80] hidden">
-        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeServicePicker()"></div>
-        <div class="absolute inset-x-0 bottom-0 sm:inset-0 sm:m-auto sm:max-w-md sm:h-fit bg-white dark:bg-charcoal-900 rounded-t-2xl sm:rounded-2xl max-h-[75vh] overflow-hidden flex flex-col shadow-2xl">
+        <div class="sheet-veil absolute inset-0 bg-black/50 backdrop-blur-sm opacity-0" onclick="closeServicePicker()"></div>
+        <div class="sheet-panel absolute inset-x-0 bottom-0 sm:inset-0 sm:m-auto sm:max-w-md sm:h-fit bg-white dark:bg-charcoal-900 rounded-t-2xl sm:rounded-2xl max-h-[75vh] overflow-hidden flex flex-col shadow-2xl">
             <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-charcoal-700 shrink-0">
                 <h3 class="font-serif text-lg text-gray-900 dark:text-white" data-translate="Choose a service">Choose a service</h3>
                 <button type="button" onclick="closeServicePicker()" aria-label="Close" class="p-1.5 -mr-1.5 text-gray-500 hover:text-gold transition-colors">
@@ -2568,13 +2613,62 @@
             btn.disabled = !(barber && service);
         }
 
+        /**
+         * Show a sheet, then let it move.
+         *
+         * Removing "hidden" and adding the open class in the same breath gives
+         * the browser one style to compute rather than two, so it draws the
+         * sheet already up and there is nothing to animate. The reflow between
+         * them is what makes the first state real, and the second a change from
+         * it.
+         */
+        function showSheet(sheet) {
+            // Keyed off the open class, not off "hidden". "hidden" is now put
+            // back at the end of the closing animation, so for six-tenths of a
+            // second after a close the sheet is neither open nor hidden — and
+            // both of these were being asked the wrong question during it.
+            if (!sheet || sheet.classList.contains('sheet-open')) return;
+            sheet.classList.remove('hidden');
+            void sheet.offsetWidth;                 // let the closed state land
+            sheet.classList.add('sheet-open');
+            holdPage(true);
+        }
+
+        /**
+         * Hide it once it has finished leaving.
+         *
+         * "hidden" is display:none, which stops a transition dead — so it is
+         * put back only after the sheet has travelled. The timeout is the
+         * fallback for a transitionend that never fires, which is what happens
+         * when the sheet is closed on a tab that is not being painted.
+         *
+         * The page is released at once rather than at the end. Now that the
+         * scroll restore is instant there is nothing to see, and waiting would
+         * leave the page unscrollable for the length of an animation.
+         */
+        function hideSheet(sheet) {
+            if (!sheet || !sheet.classList.contains('sheet-open')) return;
+            sheet.classList.remove('sheet-open');
+            holdPage(false);
+            const panel = sheet.querySelector('.sheet-panel');
+            let ended = false;
+            const once = () => {
+                if (ended) return;
+                ended = true;
+                // Opened again while it was still on its way out — in which
+                // case it belongs on screen, and hiding it now would take it
+                // away half a second after somebody asked for it.
+                if (!sheet.classList.contains('sheet-open')) sheet.classList.add('hidden');
+            };
+            if (panel) panel.addEventListener('transitionend', once, { once: true });
+            setTimeout(once, 600);
+        }
+
         function openBarberPicker() {
-            const sheet = document.getElementById('barberPickerSheet');
-            if (sheet) { sheet.classList.remove('hidden'); holdPage(true); }
+            showSheet(document.getElementById('barberPickerSheet'));
         }
         function closeBarberPicker() {
-            const sheet = document.getElementById('barberPickerSheet');
-            if (sheet && !sheet.classList.contains('hidden')) { sheet.classList.add('hidden'); holdPage(false); }
+            hideSheet(document.getElementById('barberPickerSheet'));
         }
 
         /** Applies a barber choice made in the picker: everything selecting a
@@ -2707,12 +2801,10 @@
         }
 
         function openServicePicker() {
-            const sheet = document.getElementById('servicePickerSheet');
-            if (sheet) { sheet.classList.remove('hidden'); holdPage(true); }
+            showSheet(document.getElementById('servicePickerSheet'));
         }
         function closeServicePicker() {
-            const sheet = document.getElementById('servicePickerSheet');
-            if (sheet && !sheet.classList.contains('hidden')) { sheet.classList.add('hidden'); holdPage(false); }
+            hideSheet(document.getElementById('servicePickerSheet'));
         }
 
         function chooseService(name) {

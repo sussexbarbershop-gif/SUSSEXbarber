@@ -15,17 +15,29 @@ function grab(name) {
 const ANY_BARBER = 'Any Available';
 /** A stand-in element whose classList remembers what is on it, so the tests can
  *  tell placeholder styling from chosen styling. */
-const el = (initial = {}) => {
-  const classes = new Set();
-  return Object.assign({
+const el = (initial = {}, startClasses = []) => {
+  const classes = new Set(startClasses);
+  const node = {};
+  // `hidden` follows the class rather than being set beside it. The sheets are
+  // shown and hidden by adding and removing that one class, and a stub where
+  // the two could disagree is a stub that can pass while the page is broken.
+  const sync = () => { node.hidden = classes.has('hidden'); };
+  Object.assign(node, {
     classList: {
-      add(c) { classes.add(c); },
-      remove(c) { classes.delete(c); },
-      toggle(c, on) { on ? classes.add(c) : classes.delete(c); },
+      add(c) { classes.add(c); sync(); },
+      remove(c) { classes.delete(c); sync(); },
+      toggle(c, on) { on ? classes.add(c) : classes.delete(c); sync(); },
       contains(c) { return classes.has(c); }
     },
+    // A sheet reaches for its own panel to know when the slide has finished.
+    // Nothing here animates, so it answers with a stand-in whose transitionend
+    // never fires — which is exactly the case hideSheet's timeout exists for.
+    querySelector() { return null; },
+    offsetWidth: 0,
     dispatchEvent() {}, addEventListener() {}
   }, initial);
+  sync();
+  return node;
 };
 
 const barberField = el({ value: ANY_BARBER });
@@ -36,12 +48,12 @@ const serviceList = el({ innerHTML: '' });
 const barberLabel = el({ textContent: '' });
 const serviceLabel = el({ textContent: '' });
 const servicePrice = el({ textContent: '' });
-// These two track one class and one class only, so "contains" has to answer
-// for it as well as "add" and "remove". Without it the sheets could be opened
-// and closed but not asked whether they were open — and the first line of code
-// that asked fell over inside a test about something else entirely.
-const barberSheet = el({ hidden: false, classList: { add(c) { if (c === 'hidden') barberSheet.hidden = true; }, remove(c) { if (c === 'hidden') barberSheet.hidden = false; }, contains(c) { return c === 'hidden' ? barberSheet.hidden : false; } } });
-const serviceSheet = el({ hidden: false, classList: { add(c) { if (c === 'hidden') serviceSheet.hidden = true; }, remove(c) { if (c === 'hidden') serviceSheet.hidden = false; }, contains(c) { return c === 'hidden' ? serviceSheet.hidden : false; } } });
+// Both start closed, which is how they are written in the page — a sheet is
+// not on screen until somebody asks for it. They used to start open here, and
+// the day showSheet() learned to return early on a sheet that was already open
+// it stopped opening them at all.
+const barberSheet = el({}, ['hidden']);
+const serviceSheet = el({}, ['hidden']);
 
 const continueBtn = el({ disabled: true });
 
@@ -80,6 +92,7 @@ let bookedTimesList = [];
 
 eval([
   'escapeText', 'escapeAttribute', 'setPickerLabelState', 'updateStep1Ready',
+  'showSheet', 'hideSheet',
   'renderBarberCards', 'updateBarberPickerLabel', 'chooseBarber',
   'openBarberPicker', 'closeBarberPicker',
   'renderServiceCards', 'updateServicePickerLabel', 'chooseService',
@@ -180,7 +193,9 @@ barberSheet.hidden = false;
 chooseBarber('Amir');
 ok('choosing updates the hidden field', barberField.value, 'Amir');
 ok('choosing updates the button label', barberLabel.textContent, 'Amir');
-ok('choosing closes the sheet', barberSheet.hidden, true);
+// It starts leaving at once; `hidden` goes back on only when it has finished
+// travelling, because display:none stops a transition dead.
+ok('choosing closes the sheet', barberSheet.classList.contains('sheet-open'), false);
 ok('the list redraws to check the new choice', /data-barber="Amir"[^>]*bg-gold\/10/.test(barberList.innerHTML), true);
 
 console.log('--- a barber not working that day resets the date ---');
@@ -208,7 +223,7 @@ chooseService('Skin Fade');
 ok('choosing updates the hidden field', serviceField.value, 'Skin Fade');
 ok('choosing updates the button label', serviceLabel.textContent, 'Skin Fade');
 ok('choosing updates the button price', servicePrice.textContent, '€28');
-ok('choosing closes the sheet', serviceSheet.hidden, true);
+ok('choosing closes the sheet', serviceSheet.classList.contains('sheet-open'), false);
 
 console.log('--- free text is escaped, not injected ---');
 renderBarberCards([{ name: ANY_BARBER }, { name: '<img onerror=x>' }]);

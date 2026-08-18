@@ -115,15 +115,23 @@ ok('and going back to it', /window\.scrollTo\(0, scrollHeldAt\)/.test(hold), tru
 ok('counted, so two overlays do not release it early',
    /scrollHolders/.test(hold), true);
 // Every one of them, or the one that was missed is the one that fails.
-['openMobileMenu', 'closeMobileMenu', 'openBarberPicker', 'closeBarberPicker',
- 'openServicePicker', 'closeServicePicker', 'openLightbox', 'closeLightbox']
-  .forEach(fn => {
-    // To the end of the function, not a fixed number of characters — openLightbox
-    // carries enough comment to push its holdPage call past any window guessed at.
-    const body = (html.match(new RegExp(
-      '(?:const |function )' + fn + '[\\s\\S]*?\\n        \\}')) || [''])[0];
-    ok(`${fn} holds or releases it`, /holdPage\(/.test(body), true);
-  });
+// To the end of the function, not a fixed number of characters — openLightbox
+// carries enough comment to push its holdPage call past any window guessed at.
+const fnBody = name => (html.match(new RegExp(
+  '(?:const |function )' + name + '[\\s\\S]*?\\n        \\}')) || [''])[0];
+
+['openMobileMenu', 'closeMobileMenu', 'openLightbox', 'closeLightbox',
+ 'showSheet', 'hideSheet'].forEach(fn => {
+  ok(`${fn} holds or releases it`, /holdPage\(/.test(fnBody(fn)), true);
+});
+// The two pickers go through the shared pair rather than holding the page
+// themselves, so what matters for them is that they still delegate.
+['openBarberPicker', 'openServicePicker'].forEach(fn => {
+  ok(`${fn} goes through showSheet`, /showSheet\(/.test(fnBody(fn)), true);
+});
+['closeBarberPicker', 'closeServicePicker'].forEach(fn => {
+  ok(`${fn} goes through hideSheet`, /hideSheet\(/.test(fnBody(fn)), true);
+});
 
 console.log('--- the two buttons in the header ---');
 // The language button was h-9 and text-xs against Book Now's py-2 and
@@ -150,6 +158,45 @@ ok('a section arriving can take longer', ms('settle') > ms('move'), true);
 // The press is the exception: that one answers a finger and must stay short.
 ok('the press stays quick', ms('press') <= 150, true);
 ok('the overlays use the travel duration', /#mobileMenu \{ transition-duration: var\(--move\)/.test(style), true);
+
+console.log('--- the sheets, which had no movement at all ---');
+// They were shown and hidden with `hidden`, so every duration set above them
+// applied to something that appeared and vanished between one frame and the
+// next: a sheet covering the screen, arriving with no indication of where it
+// came from.
+ok('the panel starts off the bottom', /\.sheet-panel \{[^}]*translateY\(100%\)/.test(style), true);
+ok('and the backdrop starts clear', /\.sheet-veil \{[^}]*transition: opacity/.test(style), true);
+ok('opening moves it to zero', /\.sheet-open \.sheet-panel \{ transform: translateY\(0\)/.test(style), true);
+// Transform and opacity only. Both are composited, so a list of eleven
+// services does not relayout on every frame of the slide.
+const panelRule = (style.match(/\.sheet-panel \{([^}]*)\}/) || ['', ''])[1];
+ok('it moves on transform, not on height or top',
+   /top:|height:|margin/.test(panelRule), false);
+// display:none stops a transition dead, so `hidden` can only go back on after
+// the sheet has finished travelling.
+const hide = fnBody('hideSheet');
+ok('hidden is put back after the journey, not during it',
+   /transitionend/.test(hide) && /setTimeout/.test(hide), true);
+// A transitionend that never fires — a tab that is not being painted — would
+// otherwise leave the sheet present and invisible over the whole page.
+ok('with a fallback for a transitionend that never comes', /setTimeout\(once/.test(hide), true);
+// Reopened while it was still leaving, the pending hide must not take it away
+// half a second after somebody asked for it.
+ok('and it checks it was not reopened meanwhile',
+   /if \(!sheet\.classList\.contains\('sheet-open'\)\)/.test(hide), true);
+// Both keyed off the open class rather than off `hidden`, which for the length
+// of the closing animation is neither on nor off.
+ok('showSheet asks whether it is open, not whether it is hidden',
+   /contains\('sheet-open'\)/.test(fnBody('showSheet')), true);
+
+console.log('--- and the page does not travel when a sheet closes ---');
+// <html> carries scroll-smooth, so restoring the scroll position *animated*:
+// unpinning the body put the page at the top, and the journey back down to
+// where the customer actually was played out in front of them every time they
+// picked a barber.
+ok('the restore turns smooth scrolling off for its one line',
+   /scrollBehavior = 'auto'[\s\S]{0,120}window\.scrollTo\(0, scrollHeldAt\)/.test(hold), true);
+ok('and puts it back', /root\.style\.scrollBehavior = was/.test(hold), true);
 
 console.log('--- and none of it for somebody who asked it to stop ---');
 const reduced = (style.match(/@media \(prefers-reduced-motion: reduce\)\s*\{([\s\S]*?)\n        \}/g) || []).join('');
