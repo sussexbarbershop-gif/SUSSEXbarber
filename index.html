@@ -59,7 +59,7 @@
     <!-- script.google.com is not in here any more. The backend is /api on this
          same origin, so 'self' covers it, and a policy that still allowed the
          Apps Script would be permission for a host this site no longer calls. -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com data: blob:; frame-src https://www.google.com https://maps.google.com; img-src 'self' https://maps.gstatic.com https://drive.google.com https://lh3.googleusercontent.com https://*.public.blob.vercel-storage.com data: blob:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com data: blob:; frame-src https://www.google.com https://maps.google.com; img-src 'self' https://maps.gstatic.com https://*.public.blob.vercel-storage.com data: blob:;">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
     <!-- Tailwind is compiled to assets/tailwind.css by the build script in
          package.json. The CDN build used to run here, which shipped the whole

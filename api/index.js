@@ -848,6 +848,52 @@ async function cancelBooking(payload, res) {
 
 // ---- Images ---------------------------------------------------------------
 
+/**
+ * Squeeze an uploaded photo down to something a web page should be serving.
+ *
+ * The panel already shrinks in the browser before uploading, which keeps the
+ * upload itself quick. This runs anyway, for three reasons:
+ *
+ *   - the browser step is not a guarantee. It is one canvas call in one tab,
+ *     and this endpoint is reachable by anything holding the password;
+ *   - a phone photo carries EXIF, and EXIF from a phone carries the GPS
+ *     coordinates it was taken at. sharp drops all metadata unless asked to
+ *     keep it, so a photo taken in the shop stops publishing the shop's
+ *     location a second time;
+ *   - one pass at a fixed quality does not know how big the result came out.
+ *     A flat photo lands at 60KB and a busy one at 900KB from the same
+ *     settings, so this steps the quality down until it fits.
+ *
+ * 1600px on the long edge because the gallery lightbox shows these full
+ * screen. The cards themselves are a quarter of that.
+ */
+const MAX_EDGE = 1600;
+const TARGET_BYTES = 300 * 1024;
+const QUALITY_STEPS = [82, 74, 66, 58];
+
+async function compressImage(bytes) {
+  let sharp;
+  try {
+    sharp = require('sharp');
+  } catch (err) {
+    // Not installed, or no build for this platform. Storing the original is
+    // worse than storing a small one and far better than refusing the upload.
+    console.warn('[upload] sharp unavailable, storing as received:', err.message);
+    return { bytes, contentType: 'image/jpeg' };
+  }
+
+  const base = sharp(bytes, { failOn: 'none' })
+    .rotate()                 // honour the EXIF orientation before it is dropped
+    .resize({ width: MAX_EDGE, height: MAX_EDGE, fit: 'inside', withoutEnlargement: true });
+
+  let out = null;
+  for (const quality of QUALITY_STEPS) {
+    out = await base.clone().jpeg({ quality, mozjpeg: true }).toBuffer();
+    if (out.length <= TARGET_BYTES) break;
+  }
+  return { bytes: out, contentType: 'image/jpeg' };
+}
+
 async function uploadImage(payload, res) {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     return json(res, {
@@ -859,16 +905,35 @@ async function uploadImage(payload, res) {
   if (parts.length !== 2) {
     return json(res, { status: 'error', message: 'Malformed image data' });
   }
-  const contentType = (parts[0].match(/data:([^;]+)/) || [])[1] || 'image/jpeg';
-  const bytes = Buffer.from(parts[1], 'base64');
+  const original = Buffer.from(parts[1], 'base64');
+  if (!original.length) {
+    return json(res, { status: 'error', message: 'That file is empty' });
+  }
+
+  let compressed;
+  try {
+    compressed = await compressImage(original);
+  } catch (err) {
+    // Anything sharp cannot read is not a picture, whatever it is called.
+    console.error('[upload] could not read that image:', err);
+    return json(res, { status: 'error', message: 'That file is not a readable image' });
+  }
+
+  // Always .jpg: the stored bytes are JPEG now whatever arrived, and a URL
+  // ending .png that serves a JPEG confuses everything reading the extension
+  // rather than the header.
+  const requested = String(payload.filename || `image-${Date.now()}`);
+  const name = requested.replace(/\.[^.]*$/, '').replace(/[^\w\-]/g, '_').slice(0, 60) || 'image';
 
   const { put } = require('@vercel/blob');
-  const name = String(payload.filename || `image-${Date.now()}.jpg`).replace(/[^\w.\-]/g, '_');
   // addRandomSuffix so re-uploading a file called photo.jpg does not silently
   // replace the one already on the site.
-  const blob = await put(`site/${name}`, bytes, {
-    access: 'public', contentType, addRandomSuffix: true
+  const blob = await put(`site/${name}.jpg`, compressed.bytes, {
+    access: 'public', contentType: compressed.contentType, addRandomSuffix: true
   });
+
+  console.log(`[upload] ${name}: ${(original.length / 1024).toFixed(0)}KB in, ` +
+              `${(compressed.bytes.length / 1024).toFixed(0)}KB out`);
   return json(res, { status: 'success', url: blob.url });
 }
 
