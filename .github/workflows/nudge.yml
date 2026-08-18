@@ -31,10 +31,17 @@ name: Reminder
 
 on:
   schedule:
-    # Every fifteen minutes, 06:00–17:00 UTC. The shop is on Amsterdam time,
-    # an hour or two ahead, and opens at ten — so this covers the working day
+    # Every fifteen minutes, 06:00-17:00 UTC. The shop is on Amsterdam time,
+    # an hour or two ahead, and opens at ten - so this covers the working day
     # at both ends of the year without running through the night for nothing.
-    - cron: '*/15 6-17 * * *'
+    #
+    # Seven, twenty-two, thirty-seven, fifty-two - and not */15, which is what
+    # this was for its first night and which never ran once. Those are :00,
+    # :15, :30 and :45, the four busiest minutes on GitHub, because everybody
+    # writes */15 and every one of those jobs is queued at the same instant.
+    # GitHub says so itself: a scheduled run under that load is delayed, and
+    # under enough of it, dropped. Off the quarter marks it goes when it says.
+    - cron: '7,22,37,52 6-17 * * *'
   # And a button, for checking it works without waiting for the clock.
   workflow_dispatch:
 
