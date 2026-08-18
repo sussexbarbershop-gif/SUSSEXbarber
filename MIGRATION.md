@@ -111,11 +111,31 @@ Runs are logged on a line starting `[daily]`.
 
 ### When the reminders stop
 
-Every reminder the shop sends now depends on GitHub Actions, and GitHub
-disables a scheduled workflow in a repository that has seen no activity for
-sixty days. A shop that is running well does not push code, so this will happen
-eventually. GitHub emails the repository owner when it does — and the workflow
-is re-enabled from the **Actions** tab with one button.
+GitHub disables a scheduled workflow in a repository that has seen no activity
+for sixty days. A shop that is running well does not push code, so this will
+happen eventually. GitHub emails the repository owner when it does, and the
+workflow is re-enabled from the **Actions** tab with one button.
+
+**Nothing waits for that button.** The site is the second clock. `job_runs`
+holds the moment the round last ran, whoever set it off, and an ordinary
+request from an ordinary visitor checks it: if it is more than thirty minutes
+old and the hour is one the workflow covers, that request runs the round
+itself. GitHub runs every fifteen minutes, so while it is working the row is
+never stale and this never fires once. `standInForTheClock()` in
+`api/index.js` has the reasoning; `tests/reminder-fallback.test.js` holds it
+to it.
+
+The claim is a single conditional UPDATE rather than a read and then a write,
+so a busy afternoon produces one round rather than one per visitor. It is
+awaited before the response rather than left running after it: work not waited
+for on a serverless function can be frozen halfway, and half a round is emails
+sent with nothing recording that they went.
+
+It is a fallback, not a schedule. A shop with no visitors all morning gets no
+round all morning — which is the same morning nobody was going to be reminded
+anyway, because the site nobody loaded is the site nobody booked on. When it
+does stand in it says so in the log, on the usual `[daily]` line, so the
+sixty-day button is still worth pressing when the email arrives.
 
 There is a second pair of eyes for it. The evening job runs on Vercel, which
 cannot be disabled that way, and counts anything from that day that should have

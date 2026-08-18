@@ -121,7 +121,7 @@ Worth knowing before you conclude something works:
 | What | How you find out |
 |---|---|
 | Email | Nothing on the site shows it. Vercel logs, lines starting `[mail]` |
-| Reminders | GitHub disables the workflow after 60 days of no pushes |
+| Reminders | GitHub disables the workflow after 60 days of no pushes — the site stands in, and logs `[daily]` when it does |
 | Image upload without a Blob token | The panel says so; the site does not |
 | An uncompiled Tailwind class | The markup simply looks wrong |
 | A stray `</div>` | The browser closes it for you and the page still renders |

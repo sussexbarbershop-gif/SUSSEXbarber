@@ -59,6 +59,12 @@ function ensureSchema() {
                   PRIMARY KEY (bucket, window_at))`;
       await sql`CREATE INDEX IF NOT EXISTS rate_limit_sweep ON rate_limit (window_at)`;
 
+      // When each round of the reminder last actually ran, whoever set it off.
+      // One row per job, so the table never grows. See claimJobRun().
+      await sql`CREATE TABLE IF NOT EXISTS job_runs (
+                  job    text PRIMARY KEY,
+                  ran_at timestamptz NOT NULL DEFAULT now())`;
+
       // One row per person, keyed on the last nine digits of their number.
       // See db/schema.sql for what it is for; the short version is that a
       // discount or a loyalty count is a fact about a customer, and the diary
@@ -119,6 +125,45 @@ async function withNewSchema(run) {
     await ensureSchema();
     return await run();
   }
+}
+
+/**
+ * Ask for the right to run a job, and get it only if nobody has recently.
+ *
+ * This is what lets the site stand in for the clock. GitHub disables a
+ * scheduled workflow in a repository with no activity for sixty days, and a
+ * shop that is running well does not push code — so the reminders were always
+ * going to stop on a date nobody had written down, and start again only when
+ * somebody noticed and pressed a button. That is not a schedule, it is a
+ * countdown.
+ *
+ * So an ordinary request from an ordinary visitor can also set the round off.
+ * The whole decision is this one statement, and it matters that it is one:
+ * the UPDATE is conditional, so of ten requests arriving together exactly one
+ * gets a row back and nine get nothing. Reading the time and then writing it
+ * would let all ten through, and ten rounds at once is ten times the chance
+ * of sending somebody two emails.
+ *
+ * `minutes` is the age that counts as stale. While GitHub is running every
+ * fifteen minutes the row is never that old and this never fires once — the
+ * fallback costs nothing until the day it is the only thing left.
+ */
+async function claimJobRun(job, minutes) {
+  const sql = db();
+  const rows = await withNewSchema(() => sql`
+    INSERT INTO job_runs (job, ran_at) VALUES (${job}, now())
+    ON CONFLICT (job) DO UPDATE SET ran_at = now()
+     WHERE job_runs.ran_at < now() - make_interval(mins => ${minutes})
+    RETURNING job`);
+  return rows.length > 0;
+}
+
+/** Record that a round ran, however it was set off. Never refused. */
+async function markJobRun(job) {
+  const sql = db();
+  await withNewSchema(() => sql`
+    INSERT INTO job_runs (job, ran_at) VALUES (${job}, now())
+    ON CONFLICT (job) DO UPDATE SET ran_at = now()`);
 }
 
 /** 'HH:MM:SS' or 'HH:MM' -> 'HH:MM'. Postgres returns seconds; nobody wants them. */
@@ -278,4 +323,5 @@ async function customerFor({ phone, name, email }) {
 
 module.exports = { db, customerFor, readConfig, readRotaConfig, hhmm, isoToIndex, indexToIso,
                    WEEKDAY_NAMES, WEEKDAY_NL,
-                   ensureSchema, withNewSchema, isMissingSchema };
+                   ensureSchema, withNewSchema, isMissingSchema,
+                   claimJobRun, markJobRun };

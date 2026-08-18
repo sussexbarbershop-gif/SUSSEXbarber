@@ -36,7 +36,7 @@ api/
     limits.js       how often one number may book
     reports.js      the takings, for the owner's page
 db/schema.sql       the database, and why each column is the way it is
-tests/              35 files, run by `npm test`
+tests/              36 files, run by `npm test`
 MIGRATION.md        how the backend works and what to set up from nothing
 ```
 
@@ -118,6 +118,7 @@ twice. A few worth reading before making changes in their area:
 | `daily-job` | a reminder sent twice, or not at all |
 | `image-upload` | a phone photo published with its GPS coordinates in it |
 | `docs-current` | this file describing a file that had been renamed away |
+| `reminder-fallback` | every reminder depending on a button somebody had to press |
 
 ---
 
@@ -146,7 +147,10 @@ PIN. `ADMIN_PASSWORD` and `REPORTS_PIN`.
 **The reminders run on GitHub Actions**, because a Vercel Hobby cron runs once a
 day and "an hour before the appointment" cannot be done once a day. GitHub
 disables a scheduled workflow in a repository with no activity for sixty days,
-and a shop that is running well does not push code. See MIGRATION.md.
+and a shop that is running well does not push code — so the site stands in.
+A visitor's request sets the round off when it has gone half an hour overdue,
+which while GitHub is running never happens. `standInForTheClock()` in
+`api/index.js`, and MIGRATION.md for the whole picture.
 
 **Email fails silently by design.** Nothing on the site shows it. The reason is
 in `mail.js`; the place to look is the Vercel log, for a line starting

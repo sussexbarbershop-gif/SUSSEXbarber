@@ -252,6 +252,29 @@ CREATE TABLE IF NOT EXISTS rate_limit (
 CREATE INDEX IF NOT EXISTS rate_limit_sweep ON rate_limit (window_at);
 
 -- ---------------------------------------------------------------------------
+-- When each round of the reminder last ran
+-- ---------------------------------------------------------------------------
+
+-- One row per job, forever. This is a timestamp, not a log.
+--
+-- It exists so the reminders have a second clock. The first is a GitHub
+-- Actions schedule, and GitHub disables a scheduled workflow in a repository
+-- with no activity for sixty days — a barber shop that is running well never
+-- pushes code, so that day was always coming. Now an ordinary visitor's
+-- request checks this timestamp, and sets the round off itself if it has gone
+-- stale. See standInForTheClock() in api/index.js.
+--
+-- The claim is one conditional UPDATE (claimJobRun() in api/_lib/db.js) rather
+-- than a read followed by a write, so ten requests landing together produce
+-- one round between them instead of ten. Reading the time and then writing it
+-- would let all ten through, and ten rounds at once is ten chances of a
+-- customer getting the same reminder twice.
+CREATE TABLE IF NOT EXISTS job_runs (
+    job    text PRIMARY KEY,          -- 'soon'
+    ran_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- ---------------------------------------------------------------------------
 -- Columns added after the table already existed
 -- ---------------------------------------------------------------------------
 --

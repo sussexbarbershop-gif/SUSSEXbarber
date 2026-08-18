@@ -21,7 +21,7 @@
  */
 
 const { db, readConfig, readRotaConfig, indexToIso, WEEKDAY_NAMES,
-        withNewSchema, customerFor } = require('./_lib/db');
+        withNewSchema, customerFor, claimJobRun } = require('./_lib/db');
 const rota = require('./_lib/rota');
 const { isAuthorized, isPinCorrect, isOwner, reportsPinIsSet, issueUnlockPass,
         UNLOCK_MINUTES, throttleFailedLogin, resetFailedLogins,
@@ -123,8 +123,69 @@ function isOwnOrigin(req) {
 
 // ---------------------------------------------------------------------------
 
+/**
+ * The reminders' second clock: the shop's own visitors.
+ *
+ * Every reminder this shop sends is set off by a GitHub Actions schedule, and
+ * GitHub disables a scheduled workflow in a repository that has seen no
+ * activity for sixty days. A barber shop that is running well never pushes
+ * code. So the reminders were always going to stop on a date nobody had
+ * written down, and come back only once somebody noticed and pressed Enable.
+ * The owner's answer to that was the right one: they should not have to.
+ *
+ * So the site stands in. A visitor loading the page is already talking to this
+ * function; if the round is overdue, their request sets it off as well as
+ * doing its own job. That needs no account, no token, no second service and
+ * nothing that expires — the three things every other fix here would have
+ * needed, and each of them is its own future morning of it not working.
+ *
+ * Four things keep it from costing anything:
+ *
+ *   - STALE_MINUTES is thirty, and GitHub runs every fifteen. While that is
+ *     working the row is never stale and this never fires once.
+ *   - Only inside the hours the workflow covers, so a visitor at midnight
+ *     never pays for it and nobody is emailed at an hour they would mind.
+ *   - At most one look per lambda per CHECK_EVERY, so a busy afternoon does
+ *     not put a query on the end of every request.
+ *   - claimJobRun() is a single conditional UPDATE, so ten requests at once
+ *     produce one round, not ten.
+ *
+ * It is awaited rather than left running after the response. Work started and
+ * not waited for on a serverless function is work that may be frozen halfway,
+ * and half a round is emails sent with nothing recording that they were. One
+ * request every half hour waits for a query that usually matches no rows;
+ * that is the whole price.
+ */
+const STALE_MINUTES = 30;
+const CHECK_EVERY_MS = 5 * 60 * 1000;
+const COVERED_HOURS = [6, 17];           // UTC, matching .github/workflows/nudge.yml
+let lastLookedAt = 0;
+
+async function standInForTheClock() {
+  const now = Date.now();
+  if (now - lastLookedAt < CHECK_EVERY_MS) return;
+  lastLookedAt = now;
+
+  const hour = new Date(now).getUTCHours();
+  if (hour < COVERED_HOURS[0] || hour > COVERED_HOURS[1]) return;
+
+  try {
+    if (!await claimJobRun('soon', STALE_MINUTES)) return;
+    console.warn('[daily] no reminder round in %d minutes — the site is standing in. ' +
+                 'Is the GitHub Actions workflow still enabled?', STALE_MINUTES);
+    const { runDailyJob } = require('./daily');
+    console.log('[daily]', JSON.stringify(await runDailyJob('soon')));
+  } catch (err) {
+    // Never the visitor's problem. They asked for opening hours.
+    console.error('[daily] the stand-in round failed', err);
+  }
+}
+
 module.exports = async function handler(req, res) {
   try {
+    // Before the response, not after: see standInForTheClock(). It returns
+    // immediately unless the reminders have actually stopped.
+    if (req.method === 'GET') await standInForTheClock();
     if (req.method === 'GET') return await handleGet(req, res);
     if (req.method === 'POST') return await handlePost(req, res);
     return json(res, { status: 'error', message: 'Method not allowed' }, 405);

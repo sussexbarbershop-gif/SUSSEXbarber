@@ -36,7 +36,7 @@
  *                 leave open while somebody remembers to configure it.
  */
 
-const { db, readConfig, withNewSchema } = require('./_lib/db');
+const { db, readConfig, withNewSchema, markJobRun } = require('./_lib/db');
 const rota = require('./_lib/rota');
 const { sendReminder, sendReviewRequest } = require('./_lib/mail');
 const { sweepOldCounters } = require('./_lib/limits');
@@ -150,6 +150,11 @@ async function runDailyJob(job) {
   // runs. See sendReminders() for what it is actually for.
   if (job === 'soon') {
     const nudged = await sendReminders(sql, config, today, soonCutoff());
+    // Recorded whoever set this off — GitHub's clock, the button, or an
+    // ordinary visitor standing in for both. The stand-in only wakes up when
+    // this timestamp has gone stale, so it has to be written here rather than
+    // wherever the request came from.
+    await markJobRun('soon');
     return { job, date: today, reminded: nudged, reviewsAsked: 0, countersSwept: 0 };
   }
 
