@@ -22,6 +22,7 @@ function matches(expected, given) {
   return crypto.timingSafeEqual(a, b);
 }
 
+/** True when the request carries the panel password. */
 function isAuthorized(payload) {
   const expected = process.env.ADMIN_PASSWORD;
   if (!expected) return false;              // refuse every write until it is set
@@ -124,6 +125,7 @@ function isOwner(payload) {
  */
 const failures = new Map();
 
+/** Wait a moment before answering a wrong password. See the note below. */
 function throttleFailedLogin(key) {
   const id = key || 'global';
   const n = (failures.get(id) || 0) + 1;

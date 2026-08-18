@@ -21,7 +21,7 @@
  */
 
 const { db, readConfig, readRotaConfig, indexToIso, WEEKDAY_NAMES,
-        withNewSchema } = require('./_lib/db');
+        withNewSchema, customerFor } = require('./_lib/db');
 const rota = require('./_lib/rota');
 const { isAuthorized, isPinCorrect, isOwner, reportsPinIsSet, issueUnlockPass,
         UNLOCK_MINUTES, throttleFailedLogin, resetFailedLogins,
@@ -152,6 +152,13 @@ module.exports.isOwnOrigin = isOwnOrigin;
 
 // ---- GET ------------------------------------------------------------------
 
+/**
+ * The two questions a visitor's browser may ask: what the shop is, and which
+ * slots on one date are already taken.
+ *
+ * Deliberately short. Anything naming a person is a POST, so no customer's
+ * phone number is ever sitting in a URL, a browser history or a server log.
+ */
 async function handleGet(req, res) {
   const q = req.query || {};
   const action = trimmed(q.action);
@@ -250,6 +257,15 @@ async function handleGet(req, res) {
 
 // ---- POST -----------------------------------------------------------------
 
+/**
+ * Everything else, dispatched on `action`.
+ *
+ * Three levels of who may call what: open to anyone (booking, cancelling),
+ * behind the panel password (the diary, the shop's content), and behind the
+ * owner's PIN as well (the takings, the prices, the hours). Each handler
+ * states its own; there is no table of permissions to fall out of step with
+ * the code.
+ */
 async function handlePost(req, res) {
   const payload = readBody(req);
 
@@ -516,6 +532,21 @@ async function handlePost(req, res) {
  */
 const MOST_PER_CUSTOMER = 10;
 
+/**
+ * Why this booking cannot be accepted, or '' when it can.
+ *
+ * Every rule the site has about *whether* an appointment may exist lives here,
+ * in the order a person would check them: is it a real date, is it in the past,
+ * is the shop open, is that barber working, has this number booked too often,
+ * is the chair still free. The browser checks the same things to grey out what
+ * it offers — this is the copy that decides, because the form is public and
+ * anything reaching it may have been written by hand.
+ *
+ * `byShop` lifts exactly two of them, and only because they exist to protect
+ * the public form: the fifteen-minute notice, so "can you do half past, it's
+ * twenty past" works at the counter, and the per-number limit, whose own
+ * refusal tells the customer to phone the shop.
+ */
 async function refuseBooking(config, payload, byShop) {
   const date = trimmed(payload.date);
   const time = trimmed(payload.time);
@@ -602,6 +633,14 @@ async function refuseBooking(config, payload, byShop) {
   return '';
 }
 
+/**
+ * Take a booking, or explain why not.
+ *
+ * The order matters: refuse, write, then email. Nothing is sent before the row
+ * exists, and nothing about the row depends on the sending working — a bounced
+ * address must not turn a confirmed appointment into an error on the customer's
+ * screen.
+ */
 async function addBooking(payload, res, byShop) {
   const config = await readRotaConfig();
   const refusal = await refuseBooking(config, payload, byShop);
@@ -713,12 +752,23 @@ async function insertBooking(sql, ctx) {
     try {
       // The id comes back, because the confirmation email carries a cancel
       // link and a link that cancels one appointment has to name which.
+      // The person, before the appointment. Resolved first so the booking can
+      // carry the link, and outside the try below so a failure here is a real
+      // error rather than something mistaken for a double-booking.
+      //
+      // Null when there is no usable number. The booking is still written: a
+      // record of an appointment does not depend on us having a row for who
+      // came to it.
+      const customerId = await customerFor({
+        phone: payload.phone, name: payload.name, email: payload.email
+      });
+
       const written = await withNewSchema(() => sql`
         INSERT INTO bookings (booked_on, booked_at, service, barber, customer_name,
-                              phone, email, price, source, lang)
+                              phone, email, price, source, lang, customer_id)
         VALUES (${date}, ${clock}, ${service}, ${barber}, ${trimmed(payload.name)},
                 ${trimmed(payload.phone)}, ${trimmed(payload.email)}, ${price},
-                ${source}, ${lang})
+                ${source}, ${lang}, ${customerId})
         RETURNING id`);
       return { barber, id: (written[0] || {}).id, lang };
     } catch (err) {
@@ -804,6 +854,14 @@ async function cancelByLink(payload, res) {
   return json(res, { status: 'success', message: 'Booking cancelled' });
 }
 
+/**
+ * Cancel one appointment, from the site or from a link in an email.
+ *
+ * Marked cancelled rather than deleted: the row is what the shop's takings and
+ * its no-show history are counted from, and a cancellation is a fact worth
+ * keeping. The slot frees up because every availability query filters on
+ * status, not on the row being gone.
+ */
 async function cancelBooking(payload, res) {
   const date = trimmed(payload.date);
   const time = trimmed(payload.time);

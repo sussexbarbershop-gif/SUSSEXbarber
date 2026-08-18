@@ -99,6 +99,7 @@ function hoursForDay(config, dateStr) {
   return list.find(h => String(h.day).trim() === name) || null;
 }
 
+/** True when the shop itself is shut that day, whoever is on the rota. */
 function isClosedOn(config, dateStr) {
   const entry = hoursForDay(config, dateStr);
   return entry ? entry.open !== true : false;
@@ -112,6 +113,7 @@ function barberDayEntry(config, barberName, dateStr) {
   return rota.find(r => String(r.day).trim() === name) || null;
 }
 
+/** True when that date falls inside one of the barber's time-off rows. */
 function isBarberOnLeave(config, barberName, dateStr) {
   const wanted = String(barberName).trim();
   return (config.timeOff || []).some(row =>
