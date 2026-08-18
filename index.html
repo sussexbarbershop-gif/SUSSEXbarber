@@ -23,6 +23,17 @@
     <meta name="description" content="Barbier en kapper in Wassenaar. Book a haircut, beard trim or hot towel shave online in under a minute. Van Hogendorpstraat 10, open Monday to Saturday.">
     <link rel="canonical" href="https://sussexbarber.nl/">
 
+    <!-- What the shop looks like when it is not a web page: a tab, a bookmark,
+         an icon on somebody's home screen next to Spotify.
+
+         There was none of this, so Android drew a grey square with the first
+         letter of the title in it — and the label under it read "Barber in W",
+         because it had nothing but <title> to cut down. The manifest's
+         short_name is what fixes the second half of that. -->
+    <link rel="icon" href="/assets/icons/favicon-32.png" sizes="32x32" type="image/png">
+    <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+    <link rel="manifest" href="/manifest.webmanifest">
+
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Sussex Barber Shop">
     <meta property="og:title" content="Sussex Barber Shop — Wassenaar">
