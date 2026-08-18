@@ -570,18 +570,32 @@
         }
 
         /* ---- Anything raised off the page ------------------------------- */
-        .gallery-img:focus-visible { transform: translateY(-3px); box-shadow: var(--lift-2); }
+        .gallery-img:focus-visible { transform: translateY(-3px) scale(1.005);
+                                     box-shadow: var(--lift-2); }
 
+        /* Same 400ms as before; the curve is what changed.
+        
+           standard-decelerate moves at once and eases into its resting
+           position, where the standard curve leaves at speed and arrives
+           suddenly. Over two pixels that arrival is the only part you notice,
+           and it is what made a small movement feel abrupt. Same duration,
+           softer landing. */
         .service-card, .gallery-img, .barber-card {
             box-shadow: var(--lift-1);
-            transition: transform var(--m3-medium-4) var(--m3-standard),
-                        box-shadow var(--m3-medium-4) var(--m3-standard),
-                        filter var(--m3-medium-4) var(--m3-standard);
+            transition: transform var(--m3-medium-4) var(--m3-standard-decelerate),
+                        box-shadow var(--m3-medium-4) var(--m3-standard-decelerate),
+                        filter var(--m3-medium-4) var(--m3-standard-decelerate);
         }
         @media (hover: hover) {
+            /* 1.005 is between 1.7 and 2.0 pixels on the three cards this
+               applies to — 341px, 352px and 392px wide. Written as a ratio
+               rather than pixels so it stays that size on a phone, where the
+               same cards are half the width; a fixed 2px there would be twice
+               the gesture. */
             .service-card:hover,
             .barber-card:hover,
-            .gallery-img:hover  { transform: translateY(-3px); box-shadow: var(--lift-2); }
+            .gallery-img:hover  { transform: translateY(-3px) scale(1.005);
+                                  box-shadow: var(--lift-2); }
         }
 
         /* ---- Where the keyboard is -------------------------------------
@@ -3865,7 +3879,12 @@
             const toastMsg = currentLang === 'nl' ? 'Boeking succesvol geannuleerd' : 'Booking cancelled successfully';
             showToast(toastMsg, 'success');
 
-            await loadMyBookings(b.phone);
+            // Silent: the list is being refreshed because we just emptied it.
+            // Cancelling your only appointment answered "cancelled" and then
+            // "no upcoming appointments found for that number" in red, one
+            // above the other — the second one reporting the first one's work
+            // as a failure.
+            await loadMyBookings(b.phone, true);
 
             // Free the slot up in the picker if that date is on screen.
             const dateEl = document.getElementById('date');
