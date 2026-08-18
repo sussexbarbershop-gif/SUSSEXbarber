@@ -332,5 +332,57 @@ ok('reduced motion is honoured', reduced.length > 0, true);
 ok('including the press state', /:active[^}]*transform:\s*none/.test(reduced), true);
 ok('and the durations go to nothing', /--press:\s*0/.test(reduced), true);
 
+
+console.log('--- hover latches on a touch screen ---');
+// Reported from a phone: tap the EN button once and it keeps its filled
+// background for ever. That is not the button. There is no pointer to leave,
+// so :hover latches on tap and stays until something else is tapped — and
+// every hover: class on the page had it. The language button was simply where
+// it showed, being the only control whose resting state is transparent and
+// whose hover state is a solid fill.
+const twCfg = fs.readFileSync(path.join(root, 'tailwind.config.js'), 'utf8');
+ok('every hover: utility asks whether there is a pointer',
+   /hoverOnlyWhenSupported:\s*true/.test(twCfg), true);
+// And the built sheet is where that either happened or did not.
+{
+  const built = fs.readFileSync(path.join(root, 'assets', 'tailwind.css'), 'utf8');
+  const guard = built.indexOf('@media (hover:hover)');
+  ok('the compiled sheet has the guard', guard > -1, true);
+  ok('and not one :hover rule sits outside it',
+     (built.slice(0, guard).match(/:hover/g) || []).length, 0);
+}
+// The panel is hand-written CSS and had twenty-five of the same.
+{
+  const panel = fs.readFileSync(path.join(root, 'admin', 'admin.css'), 'utf8');
+  let inQuery = false;
+  const loose = [];
+  panel.split('\n').forEach(line => {
+    if (/@media[^{]*\(hover:/.test(line)) { inQuery = true; return; }
+    if (inQuery && /^\}/.test(line)) { inQuery = false; return; }
+    if (inQuery) return;
+    if (!line.includes(':hover')) return;
+    // A scrollbar is not a control and cannot latch on a tap.
+    if (line.trim().startsWith('::-webkit-scrollbar')) return;
+    loose.push(line.split('{')[0].trim().slice(0, 40));
+  });
+  ok('the panel has none left unguarded', loose, []);
+}
+
+console.log('--- the header is glass, not a lid ---');
+// bg-white/90 is ninety per cent opaque, which is a solid bar with a rounding
+// error: scroll down and the header simply goes dark.
+ok('the scrolled state is see-through', /nav:not\(\.at-top\) \{[^}]*rgba\(255, 255, 255, \.6/.test(style), true);
+ok('with a real blur behind it', /nav:not\(\.at-top\) \{[^}]*backdrop-filter: blur\(18px\)/.test(style), true);
+// Blurred colour goes grey without it, and glass over a photograph then looks
+// like frosted plastic.
+ok('and saturation, or the colour goes grey', /saturate\(160%\)/.test(style), true);
+// Safari still wants the prefix; without it iOS renders the transparency and
+// none of the blur, which is a smear rather than glass.
+ok('prefixed for Safari', /-webkit-backdrop-filter: blur\(18px\)/.test(style), true);
+// Sixty per cent with nothing behind it is text over whatever is scrolling
+// past. Glass is an enhancement; legibility is not.
+ok('and an opaque fallback where blur is unsupported',
+   /@supports not \(backdrop-filter: blur\(1px\)\)/.test(style), true);
+
 console.log(failed === 0 ? '\nAll touch tests passed.' : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);

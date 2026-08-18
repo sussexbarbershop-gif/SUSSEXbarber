@@ -287,6 +287,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('visibilitychange', () => {
         if (!document.hidden) fetchLiveBookings();
     });
+
+    // And the customer reminders, which have no reliable scheduler of their
+    // own. See keepRemindersRunning() for why the panel carries them.
+    startReminderChecks();
 });
 
 // ---- Auth ----
@@ -2389,6 +2393,49 @@ function reportsMarkup(d) {
 let currentWeekOffset = 0;
 
 let bookingsFetchInFlight = false;
+
+/**
+ * Keep the customer reminders going while the panel is open.
+ *
+ * They are supposed to come from a scheduler. GitHub Actions is meant to call
+ * the same round every quarter of an hour and did not run once in twelve hours
+ * across two schedules — which is documented behaviour rather than a fault: a
+ * scheduled run "can be delayed during periods of high load" and at peak times
+ * "may not run at all". For an email that has to arrive an hour before an
+ * appointment, best-effort is not a schedule.
+ *
+ * So the panel carries it too, and the fit is better than it sounds: this is
+ * open behind the counter through exactly the hours reminders are wanted, and
+ * a shop with nobody looking at the diary has no appointments to remind
+ * anybody about.
+ *
+ * Nothing is shown for it. A barber did not ask for this and must never be
+ * told about it — not when it works, and not when it fails. It is housekeeping
+ * that happens to run in their browser. The server decides who to write to and
+ * records who has been written to, so two triggers arriving together send one
+ * email between them.
+ */
+const REMINDER_CHECK_MINUTES = 5;
+
+async function keepRemindersRunning() {
+    if (!adminPassword) return;
+    try {
+        await apiPost({ action: 'runReminders', password: adminPassword });
+    } catch (err) {
+        // Deliberately silent. The scheduler is the other way this happens,
+        // and a barber cannot act on this failing.
+    }
+}
+
+function startReminderChecks() {
+    keepRemindersRunning();
+    setInterval(keepRemindersRunning, REMINDER_CHECK_MINUTES * 60 * 1000);
+    // A panel left open overnight has a browser that suspended its timers. The
+    // first thing that happens when the shop picks it up again is a check.
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) keepRemindersRunning();
+    });
+}
 
 async function fetchLiveBookings() {
     // One at a time. The backend is slow enough that a second call started

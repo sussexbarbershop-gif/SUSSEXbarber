@@ -666,7 +666,77 @@
             box-shadow: none;
             backdrop-filter: blur(2px);
         }
-        nav:not(.at-top) { box-shadow: var(--lift-1); }
+        /* Glass, not a lid. Tailwind's bg-white/90 on this element is ninety
+           per cent opaque, which is a solid bar with a rounding error — scroll
+           down and the header simply goes dark.
+
+           Sixty per cent with a real blur behind it is the other thing
+           entirely: you can see the page moving underneath, which is what
+           makes it read as a layer of the page rather than a strip laid over
+           it. The saturate is what stops blurred colour going grey; without
+           it, glass over a photograph looks like frosted plastic.
+
+           -webkit- as well, which Safari still wants. Without it iOS renders
+           the sixty per cent and none of the blur, and the header there is a
+           translucent smear rather than glass. */
+        nav:not(.at-top) {
+            background-color: rgba(255, 255, 255, .62);
+            backdrop-filter: blur(18px) saturate(160%);
+            -webkit-backdrop-filter: blur(18px) saturate(160%);
+            box-shadow: var(--lift-1);
+        }
+        @media (prefers-color-scheme: dark) {
+            nav:not(.at-top) { background-color: rgba(18, 18, 18, .55); }
+        }
+        /* A browser that cannot blur gets the opaque bar back, because sixty
+           per cent with nothing behind it is text over whatever is scrolling
+           past. Glass is an enhancement; legibility is not. */
+        @supports not (backdrop-filter: blur(1px)) {
+            nav:not(.at-top) { background-color: rgba(255, 255, 255, .95); }
+        }
+        @supports not (backdrop-filter: blur(1px)) {
+            @media (prefers-color-scheme: dark) {
+                nav:not(.at-top) { background-color: rgba(18, 18, 18, .95); }
+            }
+        }
+
+        /* ---- The same glass, everywhere it belongs ----------------------
+           The menu and the two picker sheets were all ninety-five per cent or
+           solid, with a blur behind them doing nothing anybody could see. They
+           cover the page rather than replace it, and being able to make out
+           what is underneath is what says so.
+
+           Heavier blur than the header, because these cover more: at this
+           opacity a thin blur leaves the page legible through the panel and
+           the words on it competing with the words behind. */
+        #mobileMenu {
+            background-color: rgba(255, 255, 255, .72);
+            backdrop-filter: blur(28px) saturate(170%);
+            -webkit-backdrop-filter: blur(28px) saturate(170%);
+        }
+        .sheet-panel {
+            background-color: rgba(255, 255, 255, .78);
+            backdrop-filter: blur(28px) saturate(170%);
+            -webkit-backdrop-filter: blur(28px) saturate(170%);
+        }
+        @media (prefers-color-scheme: dark) {
+            #mobileMenu  { background-color: rgba(18, 18, 18, .68); }
+            .sheet-panel { background-color: rgba(24, 24, 24, .74); }
+        }
+        /* The veil behind a sheet was already blurred; it only ever needed to
+           be less black, now that the sheet itself is not a solid slab. */
+        .sheet-veil { background-color: rgba(0, 0, 0, .38) !important; }
+
+        @supports not (backdrop-filter: blur(1px)) {
+            #mobileMenu  { background-color: rgba(255, 255, 255, .97); }
+            .sheet-panel { background-color: rgba(255, 255, 255, .98); }
+        }
+        @supports not (backdrop-filter: blur(1px)) {
+            @media (prefers-color-scheme: dark) {
+                #mobileMenu  { background-color: rgba(18, 18, 18, .97); }
+                .sheet-panel { background-color: rgba(24, 24, 24, .98); }
+            }
+        }
         /* Over the hero photograph the links have to be legible against a dark
            image regardless of the device's theme, and the shop's own light
            theme would otherwise put charcoal text on it. */

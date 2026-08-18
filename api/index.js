@@ -390,6 +390,35 @@ async function handlePost(req, res) {
   // refuseBooking says why at each of them. A second way to write a row would
   // have been a second set of rules to keep in step, and they would not have
   // stayed in step.
+
+  // The reminders, run off the panel being open.
+  //
+  // They are meant to come from a scheduler, and the scheduler is the part
+  // that does not work. GitHub Actions runs this every quarter of an hour on
+  // paper; in practice it did not run once in twelve hours across two
+  // schedules, which is behaviour GitHub documents rather than a fault — the
+  // schedule event "can be delayed during periods of high load" and at peak
+  // times "may not run at all". For something that has to happen an hour
+  // before an appointment, best-effort is not a schedule.
+  //
+  // So the panel carries it as well. That is not a workaround dressed up: the
+  // panel is open behind the counter through exactly the hours reminders are
+  // wanted, and a shop with nobody looking at the diary has no appointments
+  // to remind anybody about. The two triggers are independent and neither
+  // knows about the other; whichever arrives first does the work, and the
+  // second finds the rows already marked and sends nothing.
+  //
+  // The panel password, not CRON_SECRET: the browser must never hold that,
+  // and this action can do nothing the panel cannot already do.
+  if (action === 'runReminders') {
+    if (!isAuthorized(payload)) {
+      await throttleFailedLogin();
+      return json(res, { status: 'error', message: 'Unauthorized' }, 401);
+    }
+    const { runDailyJob } = require('./daily');
+    const result = await runDailyJob('soon');
+    return json(res, Object.assign({ status: 'success' }, result));
+  }
   if (action === 'addBookingByShop') {
     if (!isAuthorized(payload)) {
       await throttleFailedLogin();

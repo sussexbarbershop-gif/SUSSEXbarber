@@ -9,6 +9,22 @@ module.exports = {
   // prefers-color-scheme query instead of waiting for a class on <html>, so
   // there is nothing to toggle and nothing to remember between visits.
   darkMode: 'media',
+
+  // Every `hover:` utility becomes @media (hover: hover), which is the fix for
+  // a bug reported from a phone: tap the EN button once and it keeps its filled
+  // background for ever.
+  //
+  // That is not the button. On a touch screen there is no pointer to leave, so
+  // :hover latches on tap and stays until something else is tapped — and every
+  // hover: class on the page had it. The language button was simply the one
+  // where it showed, because it is the only control whose resting state is
+  // transparent and whose hover state is a solid fill.
+  //
+  // A device with a real pointer is unaffected: it has a pointer, so the query
+  // matches and hover works exactly as before.
+  future: {
+    hoverOnlyWhenSupported: true,
+  },
   theme: {
     extend: {
       colors: {
