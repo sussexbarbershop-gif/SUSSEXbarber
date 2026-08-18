@@ -13,6 +13,12 @@
 // link that cancelled on being opened would cancel appointments nobody clicked.
 const path = require('path');
 
+// The key the links are signed with. It used to be ADMIN_PASSWORD, until the
+// day the panel password was changed and every cancel button in every
+// confirmation already sent died quietly. It has its own key now, kept in the
+// settings table, which nothing routine rotates.
+const KEY = 'a-signing-key-that-is-not-a-password';
+
 let rows = {};            // id -> booking row
 let updated = [];         // ids the UPDATE actually touched
 
@@ -31,6 +37,8 @@ const fakeSql = (strings, ...values) => {
     return Promise.resolve(row ? [row] : []);
   }
   if (/INSERT INTO rate_limit/.test(sql)) return Promise.resolve([{ hits: 1 }]);
+  // The key cancel links are signed with, which the route reads on every call.
+  if (/cancel_key/.test(sql)) return Promise.resolve([{ value: KEY }]);
   return Promise.resolve([]);
 };
 
@@ -91,31 +99,36 @@ const reset = () => { rows = {}; updated = []; posted = []; };
 
 async function main() {
   console.log('--- what a token is, and is not ---');
-  const good = auth.cancelToken(41);
+  const good = auth.cancelToken(41, KEY);
   ok('a token names its booking', good.split('.')[0], '41');
-  ok('and reads back as it', auth.bookingFromCancelToken(good), 41);
+  ok('and reads back as it', auth.bookingFromCancelToken(good, KEY), 41);
 
   // The whole point. Editing the id must not produce a working token, or one
   // customer's email cancels another customer's appointment.
   ok('the id cannot be edited',
-     auth.bookingFromCancelToken('42.' + good.split('.')[1]), 0);
+     auth.bookingFromCancelToken('42.' + good.split('.')[1], KEY), 0);
   ok('nor the signature',
-     auth.bookingFromCancelToken('41.' + 'f'.repeat(32)), 0);
-  ok('a token with no signature', auth.bookingFromCancelToken('41'), 0);
-  ok('an empty one', auth.bookingFromCancelToken(''), 0);
-  ok('nothing at all', auth.bookingFromCancelToken(null), 0);
+     auth.bookingFromCancelToken('41.' + 'f'.repeat(32), KEY), 0);
+  ok('a token with no signature', auth.bookingFromCancelToken('41', KEY), 0);
+  ok('an empty one', auth.bookingFromCancelToken('', KEY), 0);
+  ok('nothing at all', auth.bookingFromCancelToken(null, KEY), 0);
   // '1e3' is 1000 to Number() and would sign as a different row than it reads.
-  ok('a number that is not an id', auth.bookingFromCancelToken('1e3.x'), 0);
-  ok('and zero is not a booking', auth.bookingFromCancelToken(auth.cancelToken(0)), 0);
+  ok('a number that is not an id', auth.bookingFromCancelToken('1e3.x', KEY), 0);
+  ok('and zero is not a booking', auth.bookingFromCancelToken(auth.cancelToken(0, KEY), KEY), 0);
 
-  // Changing the panel password invalidates links already sent. That is a fair
-  // outcome for a thing that happens once a year, and it must actually happen
-  // rather than being assumed.
+  // The panel password must not touch these, and this is the assertion that
+  // stops the first version coming back. Tokens were signed with
+  // ADMIN_PASSWORD, on the reasoning that it changes once a year; then it was
+  // changed, and every cancel button in every confirmation already sitting in
+  // a customer's inbox stopped working that hour, with nothing to say so.
   process.env.ADMIN_PASSWORD = 'a-new-password';
-  ok('an old link stops working when the password changes',
-     auth.bookingFromCancelToken(good), 0);
+  ok('an old link survives a password change',
+     auth.bookingFromCancelToken(good, KEY), 41);
   process.env.ADMIN_PASSWORD = 'the-panel-password';
-  ok('and works again when it is put back', auth.bookingFromCancelToken(good), 41);
+  // Its own key is the only thing that invalidates one, which is the whole
+  // reason it has one.
+  ok('but not a different signing key',
+     auth.bookingFromCancelToken(good, 'a-different-key'), 0);
 
   console.log('--- looking at what a link points to ---');
   reset();
@@ -162,7 +175,7 @@ async function main() {
   reset();
   rows[41] = booking(41);
   rows[42] = booking(42);
-  await post({ action: 'cancelByLink', token: auth.cancelToken(42) });
+  await post({ action: 'cancelByLink', token: auth.cancelToken(42, KEY) });
   ok('only theirs goes', updated, [42]);
   ok('and 41 is untouched', rows[41].status, 'active');
 
@@ -200,11 +213,21 @@ async function main() {
        fs.readFileSync(path.join(__dirname, '..', 'api', '_lib', 'mail.js'), 'utf8')), true);
   const index = fs.readFileSync(path.join(__dirname, '..', 'api', 'index.js'), 'utf8');
   ok('and the booking hands one back', /RETURNING id/.test(index), true);
-  ok('signed over the row that was written', /cancelToken\(written\.id\)/.test(index), true);
+  ok('signed over the row that was written',
+     /cancelToken\(written\.id, await getCancelKey\(\)\)/.test(index), true);
+  // Never the password, in either direction. The comments below that line say
+  // ADMIN_PASSWORD out loud — they are the record of why not — so the comments
+  // come out before looking.
+  const cancelCode = fs.readFileSync(
+      path.join(__dirname, '..', 'api', '_lib', 'auth.js'), 'utf8')
+    .split('Cancelling from the email')[1]
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/.*/g, '');
+  ok('and never with the panel password', /ADMIN_PASSWORD/.test(cancelCode), false);
   // The morning of the appointment is when a customer discovers they cannot
   // come, so it is the email where saying so easily is worth the most.
   ok('the reminder carries one too',
-     /cancelToken\(row\.id\)/.test(
+     /cancelToken\(row\.id, cancelKey\)/.test(
        fs.readFileSync(path.join(__dirname, '..', 'api', 'daily.js'), 'utf8')), true);
 
   console.log(failed === 0 ? '\nAll cancel link tests passed.' : `\n${failed} FAILED`);

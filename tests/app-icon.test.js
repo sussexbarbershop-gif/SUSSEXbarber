@@ -39,7 +39,7 @@ console.log('--- what a save must not destroy ---');
 // upload and never appear in the Website Text form, so without this the next
 // text edit would take the shop's icon off every phone it is installed on.
 ok('the icon settings survive a prune',
-   /KEPT_SETTINGS = \['visit_count'\]\.concat\(/.test(api), true);
+   /KEPT_SETTINGS = \[[^\]]*\][\s\S]{0,40}\.concat\(require\('\.\/_lib\/icons'\)\.ICON_SETTINGS\)/.test(api), true);
 ok('and there are some to keep',
    /ICON_SETTINGS = Object\.values\(SETTING_FOR\)/.test(icons), true);
 

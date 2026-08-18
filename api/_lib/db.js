@@ -166,6 +166,38 @@ async function markJobRun(job) {
     ON CONFLICT (job) DO UPDATE SET ran_at = now()`);
 }
 
+/**
+ * The key the cancel links in emails are signed with.
+ *
+ * Made once, on the first booking that needs one, and left alone after that.
+ * It lives in the settings table rather than in the environment for one
+ * reason: an environment variable is something a person edits, and the first
+ * version of this signed with ADMIN_PASSWORD — so the day the panel password
+ * was changed, every cancel button in every confirmation already sent stopped
+ * working, silently, with no way for anybody to find out. A key nobody has a
+ * reason to touch does not have that failure.
+ *
+ * Cached per process, because it is read on every booking and every click of
+ * a cancel link and it never changes.
+ *
+ * `ON CONFLICT DO NOTHING` then read back, rather than read-then-write: two
+ * bookings arriving together would otherwise each make a key and the second
+ * would overwrite the first, invalidating a link sent a moment earlier.
+ */
+let cancelKey = null;
+
+async function getCancelKey() {
+  if (cancelKey) return cancelKey;
+  const sql = db();
+  const fresh = require('crypto').randomBytes(32).toString('hex');
+  await sql`
+    INSERT INTO settings (key, value) VALUES ('cancel_key', ${fresh})
+    ON CONFLICT (key) DO NOTHING`;
+  const rows = await sql`SELECT value FROM settings WHERE key = 'cancel_key'`;
+  cancelKey = String((rows[0] || {}).value || '');
+  return cancelKey;
+}
+
 /** 'HH:MM:SS' or 'HH:MM' -> 'HH:MM'. Postgres returns seconds; nobody wants them. */
 function hhmm(value) {
   if (!value) return '';
@@ -324,4 +356,4 @@ async function customerFor({ phone, name, email }) {
 module.exports = { db, customerFor, readConfig, readRotaConfig, hhmm, isoToIndex, indexToIso,
                    WEEKDAY_NAMES, WEEKDAY_NL,
                    ensureSchema, withNewSchema, isMissingSchema,
-                   claimJobRun, markJobRun };
+                   claimJobRun, markJobRun, getCancelKey };

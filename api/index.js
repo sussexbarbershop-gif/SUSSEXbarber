@@ -21,7 +21,7 @@
  */
 
 const { db, readConfig, readRotaConfig, indexToIso, WEEKDAY_NAMES,
-        withNewSchema, customerFor, claimJobRun } = require('./_lib/db');
+        withNewSchema, customerFor, claimJobRun, getCancelKey } = require('./_lib/db');
 const rota = require('./_lib/rota');
 const { isAuthorized, isPinCorrect, isOwner, reportsPinIsSet, issueUnlockPass,
         UNLOCK_MINUTES, throttleFailedLogin, resetFailedLogins,
@@ -754,7 +754,7 @@ async function addBooking(payload, res, byShop) {
     lang: written.lang,
     // Signed over this row's id alone, so the link in the email can do one
     // thing to one appointment and nothing else at all.
-    cancelToken: cancelToken(written.id)
+    cancelToken: cancelToken(written.id, await getCancelKey())
   });
   await Promise.allSettled([
     // Not when the shop typed it in. The notification exists to tell the shop
@@ -853,7 +853,7 @@ async function insertBooking(sql, ctx) {
  * cancelled twice needs to be told it is done, not shown an error.
  */
 async function lookupCancel(payload, res) {
-  const id = bookingFromCancelToken(payload.token);
+  const id = bookingFromCancelToken(payload.token, await getCancelKey());
   if (!id) return json(res, { status: 'error', message: 'That link is not valid any more.' });
 
   const sql = db();
@@ -883,7 +883,7 @@ async function lookupCancel(payload, res) {
 
 /** Cancel the one appointment the token names. */
 async function cancelByLink(payload, res) {
-  const id = bookingFromCancelToken(payload.token);
+  const id = bookingFromCancelToken(payload.token, await getCancelKey());
   if (!id) return json(res, { status: 'error', message: 'That link is not valid any more.' });
 
   const sql = db();
@@ -1133,8 +1133,15 @@ const SITE_SETTINGS = ['hero_title', 'hero_subtitle', 'about_text',
  * The icon URLs are the same shape of thing: written by uploadAppIcon, never
  * present in the Website Text form, and a save that pruned them would take the
  * shop's icon off the home screen of every phone it is on.
+ *
+ * And cancel_key, which signs the cancel button in every confirmation email.
+ * Losing it is the quietest failure of the three: the next booking makes a new
+ * key, everything the shop can see keeps working, and only the links already
+ * sitting in customers' inboxes stop — which the shop hears about, if at all,
+ * as customers ringing up to cancel.
  */
-const KEPT_SETTINGS = ['visit_count'].concat(require('./_lib/icons').ICON_SETTINGS);
+const KEPT_SETTINGS = ['visit_count', 'cancel_key']
+  .concat(require('./_lib/icons').ICON_SETTINGS);
 
 /**
  * Replace the site's content with what the panel sent.

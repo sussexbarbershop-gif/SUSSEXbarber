@@ -36,7 +36,7 @@
  *                 leave open while somebody remembers to configure it.
  */
 
-const { db, readConfig, withNewSchema, markJobRun } = require('./_lib/db');
+const { db, readConfig, withNewSchema, getCancelKey, markJobRun } = require('./_lib/db');
 const rota = require('./_lib/rota');
 const { sendReminder, sendReviewRequest } = require('./_lib/mail');
 const { sweepOldCounters } = require('./_lib/limits');
@@ -238,6 +238,10 @@ async function sendReminders(sql, config, today, until) {
      ORDER BY booked_at
      LIMIT ${MOST_PER_RUN}`);
 
+  // Once for the whole run, not once per row: it is the same key every time
+  // and reading it is a round trip to the database.
+  const cancelKey = rows.length ? await getCancelKey() : '';
+
   let sent = 0;
   for (const row of rows) {
     const ok = await sendReminder({
@@ -250,7 +254,7 @@ async function sendReminders(sql, config, today, until) {
       // The morning of the appointment is when a customer discovers they
       // cannot come, so this is the email where saying so easily is worth the
       // most: a slot given back at nine can still be sold by two.
-      cancelToken: cancelToken(row.id)
+      cancelToken: cancelToken(row.id, cancelKey)
     }, config);
     // Marked only once it has actually gone. Marking first would mean a
     // provider having a bad five minutes costs those customers their reminder

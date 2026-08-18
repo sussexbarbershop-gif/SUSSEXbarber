@@ -117,6 +117,11 @@ ok('every setting the site reads survives a prune', missing, []);
 
 const kept = (api.match(/const KEPT_SETTINGS = \[([^\]]*)\]/) || ['', ''])[1];
 ok('the visit count is kept', /visit_count/.test(kept), true);
+// The key the cancel buttons are signed with. Pruning it would not break
+// anything the shop can see: the next booking makes a new one and carries on.
+// What stops is every link already sent, so this is worth an assertion rather
+// than a memory.
+ok('and the cancel signing key', /cancel_key/.test(kept), true);
 // barber_priority is sent by the panel, so it does not need keeping — but if
 // that ever changes, this is where it would have to be added.
 ok('and the panel sends the priority order',

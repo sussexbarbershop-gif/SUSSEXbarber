@@ -156,32 +156,40 @@ function resetFailedLogins(key) {
  * exactly one row. It is not a session, it grants nothing else, and it cannot
  * be edited into a token for somebody else's appointment.
  *
- * Signed with ADMIN_PASSWORD, the one secret always present. Changing the
- * panel password invalidates the links in emails already sent — those
- * customers see "we could not find that booking" and are told to call, which
- * is a fair outcome for a thing that happens once a year.
+ * Signed with a key of its own, which is the second version of this. It was
+ * ADMIN_PASSWORD — the one secret always present — on the reasoning that the
+ * panel password changes about once a year and those few customers being told
+ * to call was a fair price.
+ *
+ * Then the password was changed, and the price turned out to be every cancel
+ * link in every confirmation already sent, dying silently. Nobody would report
+ * it: a customer whose button says "we could not find that booking" rings the
+ * shop, and the shop hears a customer who wants to cancel.
+ *
+ * The key lives in the settings table now, made once and left alone. It is not
+ * anybody's password, so nothing routine rotates it, and a link in an email
+ * from six months ago still works.
  */
-function signCancel(id) {
-  const secret = String(process.env.ADMIN_PASSWORD || '');
-  return crypto.createHmac('sha256', secret)
+function signCancel(id, key) {
+  return crypto.createHmac('sha256', String(key || ''))
                .update('cancel:' + String(id)).digest('hex').slice(0, 32);
 }
 
-/** The token to put in a link, or '' when there is no secret to sign with. */
-function cancelToken(id) {
-  if (!process.env.ADMIN_PASSWORD || !id) return '';
-  return `${id}.${signCancel(id)}`;
+/** The token to put in a link, or '' when there is no key to sign with. */
+function cancelToken(id, key) {
+  if (!key || !id) return '';
+  return `${id}.${signCancel(id, key)}`;
 }
 
 /** The booking id a token stands for, or 0 if it does not stand for one. */
-function bookingFromCancelToken(token) {
-  if (!process.env.ADMIN_PASSWORD) return 0;
+function bookingFromCancelToken(token, key) {
+  if (!key) return 0;
   const [idPart, signature] = String(token || '').split('.');
   const id = Number(idPart);
   // A token for booking 0, or for "1e3", or for nothing at all.
   if (!Number.isInteger(id) || id <= 0 || !signature) return 0;
 
-  const expected = signCancel(id);
+  const expected = signCancel(id, key);
   if (signature.length !== expected.length) return 0;
   const ok = crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
   return ok ? id : 0;
