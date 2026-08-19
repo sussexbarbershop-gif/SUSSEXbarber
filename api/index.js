@@ -1022,7 +1022,16 @@ async function compressImage(bytes) {
 
   const base = sharp(bytes, { failOn: 'none' })
     .rotate()                 // honour the EXIF orientation before it is dropped
-    .resize({ width: MAX_EDGE, height: MAX_EDGE, fit: 'inside', withoutEnlargement: true });
+    .resize({ width: MAX_EDGE, height: MAX_EDGE, fit: 'inside', withoutEnlargement: true })
+    // Converted to sRGB and then *tagged* as sRGB. The tag is the part that
+    // matters: an untagged image is not a colour, it is a set of numbers with
+    // nothing saying what they mean. Chrome guesses sRGB and is right. Safari
+    // on an iPhone sends them to a Display P3 screen as they are — the same
+    // values across a wider space — so every colour sits deeper than it
+    // should and the shop's photographs come out heavy. Half a kilobyte of
+    // profile is what makes the two phones draw the same picture.
+    .toColourspace('srgb')
+    .withIccProfile('srgb');
 
   let out = null;
   for (const quality of QUALITY_STEPS) {

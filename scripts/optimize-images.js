@@ -15,6 +15,22 @@
  * again if a new one is added to /assets by hand.
  *
  *   npm run optimize:images
+ *
+ * Every image comes out tagged as sRGB, which is the fix for a difference
+ * reported holding the two phones side by side: the same photographs looked
+ * brighter and cleaner on Android than on the iPhone.
+ *
+ * Nothing was wrong with the pixels. sharp drops metadata unless told not to,
+ * so the colour profile went with it, and an untagged image is not a
+ * well-defined colour — it is a set of numbers with no statement of what they
+ * mean. Chrome fills the gap by assuming sRGB, which is what they were. An
+ * iPhone screen is Display P3, wider than sRGB, and Safari sends the numbers
+ * of an untagged image straight to it: the same values stretched across a
+ * bigger space, so every colour sits deeper than it should and a warm, dark
+ * photograph of a barber shop turns heavy.
+ *
+ * Saying sRGB out loud costs a few hundred bytes an image and means both
+ * browsers are drawing the same picture.
  */
 const fs = require('fs');
 const path = require('path');
@@ -41,6 +57,10 @@ async function optimize(file) {
     : null;
 
   let pipeline = resize ? img.resize(resize) : img;
+  // Whatever it arrived in — a camera's Display P3, somebody's Adobe RGB —
+  // converted to sRGB and then said so. Converting without tagging would be
+  // the same silence in a different colour space.
+  pipeline = pipeline.toColourspace('srgb').withIccProfile('srgb');
   if (ext === '.png') {
     pipeline = pipeline.png({ quality: PNG_QUALITY, compressionLevel: 9 });
   } else {
@@ -53,11 +73,18 @@ async function optimize(file) {
 
   // Only overwrite if it is actually smaller - a tiny icon-sized source run
   // back through an encoder can come out larger than it went in.
-  if (after < before) {
+  //
+  // Unless it has no colour profile, which is the one case where a few
+  // hundred bytes more is the whole point. Without this exception the rule
+  // above would have refused the fix on every image it applied to, quietly,
+  // and the script would have reported everything as already optimal.
+  const untagged = !meta.icc;
+  if (after < before || untagged) {
     fs.writeFileSync(full, buffer);
     console.log(
       `${file.padEnd(40)} ${(before / 1024).toFixed(0).padStart(6)} KB -> ${(after / 1024).toFixed(0).padStart(6)} KB` +
-      `  (${(100 - (100 * after / before)).toFixed(0)}% smaller)`
+      `  (${(100 - (100 * after / before)).toFixed(0)}% smaller)` +
+      (untagged ? '  +sRGB' : '')
     );
   } else {
     console.log(`${file.padEnd(40)} already smaller than a re-encode (${(before / 1024).toFixed(0)} KB) - left alone`);

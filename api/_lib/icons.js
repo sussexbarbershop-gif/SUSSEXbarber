@@ -98,6 +98,14 @@ async function makeIconSet(bytes) {
     const png = await sharp({
       create: { width: size, height: size, channels: 4, background: BACKGROUND }
     }).composite([{ input: fitted, gravity: 'centre' }])
+      // Tagged sRGB, for the same reason the photographs are: a canvas exports
+      // untagged, and an untagged icon on a Display P3 screen is drawn with
+      // the numbers taken literally rather than converted. It shows least on
+      // an icon, which is mostly one flat colour — but the one colour it has
+      // is the shop's charcoal, and it should be the same charcoal as the page
+      // behind it.
+      .toColourspace('srgb')
+      .withIccProfile('srgb')
       .png({ compressionLevel: 9 })
       .toBuffer();
     out.push({ file, bytes: png, setting: SETTING_FOR[file] });

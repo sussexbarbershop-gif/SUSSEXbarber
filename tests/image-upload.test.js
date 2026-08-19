@@ -60,5 +60,47 @@ console.log('--- the stored name matches the stored bytes ---');
 // only shows up in whatever reads the extension instead of the header.
 ok('always written as .jpg', /put\(`site\/\$\{name\}\.jpg`/.test(source), true);
 
+console.log('--- images that are the same colour on both phones ---');
+// Reported holding the two phones side by side: the same photographs looked
+// brighter and cleaner on the Android than on the iPhone. Nothing was wrong
+// with the pixels. sharp drops metadata unless it is told not to, and the
+// colour profile went with it — and an untagged image is not a colour, it is
+// a set of numbers with nothing saying what they mean. Chrome fills that in
+// with sRGB and is right. Safari sends them to an iPhone's Display P3 screen
+// as they are, the same values stretched across a wider space, so every
+// colour sits deeper than it should and a warm, dark photograph turns heavy.
+//
+// Read out of the bytes rather than through sharp, so this says the same
+// thing on a machine where sharp did not build.
+function saysWhatColourItIs(file) {
+  const bytes = fs.readFileSync(file);
+  // JPEG carries it in an APP2 segment that begins with this string.
+  if (bytes.includes(Buffer.from('ICC_PROFILE'))) return true;
+  // PNG has an iCCP chunk, or the sRGB chunk, which says the same thing in
+  // four bytes instead of five hundred.
+  return bytes.includes(Buffer.from('iCCP')) || bytes.includes(Buffer.from('sRGB'));
+}
+
+const assets = path.join(__dirname, '..', 'assets');
+const pictures = fs.readdirSync(assets).filter(n => /\.(jpe?g|png)$/i.test(n));
+ok('there are images to check', pictures.length > 0, true);
+// Every one of them, not most: the one that ships untagged is the one somebody
+// added by hand without running the script over it.
+ok('every image in the repository says it is sRGB',
+   pictures.filter(n => !saysWhatColourItIs(path.join(assets, n))), []);
+
+// And the two places that make new ones after this file was written.
+ok('a photo uploaded from the panel is tagged too',
+   /withIccProfile\('srgb'\)/.test(source), true);
+const iconSource = fs.readFileSync(path.join(__dirname, '..', 'api', '_lib', 'icons.js'), 'utf8');
+ok('and the icons, which come off a canvas untagged',
+   /withIccProfile\('srgb'\)/.test(iconSource), true);
+// Tagging makes a file slightly larger. A rule of "only write it if it shrank"
+// would therefore have refused this fix on every image it applied to, in
+// silence, while reporting them all as already optimal.
+const script = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'optimize-images.js'), 'utf8');
+ok('and the optimiser will write a file that grew by a profile',
+   /if \(after < before \|\| untagged\)/.test(script), true);
+
 console.log(failed ? `\n${failed} FAILED` : '\nAll image upload checks passed.');
 process.exit(failed ? 1 : 0);
