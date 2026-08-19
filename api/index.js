@@ -39,6 +39,15 @@ const { sendBookingNotice, sendCustomerConfirmation, sendCancellationNotice,
  */
 const BACKEND_VERSION = '12-neon';
 
+/**
+ * The deploy that is answering, as a short commit.
+ *
+ * Empty when running anywhere that is not Vercel, and the clients treat an
+ * empty one as "no opinion" rather than as a change — otherwise every local
+ * run would tell every page it was out of date.
+ */
+const RELEASE = String(process.env.VERCEL_GIT_COMMIT_SHA || '').slice(0, 7);
+
 /** The shop's clock, not the server's and not the visitor's. */
 const SHOP_TZ = process.env.SHOP_TIMEZONE || 'Europe/Amsterdam';
 
@@ -228,6 +237,15 @@ async function handleGet(req, res) {
     const config = await readConfig();
     config.status = 'success';
     config.backendVersion = BACKEND_VERSION;
+    // Which deploy this is. BACKEND_VERSION is bumped by hand and answers a
+    // different question — "has the protocol changed" — so it stays at
+    // 12-neon across a hundred fixes and cannot be used for this.
+    //
+    // Vercel sets the commit it built from on every deployment. A page that
+    // has been open since before a deploy sees this change and knows its own
+    // copy is stale, which is the only way it can know: the HTML is static, so
+    // it cannot carry a version of its own without a build step.
+    config.release = RELEASE;
     // The shop's date, so nothing downstream has to work it out from a device
     // clock. The panel was calling half past midnight in Amsterdam "yesterday",
     // which put the Today filter on the wrong day and marked tomorrow's

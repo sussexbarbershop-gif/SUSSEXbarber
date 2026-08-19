@@ -194,6 +194,48 @@ let timeOff = [];       // [{ barber, from, to, note }]
 // of drawing the placeholders as though they were the shop's real data.
 let cmsLoaded = false;
 
+/**
+ * Taking a fix to the shop, who have had this panel open since Tuesday.
+ *
+ * The same problem as the site has, and worse here: a tab that lives on a
+ * counter all day is never reloaded, and the people running it are the ones
+ * most likely to have reported the bug being fixed. They would go on seeing
+ * it, and reasonably conclude nothing had been done.
+ *
+ * Everything is served with max-age=0, must-revalidate, so a reload is always
+ * enough — the difficulty is only ever that nobody reloads. So the panel
+ * notices the deploy underneath it changing and fetches itself again.
+ *
+ * Not while there is unsaved work on screen. The icon editor is the one place
+ * that holds something the server has not got, and it already knows whether
+ * it does.
+ */
+let releaseWhenLoaded = '';
+let releaseNow = '';
+
+function noteRelease(data) {
+    const release = String((data && data.release) || '');
+    if (!release) return;                       // not a Vercel deploy: no opinion
+    if (!releaseWhenLoaded) releaseWhenLoaded = release;
+    releaseNow = release;
+}
+
+function reloadIfStale() {
+    if (!releaseWhenLoaded || !releaseNow) return;
+    if (releaseNow === releaseWhenLoaded) return;
+    if (typeof iconDirty !== 'undefined' && iconDirty) return;   // unsaved icon
+    if (document.querySelector('.modal-overlay.active')) return; // mid-edit
+    console.log('[release] ' + releaseWhenLoaded + ' -> ' + releaseNow + ', reloading');
+    window.location.reload();
+}
+
+// Coming back to the tab, which for a panel on a counter is the moment
+// somebody picks the phone up again.
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    fetchLiveCMS().then(reloadIfStale);
+});
+
 // ---- Init ----
 async function fetchLiveCMS() {
     try {
@@ -201,6 +243,7 @@ async function fetchLiveCMS() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (data.status !== 'success') throw new Error(data.message || 'bad response');
+        noteRelease(data);
 
         if (data.settings) {
             settings = data.settings;

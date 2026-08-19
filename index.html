@@ -4002,6 +4002,80 @@
         //    cache: 'no-store' everywhere below is deliberate. Apps Script
         //    responses are cacheable, and a cached copy means the owner
         //    changes a price and customers keep seeing the old one.
+        /**
+         * Taking a fix to somebody who already has the page open.
+         *
+         * A browser tab is fetched once. Everything served here says
+         * max-age=0, must-revalidate, so a *reload* always gets the new code —
+         * but an installed app is never reloaded. It is opened from the home
+         * screen, used, and put away, and iOS in particular brings it back
+         * from memory rather than fetching anything. A customer can be running
+         * a copy from three weeks ago and there is nothing on their screen to
+         * suggest it, which is how a fixed bug goes on being reported.
+         *
+         * So the page watches for the deploy underneath it changing, and
+         * fetches itself again when it does.
+         *
+         * Two rules about when, because a reload at the wrong moment is worse
+         * than the stale code it fixes:
+         *
+         *   - never while a booking is being made. Everything typed would go,
+         *     and the customer would be looking at an empty form with no idea
+         *     why. Being one deploy behind for another ten minutes costs
+         *     nothing; losing a half-filled booking loses the booking.
+         *   - only on the way back. The check runs when the app is brought to
+         *     the front after being away, which is the one moment a page
+         *     redrawing itself is invisible — it looks like the app opening,
+         *     because that is what it is.
+         *
+         * An empty release means the config came from somewhere that is not a
+         * Vercel deployment, and is treated as no opinion rather than as a
+         * change. Otherwise every local run would tell every page it was out
+         * of date.
+         */
+        let releaseWhenLoaded = '';
+        let releaseNow = '';
+
+        function noteRelease(config) {
+            const release = String((config && config.release) || '');
+            if (!release) return;
+            if (!releaseWhenLoaded) releaseWhenLoaded = release;
+            releaseNow = release;
+        }
+
+        /** Is somebody part-way through booking? Then nothing may touch it. */
+        function bookingInProgress() {
+            const form = document.getElementById('bookingForm');
+            if (!form) return false;
+            // Past the first step, which is where the diary is chosen.
+            for (const id of ['bookingStep2', 'bookingStep3', 'bookingStep4']) {
+                const step = document.getElementById(id);
+                if (step && !step.classList.contains('hidden')) return true;
+            }
+            // Or anything typed into it, even on the first step.
+            return [...form.querySelectorAll('input, textarea, select')]
+                .some(field => field.type !== 'hidden' && String(field.value || '').trim() !== '');
+        }
+
+        function reloadIfStale() {
+            if (!releaseWhenLoaded || !releaseNow) return;
+            if (releaseNow === releaseWhenLoaded) return;
+            if (bookingInProgress()) return;             // try again next time
+            console.log('[release] ' + releaseWhenLoaded + ' -> ' + releaseNow + ', reloading');
+            // replace() rather than reload(): a reload of a page that arrived
+            // by POST asks the browser to send it again, and the back button
+            // should not step through two copies of the same page.
+            window.location.replace(window.location.pathname + window.location.search);
+        }
+
+        // Coming back to the app is the moment to do this. It is also the only
+        // moment the check is free: the config is refetched anyway, because
+        // prices and opening hours may have changed while it was away.
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState !== 'visible') return;
+            fetchCMS().then(reloadIfStale);
+        });
+
         async function fetchCMS() {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 8000);
@@ -4010,6 +4084,7 @@
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const config = await res.json();
                 if (config.status !== 'success') throw new Error(config.message || 'bad response');
+                noteRelease(config);
                 applyConfig(config);
                 try { localStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify(config)); }
                 catch (err) { /* no room to remember it; the page is right anyway */ }

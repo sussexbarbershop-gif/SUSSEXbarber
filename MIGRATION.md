@@ -63,6 +63,7 @@ Optional:
 | `BLOB_READ_WRITE_TOKEN` | from Vercel → Storage → Blob | lets the panel upload gallery photos. Without it the rest of the panel works and only uploading is refused |
 | `SHOP_TIMEZONE` |  `Europe/Amsterdam` | already the default; only set it if the shop moves |
 | `SITE_URL` | `https://sussexbarber.nl` | already the default. Where the links in an email point — the cancel button in a confirmation is useless if it points at a preview deployment |
+| `VERCEL_GIT_COMMIT_SHA` | set by Vercel | nothing to configure. Vercel puts the commit it built on every deployment, and the config reports it as `release` so a page or a panel that has been open since before a deploy knows to fetch itself again. Empty anywhere else, which is read as no opinion |
 
 ---
 
