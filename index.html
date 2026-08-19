@@ -558,6 +558,14 @@
         .safe-bottom { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
         .safe-top    { padding-top: max(0px, env(safe-area-inset-top)); }
 
+        /* The menu covers the whole screen, status bar included, so its close
+           button needs the same room the header now takes. It is the one
+           control on the page that is pinned to the top of the viewport
+           rather than sitting inside the bar. */
+        #closeMobileMenuBtn {
+            top: calc(1.5rem + env(safe-area-inset-top));
+        }
+
         /* A sheet that has been scrolled to its end passes the scroll to the
            page behind it, which then moves under the sheet. `contain` stops
            that at the sheet's own edge. */
@@ -778,7 +786,26 @@
 
            Driven by a class the observer at the foot of the page adds, so
            there is no scroll listener running on every frame. */
+        /* Room for the clock and the battery.
+         *
+         * Two things had to both be true for this to matter, and they only
+         * became true together. viewport-fit=cover says the page may use the
+         * whole screen including the strip behind the status bar — it is there
+         * so env() resolves to something, which is what keeps the home
+         * indicator off the bottom of a sheet. And a home-screen app runs
+         * without any browser chrome above it. In Safari the address bar sat
+         * in that strip and there was nothing to notice; the moment the icon
+         * opened as an app, the header moved up into it and the clock landed
+         * on the shop's logo.
+         *
+         * So the bar reserves it. Outside a standalone app the inset is zero
+         * and this changes nothing, which is why it can be unconditional.
+         *
+         * Nothing else needs adjusting: --nav-h is measured from this element
+         * by a ResizeObserver, so the offset every in-page jump lands on grows
+         * with it on its own. */
         nav {
+            padding-top: env(safe-area-inset-top);
             transition: background-color var(--m3-long-2) var(--m3-standard),
                         border-color var(--m3-long-2) var(--m3-standard),
                         box-shadow var(--m3-long-2) var(--m3-standard),

@@ -109,6 +109,27 @@ ok('with a floor under it', /max\([^)]*env\(safe-area-inset-bottom\)/.test(style
 // And applied to something, not merely declared.
 ok('and applied to the sheets', (html.match(/class="[^"]*safe-bottom/g) || []).length >= 2, true);
 
+console.log('--- the status bar, once it opens as an app ---');
+// The mirror of the block above, and it only became visible when the icon
+// started opening as an app. viewport-fit=cover lets the page use the strip
+// behind the status bar; in Safari the address bar was in that strip and
+// there was nothing to see. Standalone, there is no address bar, so the
+// header moved up into it and the clock landed on the logo.
+ok('the header reserves the top inset',
+   /nav \{\s*padding-top: env\(safe-area-inset-top\);/.test(style), true);
+// Unconditional on purpose: off an iPhone the inset is zero and it does
+// nothing, so there is no state anybody has to be in for it to be right.
+ok('and does it without a media query around it',
+   /@media[^{]*\{[^}]*nav \{\s*padding-top: env\(safe-area-inset-top\)/.test(style), false);
+// The one control pinned to the top of the viewport rather than sitting in
+// the bar, so the bar's padding does not carry it.
+ok('the menu close button clears it too',
+   /#closeMobileMenuBtn \{\s*top: calc\(1\.5rem \+ env\(safe-area-inset-top\)\);/.test(style), true);
+// Every in-page jump lands on --nav-h, which is measured rather than written
+// down — so a header that grows by the inset moves them all with it.
+ok('and the jump offset is measured from the bar, not assumed',
+   html.includes('bar.getBoundingClientRect().height'), true);
+
 console.log('--- a sheet that has been scrolled to its end ---');
 // Otherwise the scroll passes through to the page, which then moves behind the
 // sheet that is still open on top of it.
