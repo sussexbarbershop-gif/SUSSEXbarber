@@ -566,6 +566,23 @@
             top: calc(1.5rem + env(safe-area-inset-top));
         }
 
+        /* And the other end of the same screen.
+         *
+         * The sheets and the menu have kept clear of the home indicator since
+         * they were built, because they are pinned to the bottom and it was
+         * obvious they would collide with it. The footer is not pinned to
+         * anything — it is simply the last thing on the page, which means it
+         * is what the bottom of the screen lands on once somebody scrolls all
+         * the way down. On an iPhone that is the home indicator across the
+         * shop's phone number; on Android 15, which draws apps edge to edge,
+         * it is the gesture bar.
+         *
+         * max(), so a phone with no indicator keeps the 2rem the design has
+         * rather than losing it to a zero inset. */
+        footer {
+            padding-bottom: max(2rem, env(safe-area-inset-bottom));
+        }
+
         /* A sheet that has been scrolled to its end passes the scroll to the
            page behind it, which then moves under the sheet. `contain` stops
            that at the sheet's own edge. */

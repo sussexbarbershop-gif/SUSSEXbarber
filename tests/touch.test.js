@@ -108,6 +108,13 @@ ok('safe-area is used', /env\(safe-area-inset-bottom\)/.test(style), true);
 ok('with a floor under it', /max\([^)]*env\(safe-area-inset-bottom\)/.test(style), true);
 // And applied to something, not merely declared.
 ok('and applied to the sheets', (html.match(/class="[^"]*safe-bottom/g) || []).length >= 2, true);
+// The footer is not pinned to the bottom, so it was not thought of as being
+// at the bottom — but it is what the edge of the screen lands on once the
+// page is scrolled to its end, with the shop's phone number on it. An iPhone
+// puts the home indicator there; Android 15 draws apps edge to edge and puts
+// the gesture bar there.
+ok('and to the footer, which is what the bottom of the page lands on',
+   /footer \{\s*padding-bottom: max\(2rem, env\(safe-area-inset-bottom\)\);/.test(style), true);
 
 console.log('--- the status bar, once it opens as an app ---');
 // The mirror of the block above, and it only became visible when the icon
