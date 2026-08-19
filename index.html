@@ -89,8 +89,8 @@
     <!-- The browser chrome around the page follows the device too. One value
          was pinned to the dark background, so a phone set to light got a black
          address bar above a white page. -->
-    <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#121212" media="(prefers-color-scheme: light)" id="themeColorLight">
+    <meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)" id="themeColorDark">
 
     <!-- Security Meta Tags -->
     <meta http-equiv="X-XSS-Protection" content="1; mode=block">
@@ -2079,10 +2079,52 @@
             sentinel.setAttribute('aria-hidden', 'true');
             sentinel.style.cssText = 'position:absolute;top:0;height:1px;width:1px;pointer-events:none';
             document.body.prepend(sentinel);
+
+            /**
+             * The strip Android paints above the app, kept level with whatever
+             * is under it.
+             *
+             * The two platforms disagree about where an app begins, and it
+             * shows. iOS was told the page may run under the status bar, so
+             * the hero photograph goes right to the top of the screen and the
+             * clock sits on it. Chrome does not do that: it paints a band of
+             * theme_color above the page and starts the page below it. There
+             * is nothing to opt out of.
+             *
+             * What is left is which colour that band is, and one value cannot
+             * be right for both states. Pinned to the light theme it was a
+             * white strip over a dark photograph; pinned dark it was a black
+             * strip over a light header once the page moved. Either way a
+             * visible seam across the top, and the seam is the whole of what
+             * makes it look unlike the iPhone.
+             *
+             * So it follows the header. Over the hero it is the hero's own
+             * charcoal and there is no seam to see — as close to the photo
+             * reaching the top as a platform that will not allow that can get.
+             * Once the page has moved it becomes the header's own colour, and
+             * the two read as one bar.
+             *
+             * Chrome applies a change to these live, which is what makes this
+             * possible at all. Safari reads them once and ignores the rest;
+             * that costs nothing, because iOS is the platform that did not
+             * need it.
+             */
+            const light = document.getElementById('themeColorLight');
+            const HERO = '#121212';                 // the photograph is dark in both themes
+            const HEADER_LIGHT = '#fafafa';         // the bar, on a phone set to light
+
+            function paintStatusBar(atTop) {
+                if (light) light.setAttribute('content', atTop ? HERO : HEADER_LIGHT);
+                // The dark one is charcoal in both states, so there is nothing
+                // to swap: the header and the hero are the same colour there.
+            }
+
             if (nav) {
                 nav.classList.add('at-top');
+                paintStatusBar(true);
                 new IntersectionObserver(([entry]) => {
                     nav.classList.toggle('at-top', entry.isIntersecting);
+                    paintStatusBar(entry.isIntersecting);
                 }).observe(sentinel);
             }
         }

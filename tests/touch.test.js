@@ -116,6 +116,28 @@ ok('and applied to the sheets', (html.match(/class="[^"]*safe-bottom/g) || []).l
 ok('and to the footer, which is what the bottom of the page lands on',
    /footer \{\s*padding-bottom: max\(2rem, env\(safe-area-inset-bottom\)\);/.test(style), true);
 
+console.log('--- the strip Android paints above the app ---');
+// The two platforms disagree about where an app begins. iOS was told the
+// page may run under the status bar, so the hero photograph goes to the top
+// of the screen. Chrome paints a band of theme_color above the page instead
+// and there is nothing to opt out of — so the only thing left to get right
+// is the colour of that band, and one value cannot suit both states.
+ok('the two theme colours can be found again',
+   /id="themeColorLight"/.test(html) && /id="themeColorDark"/.test(html), true);
+// Over the hero it must be the hero's own charcoal, or there is a seam
+// across the top of the screen — which is the whole of what made it look
+// unlike the iPhone.
+ok('it starts as the hero, not as the light theme',
+   /<meta name="theme-color" content="#121212"[^>]*prefers-color-scheme: light/.test(html), true);
+ok('and the header colour is what it changes to',
+   /HEADER_LIGHT = '#fafafa'/.test(html), true);
+// Painted from the same observer that decides the header's own state, so
+// the two cannot disagree about whether the page is at the top.
+ok('the strip and the header are decided together',
+   /classList\.toggle\('at-top', entry\.isIntersecting\);\s*paintStatusBar\(entry\.isIntersecting\);/.test(html), true);
+ok('and it is right before a scroll ever happens',
+   /nav\.classList\.add\('at-top'\);\s*paintStatusBar\(true\);/.test(html), true);
+
 console.log('--- the status bar, once it opens as an app ---');
 // The mirror of the block above, and it only became visible when the icon
 // started opening as an app. viewport-fit=cover lets the page use the strip
