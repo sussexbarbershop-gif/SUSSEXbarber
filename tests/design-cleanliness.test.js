@@ -208,5 +208,22 @@ ok('the resting state is visible, not invisible',
 ok('and a throw takes the whole thing back off',
    /catch \(err\)[\s\S]{0,200}classList\.remove\('scroll-linked'\)/.test(linked), true);
 
+// The three grids — services, the gallery, the barbers — are what a customer
+// actually scrolls through, and they were left on the observer when the
+// sections moved over. So the most-looked-at part of the page was the part
+// still arriving on a timer, which is most of what there was to notice.
+ok('the grids are scroll-linked too',
+   /html\.scroll-linked \.stagger > \* \{[^}]*opacity: var\(--p, 1\)/.test(site), true);
+// The container is held still. Each card enters when it personally comes
+// into view, so the grid sliding up as well would move every card twice.
+ok('and the grid itself is held still',
+   /html\.scroll-linked \.stagger \{[^}]*transform: none/.test(site), true);
+// Cards do not exist when the script runs: they are built from the shop's
+// configuration, which arrives from a cache or the network afterwards.
+ok('cards built later are registered when they appear',
+   /window\.__relinkReveals = register;/.test(site), true);
+ok('and applyConfig is what says so',
+   /function applyConfig\(config\)[\s\S]{0,400}__relinkReveals/.test(site), true);
+
 console.log(failed === 0 ? '\nAll design cleanliness tests passed.' : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);

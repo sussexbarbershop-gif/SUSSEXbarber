@@ -462,6 +462,30 @@
             will-change: auto;
         }
 
+        /* And the grids. Services, the gallery and the barbers are the three
+           blocks a customer actually scrolls through, so leaving them on the
+           observer meant the part of the page most looked at was the part
+           still arriving on a timer.
+
+           The container is held still, exactly as it is in the scroll-driven
+           block above: each card enters when it personally comes into view,
+           and the whole grid sliding up as well would move every card twice.
+           This comes after the .reveal rules because these grids carry both
+           classes and the two selectors weigh the same. */
+        html.scroll-linked .stagger {
+            opacity: 1;
+            transform: none;
+        }
+        html.scroll-linked .stagger > * {
+            opacity: var(--p, 1);
+            transform: translateY(calc((1 - var(--p, 1)) * 28px));
+            transition: none;
+        }
+        html.scroll-linked .stagger > *.settled {
+            opacity: 1;
+            transform: none;
+        }
+
         /* The two pickers, which had no movement at all. They were shown and
            hidden with `hidden`, so every duration set above them was applied to
            something that appeared and vanished between one frame and the next —
@@ -1897,18 +1921,21 @@
             try {
                 root.classList.add('scroll-linked');
 
-                // Where the movement finishes: thirty per cent through the
-                // element's pass across the screen, which is the same range as
-                // animation-range: entry 0% cover 30% above.
-                const RANGE = 0.30;
+                // Where the movement finishes: so far through the element's
+                // pass across the screen. The same two ranges the CSS above
+                // uses — entry 0% cover 30% for a section, cover 22% for a
+                // card, which is shorter because a card is smaller and would
+                // otherwise still be moving when it is level with the eye.
+                const WHAT_MOVES = [['.reveal', 0.30], ['.stagger > *', 0.22]];
                 const live = new Set();
+                const ranges = new WeakMap();
                 let queued = false;
 
                 function place(el) {
                     const box = el.getBoundingClientRect();
                     const screen = window.innerHeight;
                     const travelled = screen - box.top;
-                    const across = RANGE * (screen + box.height);
+                    const across = (ranges.get(el) || 0.30) * (screen + box.height);
                     let p = across > 0 ? travelled / across : 1;
                     p = p < 0 ? 0 : p > 1 ? 1 : p;
                     if (p >= 1) {
@@ -1949,11 +1976,28 @@
                 // pass drops every one that is already finished, so what is
                 // left is the handful still moving. Nothing has to be told
                 // which those are.
-                document.querySelectorAll('.reveal').forEach(el => {
-                    live.add(el);
-                    place(el);
-                    watcher.observe(el);
-                });
+                function register() {
+                    WHAT_MOVES.forEach(([selector, range]) => {
+                        document.querySelectorAll(selector).forEach(el => {
+                            if (ranges.has(el)) return;          // already ours
+                            // A grid carries .reveal as well as .stagger. Its
+                            // cards move; it does not, or everything in it
+                            // moves twice.
+                            if (el.classList.contains('stagger')) return;
+                            ranges.set(el, range);
+                            live.add(el);
+                            place(el);
+                            watcher.observe(el);
+                        });
+                    });
+                }
+                register();
+
+                // The three grids are filled from the shop's configuration,
+                // which arrives after this runs — from a cache a moment later,
+                // or from the network a moment after that. Their cards do not
+                // exist yet, so applyConfig says when they do.
+                window.__relinkReveals = register;
 
                 addEventListener('scroll', onScroll, { passive: true });
                 addEventListener('resize', onScroll, { passive: true });
@@ -2972,11 +3016,27 @@
 
             const isApple = /Mac|iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
+            // The date and time as the shop wrote them, not as this device's
+            // clock reads them: /api/event turns them into a real instant in
+            // the shop's timezone, so a customer whose phone is set to another
+            // country still gets the appointment at the hour they booked.
+            const slots = Math.max(1, Math.min(8, serviceCount));
+            const eventUrl = '/api/event?d=' + encodeURIComponent(b.date) +
+                             '&t=' + encodeURIComponent((b.time || '').slice(0, 5)) +
+                             '&n=' + slots +
+                             '&s=' + encodeURIComponent(b.service || '');
+
             if (isApple) {
-                // Generate ICS for Apple Calendar
-                const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Sussex Barber Shop//Booking//EN\nBEGIN:VEVENT\nUID:${Date.now()}@sussexbarber.com\nDTSTAMP:${formatCalDateUTC(new Date())}\nDTSTART:${formatCalDateUTC(dateObj)}\nDTEND:${formatCalDateUTC(endDate)}\nSUMMARY:Haircut at Sussex Barber Shop\nDESCRIPTION:Appointment for ${b.service}.\nLOCATION:Van Hogendorpstraat 10, 2242 KZ Wassenaar, Netherlands\nEND:VEVENT\nEND:VCALENDAR`;
-                // Opening data URI directly in iOS triggers the native "Add Event" sheet
-                window.location.assign('data:text/calendar;charset=utf8,' + encodeURIComponent(icsContent));
+                // A real URL, because a data: one is not navigable.
+                //
+                // This used to build the file here and hand it over with
+                // location.assign('data:text/calendar,…'), on the belief that
+                // iOS opens the Add Event sheet for it. It does — for a file
+                // it is given. It never got one: browsers have refused
+                // top-level navigation to a data: URL for years, and refusing
+                // it means doing nothing, with no error anywhere. The button
+                // was dead in silence for every customer who pressed it.
+                window.location.assign(eventUrl);
             } else {
                 // Use Google Calendar for Android and Windows
                 const title = encodeURIComponent("Haircut at Sussex Barber Shop");
@@ -3881,6 +3941,12 @@
         }
 
         function applyConfig(config) {
+            // The grids below are rebuilt from this, so anything scroll-linked
+            // has to be told about the new cards. Called at the end, once they
+            // exist. See scrollLinkedReveals(); on browsers that do this in
+            // CSS there is nothing here to call.
+            const linkNewCards = () => window.__relinkReveals && window.__relinkReveals();
+            setTimeout(linkNewCards, 0);
             const services = (config.services && config.services.length) ? config.services : DEFAULT_SERVICES;
             const hours = (config.hours && config.hours.length) ? config.hours : DEFAULT_HOURS;
 
