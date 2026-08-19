@@ -209,7 +209,36 @@ async function main() {
 
   console.error = realError;
   console.warn = realWarn;
-  console.log(failed === 0 ? '\nAll notification tests passed.' : `\n${failed} FAILED`);
+  console.log('--- two things that cannot both be true ---');
+// Reported with a screenshot: "Booking Confirmed!" on the page and a red
+// "Could not reach the server. Please try again." across the top of it, at the
+// same moment — and the shop had the email, so the booking was real.
+//
+// The booking had succeeded. What failed was the refresh of the customer's own
+// list, fired the instant the confirmation appears, further down a page nobody
+// is looking at yet. It was allowed to speak, so it contradicted the only
+// screen on the site where a customer has to be able to believe what they are
+// told.
+const site = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+ok('the refresh behind the confirmation is silent',
+   /loadMyBookings\(bookingData\.phone, true\)/.test(site), true);
+ok('and it is not the noisy call it used to be',
+   /loadMyBookings\(bookingData\.phone\);/.test(site), false);
+
+console.log('--- and when it does speak, it says what happened ---');
+// The rate limiter answers 429 with a sentence that explains itself and says
+// what to do instead. Reporting that as "could not reach the server" sends
+// somebody to check their wifi over a message that was already in their hand.
+ok('a refusal from the server is read rather than thrown away',
+   /err\.fromServer = said;/.test(site), true);
+ok('and it is what the customer is shown',
+   /showToast\(err\.fromServer \|\|/.test(site), true);
+// The old wording stays as the fallback, because a genuinely unreachable
+// server has nothing to say and that is exactly what it means.
+ok('with the old wording kept for when nothing answered at all',
+   /'Could not reach the server\. Please try again\.', 'error'\);/.test(site), true);
+
+console.log(failed === 0 ? '\nAll notification tests passed.' : `\n${failed} FAILED`);
   process.exit(failed === 0 ? 0 : 1);
 }
 

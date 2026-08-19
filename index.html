@@ -3105,7 +3105,17 @@
                 rememberPhone(bookingData.phone);
                 const lookupField = document.getElementById('lookupPhone');
                 if (lookupField) lookupField.value = bookingData.phone;
-                loadMyBookings(bookingData.phone);
+                // Silent, and that is the whole point of the flag here. This
+                // is a background refresh of a list further down the page,
+                // fired the instant the confirmation appears. Letting it speak
+                // put a red "could not reach the server" across the top of
+                // Booking Confirmed! — two flatly contradictory statements
+                // about the same booking, on the one screen where a customer
+                // has to be able to believe what they are told. The booking
+                // was made; the appointment is in the diary and the shop has
+                // been emailed. If this refresh fails, the list is stale, and
+                // nothing else is wrong.
+                loadMyBookings(bookingData.phone, true);
 
                 // Populate confirmation card
                 document.getElementById('confirmName').innerText = bookingData.name;
@@ -4462,7 +4472,17 @@
                 signal: controller.signal,
                 cache: 'no-store'
             });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            if (!res.ok) {
+                // The server answered — it simply said no. Rate limiting comes
+                // back as 429 with a sentence explaining itself, and reporting
+                // that as "could not reach the server" sends somebody to check
+                // their wifi over a message that was already in their hands.
+                let said = '';
+                try { said = ((await res.json()) || {}).message || ''; } catch (err) { said = ''; }
+                const err = new Error(`HTTP ${res.status}`);
+                err.fromServer = said;
+                throw err;
+            }
             const data = await res.json();
             // Filter by phone here as well as server-side, so a backend that
             // did not understand the action and answered with the whole diary
@@ -4471,7 +4491,10 @@
                 .filter(b => b && normalisePhone(b.phone) === digits);
         } catch (err) {
             console.warn('Could not load bookings for that number:', err);
-            if (!silent) showToast('Could not reach the server. Please try again.', 'error');
+            if (!silent) {
+                showToast(err.fromServer ||
+                          'Could not reach the server. Please try again.', 'error');
+            }
             return;
         } finally {
             clearTimeout(timeoutId);
