@@ -163,5 +163,50 @@ console.log('--- image filters left to do their job ---');
 ok('gallery photos are not run through a brightness/contrast stack',
    /brightness-90 contrast-125/.test(site), false);
 
+console.log('--- glass, on the phones that can draw it ---');
+// Safari only learned the unprefixed backdrop-filter in version 18. Every
+// iPhone on iOS 17 or below draws the -webkit- one and answers "no" to the
+// other, so a declaration without the prefix is a surface that is glass on
+// Android and flat on an iPhone.
+[['index.html', site], ['admin/admin.css', adminCssRules]].forEach(([name, css]) => {
+  const plain = (css.match(/(?<!-webkit-)backdrop-filter:/g) || []).length;
+  const prefixed = (css.match(/-webkit-backdrop-filter:/g) || []).length;
+  ok(name + ' spells it both ways everywhere', prefixed, plain);
+});
+// And the feature test has to ask about both, or it hands the fallback —
+// written for browsers that cannot blur at all — to one that can.
+const guards = [...site.matchAll(/@supports not \(([^{]*)\)\s*\{/g)].map(m => m[1]);
+const blind = guards.filter(g => /backdrop-filter/.test(g) && !/-webkit-backdrop-filter/.test(g));
+ok('and every @supports test asks about both', blind, []);
+
+console.log('--- reveals that follow the finger on Safari too ---');
+// Scroll-driven animations are what make the reveals track the scroll rather
+// than fire at a threshold. Safari only has them from version 26, so without
+// this an iPhone gets the same movement on a timer — which is the difference
+// the shop noticed holding the two phones side by side.
+const linked = (site.match(/\(function scrollLinkedReveals\(\)[\s\S]*?\n        \}\)\(\);/) || [''])[0];
+ok('there is a scroll-linked path at all', linked.length > 0, true);
+// It must not run where the CSS already does it, or every frame is paid for
+// twice on the phones that were fine.
+ok('it stands down where the browser does it in CSS',
+   /CSS\.supports\('animation-timeline', 'view\(\)'\)/.test(linked), true);
+ok('and where motion is not wanted',
+   /prefers-reduced-motion: reduce/.test(linked), true);
+// This runs while a finger is moving. A non-passive listener lets it block
+// the scroll it is meant to be following.
+ok('the scroll listener cannot block scrolling',
+   /addEventListener\('scroll', onScroll, \{ passive: true \}\)/.test(linked), true);
+ok('and no more than one frame is ever queued',
+   /if \(queued \|\| !live\.size\) return;/.test(linked), true);
+// A page that finishes reading should cost nothing to keep scrolling.
+ok('finished elements stop being measured',
+   /classList\.add\('settled'\)[\s\S]{0,120}live\.delete/.test(linked), true);
+// The failure that matters: --p defaults to the settled state, so a script
+// that never runs leaves a readable page rather than an empty one.
+ok('the resting state is visible, not invisible',
+   /opacity: var\(--p, 1\);/.test(site), true);
+ok('and a throw takes the whole thing back off',
+   /catch \(err\)[\s\S]{0,200}classList\.remove\('scroll-linked'\)/.test(linked), true);
+
 console.log(failed === 0 ? '\nAll design cleanliness tests passed.' : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);

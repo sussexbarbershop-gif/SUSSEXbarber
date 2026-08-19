@@ -297,7 +297,15 @@ ok('the links stay legible over the photograph',
 ok('driven by a sentinel', /sentinel/.test(html), true);
 ok('and an observer, not a scroll listener',
    /new IntersectionObserver\(\(\[entry\]\) => \{\s*nav\.classList\.toggle\('at-top'/.test(html), true);
-ok('nothing listens to scroll', /addEventListener\('scroll'/.test(html), false);
+// There is exactly one scroll listener in the page and it is not this one.
+// It belongs to the reveals, which track a position continuously and so
+// cannot be done with an observer; the header answers a yes-or-no question
+// that changes twice a visit, and paying for it on every frame would be the
+// mistake this has always been here to prevent.
+const scrollListeners = (html.match(/addEventListener\('scroll'/g) || []).length;
+ok('only one thing in the page listens to scroll', scrollListeners, 1);
+ok('and it is the reveals, not the header',
+   /scrollLinkedReveals[\s\S]*?addEventListener\('scroll'/.test(html), true);
 // It has to start in the at-top state, or the header is opaque for the moment
 // before the first callback arrives.
 ok('and it starts at the top', /nav\.classList\.add\('at-top'\)/.test(html), true);
@@ -381,8 +389,11 @@ ok('and saturation, or the colour goes grey', /saturate\(160%\)/.test(style), tr
 ok('prefixed for Safari', /-webkit-backdrop-filter: blur\(18px\)/.test(style), true);
 // Sixty per cent with nothing behind it is text over whatever is scrolling
 // past. Glass is an enhancement; legibility is not.
+// Asking about both spellings, because Safari before 18 answers "no" to the
+// unprefixed one while drawing the prefixed one perfectly — so a test of the
+// plain name alone took the glass off exactly the phones that had it.
 ok('and an opaque fallback where blur is unsupported',
-   /@supports not \(backdrop-filter: blur\(1px\)\)/.test(style), true);
+   /@supports not \(\(backdrop-filter: blur\(1px\)\) or \(-webkit-backdrop-filter: blur\(1px\)\)\)/.test(style), true);
 
 console.log(failed === 0 ? '\nAll touch tests passed.' : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);

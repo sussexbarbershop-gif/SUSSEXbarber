@@ -431,6 +431,37 @@
             }
         }
 
+        /* ---- The same thing again, for Safari --------------------------
+           Scroll-driven animations are what make the block above follow the
+           finger rather than fire at a threshold and play out on its own.
+           Safari only learned them in version 26, so every iPhone below that
+           — which is most of them — was getting the observer version: the
+           same distance and the same easing, but on a timer, arriving whether
+           you are still scrolling or have stopped. Next to an Android phone
+           it reads as the difference the shop noticed.
+
+           So the position is driven from --p instead, and the script at the
+           foot of the page sets --p from the scroll position on browsers that
+           need it. Same 28 pixels, same fade, same range.
+
+           --p defaults to 1, which is the settled state. If the script never
+           runs, never registers an element, or throws halfway, what is left
+           on screen is the page fully visible rather than a page of blank
+           space — the failure that matters here is not a missing animation. */
+        html.scroll-linked .reveal {
+            opacity: var(--p, 1);
+            transform: translateY(calc((1 - var(--p, 1)) * 28px));
+            transition: none;
+            will-change: opacity, transform;
+        }
+        /* Once it has arrived it is left alone, so a settled section is not a
+           style recalculation on every frame for the rest of the visit. */
+        html.scroll-linked .reveal.settled {
+            opacity: 1;
+            transform: none;
+            will-change: auto;
+        }
+
         /* The two pickers, which had no movement at all. They were shown and
            hidden with `hidden`, so every duration set above them was applied to
            something that appeared and vanished between one frame and the next —
@@ -751,13 +782,15 @@
             transition: background-color var(--m3-long-2) var(--m3-standard),
                         border-color var(--m3-long-2) var(--m3-standard),
                         box-shadow var(--m3-long-2) var(--m3-standard),
-                        backdrop-filter var(--m3-long-2) var(--m3-standard);
+                        backdrop-filter var(--m3-long-2) var(--m3-standard),
+                        -webkit-backdrop-filter var(--m3-long-2) var(--m3-standard);
         }
         nav.at-top {
             background-color: transparent;
             border-color: transparent;
             box-shadow: none;
             backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
         }
         /* Glass, not a lid. Tailwind's bg-white/90 on this element is ninety
            per cent opaque, which is a solid bar with a rounding error — scroll
@@ -783,11 +816,19 @@
         }
         /* A browser that cannot blur gets the opaque bar back, because sixty
            per cent with nothing behind it is text over whatever is scrolling
-           past. Glass is an enhancement; legibility is not. */
-        @supports not (backdrop-filter: blur(1px)) {
+           past. Glass is an enhancement; legibility is not.
+
+           Both spellings in the test, and that is not belt and braces. Safari
+           only learned the unprefixed property in version 18; every iPhone on
+           iOS 17 or older answers "no" to it while rendering the -webkit- one
+           above perfectly well. Testing the unprefixed name alone therefore
+           took the glass away from exactly the phones that had it, and left
+           them an opaque bar — the version written for browsers that cannot
+           blur at all, handed to one that can. */
+        @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
             nav:not(.at-top) { background-color: rgba(255, 255, 255, .95); }
         }
-        @supports not (backdrop-filter: blur(1px)) {
+        @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
             @media (prefers-color-scheme: dark) {
                 nav:not(.at-top) { background-color: rgba(18, 18, 18, .95); }
             }
@@ -820,11 +861,11 @@
            be less black, now that the sheet itself is not a solid slab. */
         .sheet-veil { background-color: rgba(0, 0, 0, .38) !important; }
 
-        @supports not (backdrop-filter: blur(1px)) {
+        @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
             #mobileMenu  { background-color: rgba(255, 255, 255, .97); }
             .sheet-panel { background-color: rgba(255, 255, 255, .98); }
         }
-        @supports not (backdrop-filter: blur(1px)) {
+        @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
             @media (prefers-color-scheme: dark) {
                 #mobileMenu  { background-color: rgba(18, 18, 18, .97); }
                 .sheet-panel { background-color: rgba(24, 24, 24, .98); }
@@ -1776,6 +1817,109 @@
         // and gets a better version, because each card enters on its own
         // rather than the group entering on a threshold. This is what
         // everybody else gets, and what the page has always done.
+        /**
+         * Scroll-linked reveals for browsers without animation-timeline.
+         *
+         * Chrome runs the CSS version above, off the compositor, and this does
+         * not run at all. Safari before 26 has no scroll-driven animations, so
+         * the reveals there fired on a threshold and played out on a timer —
+         * which is a different feeling entirely from one that tracks the
+         * finger, and is what the shop saw comparing the two phones.
+         *
+         * Kept cheap deliberately, because this is the main thread and it is
+         * running while a finger is moving:
+         *
+         *   - an IntersectionObserver decides what is worth measuring, so the
+         *     loop only ever touches elements that are actually on screen;
+         *   - one rAF per scroll event at most, and none at all while nothing
+         *     is in view;
+         *   - an element that has finished is marked settled and dropped, so
+         *     a long page does not accumulate work as it is read;
+         *   - only opacity and transform are written, which are the two things
+         *     that do not force layout.
+         *
+         * The whole thing is wrapped, and takes the class back off if anything
+         * in it throws. A page that does not animate is a small loss; a page
+         * left at opacity 0 is not a page.
+         */
+        (function scrollLinkedReveals() {
+            const hasTimeline = window.CSS && CSS.supports &&
+                                CSS.supports('animation-timeline', 'view()');
+            const stillMoving = !window.matchMedia ||
+                                !matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (hasTimeline || !stillMoving || !('IntersectionObserver' in window)) return;
+
+            const root = document.documentElement;
+            try {
+                root.classList.add('scroll-linked');
+
+                // Where the movement finishes: thirty per cent through the
+                // element's pass across the screen, which is the same range as
+                // animation-range: entry 0% cover 30% above.
+                const RANGE = 0.30;
+                const live = new Set();
+                let queued = false;
+
+                function place(el) {
+                    const box = el.getBoundingClientRect();
+                    const screen = window.innerHeight;
+                    const travelled = screen - box.top;
+                    const across = RANGE * (screen + box.height);
+                    let p = across > 0 ? travelled / across : 1;
+                    p = p < 0 ? 0 : p > 1 ? 1 : p;
+                    if (p >= 1) {
+                        el.classList.add('settled');
+                        el.style.removeProperty('--p');
+                        live.delete(el);
+                        return;
+                    }
+                    el.style.setProperty('--p', p.toFixed(3));
+                }
+
+                function draw() {
+                    queued = false;
+                    live.forEach(place);
+                }
+
+                function onScroll() {
+                    if (queued || !live.size) return;
+                    queued = true;
+                    requestAnimationFrame(draw);
+                }
+
+                const watcher = new IntersectionObserver(entries => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) { live.add(entry.target); place(entry.target); }
+                        else live.delete(entry.target);
+                    });
+                }, { rootMargin: '10% 0px 10% 0px' });
+
+                // Every element is placed once, now, from where the page
+                // actually is. Waiting for the observer's first callback would
+                // have been enough on a fast phone and a visible flash of the
+                // wrong state on a slow one — and a page restored part-way
+                // down, which is what coming back to a tab does, would have
+                // had everything above the fold start from nothing.
+                //
+                // They all go into the live set to begin with, and the first
+                // pass drops every one that is already finished, so what is
+                // left is the handful still moving. Nothing has to be told
+                // which those are.
+                document.querySelectorAll('.reveal').forEach(el => {
+                    live.add(el);
+                    place(el);
+                    watcher.observe(el);
+                });
+
+                addEventListener('scroll', onScroll, { passive: true });
+                addEventListener('resize', onScroll, { passive: true });
+            } catch (err) {
+                console.warn('[reveals] falling back to the observer', err);
+                root.classList.remove('scroll-linked');
+                document.querySelectorAll('.reveal').forEach(el => el.style.removeProperty('--p'));
+            }
+        })();
+
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (!entry.isIntersecting) return;
