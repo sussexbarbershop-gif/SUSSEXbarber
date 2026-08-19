@@ -116,6 +116,64 @@ ok('and applied to the sheets', (html.match(/class="[^"]*safe-bottom/g) || []).l
 ok('and to the footer, which is what the bottom of the page lands on',
    /footer \{\s*padding-bottom: max\(2rem, env\(safe-area-inset-bottom\)\);/.test(style), true);
 
+console.log('--- going to a section, at the same speed on both phones ---');
+// scroll-behavior: smooth is a yes or a no, and the two browsers answer it
+// at very different speeds: Chrome takes about half a second and it reads as
+// a journey, Safari does it in a fraction of that and it reads as a jump.
+// The only way to have one answer is to do the moving in script.
+ok('the page scrolls itself rather than asking the browser to',
+   /function smoothScrollTo\(target\)/.test(html), true);
+ok('over a duration the shop set',
+   /const TRAVEL = \d{3};/.test(html), true);
+// Decelerating, like everything else here: quick to leave, slow to arrive.
+ok('and an easing that settles rather than stops',
+   /const ease = t => 1 - Math\.pow\(1 - t, 3\);/.test(html), true);
+// A page that goes on scrolling somewhere while a finger is trying to
+// scroll it is worse than one that never animated: they have changed their
+// mind, and the animation has become an argument.
+ok('a touch stops it',
+   /addEventListener\('touchstart', giveUp, \{ passive: true, once: true \}\)/.test(html), true);
+ok('and so does a wheel',
+   /addEventListener\('wheel', giveUp, \{ passive: true, once: true \}\)/.test(html), true);
+ok('somebody who asked for less movement gets none of it',
+   /prefers-reduced-motion: reduce\)'\)\.matches\) \{\s*window\.scrollTo\(0, to\);/.test(html), true);
+// It has to clear the fixed header, which measures itself and grows by the
+// status bar in an installed app — so the number cannot be written down.
+ok('it stops clear of the header it measured',
+   /getPropertyValue\('--nav-h'\)/.test(html), true);
+// One listener. The page already had a delegated handler for these with a
+// decision in it about the address bar; a second would be two handlers
+// scrolling the same page at once, at two speeds.
+ok('only one thing handles an in-page link',
+   (html.match(/closest\('a\[href\^="#"\]'\)/g) || []).length, 1);
+ok('and it is the one that keeps the address bar clean',
+   /\(function keepTheAddressClean\(\)[\s\S]{0,600}smoothScrollTo\(target\)/.test(html), true);
+ok('which no longer asks the browser to do the scrolling',
+   /scrollIntoView\(\{ behavior: 'smooth', block: 'start' \}\);\s*return Boolean\(target\)/.test(html), false);
+
+console.log('--- pulling down to refresh, where the platform has none ---');
+// Android's app has this from Chrome. An iPhone app does not: a home-screen
+// app runs without Safari's chrome and pull-to-refresh went with it.
+ok('there is one', /function pullToRefresh\(\)/.test(html), true);
+// Only there. Where the browser already does this, a second one means two
+// indicators for one gesture.
+ok('and it stands down where the browser has its own',
+   /if \(!window\.navigator\.standalone\) return;/.test(html), true);
+// An ordinary scroll must never be intercepted by something guessing at
+// what it might become, so the gesture is only claimed when it cannot mean
+// anything else.
+ok('not while a sheet has the page pinned',
+   /if \(scrollHolders > 0 \|\| window\.scrollY > 0/.test(html), true);
+ok('not sideways', /Math\.abs\(dx\) > Math\.abs\(dy\)/.test(html), true);
+ok('and not until it has gone far enough down to be sure',
+   /if \(dy <= 12\) return;/.test(html), true);
+// preventDefault needs a non-passive listener, and it is the line that
+// stops the page scrolling — so it comes after the gesture is certain.
+ok('the move listener can actually stop the scroll',
+   /'touchmove'[\s\S]{0,1200}\{ passive: false \}/.test(html), true);
+ok('and the start listener does not, because it only ever reads',
+   /'touchstart'[\s\S]{0,600}\{ passive: true \}/.test(html), true);
+
 console.log('--- the strip Android paints above the app ---');
 // The two platforms disagree about where an app begins. iOS was told the
 // page may run under the status bar, so the hero photograph goes to the top

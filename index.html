@@ -582,6 +582,54 @@
         .safe-bottom { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
         .safe-top    { padding-top: max(0px, env(safe-area-inset-top)); }
 
+        /* ---- Pulling the page down to refresh it ------------------------
+           Android has this and an iPhone app does not: a home-screen app on
+           iOS runs without Safari's chrome, and pull-to-refresh went with it.
+           So it is drawn here, and only there — see pullToRefresh().
+
+           Pinned behind the header rather than pushing the page down. Moving
+           the whole page would mean fighting the scroll lock, the safe-area
+           padding and the sticky bar all at once, for an effect nobody looks
+           at directly. */
+        #pullSpinner {
+            position: fixed;
+            top: calc(env(safe-area-inset-top) + 8px);
+            left: 50%;
+            width: 34px;
+            height: 34px;
+            margin-left: -17px;
+            border-radius: 50%;
+            background: rgba(18, 18, 18, .82);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            box-shadow: var(--lift-2);
+            display: grid;
+            place-items: center;
+            /* Above the header, below a sheet. */
+            z-index: 45;
+            /* Driven from JS as the finger moves, so no transition on the way
+               down — only on the way back, when it is let go. */
+            opacity: 0;
+            transform: translateY(-46px) scale(.85);
+            pointer-events: none;
+        }
+        #pullSpinner.releasing {
+            transition: opacity var(--m3-medium-4) var(--m3-standard),
+                        transform var(--m3-long-2) var(--enter);
+        }
+        #pullSpinner svg {
+            width: 19px;
+            height: 19px;
+            color: var(--gold, #d4af37);
+        }
+        #pullSpinner.turning svg {
+            animation: pull-turn 900ms linear infinite;
+        }
+        @keyframes pull-turn { to { transform: rotate(360deg); } }
+        @media (prefers-reduced-motion: reduce) {
+            #pullSpinner.turning svg { animation: none; }
+        }
+
         /* The menu covers the whole screen, status bar included, so its close
            button needs the same room the header now takes. It is the one
            control on the page that is pinned to the top of the viewport
@@ -1193,6 +1241,186 @@
         })();
 
         const mobileMenu = document.getElementById('mobileMenu');
+        /**
+         * Going to a section, at a speed the shop chose.
+         *
+         * These were plain anchors, left to the browser with scroll-behavior:
+         * smooth on <html>. Chrome takes about half a second over it and it
+         * reads as a journey; Safari does the same thing in a fraction of that
+         * and it reads as a jump. Neither duration is settable — the property
+         * is a yes or a no — so the only way to have one answer on both is to
+         * do the moving here.
+         *
+         * Same easing as everything else that moves on this page: quick to
+         * leave, slow to arrive, so it settles rather than stops.
+         *
+         * It stops the moment a finger touches the screen. A page that goes on
+         * scrolling somewhere while somebody is trying to scroll it themselves
+         * is worse than one that never animated at all — they have changed
+         * their mind, and the animation is now an argument.
+         */
+        const TRAVEL = 620;
+
+        function smoothScrollTo(target) {
+            const el = typeof target === 'string' ? document.querySelector(target) : target;
+            if (!el) return;
+
+            // Where the section should end up: clear of the fixed header, which
+            // measures itself and grows with the status bar on a phone.
+            const bar = parseFloat(getComputedStyle(document.documentElement)
+                          .getPropertyValue('--nav-h')) || 80;
+            const from = window.scrollY;
+            const to = Math.max(0, Math.round(el.getBoundingClientRect().top + from - bar));
+            if (Math.abs(to - from) < 2) return;
+
+            // Somebody who has asked for less movement gets none of this.
+            if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                window.scrollTo(0, to);
+                return;
+            }
+
+            // scroll-behavior on <html> would fight this, one frame each.
+            const root = document.documentElement;
+            const was = root.style.scrollBehavior;
+            root.style.scrollBehavior = 'auto';
+
+            let stopped = false;
+            const giveUp = () => { stopped = true; };
+            // Passive: this only ever reads the fact that a touch happened.
+            addEventListener('touchstart', giveUp, { passive: true, once: true });
+            addEventListener('wheel', giveUp, { passive: true, once: true });
+
+            const started = performance.now();
+            // Decelerating: most of the distance early, the last of it slowly.
+            const ease = t => 1 - Math.pow(1 - t, 3);
+
+            const step = now => {
+                if (stopped) { root.style.scrollBehavior = was; return; }
+                const t = Math.min(1, (now - started) / TRAVEL);
+                window.scrollTo(0, Math.round(from + (to - from) * ease(t)));
+                if (t < 1) return requestAnimationFrame(step);
+                root.style.scrollBehavior = was;
+                removeEventListener('touchstart', giveUp);
+                removeEventListener('wheel', giveUp);
+            };
+            requestAnimationFrame(step);
+        }
+
+        // Every in-page link already goes through one delegated handler, which
+        // has a decision in it about the address bar. It calls this. Adding a
+        // second listener here would have been two handlers scrolling the same
+        // page at once, at two speeds — see keepTheAddressClean().
+
+        /**
+         * Pull down to refresh, on the one platform that does not have it.
+         *
+         * Android's app has this from Chrome. An iPhone app does not: a
+         * home-screen app on iOS runs without Safari's chrome, and pull to
+         * refresh went with it. There is no setting, and nothing to opt into.
+         *
+         * Only there, deliberately. Where the browser already does this,
+         * adding a second one means two indicators for one gesture.
+         *
+         * The gesture is only claimed when it can only mean this: the page is
+         * already at the very top, nothing has it pinned, and the finger has
+         * moved further down than sideways. Until all three hold, every touch
+         * is left alone — an ordinary scroll must never be intercepted by
+         * something guessing at what it might become.
+         */
+        function pullToRefresh() {
+            // navigator.standalone is iOS's own, and true only in a
+            // home-screen app. Chrome does not define it, which is exactly the
+            // browser this must not run in.
+            if (!window.navigator.standalone) return;
+
+            const PULL_TO_GO = 72;              // how far before it means it
+            const MOST = 108;                   // and where it stops following
+            const spinner = document.createElement('div');
+            spinner.id = 'pullSpinner';
+            spinner.setAttribute('aria-hidden', 'true');
+            spinner.innerHTML =
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" ' +
+                'stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path>' +
+                '<path d="M21 3v6h-6"></path></svg>';
+            document.body.appendChild(spinner);
+
+            let from = null;                    // where the finger started
+            let pulled = 0;
+            let claimed = false;                // we have taken this gesture
+
+            const draw = distance => {
+                const t = Math.min(1, distance / PULL_TO_GO);
+                spinner.style.opacity = String(Math.min(1, t * 1.4));
+                spinner.style.transform =
+                    'translateY(' + Math.round(-46 + distance * 0.62) + 'px) ' +
+                    'scale(' + (0.85 + t * 0.15).toFixed(3) + ') ' +
+                    'rotate(' + Math.round(t * 300) + 'deg)';
+            };
+
+            const putBack = () => {
+                spinner.classList.add('releasing');
+                spinner.style.opacity = '0';
+                spinner.style.transform = 'translateY(-46px) scale(.85)';
+                setTimeout(() => spinner.classList.remove('releasing', 'turning'), 500);
+            };
+
+            addEventListener('touchstart', e => {
+                claimed = false;
+                pulled = 0;
+                // Not while a sheet or the menu has the page pinned, and not
+                // part-way down the page.
+                if (scrollHolders > 0 || window.scrollY > 0 || e.touches.length !== 1) {
+                    from = null;
+                    return;
+                }
+                from = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }, { passive: true });
+
+            addEventListener('touchmove', e => {
+                if (!from || e.touches.length !== 1) return;
+                const dy = e.touches[0].clientY - from.y;
+                const dx = e.touches[0].clientX - from.x;
+
+                if (!claimed) {
+                    if (dy <= 12) return;                       // not downward yet
+                    if (Math.abs(dx) > Math.abs(dy)) { from = null; return; }  // sideways
+                    if (window.scrollY > 0) { from = null; return; }
+                    claimed = true;
+                }
+
+                // Only once it is unambiguously ours, because this is the line
+                // that stops the page scrolling.
+                e.preventDefault();
+                // Resisting: the last of the travel costs more than the first,
+                // so it feels attached to something rather than free.
+                pulled = Math.min(MOST, dy * 0.55);
+                spinner.classList.remove('releasing');
+                draw(pulled);
+            }, { passive: false });
+
+            const letGo = () => {
+                if (!claimed) { from = null; return; }
+                from = null;
+                claimed = false;
+                if (pulled >= PULL_TO_GO * 0.62) {
+                    // Held where it is, spinning, until the new page paints
+                    // over it. Snapping it away first would say the pull did
+                    // nothing for the half second before anything happens.
+                    spinner.classList.add('turning');
+                    spinner.style.opacity = '1';
+                    spinner.style.transform = 'translateY(20px) scale(1)';
+                    window.location.reload();
+                    return;
+                }
+                putBack();
+            };
+
+            addEventListener('touchend', letGo, { passive: true });
+            addEventListener('touchcancel', () => { from = null; claimed = false; putBack(); },
+                             { passive: true });
+        }
+        pullToRefresh();
+
         const openMobileMenu = () => {
             mobileMenu.classList.remove('translate-x-full');
             holdPage(true);
@@ -3397,7 +3625,12 @@
         (function keepTheAddressClean() {
             const scrollTo = id => {
                 const target = id && document.getElementById(id);
-                if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                // smoothScrollTo rather than scrollIntoView: the browser's own
+                // smooth scroll has no duration anybody can set, and Safari's
+                // is fast enough that the journey is not seen — a jump, next to
+                // Chrome's half second. Same code on both now. See
+                // smoothScrollTo() for the easing and for what stops it.
+                if (target) smoothScrollTo(target);
                 return Boolean(target);
             };
 

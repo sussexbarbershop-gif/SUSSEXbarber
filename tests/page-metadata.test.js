@@ -117,7 +117,7 @@ const cleaner = cleanerSource
   .split('\n').filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
 ok('in-page links are handled', cleaner !== '', true);
 ok('the hash is never written', /history\.replaceState/.test(cleaner), true);
-ok('and the section is still reached', /scrollIntoView/.test(cleaner), true);
+ok('and the section is still reached', /smoothScrollTo/.test(cleaner), true);
 // Arriving with a hash — an old link, or a search result that picked up a
 // section — has to work and then be tidied.
 ok('an arriving hash is honoured', /if \(location\.hash\)/.test(cleaner), true);
