@@ -134,6 +134,33 @@ ok('and asks for it in a way the canvas can export',
 // Not over a picture the owner is part-way through placing.
 ok('it does not overwrite a chosen file', /if \(iconImage\) return/.test(loader), true);
 
+console.log('--- saved, or only on the screen ---');
+// The editor used to leave "Saved." up while the owner carried on dragging
+// underneath it. Save, adjust, look at the phone: the phone is showing exactly
+// what was sent, which is no longer what is on the screen, and nothing says
+// so. It reads as the editor not working.
+ok('there is a word for changed-but-not-sent', /let iconDirty/.test(panel), true);
+const changes = ['function setIconZoom', 'function resetIcon'];
+changes.forEach(fn => {
+  const body = (panel.match(new RegExp(fn + '[\\s\\S]*?\\n\\}')) || [''])[0];
+  ok(fn.replace('function ', '') + ' says the picture moved',
+     /markIconChanged\(\)/.test(body), true);
+});
+// Dragging is the other half of composing one, and the easy half to forget.
+ok('and so does dragging it',
+   /iconView\.x \+= toCanvas[\s\S]{0,120}markIconChanged\(\)/.test(panel), true);
+const saver = (panel.match(/async function saveAppIcon[\s\S]*?\n\}/) || [''])[0];
+ok('only a save clears it', /markIconSaved\(/.test(saver), true);
+// Two save buttons on one page, and the big one does not do the icon.
+ok('the other save button says the icon is separate',
+   /if \(iconDirty\)[\s\S]{0,200}showToast/.test(panel), true);
+
+console.log('--- and what is live, to compare against ---');
+ok('the panel shows the icon that is on phones now',
+   /function showLiveIcon[\s\S]{0,300}settings\.icon_192/.test(panel), true);
+ok('refreshed after a save', /showLiveIcon\(\);[\s\S]{0,200}showToast/.test(panel), true);
+ok('and there is somewhere to put it', /id="iconLive"/.test(markup), true);
+
 console.log('--- what is actually sent ---');
 const save = (panel.match(/async function saveAppIcon\(\)[\s\S]*?\n\}/) || [''])[0];
 // PNG: this is line art on a flat colour, which is what JPEG smears, and the

@@ -5,6 +5,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600&display=swap');
 
 :root {
+    /* The charcoal an app icon is drawn on. Not a theme colour and not
+       negotiable by one: the same value is in ICON_BG in admin.js and in
+       BACKGROUND in api/_lib/icons.js, and a preview on a different ground to
+       the file being made would be a preview of the wrong thing. */
+    --icon-ground: #121212;
+
     /* The parts of a form the panel does not draw: the list a <select> drops
        down, the calendar behind a date field, the little arrow inside both.
        Without this the browser paints them light because that is its default,
@@ -82,6 +88,12 @@
    someone thought to press the button again. */
 @media (prefers-color-scheme: light) {
     :root {
+    /* The charcoal an app icon is drawn on. Not a theme colour and not
+       negotiable by one: the same value is in ICON_BG in admin.js and in
+       BACKGROUND in api/_lib/icons.js, and a preview on a different ground to
+       the file being made would be a preview of the wrong thing. */
+    --icon-ground: #121212;
+
         --bg-primary: #f8fafc;
         --bg-secondary: #ffffff;
         --bg-card: #ffffff;
@@ -1143,6 +1155,30 @@ textarea.form-control { resize: vertical; line-height: 1.6; }
     inset: -12.5%;
     border-radius: 22%;
     border: 1px solid rgba(255,255,255,.18);
+}
+
+/* The icon that is live, small, next to the one being composed. */
+.icon-live-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+.icon-live-box img {
+    width: 48px;
+    height: 48px;
+    border-radius: 22%;
+    border: 1px solid var(--border-color);
+    object-fit: contain;
+    background: var(--icon-ground);
+}
+
+/* A save that has not happened yet. The button is the thing to press, so the
+   button is the thing that says so. */
+#iconSaveBtn.is-pending {
+    box-shadow: 0 0 0 3px rgba(212,175,55,.25);
 }
 
 .icon-controls {

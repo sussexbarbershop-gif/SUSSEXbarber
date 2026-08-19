@@ -783,6 +783,16 @@ function renderBookings() {
 
 const ICON_BG = '#121212';
 let iconImage = null;
+/**
+ * Whether the picture on screen is the picture that was sent.
+ *
+ * The editor used to leave "Saved." under the buttons and let the owner carry
+ * on dragging and zooming underneath it. So a save, then an adjustment, then a
+ * look at the phone reads as the editor doing nothing — the phone is showing
+ * exactly what was sent, which is no longer what is on the screen, and nothing
+ * anywhere says so. Every change sets this, and only a save clears it.
+ */
+let iconDirty = false;
 let iconView = { scale: 1, x: 0, y: 0 };   // x and y are the picture's centre
 let iconBaseScale = 1;                     // what "100%" means for this picture
 
@@ -825,16 +835,45 @@ function fitIcon() {
     drawIcon();
 }
 
-function resetIcon() { fitIcon(); setIconStatus(''); }
+function resetIcon() { fitIcon(); markIconChanged(); }
 
 function setIconZoom(percent) {
     iconView.scale = Math.max(0.5, Math.min(3, Number(percent) / 100));
     drawIcon();
+    markIconChanged();
 }
 
 function setIconStatus(text) {
     const el = document.getElementById('iconStatus');
     if (el) el.textContent = text;
+}
+
+/** The picture has moved since it was last sent. Say so, and keep saying it. */
+function markIconChanged() {
+    iconDirty = true;
+    setIconStatus('Not saved yet — press Save icon.');
+    const btn = document.getElementById('iconSaveBtn');
+    if (btn) btn.classList.add('is-pending');
+}
+
+function markIconSaved(text) {
+    iconDirty = false;
+    setIconStatus(text);
+    const btn = document.getElementById('iconSaveBtn');
+    if (btn) btn.classList.remove('is-pending');
+}
+
+/**
+ * The icon that is on people's phones at this moment, beside the one being
+ * composed. Two pictures side by side is the only way to answer "did that
+ * work?" without adding the site to a home screen and looking.
+ */
+function showLiveIcon() {
+    const img = document.getElementById('iconLive');
+    if (!img) return;
+    const url = settings.icon_192 || settings.icon_512 || '';
+    img.src = url;
+    img.parentElement.style.display = url ? '' : 'none';
 }
 
 /**
@@ -865,7 +904,9 @@ function loadSavedIcon() {
         if (iconImage) return;                 // a file was chosen while this loaded
         iconImage = img;
         fitIcon();
-        setIconStatus('This is the icon in use. Drag or zoom to change it.');
+        // Not "changed": this is the icon that is already live, so there is
+        // nothing to save until the owner touches it.
+        markIconSaved('This is the icon in use. Drag or zoom to change it.');
     };
     img.src = url;
 }
@@ -882,7 +923,8 @@ function loadIconImage(input) {
         img.onload = () => {
             iconImage = img;
             fitIcon();
-            setIconStatus('Drag to move it, slide to zoom, then Save.');
+            markIconChanged();
+            setIconStatus('Drag to move it, slide to zoom, then Save icon.');
         };
         img.src = reader.result;
     };
@@ -934,6 +976,7 @@ function wireIconStage() {
             iconView.x += toCanvas(e.clientX - prev.x);
             iconView.y += toCanvas(e.clientY - prev.y);
             drawIcon();
+            markIconChanged();
             return;
         }
         // Two fingers: the distance between them is the zoom.
@@ -990,8 +1033,9 @@ async function saveAppIcon() {
         // Straight into the copy the panel is holding, so a Website Text save a
         // moment later does not send a settings object that predates this.
         Object.assign(settings, answer.icons || {});
+        showLiveIcon();
         showToast('Icon saved — remove the old shortcut and add it again to see it', 'success');
-        setIconStatus('Saved.');
+        markIconSaved('Saved. This is what phones will show.');
     } catch (err) {
         console.error('Could not save the icon', err);
         showToast('Could not reach the server', 'error');
@@ -1553,9 +1597,17 @@ function renderCms() {
         if (el) el.value = settings[CMS_FIELDS[id]] || '';
     });
     loadSavedIcon();
+    showLiveIcon();
 }
 
 async function saveCMSData() {
+    // There are two save buttons on this page and only one of them is called
+    // Save to Website. Somebody who has just composed an icon and pressed the
+    // big one has every reason to think they are done.
+    if (iconDirty) {
+        showToast('The icon has its own Save icon button — press that too', 'info');
+    }
+
     const next = Object.assign({}, settings);
     Object.keys(CMS_FIELDS).forEach(id => {
         const el = document.getElementById(id);
