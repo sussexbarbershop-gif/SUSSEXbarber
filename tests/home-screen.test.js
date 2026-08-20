@@ -58,6 +58,26 @@ async function fetchManifest() {
   ok('short enough not to be cut', (m.short_name || '').length <= 13, true);
   ok('and still recognisably the shop', /Sussex/.test(m.short_name || ''), true);
 
+  console.log('--- how much of the screen it gets ---');
+  // standalone took the address bar away, but Chrome still paints a band of
+  // theme_color above the page for the clock and the battery and starts the
+  // page underneath it. That band is the seam next to an iPhone, where the
+  // page runs under the status bar and the photograph reaches the very top.
+  //
+  // There is no way to ask Chrome for "standalone, but let me draw behind the
+  // status bar": on Android 15 it does that by itself and below it, it does
+  // not. Fullscreen is what there is.
+  ok('fullscreen is asked for first', (m.display_override || [])[0], 'fullscreen');
+  // A preference, not a demand. A browser that understands the list takes the
+  // first mode it supports; one that does not ignores the list and reads
+  // display instead — which must therefore still be the safe answer.
+  ok('with standalone behind it', (m.display_override || [])[1], 'standalone');
+  ok('and display still says standalone on its own', m.display, 'standalone');
+  // Neither of them may be "browser": that is the mode with the address bar,
+  // which is the whole thing installing was for.
+  ok('nothing in the list opens a browser window',
+     (m.display_override || []).includes('browser'), false);
+
   console.log('--- the icons it names ---');
   // Two kinds. `any` is drawn as it is; `maskable` is cropped by Android to
   // whatever shape the launcher uses and is promised only its middle 80%. An

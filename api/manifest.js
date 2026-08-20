@@ -42,6 +42,36 @@ module.exports = async function handler(req, res) {
     lang: 'en',
     start_url: '/?from=home',
     scope: '/',
+    /**
+     * How much of the screen the app gets.
+     *
+     * standalone means no address bar, which is what took the browser chrome
+     * away — but Chrome still paints a band of theme_color above the page for
+     * the clock and the battery, and starts the page underneath it. That band
+     * is the seam the shop kept seeing next to the iPhone, where the page runs
+     * under the status bar and the photograph reaches the very top.
+     *
+     * There is no way to ask Chrome for "standalone, but let me draw behind
+     * the status bar" — on Android 15 it does that on its own, and below it,
+     * it does not. What there is, is fullscreen: no system bars at all, the
+     * page gets every pixel.
+     *
+     * display_override rather than changing display, so this is a preference
+     * and not a demand. A browser that understands the list takes the first
+     * mode it supports; one that does not ignores the list entirely and reads
+     * display below, which still says standalone. So nothing anywhere is worse
+     * off than it was.
+     *
+     * iOS reads none of this. A home-screen app there is governed by
+     * apple-mobile-web-app-capable in index.html, and already runs under the
+     * status bar — so this changes Android and leaves the iPhone alone.
+     *
+     * The trade is the clock and the battery, which are not shown while the
+     * app is open. For a page somebody is on for a minute to book a haircut
+     * that is a fair price for the top of the screen; for anything longer it
+     * would not be.
+     */
+    display_override: ['fullscreen', 'standalone'],
     display: 'standalone',
     orientation: 'portrait',
     background_color: '#121212',
