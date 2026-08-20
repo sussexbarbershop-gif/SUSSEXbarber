@@ -72,7 +72,16 @@ module.exports = async function handler(req, res) {
      * would not be.
      */
     display_override: ['fullscreen', 'standalone'],
-    display: 'standalone',
+    // And display itself, not only the override.
+    //
+    // display_override is read first by anything that understands it, and
+    // display is what everything else reads — so leaving this at standalone
+    // meant a browser that ignores the list carried on painting its band.
+    // 'fullscreen' is one of the four values the original spec defines, and
+    // the fallback chain when it is unsupported is fullscreen -> standalone,
+    // which is exactly where this was. So there is no browser this makes
+    // worse and one class of them it fixes.
+    display: 'fullscreen',
     orientation: 'portrait',
     background_color: '#121212',
     theme_color: '#121212',

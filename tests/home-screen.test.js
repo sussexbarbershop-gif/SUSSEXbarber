@@ -72,7 +72,17 @@ async function fetchManifest() {
   // first mode it supports; one that does not ignores the list and reads
   // display instead — which must therefore still be the safe answer.
   ok('with standalone behind it', (m.display_override || [])[1], 'standalone');
-  ok('and display still says standalone on its own', m.display, 'standalone');
+  // And display itself, because display_override is only read by browsers
+  // that understand it — the ones that do not read display, and leaving that
+  // at standalone is what left the band on the screen. The spec fallback for
+  // an unsupported fullscreen is standalone, which is where this was, so no
+  // browser is worse off.
+  ok('and display itself says fullscreen', m.display, 'fullscreen');
+  // iOS reads none of this: a home-screen app there is governed by
+  // apple-mobile-web-app-capable in index.html. This file cannot change the
+  // iPhone, which is the point — it had no problem.
+  ok('the iPhone is governed elsewhere, not here',
+     /apple-mobile-web-app-capable/.test(html), true);
   // Neither of them may be "browser": that is the mode with the address bar,
   // which is the whole thing installing was for.
   ok('nothing in the list opens a browser window',
