@@ -35,18 +35,18 @@ const ok = (label, actual, want) => {
 async function fetchManifest() {
   const handler = require(path.join(root, 'api', 'manifest.js'));
   let body = '{}';
-  let type = '';
+  const headers = {};
   await handler({}, {
     status() { return this; },
-    setHeader(k, v) { if (/content-type/i.test(k)) type = v; return this; },
+    setHeader(k, v) { headers[k.toLowerCase()] = v; return this; },
     send(text) { body = text; }
   });
-  return { manifest: JSON.parse(body), type };
+  return { manifest: JSON.parse(body), type: headers['content-type'] || '', headers };
 }
 
 (async () => {
   console.log('--- the manifest ---');
-  const { manifest: m, type } = await fetchManifest();
+  const { manifest: m, type, headers } = await fetchManifest();
   ok('the page links to it',
      /<link rel="manifest" href="\/manifest\.webmanifest">/.test(html), true);
   // A manifest served as text/plain is one the browser ignores.
@@ -57,6 +57,24 @@ async function fetchManifest() {
   ok('and a short one for the icon label', typeof m.short_name, 'string');
   ok('short enough not to be cut', (m.short_name || '').length <= 13, true);
   ok('and still recognisably the shop', /Sussex/.test(m.short_name || ''), true);
+
+  console.log('--- and it has to be read fresh ---');
+  // This was cached for ten minutes with a day of stale-while-revalidate
+  // behind it, which means a copy up to a day old is handed over at once. So
+  // the shop deleted their shortcut, added it again, and Chrome installed
+  // from a manifest written before the change they were testing — twice. The
+  // fix looked like it had not worked and there was no way to tell from the
+  // phone that it had.
+  //
+  // A manifest is read on install and when Chrome checks for an update, not
+  // on every page load. There was no cost to save and one wasted install is
+  // more expensive than all of it.
+  ok('nothing serves a stale manifest',
+     /stale-while-revalidate/.test(headers['cache-control'] || ''), false);
+  ok('it is revalidated every time',
+     /max-age=0/.test(headers['cache-control'] || ''), true);
+  ok('and must be, not merely should be',
+     /must-revalidate/.test(headers['cache-control'] || ''), true);
 
   console.log('--- how much of the screen it gets ---');
   // standalone took the address bar away, but Chrome still paints a band of

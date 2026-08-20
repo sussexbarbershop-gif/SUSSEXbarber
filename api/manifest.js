@@ -101,8 +101,25 @@ module.exports = async function handler(req, res) {
 
   res.status(200);
   res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
-  // Long enough that every page load is not a database read, short enough that
-  // a new icon is on the shop's own phone the same afternoon.
-  res.setHeader('Cache-Control', 'public, max-age=600, stale-while-revalidate=86400');
+  // Revalidated every time, like every other document on this site.
+  //
+  // This was ten minutes with a day of stale-while-revalidate behind it, on
+  // the reasoning that a manifest is read on every page load and a new icon
+  // arriving the same afternoon was soon enough. Both halves were wrong.
+  //
+  // It is not read on every page load. It is read when somebody installs the
+  // app and when Chrome gets round to checking for an update — twice in a
+  // month, not twice a minute — so there was no cost to save.
+  //
+  // And stale-while-revalidate means a copy up to a day old is handed over
+  // immediately while a fresh one is fetched for next time. So the shop
+  // deleted their shortcut, added it again, and Chrome installed from a
+  // manifest written before the change they were testing. Twice. The fix
+  // looked like it had not worked, and the only evidence either way was a
+  // photograph of a black strip.
+  //
+  // A manifest is about a kilobyte. Fetching it fresh is not a cost worth one
+  // wasted install, let alone the day of them this could have caused.
+  res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
   res.send(JSON.stringify(manifest));
 };
