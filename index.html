@@ -1421,6 +1421,96 @@
         }
         pullToRefresh();
 
+        /**
+         * What this device is actually doing, on the screen of the device
+         * doing it.
+         *
+         * Three attempts at getting the Android app to use the whole screen,
+         * three photographs of the same black strip, and every check I can run
+         * from here says the manifest is right: fullscreen asked for, served
+         * fresh, every installability rule met. So the useful thing is no
+         * longer another guess — it is the phone's own answer.
+         *
+         * Five taps on the logo. Hidden because it is for a bad afternoon, not
+         * for customers; on the logo because that is on every page and takes
+         * no room; five because nobody does that by accident.
+         *
+         * display-mode is the one that matters. If it says fullscreen while a
+         * status bar is still on screen, the manifest arrived and Android is
+         * overriding it, and there is nothing further to try. If it says
+         * standalone, the app was installed from an older manifest and the
+         * install is what needs redoing.
+         */
+        (function whatIsThisDeviceDoing() {
+            const logo = document.querySelector('nav a[href="#"]');
+            if (!logo) return;
+
+            let taps = 0;
+            let firstTap = 0;
+
+            logo.addEventListener('click', e => {
+                const now = Date.now();
+                if (now - firstTap > 3000) { taps = 0; firstTap = now; }
+                taps++;
+                if (taps < 5) return;
+                taps = 0;
+                e.preventDefault();
+                show();
+            });
+
+            function modeNow() {
+                const modes = ['fullscreen', 'standalone', 'minimal-ui', 'browser'];
+                const found = modes.filter(m => matchMedia('(display-mode: ' + m + ')').matches);
+                return found.length ? found.join(', ') : 'none matched';
+            }
+
+            /** env() cannot be read directly, so it is measured off an element. */
+            function inset(side) {
+                const probe = document.createElement('div');
+                probe.style.cssText = 'position:fixed;visibility:hidden;height:env(safe-area-inset-' +
+                                      side + ');';
+                document.body.appendChild(probe);
+                const px = Math.round(probe.getBoundingClientRect().height);
+                probe.remove();
+                return px + 'px';
+            }
+
+            function show() {
+                const lines = [
+                    ['display-mode', modeNow()],
+                    ['safe area top', inset('top')],
+                    ['safe area bottom', inset('bottom')],
+                    ['window', innerWidth + ' x ' + innerHeight],
+                    ['screen', screen.width + ' x ' + screen.height],
+                    ['pixel ratio', String(devicePixelRatio)],
+                    ['nav height', getComputedStyle(document.documentElement)
+                                     .getPropertyValue('--nav-h').trim() || '(unset)'],
+                    ['iOS standalone', String(navigator.standalone)],
+                    // typeof, because the release check lives in another
+                    // script and its binding is not reachable from here —
+                    // referring to it directly threw, which is a diagnostic
+                    // that breaks when opened being no diagnostic at all.
+                    ['release', (typeof releaseNow !== 'undefined' && releaseNow) || '(unknown)'],
+                    ['browser', navigator.userAgent]
+                ];
+
+                const box = document.createElement('div');
+                box.style.cssText =
+                    'position:fixed;inset:0;z-index:9999;background:#0d0d0d;color:#eee;' +
+                    'font:13px/1.6 ui-monospace,monospace;padding:calc(env(safe-area-inset-top) + 16px) 16px 16px;' +
+                    'overflow:auto;-webkit-user-select:text;user-select:text';
+                box.innerHTML =
+                    '<div style="color:#d4af37;font-weight:700;margin-bottom:12px">Sussex — device report</div>' +
+                    lines.map(([k, v]) =>
+                        '<div style="margin-bottom:8px;word-break:break-word">' +
+                        '<span style="color:#888">' + k + '</span><br>' + v + '</div>').join('') +
+                    '<button style="margin-top:16px;padding:12px 20px;background:#d4af37;color:#121212;' +
+                    'border:0;border-radius:8px;font:600 14px sans-serif">Close</button>';
+                box.querySelector('button').addEventListener('click', () => box.remove());
+                document.body.appendChild(box);
+            }
+        })();
+
         const openMobileMenu = () => {
             mobileMenu.classList.remove('translate-x-full');
             holdPage(true);
