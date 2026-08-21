@@ -1212,11 +1212,17 @@ async function saveCMS(payload, res) {
     payload.barbers.forEach((b, i) => {
       const name = trimmed(b.name);
       if (!name) return;
+      // A panel that predates this sends no flag at all, and a barber who is
+      // not mentioned must not be hidden by the omission — so anything that is
+      // not exactly false is a yes.
+      const onTeam = b.onTeam !== false;
       statements.push(sql`
-        INSERT INTO barbers (name, image_url, position)
-        VALUES (${name}, ${trimmed(b.image)}, ${i})
+        INSERT INTO barbers (name, image_url, position, on_team)
+        VALUES (${name}, ${trimmed(b.image)}, ${i}, ${onTeam})
         ON CONFLICT (name) DO UPDATE
-          SET image_url = EXCLUDED.image_url, position = EXCLUDED.position`);
+          SET image_url = EXCLUDED.image_url,
+              position  = EXCLUDED.position,
+              on_team   = EXCLUDED.on_team`);
     });
   }
 

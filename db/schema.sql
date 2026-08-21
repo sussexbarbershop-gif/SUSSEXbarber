@@ -287,6 +287,17 @@ CREATE TABLE IF NOT EXISTS job_runs (
 -- for one that is already running. ADD COLUMN IF NOT EXISTS is a no-op the
 -- second time. The API also runs these itself the first time it needs one of
 -- them, so forgetting to run this file is not how the shop finds out.
+-- Whether a barber has a card in "Our Master Barbers" on the website.
+--
+-- Not whether they can be booked: the two are different questions and the shop
+-- asked for one of them. Somebody who has not had their photograph taken yet,
+-- or who covers two days a week, still takes appointments — they just do not
+-- need a card introducing them.
+--
+-- Defaults to true, so switching this on changes nothing until the shop turns
+-- somebody off deliberately.
+ALTER TABLE barbers ADD COLUMN IF NOT EXISTS on_team boolean NOT NULL DEFAULT true;
+
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'web';
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS lang text NOT NULL DEFAULT 'en';
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS reminded_at timestamptz;

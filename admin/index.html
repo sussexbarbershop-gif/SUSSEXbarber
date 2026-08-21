@@ -522,6 +522,19 @@
                         <p style="color:var(--text-muted);font-size:12px;margin-top:8px">
                             This is the name customers pick on the booking form.
                         </p>
+
+                        <!-- Two different questions, and only this one is being
+                             asked here. A barber switched off still takes
+                             appointments and still appears on the booking form;
+                             they simply have no card in Our Master Barbers. -->
+                        <label class="team-switch">
+                            <input type="checkbox" id="barberModalOnTeam" checked>
+                            <span>Show on the website</span>
+                        </label>
+                        <p style="color:var(--text-muted);font-size:12px;margin-top:6px">
+                            Off means no card in <em>Our Master Barbers</em>. They can
+                            still be booked either way.
+                        </p>
                     </div>
                 </div>
 

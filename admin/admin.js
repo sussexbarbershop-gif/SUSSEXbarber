@@ -1850,6 +1850,9 @@ function renderBarbers() {
             <div style="position:absolute;bottom:0;background:rgba(0,0,0,0.82);width:100%;padding:8px;text-align:center">
                 <div style="color:var(--gold);font-size:14px;font-weight:bold">${escapeHtml(name)}</div>
                 <div style="color:#bbb;font-size:11px;margin-top:2px">${escapeHtml(summary)}</div>
+                ${b.onTeam === false
+                    ? '<div style="color:#9ca3af;font-size:10px;margin-top:3px;letter-spacing:.04em">NOT ON THE WEBSITE</div>'
+                    : ''}
             </div>
         `;
         item.onclick = () => openBarberModal(index);
@@ -1879,6 +1882,10 @@ function openBarberModal(index) {
 
     document.getElementById('barberModalTitle').textContent = b.name || 'Edit Barber';
     document.getElementById('barberModalName').value = b.name || '';
+    // Anything that is not exactly false is a yes, so a barber saved before
+    // this switch existed is shown rather than quietly hidden.
+    const onTeamBox = document.getElementById('barberModalOnTeam');
+    if (onTeamBox) onTeamBox.checked = b.onTeam !== false;
     setBarberModalPhoto(draftImage);
 
     // "Any Available" is the no-preference option, not a person on the rota.
@@ -2052,6 +2059,8 @@ async function saveBarberModal() {
 
     b.name = newName;
     b.image = draftImage;
+    const onTeamBox = document.getElementById('barberModalOnTeam');
+    b.onTeam = onTeamBox ? onTeamBox.checked : true;
     barberHours[newName] = draftRota;
     timeOff = timeOff.filter(t => t.barber !== newName).concat(draftTimeOff);
 

@@ -4656,7 +4656,14 @@
             const container = document.getElementById('cms-barbers-grid');
             if (!container) return;
 
-            const staff = (barbers || []).filter(b => String(b.name).trim() && String(b.name).trim() !== ANY_BARBER);
+            // "Any Available" is a choice on the booking form, not a person,
+            // and onTeam is the shop's own switch in the panel: a barber turned
+            // off here still takes appointments and still appears on the
+            // booking form — they simply have no card introducing them.
+            const staff = (barbers || []).filter(b =>
+                String(b.name).trim() &&
+                String(b.name).trim() !== ANY_BARBER &&
+                b.onTeam !== false);
             if (staff.length === 0) { container.innerHTML = ''; return; }
 
             const dayShort = { Monday:'Mon', Tuesday:'Tue', Wednesday:'Wed', Thursday:'Thu',

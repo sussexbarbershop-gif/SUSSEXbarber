@@ -48,6 +48,9 @@ function ensureSchema() {
   if (!schemaEnsured) {
     const sql = db();
     schemaEnsured = (async () => {
+      // Whether a barber has a card on the website. Not whether they can be
+      // booked — see the note in db/schema.sql.
+      await sql`ALTER TABLE barbers ADD COLUMN IF NOT EXISTS on_team boolean NOT NULL DEFAULT true`;
       await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'web'`;
       await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS lang text NOT NULL DEFAULT 'en'`;
       await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS reminded_at timestamptz`;
@@ -228,7 +231,7 @@ async function readConfig() {
   const [settingsRows, barberRows, galleryRows, serviceRows, hourRows,
          barberHourRows, timeOffRows] = await Promise.all([
     sql`SELECT key, value FROM settings`,
-    sql`SELECT id, name, image_url FROM barbers ORDER BY position, id`,
+    sql`SELECT id, name, image_url, on_team FROM barbers ORDER BY position, id`,
     sql`SELECT image_url FROM gallery ORDER BY position, id`,
     sql`SELECT id, name_en, name_nl, price, duration_min FROM services ORDER BY position, id`,
     sql`SELECT weekday, is_open, opens_at, closes_at FROM shop_hours`,
@@ -277,7 +280,14 @@ async function readConfig() {
 
   return {
     settings,
-    barbers: barberRows.map(r => ({ name: r.name, image: r.image_url || '' })),
+    // onTeam decides the cards on the website and nothing else: every barber
+    // here can still be booked, whatever it says. A database that predates the
+    // column answers undefined, which reads as shown — the same as the default.
+    barbers: barberRows.map(r => ({
+      name: r.name,
+      image: r.image_url || '',
+      onTeam: r.on_team !== false
+    })),
     gallery: galleryRows.map(r => r.image_url),
     services: serviceRows.map(r => ({
       id: r.id,
