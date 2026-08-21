@@ -135,6 +135,63 @@
             background-size: cover;
             background-position: center;
         }
+        /* ---- Visit Us --------------------------------------------------
+           One shape for the three things under the hours, all of which are
+           things to press rather than things to read. See the note in the
+           markup for what they were. */
+        .visit-rows { display: flex; flex-direction: column; gap: 2px; }
+        .visit-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            min-height: 56px;
+            padding: 8px 10px;
+            margin-inline-start: -10px;      /* the text still lines up */
+            border-radius: 12px;
+            transition: background-color var(--m3-short-4) var(--ease);
+        }
+        .visit-ico {
+            flex: 0 0 auto;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            color: var(--gold, #d4af37);
+            background: rgba(212, 175, 55, .1);
+            transition: background-color var(--m3-short-4) var(--ease);
+        }
+        .visit-ico svg { width: 19px; height: 19px; }
+        .visit-text { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+        .visit-label {
+            font-size: 11px;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            color: #9ca3af;
+        }
+        .visit-value {
+            font-size: 15px;
+            font-weight: 400;
+            color: #374151;
+            overflow-wrap: anywhere;
+        }
+        @media (prefers-color-scheme: dark) {
+            .visit-label { color: #6b7280; }
+            .visit-value { color: #d1d5db; }
+        }
+        @media (hover: hover) {
+            .visit-row:hover { background: rgba(212, 175, 55, .07); }
+            .visit-row:hover .visit-ico { background: rgba(212, 175, 55, .2); }
+        }
+        .visit-row:active { background: rgba(212, 175, 55, .12); }
+
+        /* Today, in the opening hours. It is the line the whole list is
+           usually opened for, and it looked like all the others. */
+        #hoursListContainer li.is-today {
+            color: var(--gold, #d4af37);
+            font-weight: 500;
+        }
+
         /* ---- The map ---------------------------------------------------
            One surface with one radius, and the action on it visible without
            a pointer. See the note in the markup for what it replaced.
@@ -1205,9 +1262,14 @@
            itself, and that is what .is-jumping is for. */
         nav.site-nav {
             background-color: rgba(255, 255, 255, calc(var(--nav-p, 0) * .62));
-            border-color: rgba(229, 231, 235, var(--nav-p, 0));
-            box-shadow: 0 1px 2px rgba(0, 0, 0, calc(var(--nav-p, 0) * .05)),
-                        0 4px 14px rgba(0, 0, 0, calc(var(--nav-p, 0) * .07));
+            /* No hairline. There was a 1px border under the bar, and on the way
+               down the ramp it arrived before the glass did — a line hanging
+               under a bar that was still mostly transparent, which is the one
+               thing in the whole movement that looked like a mistake. The
+               shadow separates the bar from the page on its own, and a shadow
+               cannot be a line. */
+            box-shadow: 0 1px 3px rgba(0, 0, 0, calc(var(--nav-p, 0) * .06)),
+                        0 6px 18px rgba(0, 0, 0, calc(var(--nav-p, 0) * .09));
             backdrop-filter: blur(calc(2px + var(--nav-p, 0) * 16px))
                              saturate(calc(100% + var(--nav-p, 0) * 60%));
             -webkit-backdrop-filter: blur(calc(2px + var(--nav-p, 0) * 16px))
@@ -1216,14 +1278,12 @@
         @media (prefers-color-scheme: dark) {
             nav.site-nav {
                 background-color: rgba(18, 18, 18, calc(var(--nav-p, 0) * .55));
-                border-color: rgba(42, 42, 42, var(--nav-p, 0));
             }
         }
         /* A jump to a section is not a scroll anybody is driving, so there the
            bar is allowed its own easing. */
         nav.site-nav.is-jumping {
             transition: background-color var(--m3-long-2) var(--m3-standard),
-                        border-color var(--m3-long-2) var(--m3-standard),
                         box-shadow var(--m3-long-2) var(--m3-standard);
         }
         /* Glass, not a lid. Tailwind's bg-white/90 on this element is ninety
@@ -1387,7 +1447,7 @@
     <div id="toastContainer" aria-live="polite" aria-atomic="false"></div>
 
     <!-- Navigation Bar -->
-    <nav class="site-nav fixed w-full z-40 bg-white/90 dark:bg-charcoal-900/90 backdrop-blur-md border-b border-gray-200 dark:border-charcoal-700 transition-colors duration-300">
+    <nav class="site-nav fixed w-full z-40 bg-white/90 dark:bg-charcoal-900/90 backdrop-blur-md transition-colors duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-20">
                 <div class="flex items-center space-x-3">
@@ -2342,31 +2402,68 @@
                 <div>
                     <h2 class="font-serif text-3xl sm:text-4xl text-gray-900 dark:text-white mb-5 sm:mb-10">Visit Us</h2>
 
-                    <div class="mb-5 sm:mb-8">
-                        <h3 class="text-gold uppercase tracking-widest text-xs sm:text-sm mb-2 sm:mb-3">Location</h3>
-                        <p id="cms-contact-address" class="text-gray-700 dark:text-gray-300 font-light text-sm sm:text-base">Van Hogendorpstraat 10<br>2242 KZ Wassenaar<br>Netherlands</p>
-                    </div>
+                    <!-- Three gold headings over three short things, each in a
+                         different shape: an address, a phone number set at text-xl,
+                         and a circle with the letters IG in it. The address was
+                         also on the map card beside them, said twice.
 
-                    <div class="mb-5 sm:mb-8">
-                        <h3 class="text-gold uppercase tracking-widest text-xs sm:text-sm mb-2 sm:mb-3">Working Hours</h3>
+                         The hours keep their heading — they are the reason most
+                         people open this section. Everything else is one list of
+                         rows that look alike, all of them things to press: the
+                         address opens Maps, the number dials, the handle opens the
+                         profile. The phone row is no longer hidden on a phone,
+                         which is where somebody most needs to ring a barber. -->
+                    <div class="mb-6 sm:mb-8">
+                        <h3 class="text-gold uppercase tracking-widest text-xs sm:text-sm mb-2 sm:mb-3" data-translate="Working Hours">Working Hours</h3>
                         <ul id="hoursListContainer" class="text-gray-700 dark:text-gray-300 font-light space-y-1 sm:space-y-2 text-sm sm:text-base">
                             <!-- Dynamically populated from admin panel data -->
                         </ul>
                     </div>
 
-                    <div class="mb-5 sm:mb-8 hidden sm:block">
-                        <h3 class="text-gold uppercase tracking-widest text-sm mb-3">Contact</h3>
-                        <p class="text-gray-700 dark:text-gray-300 font-light text-xl cms-contact-phone">+31 6 53730803</p>
-                    </div>
-
-                    <div class="mt-5 sm:mt-6">
-                        <a href="https://www.instagram.com/sussexbarbershop" target="_blank" rel="noopener noreferrer" data-cms-link="instagram" class="tap-44 inline-flex items-center space-x-3 text-gray-600 dark:text-gray-400 hover:text-gold dark:hover:text-gold transition-colors group">
-                            <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-gray-300 dark:border-charcoal-700 flex items-center justify-center group-hover:border-gold transition-colors text-sm">
-                                IG
-                            </div>
-                            <span class="font-light tracking-wide text-sm cms-instagram-handle">@sussexbarbershop</span>
-                        </a>
-                    </div>
+                    <ul class="visit-rows">
+                        <li>
+                            <a href="https://maps.app.goo.gl/vhDfYkHsUg5vzWHB8" target="_blank" rel="noopener noreferrer" data-cms-link="maps" class="visit-row">
+                                <span class="visit-ico" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                         stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"></path><circle cx="12" cy="10" r="2.6"></circle>
+                                    </svg>
+                                </span>
+                                <span class="visit-text">
+                                    <span class="visit-label" data-translate="Location">Location</span>
+                                    <span id="cms-contact-address" class="visit-value">Van Hogendorpstraat 10, 2242 KZ Wassenaar</span>
+                                </span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="tel:+31653730803" class="visit-row cms-contact-phone-link">
+                                <span class="visit-ico" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                         stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 9.8a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.8 2.1z"></path>
+                                    </svg>
+                                </span>
+                                <span class="visit-text">
+                                    <span class="visit-label" data-translate="Call">Call</span>
+                                    <span class="visit-value cms-contact-phone">+31 6 53730803</span>
+                                </span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="https://www.instagram.com/sussexbarbershop" target="_blank" rel="noopener noreferrer" data-cms-link="instagram" class="visit-row">
+                                <span class="visit-ico" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                         stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3" y="3" width="18" height="18" rx="5"></rect><circle cx="12" cy="12" r="3.8"></circle><circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none"></circle>
+                                    </svg>
+                                </span>
+                                <span class="visit-text">
+                                    <span class="visit-label" data-translate="Instagram">Instagram</span>
+                                    <span class="visit-value cms-instagram-handle">@sussexbarbershop</span>
+                                </span>
+                            </a>
+                        </li>
+                    </ul>
                 </div>
 
                 <!-- A 400px square of map is a screenful on a phone for something
@@ -4675,13 +4772,25 @@
         function renderHoursList(hours) {
         const hoursContainer = document.getElementById('hoursListContainer');
         if (hoursContainer) {
+            // Which day it is in the shop, not on the reader's device. A
+            // customer in another timezone looking at this list is looking at
+            // the shop's week, and the row they need marked is the shop's
+            // today. en-GB gives the day name the rows are keyed by.
+            const todayName = new Intl.DateTimeFormat('en-GB', {
+                timeZone: 'Europe/Amsterdam', weekday: 'long'
+            }).format(new Date());
+
             hoursContainer.innerHTML = hours.map((h, i) => {
                 const isLast = i === hours.length - 1;
                 const borderClass = isLast ? '' : 'border-b border-gray-100 dark:border-charcoal-700';
+                // The line this list is usually opened for, and it looked like
+                // all the others.
+                const today = String(h.day).toLowerCase() === todayName.toLowerCase()
+                    ? ' is-today' : '';
                 if (h.open) {
-                    return `<li class="flex justify-between ${borderClass} py-1"><span data-translate="${h.day}">${h.day}</span> <span>${h.from} - ${h.to}</span></li>`;
+                    return `<li class="flex justify-between ${borderClass} py-1${today}"><span data-translate="${h.day}">${h.day}</span> <span>${h.from} - ${h.to}</span></li>`;
                 } else {
-                    return `<li class="flex justify-between ${borderClass} py-1"><span data-translate="${h.day}">${h.day}</span> <span class="text-rose-500 font-medium" data-translate="Closed">Closed</span></li>`;
+                    return `<li class="flex justify-between ${borderClass} py-1${today}"><span data-translate="${h.day}">${h.day}</span> <span class="text-rose-500 font-medium" data-translate="Closed">Closed</span></li>`;
                 }
             }).join('');
         }

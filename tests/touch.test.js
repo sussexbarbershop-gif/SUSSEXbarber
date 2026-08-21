@@ -214,8 +214,7 @@ ok('over eighty pixels', /const SETTLE = 80;/.test(html), true);
 // Everything the bar does comes off the one number.
 [['the glass fills in', /background-color: rgba\(255, 255, 255, calc\(var\(--nav-p, 0\) \* \.62\)\)/],
  ['the blur deepens', /blur\(calc\(2px \+ var\(--nav-p, 0\) \* 16px\)\)/],
- ['the edge arrives', /border-color: rgba\(229, 231, 235, var\(--nav-p, 0\)\)/],
- ['and the shadow with it', /box-shadow: 0 1px 2px rgba\(0, 0, 0, calc\(var\(--nav-p, 0\)/]]
+ ['and the shadow with it', /box-shadow: 0 1px 3px rgba\(0, 0, 0, calc\(var\(--nav-p, 0\)/]]
   .forEach(([what, re]) => ok(what, re.test(style), true));
 // A transition here would be a second animation fighting the one the finger
 // is already driving.
@@ -495,8 +494,10 @@ ok('the bar is drawn from the progress value',
    /nav\.site-nav \{[^}]*var\(--nav-p, 0\)/.test(style), true);
 ok('which is nothing at all at the top',
    /background-color: rgba\(255, 255, 255, calc\(var\(--nav-p, 0\) \* \.62\)\)/.test(style), true);
-ok('and gains its edge as it fills in',
-   /border-color: rgba\(229, 231, 235, var\(--nav-p, 0\)\)/.test(style), true);
+// The border is gone: coming down the ramp it arrived before the glass did,
+// which left a line hanging under a bar that was still mostly transparent.
+ok('and gains no hairline as it fills in',
+   /nav\.site-nav \{[^}]*border-color/.test(style), false);
 // Over a dark photograph the links have to be legible whatever the device's
 // theme is, and the light theme would otherwise put charcoal on it.
 ok('the links stay legible over the photograph',

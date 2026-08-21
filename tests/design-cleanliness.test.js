@@ -163,6 +163,44 @@ console.log('--- image filters left to do their job ---');
 ok('gallery photos are not run through a brightness/contrast stack',
    /brightness-90 contrast-125/.test(site), false);
 
+console.log('--- Visit Us ---');
+// Three gold headings over three short things, each in a different shape: an
+// address, a phone number set at text-xl, and a circle with the letters IG in
+// it. The address was also on the map card beside them, said twice.
+ok('one heading left, over the hours',
+   (site.match(/text-gold uppercase tracking-widest[^>]*>(Location|Contact)</g) || []), []);
+ok('and the hours keep theirs, being what the section is opened for',
+   />Working Hours</.test(site), true);
+// One shape for the three things under it, all of which are things to press
+// rather than things to read.
+ok('the rest are rows that look alike',
+   (site.match(/class="visit-row[" ]/g) || []).length, 3);
+ok('each of them big enough to press',
+   /\.visit-row \{[\s\S]{0,300}min-height: 56px;/.test(site), true);
+// The phone row used to be hidden below the sm breakpoint — on a phone, which
+// is where somebody most needs to ring a barber.
+ok('and the phone is no longer hidden on a phone',
+   /hidden sm:block[\s\S]{0,200}cms-contact-phone/.test(site), false);
+// Every hook the settings render writes into has to survive a rearrangement.
+ok('the address still has its id', /id="cms-contact-address"/.test(site), true);
+ok('the number still has its class', /class="visit-value cms-contact-phone"/.test(site), true);
+ok('the dial link still has its own', /cms-contact-phone-link/.test(site), true);
+ok('and the handle still has its', /cms-instagram-handle/.test(site), true);
+
+// The line the list is usually opened for looked like all the others.
+ok('today is marked in the opening hours', /li\.is-today/.test(site), true);
+// The shop's day, not the reader's device: somebody in another timezone
+// looking at this list is looking at the shop's week.
+ok('and it is the shop\'s day that decides which',
+   /timeZone: 'Europe\/Amsterdam', weekday: 'long'/.test(site), true);
+
+// A 1px border under the bar arrived before the glass did on the way down
+// the ramp — a line hanging under something still mostly transparent.
+ok('the header has no hairline under it',
+   /<nav class="[^"]*border-b/.test(site), false);
+ok('the shadow does the separating instead',
+   /box-shadow: 0 1px 3px rgba\(0, 0, 0, calc\(var\(--nav-p, 0\) \* \.06\)\)/.test(site), true);
+
 console.log('--- the map ---');
 // It was a bordered box with padding, around a second box, around the
 // iframe: three edges to look at before the map. One surface now, one
