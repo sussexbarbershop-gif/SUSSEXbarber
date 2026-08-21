@@ -1448,15 +1448,35 @@
             let taps = 0;
             let firstTap = 0;
 
+            // Ten seconds, not three. Three is what a developer needs to tap
+            // five times and nothing like what somebody holding a phone and
+            // being careful about it needs — the first version of this could
+            // not be opened by the person it was built for, which is the only
+            // test that mattered.
+            const WINDOW = 10000;
+
             logo.addEventListener('click', e => {
                 const now = Date.now();
-                if (now - firstTap > 3000) { taps = 0; firstTap = now; }
+                if (now - firstTap > WINDOW) { taps = 0; firstTap = now; }
                 taps++;
+                // From the third tap on, the logo dims a little as it counts,
+                // so somebody in the middle of the gesture can see that it is
+                // working rather than guess at how fast to go.
+                if (taps >= 3 && taps < 5) {
+                    logo.style.opacity = '0.45';
+                    setTimeout(() => { logo.style.opacity = ''; }, 180);
+                }
                 if (taps < 5) return;
                 taps = 0;
+                logo.style.opacity = '';
                 e.preventDefault();
                 show();
             });
+
+            // The other way in, for a phone where five taps on a logo is more
+            // than anybody should have to do: the app icon's own long-press
+            // menu carries a shortcut to this address. See api/manifest.js.
+            if (/[?&]report=1/.test(location.search)) setTimeout(show, 300);
 
             function modeNow() {
                 const modes = ['fullscreen', 'standalone', 'minimal-ui', 'browser'];

@@ -96,6 +96,15 @@ module.exports = async function handler(req, res) {
       short_name: 'Book',
       url: '/?from=home#booking',
       icons: [{ src: pick('icon_192'), sizes: '192x192' }]
+    }, {
+      // Long-pressing the app icon reaches this. It is here because an
+      // installed app has no address bar: there was no way to open a
+      // diagnostic page on the one device whose answer was needed, and five
+      // taps on a logo turned out to be more than could be relied on.
+      name: 'Device report',
+      short_name: 'Report',
+      url: '/?report=1',
+      icons: [{ src: pick('icon_192'), sizes: '192x192' }]
     }]
   };
 
