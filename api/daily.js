@@ -149,7 +149,7 @@ async function runDailyJob(job) {
   // The one that runs through the day, and does nothing at all most times it
   // runs. See sendReminders() for what it is actually for.
   if (job === 'soon') {
-    const nudged = await sendReminders(sql, config, today, soonCutoff());
+    const nudged = await sendReminders(sql, config, today, shopTime(), soonCutoff());
     // Recorded whoever set this off — GitHub's clock, the button, or an
     // ordinary visitor standing in for both. The stand-in only wakes up when
     // this timestamp has gone stale, so it has to be written here rather than
@@ -218,7 +218,22 @@ function soonCutoff(at) {
  * The morning run has already marked everything it saw, so this one can only
  * ever find bookings made after it — exactly the ones it is for.
  */
-async function sendReminders(sql, config, today, until) {
+/**
+ * The reminders due now.
+ *
+ * The clock is passed in, and it is not decoration. This round is supposed to
+ * run every quarter of an hour; measured over two days, GitHub's scheduler
+ * actually leaves gaps of a hundred minutes and more — 138 between one pair,
+ * 850 overnight. Without a lower bound the first run after a gap picks up
+ * every appointment it missed and tells those customers their haircut is in
+ * about an hour, having already happened. The worst case here is not a late
+ * email, it is a wrong one.
+ *
+ * So the window has both ends: after now, and within the next hour. An
+ * appointment that has already started is left alone, which is the honest
+ * answer — there is nothing useful left to say about it.
+ */
+async function sendReminders(sql, config, today, from, until) {
   const rows = await withNewSchema(() => sql`
     SELECT id, booked_at, service, barber, customer_name, email, lang
       FROM bookings
@@ -226,6 +241,10 @@ async function sendReminders(sql, config, today, until) {
        AND status = 'active'
        AND email <> ''
        AND reminded_at IS NULL
+       -- Still to come. See the note above the function: this is what stops a
+       -- round that ran late from emailing somebody about a haircut they have
+       -- already had.
+       AND booked_at >= ${from}::time
        -- Null on the morning run, when the whole day is wanted.
        --
        -- Cast, rather than left to Postgres to work out. A parameter arrives
