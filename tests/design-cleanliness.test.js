@@ -163,6 +163,39 @@ console.log('--- image filters left to do their job ---');
 ok('gallery photos are not run through a brightness/contrast stack',
    /brightness-90 contrast-125/.test(site), false);
 
+console.log('--- the logo, at the top of a photograph ---');
+// On a light device the black logo is right against the white glass header
+// and wrong at the top of the page, where the header is transparent and what
+// is behind it is a dark photograph. The shop's name was black ink on a dark
+// brick wall — the first thing a customer sees was the one thing they could
+// not. The links beside it were already forced white by nav.at-top for
+// exactly this reason; the logo is an image, so it needed saying separately.
+ok('the white logo is used over the photograph',
+   /nav.at-top .logo-paper { display: block; }/.test(site), true);
+ok('and the black one steps aside while it is',
+   /nav.at-top .logo-ink { display: none; }/.test(site), true);
+// Light only. A dark device keeps the charcoal header in both states, where
+// the white logo was already correct throughout.
+ok('only where the header actually turns white',
+   /@media \(prefers-color-scheme: light\) \{[\s\S]{0,80}nav\.at-top \.logo-ink/.test(site), true);
+
+console.log('--- where the photograph stops ---');
+// The hero is 100svh, so on a phone it is slightly shorter than what is on
+// screen and the next section shows underneath. That is deliberate — it is
+// what says there is more page — but the join was a straight line with a dark
+// photograph above it and a near-white panel below, at the very bottom edge of
+// the screen. It read as a mistake rather than an invitation.
+ok('the photograph fades out rather than stopping', /\.hero-bg::after/.test(site), true);
+// The fade has to end on the next section's own colour. A shade out and the
+// line comes back one pixel lower, fainter and harder to explain.
+ok('ending on bg-gray-50, which is what is under it',
+   /#f9fafb 100%\)/.test(site), true);
+ok('and on charcoal-800 for a dark device',
+   /#1a1a1a 100%\)/.test(site), true);
+// The hero lays a second veil at z-10 and puts its text at z-20. An auto
+// z-index would put the fade under the veil, which would tint it — and a fade
+// that ends on a tinted white does not meet the white below it.
+ok('layered above the veils and below the words', /z-index: 15;/.test(site), true);
 console.log('--- the menu says which section you are in ---');
 // One item was gold and it was always the same item: My Bookings was written
 // that way in the markup, so the menu said the same thing whichever part of

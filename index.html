@@ -135,6 +135,73 @@
             background-size: cover;
             background-position: center;
         }
+        /* ---- The logo, at the top of a photograph ---------------------
+           On a light device the black logo is the right one: the header is
+           white glass and it reads cleanly against it. But at the top of the
+           page the header is transparent and what is behind it is the hero
+           photograph, which is dark — so the shop's name was black ink on a
+           dark brick wall, and the first thing a customer sees was the one
+           thing they could not.
+
+           The links beside it were already handled: nav.at-top forces them
+           white for exactly this reason. The logo is an image, so it needed
+           saying separately, and it never was.
+
+           Only in light mode. On a dark device the header is charcoal in
+           both states and the white logo is already correct throughout. */
+        @media (prefers-color-scheme: light) {
+            nav.at-top .logo-ink { display: none; }
+            nav.at-top .logo-paper { display: block; }
+        }
+
+        /* ---- Where the photograph stops -------------------------------
+           The hero is 100svh, so on a phone it is a little shorter than
+           what is actually on screen and the next section shows underneath
+           it. That is deliberate — it is what says there is more page — but
+           the join was a razor-straight line with a dark photograph on one
+           side of it and a near-white panel on the other, sitting at the
+           very bottom edge of the screen. It read as a mistake rather than
+           as an invitation.
+
+           So the last of the photograph fades into whatever is below it.
+           The colour has to be the next section's own, or the fade ends on
+           the wrong shade and the line comes back one pixel lower: #f9fafb
+           is bg-gray-50 and #1a1a1a is charcoal-800, which is what the About
+           section is in each theme.
+
+           On ::after rather than in the background stack, because the veil
+           and the photograph are already two layers of one background image
+           and a third would have to be repeated in the light-theme override
+           below. This way that override stays one line about the veil. */
+        .hero-bg { position: relative; }
+        .hero-bg::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 22vh;
+            max-height: 190px;
+            pointer-events: none;
+            /* Above both veils and below the words.
+               The hero lays a second veil over the photograph at z-10 and puts
+               its text at z-20. An auto z-index here would put the fade under
+               the veil, which would then tint it — and a fade that ends on a
+               tinted white does not meet the white below it, so the line comes
+               back, fainter and harder to explain. */
+            z-index: 15;
+            background: linear-gradient(to bottom, rgba(249, 250, 251, 0) 0%,
+                                                   rgba(249, 250, 251, .55) 62%,
+                                                   #f9fafb 100%);
+        }
+        @media (prefers-color-scheme: dark) {
+            .hero-bg::after {
+                background: linear-gradient(to bottom, rgba(26, 26, 26, 0) 0%,
+                                                       rgba(26, 26, 26, .55) 62%,
+                                                       #1a1a1a 100%);
+            }
+        }
+
         /* Lighter on a light device, where the old veil read as a black slab
            under a white header. Dark mode keeps the heavier one.
            0.45-0.65 is as far as this can go: the photo has bright lamps and a
@@ -1193,8 +1260,8 @@
                              fringe on every edge. These two are the same artwork reduced
                              to black ink and to white ink, both on transparency, so
                              neither carries a background to show. -->
-                        <img src="assets/logo-black.png" alt="Sussex Barber Shop Logo" width="50" height="64" class="h-16 w-auto object-contain dark:hidden" style="margin-top: -10px; margin-bottom: -10px;">
-                        <img src="assets/logo-white.png" alt="" aria-hidden="true" width="50" height="64" class="h-16 w-auto object-contain hidden dark:block" style="margin-top: -10px; margin-bottom: -10px;">
+                        <img src="assets/logo-black.png" alt="Sussex Barber Shop Logo" width="50" height="64" class="h-16 w-auto object-contain dark:hidden logo-ink" style="margin-top: -10px; margin-bottom: -10px;">
+                        <img src="assets/logo-white.png" alt="" aria-hidden="true" width="50" height="64" class="h-16 w-auto object-contain hidden dark:block logo-paper" style="margin-top: -10px; margin-bottom: -10px;">
                     </a>
                     <!-- Live Working Hours Status Badge -->
                     <div id="statusBadge" class="hidden sm:inline-block"></div>
