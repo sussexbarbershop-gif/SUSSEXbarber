@@ -103,5 +103,27 @@ ok('fixed-column grids scroll themselves', rigidGrids, []);
 console.log('--- the viewport is declared ---');
 ok('width=device-width', /name="viewport"[^>]*width=device-width/.test(html), true);
 
+console.log('--- one anatomy for every block in a dialog ---');
+// Three section headings with three sets of inline styles and three different
+// margins, three hint paragraphs at 8px, 6px and 12px, and a photo-and-name
+// row that wrapped on a phone into two ragged columns. Nothing was wrong with
+// any one of them; they had no rule in common, so nothing lined up.
+ok('a block is a rule, not a copy', /.sheet-block { margin-bottom: 26px; }/.test(css), true);
+ok('and so is its heading', /.sheet-title {/.test(css), true);
+ok('and its line of explanation', /.sheet-hint {/.test(css), true);
+// The dialog should carry no sizes of its own beyond its own width.
+const dialog = html.slice(html.indexOf('id="barberModal"'), html.indexOf('id="serviceModal"'));
+ok('the barber dialog has one inline style left, its width',
+   (dialog.match(/style="/g) || []).length, 1);
+ok('and that one is the width', /class="modal" style="max-width:720px"/.test(dialog), true);
+// A fixed first column cannot wrap into two ragged columns on a narrow screen.
+ok('the photo sits beside the name at a fixed width',
+   /grid-template-columns: 88px 1fr;/.test(css), true);
+// The strip above the page had nothing to match, which is a hairline across
+// the top of every screen in the panel.
+ok('the panel tints the status bar to its own background',
+   /<meta name="theme-color" content="#f8fafc"/.test(html), true);
+ok('and to the dark one as well',
+   /<meta name="theme-color" content="#0f0f0f"/.test(html), true);
 console.log(failed === 0 ? '\nAll admin mobile tests passed.' : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);

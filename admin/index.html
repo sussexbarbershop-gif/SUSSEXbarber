@@ -13,6 +13,12 @@
     <meta name="robots" content="noindex, nofollow">
     <meta http-equiv="X-XSS-Protection" content="1; mode=block">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <!-- Without these the browser paints the strip above the page its own
+         default and the page underneath is a different shade, which is a
+         hairline across the top of every screen in the panel. Same values as
+         --bg-primary in each theme. -->
+    <meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0f0f0f" media="(prefers-color-scheme: dark)">
     <link rel="stylesheet" href="/admin/admin.css">
 </head>
 <body>
@@ -511,46 +517,52 @@
                 </button>
             </div>
             <div class="modal-body">
-                <div style="display:flex;gap:20px;align-items:flex-start;margin-bottom:24px;flex-wrap:wrap">
-                    <div style="text-align:center">
-                        <img id="barberModalPhoto" alt="" style="width:88px;height:88px;object-fit:cover;border-radius:50%;border:2px solid var(--border-color);background:var(--bg-input)">
-                        <button class="btn btn-outline btn-sm" style="margin-top:8px;display:block;width:100%" onclick="changeBarberPhoto()">Photo</button>
+                <div class="sheet-block">
+                    <div class="barber-identity">
+                        <div>
+                            <img id="barberModalPhoto" alt="">
+                            <button class="btn btn-outline btn-sm" onclick="changeBarberPhoto()">Photo</button>
+                        </div>
+                        <div class="form-group">
+                            <label for="barberModalName">Name</label>
+                            <input type="text" id="barberModalName" placeholder="e.g. Hemen">
+                        </div>
                     </div>
-                    <div class="form-group" style="flex:1;min-width:200px;margin-bottom:0">
-                        <label>Name</label>
-                        <input type="text" id="barberModalName" placeholder="e.g. Hemen">
-                        <p style="color:var(--text-muted);font-size:12px;margin-top:8px">
-                            This is the name customers pick on the booking form.
-                        </p>
+                    <p class="sheet-hint">
+                        This is the name customers pick on the booking form.
+                    </p>
 
-                        <!-- Two different questions, and only this one is being
-                             asked here. A barber switched off still takes
-                             appointments and still appears on the booking form;
-                             they simply have no card in Our Master Barbers. -->
-                        <label class="team-switch">
-                            <input type="checkbox" id="barberModalOnTeam" checked>
-                            <span>Show on the website</span>
-                        </label>
-                        <p style="color:var(--text-muted);font-size:12px;margin-top:6px;line-height:1.5">
-                            Off means no card in <em>Our Master Barbers</em>. They can
-                            still be booked either way.
-                        </p>
-                    </div>
+                    <!-- Two different questions, and only this one is being
+                         asked here. A barber switched off still takes
+                         appointments and still appears on the booking form;
+                         they simply have no card in Our Master Barbers. -->
+                    <label class="team-switch">
+                        <input type="checkbox" id="barberModalOnTeam" checked>
+                        <span>Show on the website</span>
+                    </label>
+                    <p class="sheet-hint">
+                        Off means no card in <em>Our Master Barbers</em>. They can
+                        still be booked either way.
+                    </p>
                 </div>
 
-                <h4 style="color:var(--gold);font-size:13px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Working Days</h4>
-                <p style="color:var(--text-muted);font-size:12px;margin-bottom:12px">
-                    Switch a day on, then set the hours and the break. Days left off
-                    are never offered to customers.
-                </p>
-                <div id="barberModalRota"></div>
+                <div class="sheet-block">
+                    <h4 class="sheet-title">Working Days</h4>
+                    <p class="sheet-hint">
+                        Switch a day on, then set the hours and the break. Days left off
+                        are never offered to customers.
+                    </p>
+                    <div id="barberModalRota"></div>
+                </div>
 
-                <h4 style="color:var(--gold);font-size:13px;text-transform:uppercase;letter-spacing:1px;margin:24px 0 4px">Time Off</h4>
-                <p style="color:var(--text-muted);font-size:12px;margin-bottom:12px">
-                    Holidays and sick days. These close the dates even on a working day.
-                </p>
-                <div id="barberModalTimeOff"></div>
-                <button class="btn btn-outline btn-sm" style="margin-top:10px" onclick="addTimeOffFor()">+ Add Time Off</button>
+                <div class="sheet-block">
+                    <h4 class="sheet-title">Time Off</h4>
+                    <p class="sheet-hint">
+                        Holidays and sick days. These close the dates even on a working day.
+                    </p>
+                    <div id="barberModalTimeOff"></div>
+                    <button class="btn btn-outline btn-sm" onclick="addTimeOffFor()">+ Add Time Off</button>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-danger" onclick="deleteBarberFromModal()">Delete Barber</button>

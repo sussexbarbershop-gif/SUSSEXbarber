@@ -1184,6 +1184,67 @@ textarea.form-control { resize: vertical; line-height: 1.6; }
     box-shadow: 0 0 0 3px rgba(212,175,55,.25);
 }
 
+/* ---- The parts a dialog is made of ---------------------------------------
+ *
+ * Every block in the barber dialog had been written by hand: three section
+ * headings with three sets of inline styles and three different margins, three
+ * hint paragraphs at 8px, 6px and 12px, and a photo-and-name row that wrapped
+ * on a phone into two ragged columns. Nothing was wrong with any one of them;
+ * they simply had no rule in common, so nothing lined up with anything else.
+ *
+ * A block is a heading, a line of explanation, and its content, in that order
+ * and at that spacing, once.
+ */
+.sheet-block { margin-bottom: 26px; }
+.sheet-block:last-child { margin-bottom: 0; }
+.sheet-title {
+    color: var(--gold);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin: 0 0 6px;
+}
+.sheet-hint {
+    color: var(--text-muted);
+    font-size: 12.5px;
+    line-height: 1.55;
+    margin: 0 0 14px;
+}
+/* The last thing in a block is content, and content brings its own spacing. */
+.sheet-hint:last-child { margin-bottom: 0; }
+/* A line explaining the control above it sits closer to it than to whatever
+   comes next. */
+.team-switch + .sheet-hint { margin: 8px 0 0; }
+/* And an action under a list is separated from it, not from the block. */
+#barberModalTimeOff + .btn { margin-top: 12px; }
+
+/* Photo beside the name, at a fixed width so it cannot wrap into two ragged
+   columns on a narrow screen. Everything that is not the name — the switch,
+   the explanation under it — goes below at full width rather than being
+   squeezed into the right-hand column, which is what made this look cramped. */
+.barber-identity {
+    display: grid;
+    grid-template-columns: 88px 1fr;
+    gap: 16px;
+    align-items: start;
+    margin-bottom: 18px;
+}
+.barber-identity img {
+    width: 88px;
+    height: 88px;
+    object-fit: cover;
+    border-radius: 50%;
+    display: block;
+    background: var(--bg-input);
+}
+.barber-identity .btn {
+    width: 88px;
+    margin-top: 8px;
+    padding-inline: 0;
+}
+.barber-identity .form-group { margin-bottom: 0; }
+
 /* The one switch in a barber's dialog.
  *
  * Written at this specificity because the first version was not, and the
