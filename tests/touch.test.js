@@ -201,6 +201,42 @@ ok('and the timer is cleared with it, so neither removes it twice',
 ok('the message is set as text, never as html',
    /words\.textContent = message;/.test(html), true);
 
+console.log('--- the bar arriving, rather than switching ---');
+// It was a one-pixel sentinel and an observer: the bar went from nothing to
+// glass in one step, easing over half a second on its own clock — so it
+// changed after the scroll rather than with it, and at the same speed whether
+// the finger had moved two pixels or two hundred.
+ok('the sentinel is gone', /position:absolute;top:0;height:1px;width:1px/.test(html), false);
+ok('and the bar reads a progress value instead',
+   /--nav-p/.test(style), true);
+// Short, as asked: over before the hero's headline has cleared the bar.
+ok('over eighty pixels', /const SETTLE = 80;/.test(html), true);
+// Everything the bar does comes off the one number.
+[['the glass fills in', /background-color: rgba\(255, 255, 255, calc\(var\(--nav-p, 0\) \* \.62\)\)/],
+ ['the blur deepens', /blur\(calc\(2px \+ var\(--nav-p, 0\) \* 16px\)\)/],
+ ['the edge arrives', /border-color: rgba\(229, 231, 235, var\(--nav-p, 0\)\)/],
+ ['and the shadow with it', /box-shadow: 0 1px 2px rgba\(0, 0, 0, calc\(var\(--nav-p, 0\)/]]
+  .forEach(([what, re]) => ok(what, re.test(style), true));
+// A transition here would be a second animation fighting the one the finger
+// is already driving.
+ok('nothing eases while a finger is driving it',
+   /nav \{\s*padding-top: env\(safe-area-inset-top\);\s*\}/.test(style), true);
+// Except when the page moves by itself, which is not a scroll anybody is
+// driving and would otherwise cross the whole ramp in one frame.
+ok('but a jump to a section is allowed to ease',
+   /nav\.site-nav\.is-jumping \{[\s\S]{0,200}transition: background-color/.test(style), true);
+ok('and smoothScrollTo says when that is',
+   /dispatchEvent\(new Event\('sussex:jump'\)\)/.test(html), true);
+// The class survives because three other things read it, and it flips late
+// enough that the words turn dark only once the glass behind them is mostly
+// there.
+ok('the boolean flips at six tenths, not at nothing',
+   /const atTop = p < 0\.6;/.test(html), true);
+// A hard swap in the middle of a soft change is the one frame anybody would
+// notice.
+ok('the two logos cross over on the same ramp',
+   /\.logo-stack \.logo-ink \{ opacity: var\(--nav-p, 0\); \}/.test(style), true);
+
 console.log('--- the strip Android paints above the app ---');
 // The two platforms disagree about where an app begins. iOS was told the
 // page may run under the status bar, so the hero photograph goes to the top
@@ -248,10 +284,13 @@ ok('and repainted if the device changes theme underneath it',
    /prefers-color-scheme: dark\)'\)\.addEventListener\('change'/.test(html), true);
 // Painted from the same observer that decides the header's own state, so
 // the two cannot disagree about whether the page is at the top.
+// The strip colour and the header's own state are decided in one place, off
+// the same progress value, so they cannot disagree about whether the page
+// has left the top.
 ok('the strip and the header are decided together',
-   /classList\.toggle\('at-top', entry\.isIntersecting\);\s*paintStatusBar\(entry\.isIntersecting\);/.test(html), true);
+   /nav\.classList\.toggle\('at-top', atTop\);\s*paintStatusBar\(atTop\);/.test(html), true);
 ok('and it is right before a scroll ever happens',
-   /nav\.classList\.add\('at-top'\);\s*paintStatusBar\(true\);/.test(html), true);
+   /settle\(\);\s*addEventListener\('scroll'/.test(html), true);
 
 console.log('--- the status bar, once it opens as an app ---');
 // The mirror of the block above, and it only became visible when the icon
@@ -450,9 +489,14 @@ console.log('--- the header knows where the page is ---');
 // It looked the same over the hero photograph as it did over a white section
 // three screens down: a full-strength bar with a border, in the way of an
 // image it was sitting on top of.
-ok('there is an at-top state', /nav\.at-top \{/.test(style), true);
-ok('which is transparent', /nav\.at-top \{[^}]*background-color: transparent/.test(style), true);
-ok('and gains an edge once it is not', /nav:not\(\.at-top\) \{[^}]*box-shadow/.test(style), true);
+// The bar no longer has two states with a line between them. It has a ramp,
+// and the class is only what other things read off it.
+ok('the bar is drawn from the progress value',
+   /nav\.site-nav \{[^}]*var\(--nav-p, 0\)/.test(style), true);
+ok('which is nothing at all at the top',
+   /background-color: rgba\(255, 255, 255, calc\(var\(--nav-p, 0\) \* \.62\)\)/.test(style), true);
+ok('and gains its edge as it fills in',
+   /border-color: rgba\(229, 231, 235, var\(--nav-p, 0\)\)/.test(style), true);
 // Over a dark photograph the links have to be legible whatever the device's
 // theme is, and the light theme would otherwise put charcoal on it.
 ok('the links stay legible over the photograph',
@@ -460,20 +504,31 @@ ok('the links stay legible over the photograph',
 // A sentinel, not a scroll listener: a listener fires on every frame of every
 // scroll for the whole visit to answer a question whose answer changes twice.
 ok('driven by a sentinel', /sentinel/.test(html), true);
-ok('and an observer, not a scroll listener',
-   /new IntersectionObserver\(\(\[entry\]\) => \{\s*nav\.classList\.toggle\('at-top'/.test(html), true);
-// There is exactly one scroll listener in the page and it is not this one.
-// It belongs to the reveals, which track a position continuously and so
-// cannot be done with an observer; the header answers a yes-or-no question
-// that changes twice a visit, and paying for it on every frame would be the
-// mistake this has always been here to prevent.
+// The observer that answered this is gone: the question is continuous now.
+ok('and a rAF-throttled listener, not an observer',
+   /const settle = \(\) => \{[\s\S]{0,900}requestAnimationFrame\(settle\)/.test(html), true);
+// Two scroll listeners, and both earn it. This test used to insist on one,
+// and the reasoning was right for the question the header was asking then:
+// "has the page left the top" changes twice a visit, and paying for that on
+// every frame is waste. The header asks a different question now — "how far
+// down are we", which has a new answer on every frame — and that is precisely
+// what a scroll listener is for.
+//
+// The number still matters. Anything a boundary can answer belongs on an
+// observer, and the section colours and the menu marker both do.
 const scrollListeners = (html.match(/addEventListener\('scroll'/g) || []).length;
-ok('only one thing in the page listens to scroll', scrollListeners, 1);
-ok('and it is the reveals, not the header',
+ok('two things listen to scroll, and no more', scrollListeners, 2);
+ok('one of them is the reveals',
    /scrollLinkedReveals[\s\S]*?addEventListener\('scroll'/.test(html), true);
+ok('and the other is the header settling',
+   /const settle = \(\) => \{[\s\S]*?addEventListener\('scroll'/.test(html), true);
+// Both of them queue one frame at most.
+ok('neither runs more than once a frame',
+   (html.match(/if \(queued\) return;\s*queued = true;\s*requestAnimationFrame/g) || []).length >= 1, true);
 // It has to start in the at-top state, or the header is opaque for the moment
 // before the first callback arrives.
-ok('and it starts at the top', /nav\.classList\.add\('at-top'\)/.test(html), true);
+ok('and it starts at the top',
+   /let wasAtTop = null;/.test(html), true);
 
 console.log('--- and if the observer is not there at all ---');
 // The staggered grids start at opacity 0 and are brought back by the class the
@@ -544,14 +599,19 @@ ok('every hover: utility asks whether there is a pointer',
 console.log('--- the header is glass, not a lid ---');
 // bg-white/90 is ninety per cent opaque, which is a solid bar with a rounding
 // error: scroll down and the header simply goes dark.
-ok('the scrolled state is see-through', /nav:not\(\.at-top\) \{[^}]*rgba\(255, 255, 255, \.6/.test(style), true);
-ok('with a real blur behind it', /nav:not\(\.at-top\) \{[^}]*backdrop-filter: blur\(18px\)/.test(style), true);
+// The end of the ramp is the glass this used to switch to.
+ok('the far end of the ramp is see-through',
+   /calc\(var\(--nav-p, 0\) \* \.62\)/.test(style), true);
+ok('with a real blur behind it, deepening as it goes',
+   /blur\(calc\(2px \+ var\(--nav-p, 0\) \* 16px\)\)/.test(style), true);
 // Blurred colour goes grey without it, and glass over a photograph then looks
 // like frosted plastic.
-ok('and saturation, or the colour goes grey', /saturate\(160%\)/.test(style), true);
+ok('and saturation, or the colour goes grey',
+   /saturate\(calc\(100% \+ var\(--nav-p, 0\) \* 60%\)\)/.test(style), true);
 // Safari still wants the prefix; without it iOS renders the transparency and
 // none of the blur, which is a smear rather than glass.
-ok('prefixed for Safari', /-webkit-backdrop-filter: blur\(18px\)/.test(style), true);
+ok('prefixed for Safari, which still wants it',
+   /-webkit-backdrop-filter: blur\(calc\(2px \+ var\(--nav-p, 0\) \* 16px\)\)/.test(style), true);
 // Sixty per cent with nothing behind it is text over whatever is scrolling
 // past. Glass is an enhancement; legibility is not.
 // Asking about both spellings, because Safari before 18 answers "no" to the

@@ -208,14 +208,14 @@ console.log('--- the logo, at the top of a photograph ---');
 // brick wall — the first thing a customer sees was the one thing they could
 // not. The links beside it were already forced white by nav.at-top for
 // exactly this reason; the logo is an image, so it needed saying separately.
-ok('the white logo is used over the photograph',
-   /nav.at-top .logo-paper { display: block; }/.test(site), true);
-ok('and the black one steps aside while it is',
-   /nav.at-top .logo-ink { display: none; }/.test(site), true);
+ok('the white logo carries the top of the page',
+   /\.logo-stack \.logo-paper \{[\s\S]{0,160}opacity: calc\(1 - var\(--nav-p, 0\)\)/.test(site), true);
+ok('and the black one fades up as the glass does',
+   /\.logo-stack \.logo-ink \{ opacity: var\(--nav-p, 0\); \}/.test(site), true);
 // Light only. A dark device keeps the charcoal header in both states, where
 // the white logo was already correct throughout.
 ok('only where the header actually turns white',
-   /@media \(prefers-color-scheme: light\) \{[\s\S]{0,80}nav\.at-top \.logo-ink/.test(site), true);
+   /@media \(prefers-color-scheme: light\) \{[\s\S]{0,400}\.logo-stack \.logo-ink/.test(site), true);
 
 console.log('--- where the photograph stops ---');
 // The hero is 100svh, so on a phone it is slightly shorter than what is on
@@ -261,7 +261,7 @@ ok('and it is announced, not only coloured',
 // A page opened part-way down — a restored tab, or a link to a section —
 // would otherwise mark nothing until the reader happened to scroll.
 ok('marked at load as well as at each boundary',
-   /paintStatusBar\(true\);[\s\S]{0,320}markWhereYouAre\(\);/.test(site), true);
+   /markWhereYouAre\(\);\s*\};\s*settle\(\);/.test(site), true);
 
 console.log('--- glass, on the phones that can draw it ---');
 // Safari only learned the unprefixed backdrop-filter in version 18. Every

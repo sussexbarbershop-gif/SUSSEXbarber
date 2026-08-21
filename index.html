@@ -248,8 +248,18 @@
            Only in light mode. On a dark device the header is charcoal in
            both states and the white logo is already correct throughout. */
         @media (prefers-color-scheme: light) {
-            nav.at-top .logo-ink { display: none; }
-            nav.at-top .logo-paper { display: block; }
+            /* Both are drawn, one over the other, and they cross over on the
+               same ramp as the glass. Swapping them at a threshold put a hard
+               cut in the middle of a soft change — the one frame in the whole
+               movement that anybody would notice. */
+            .logo-stack { position: relative; display: inline-flex; }
+            .logo-stack .logo-ink { opacity: var(--nav-p, 0); }
+            .logo-stack .logo-paper {
+                display: block;
+                position: absolute;
+                inset: 0;
+                opacity: calc(1 - var(--nav-p, 0));
+            }
         }
 
         /* ---- Where the photograph stops -------------------------------
@@ -1171,18 +1181,50 @@
          * with it on its own. */
         nav {
             padding-top: env(safe-area-inset-top);
+        }
+
+        /* ---- The bar arriving ------------------------------------------
+           This used to be a switch. A one-pixel sentinel at the top of the
+           page told an observer whether the page had left the top, and the
+           bar went from nothing to glass in one step, easing over half a
+           second on its own clock — so it changed after the scroll rather
+           than with it, and at the same speed whether the finger had moved
+           two pixels or two hundred.
+
+           It follows the finger now. --nav-p runs from 0 to 1 across the
+           first eighty pixels of the page, and everything the bar does is
+           read off it: the glass fills in, the blur deepens, the edge and the
+           shadow arrive together. Eighty because the whole change should be
+           over before the hero's headline has cleared the bar — long enough
+           to be a movement rather than a flick, short enough that nobody is
+           left scrolling through a half-finished header.
+
+           No transition on any of it: a transition here would be a second
+           animation fighting the one the finger is already driving. The only
+           time it is asked to ease is when the page jumps somewhere by
+           itself, and that is what .is-jumping is for. */
+        nav.site-nav {
+            background-color: rgba(255, 255, 255, calc(var(--nav-p, 0) * .62));
+            border-color: rgba(229, 231, 235, var(--nav-p, 0));
+            box-shadow: 0 1px 2px rgba(0, 0, 0, calc(var(--nav-p, 0) * .05)),
+                        0 4px 14px rgba(0, 0, 0, calc(var(--nav-p, 0) * .07));
+            backdrop-filter: blur(calc(2px + var(--nav-p, 0) * 16px))
+                             saturate(calc(100% + var(--nav-p, 0) * 60%));
+            -webkit-backdrop-filter: blur(calc(2px + var(--nav-p, 0) * 16px))
+                                     saturate(calc(100% + var(--nav-p, 0) * 60%));
+        }
+        @media (prefers-color-scheme: dark) {
+            nav.site-nav {
+                background-color: rgba(18, 18, 18, calc(var(--nav-p, 0) * .55));
+                border-color: rgba(42, 42, 42, var(--nav-p, 0));
+            }
+        }
+        /* A jump to a section is not a scroll anybody is driving, so there the
+           bar is allowed its own easing. */
+        nav.site-nav.is-jumping {
             transition: background-color var(--m3-long-2) var(--m3-standard),
                         border-color var(--m3-long-2) var(--m3-standard),
-                        box-shadow var(--m3-long-2) var(--m3-standard),
-                        backdrop-filter var(--m3-long-2) var(--m3-standard),
-                        -webkit-backdrop-filter var(--m3-long-2) var(--m3-standard);
-        }
-        nav.at-top {
-            background-color: transparent;
-            border-color: transparent;
-            box-shadow: none;
-            backdrop-filter: blur(2px);
-            -webkit-backdrop-filter: blur(2px);
+                        box-shadow var(--m3-long-2) var(--m3-standard);
         }
         /* Glass, not a lid. Tailwind's bg-white/90 on this element is ninety
            per cent opaque, which is a solid bar with a rounding error — scroll
@@ -1197,15 +1239,12 @@
            -webkit- as well, which Safari still wants. Without it iOS renders
            the sixty per cent and none of the blur, and the header there is a
            translucent smear rather than glass. */
-        nav:not(.at-top) {
-            background-color: rgba(255, 255, 255, .62);
-            backdrop-filter: blur(18px) saturate(160%);
-            -webkit-backdrop-filter: blur(18px) saturate(160%);
-            box-shadow: var(--lift-1);
-        }
-        @media (prefers-color-scheme: dark) {
-            nav:not(.at-top) { background-color: rgba(18, 18, 18, .55); }
-        }
+        /* The end of that ramp is the glass this used to switch to: sixty per
+           cent with a real blur behind it, so the page can be seen moving
+           underneath and the bar reads as a layer of it rather than a strip
+           laid over it. The saturate is what stops blurred colour going grey.
+           -webkit- as well, which Safari still wants — without it iOS renders
+           the transparency and none of the blur, which is a smear. */
         /* A browser that cannot blur gets the opaque bar back, because sixty
            per cent with nothing behind it is text over whatever is scrolling
            past. Glass is an enhancement; legibility is not.
@@ -1217,12 +1256,13 @@
            took the glass away from exactly the phones that had it, and left
            them an opaque bar — the version written for browsers that cannot
            blur at all, handed to one that can. */
+        /* A browser that cannot blur gets an opaque bar instead, because
+           transparency with nothing behind it is text over whatever is
+           scrolling past. It still arrives on the same ramp. */
         @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-            nav:not(.at-top) { background-color: rgba(255, 255, 255, .95); }
-        }
-        @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+            nav.site-nav { background-color: rgba(255, 255, 255, calc(var(--nav-p, 0) * .95)); }
             @media (prefers-color-scheme: dark) {
-                nav:not(.at-top) { background-color: rgba(18, 18, 18, .95); }
+                nav.site-nav { background-color: rgba(18, 18, 18, calc(var(--nav-p, 0) * .95)); }
             }
         }
 
@@ -1347,11 +1387,11 @@
     <div id="toastContainer" aria-live="polite" aria-atomic="false"></div>
 
     <!-- Navigation Bar -->
-    <nav class="fixed w-full z-40 bg-white/90 dark:bg-charcoal-900/90 backdrop-blur-md border-b border-gray-200 dark:border-charcoal-700 transition-colors duration-300">
+    <nav class="site-nav fixed w-full z-40 bg-white/90 dark:bg-charcoal-900/90 backdrop-blur-md border-b border-gray-200 dark:border-charcoal-700 transition-colors duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-20">
                 <div class="flex items-center space-x-3">
-                    <a href="#" class="flex items-center transition-transform duration-300 hover:scale-105">
+                    <a href="#" class="logo-stack flex items-center transition-transform duration-300 hover:scale-105">
                         <!-- One flat colour per theme rather than one image inverted.
                              The source logo is full colour on cream paper: inverting it
                              for the dark theme turned the paper muddy and left a pale
@@ -1559,6 +1599,10 @@
             const root = document.documentElement;
             const was = root.style.scrollBehavior;
             root.style.scrollBehavior = 'auto';
+
+            // Tell the header this movement is not a finger, so it eases the
+            // colour change instead of stepping through it a frame at a time.
+            window.dispatchEvent(new Event('sussex:jump'));
 
             let stopped = false;
             const giveUp = () => { stopped = true; };
@@ -2727,18 +2771,14 @@
             }).observe(document.body, { childList: true, subtree: true });
         }
 
-        // The header knows whether the page has left the top.
+        // The header, and everything that follows the page underneath it.
         //
-        // A sentinel and an observer rather than a scroll listener: a listener
-        // fires on every frame of every scroll for the whole visit, to answer
-        // a question whose answer changes twice. This one is called exactly
-        // when the top of the page crosses the top of the screen.
+        // This block owns three things that all answer to the same question:
+        // how far down the page is. The bar fills in across the first eighty
+        // pixels, the strip Android paints above the app takes the colour of
+        // whatever section is under it, and the menu marks the one you are in.
         {
             const nav = document.querySelector('nav');
-            const sentinel = document.createElement('div');
-            sentinel.setAttribute('aria-hidden', 'true');
-            sentinel.style.cssText = 'position:absolute;top:0;height:1px;width:1px;pointer-events:none';
-            document.body.prepend(sentinel);
 
             /**
              * The strip Android paints above the app, kept level with whatever
@@ -2862,11 +2902,11 @@
 
             // The section under the bar changes as the page moves.
             //
-            // Watched rather than listened for. A scroll listener would run on
-            // every frame of every scroll for the whole visit to answer a
-            // question whose answer changes eight times — the same argument
-            // that put the header on a sentinel, and the page is meant to have
-            // exactly one thing listening to scroll, which is the reveals.
+            // Watched rather than listened for. This one really does change
+            // eight times in a page — once per section — so an observer at the
+            // boundary is the whole job, and there is nothing for a per-frame
+            // listener to add. The bar below is the opposite case: its answer
+            // is different on every frame, which is why that one listens.
             //
             // An observer per section fires at the boundary, which is the
             // moment the colour should change and no other. What it does then
@@ -2925,18 +2965,60 @@
                 repaint();
             });
 
+            /**
+             * The bar arriving, across the first eighty pixels of the page.
+             *
+             * This was a one-pixel sentinel and an observer, and the reasoning
+             * written beside it was sound for the question being asked: a
+             * listener firing every frame to answer something that changes
+             * twice is a listener earning nothing. But the question changed.
+             * "How far down are we" has a different answer on every frame, and
+             * that is precisely what a scroll listener is for.
+             *
+             * Still cheap. One frame is ever queued, the work is two writes to
+             * one custom property and a class that changes twice, and nothing
+             * measures anything — scrollY is already known to the browser.
+             *
+             * The class stays because three other things read it: the status
+             * bar colour, the menu marker, and the link colour over the hero.
+             * It flips at 0.6 rather than at nothing, so the words turn dark
+             * once the glass behind them is most of the way in and never
+             * before.
+             */
             if (nav) {
-                nav.classList.add('at-top');
-                paintStatusBar(true);
-                // And once now, for a page opened part-way down — a restored
-                // tab, or a link straight to a section. Waiting for the first
-                // boundary would leave the menu marking nothing until the
-                // reader happened to scroll.
-                markWhereYouAre();
-                new IntersectionObserver(([entry]) => {
-                    nav.classList.toggle('at-top', entry.isIntersecting);
-                    paintStatusBar(entry.isIntersecting);
-                }).observe(sentinel);
+                const SETTLE = 80;
+                let queued = false;
+                let wasAtTop = null;
+
+                const settle = () => {
+                    queued = false;
+                    const p = Math.min(1, Math.max(0, window.scrollY / SETTLE));
+                    document.documentElement.style.setProperty('--nav-p', p.toFixed(3));
+
+                    const atTop = p < 0.6;
+                    if (atTop === wasAtTop) return;
+                    wasAtTop = atTop;
+                    nav.classList.toggle('at-top', atTop);
+                    paintStatusBar(atTop);
+                    // For a page opened part-way down — a restored tab, or a
+                    // link straight to a section.
+                    markWhereYouAre();
+                };
+
+                settle();
+                addEventListener('scroll', () => {
+                    if (queued) return;
+                    queued = true;
+                    requestAnimationFrame(settle);
+                }, { passive: true });
+
+                // A jump to a section is not a scroll anybody is driving, so
+                // the bar is allowed to ease there rather than snap through
+                // eighty pixels in one frame. Taken off once it has arrived.
+                window.addEventListener('sussex:jump', () => {
+                    nav.classList.add('is-jumping');
+                    setTimeout(() => nav.classList.remove('is-jumping'), 900);
+                });
             }
         }
 
