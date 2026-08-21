@@ -187,8 +187,38 @@ ok('the two theme colours can be found again',
 // unlike the iPhone.
 ok('it starts as the hero, not as the light theme',
    /<meta name="theme-color" content="#121212"[^>]*prefers-color-scheme: light/.test(html), true);
-ok('and the header colour is what it changes to',
-   /HEADER_LIGHT = '#fafafa'/.test(html), true);
+ok('and the section behind it is what it changes to',
+   /function behindTheBar\(\)/.test(html), true);
+// Read off the page, not written down section by section. That is what makes
+// it right in both themes without a second table, right for a section added
+// later, and unable to drift from the CSS — getComputedStyle has already
+// resolved whatever the device's own light or dark setting selected.
+ok('by reading the page rather than a list of colours',
+   /getComputedStyle\(el\)\.backgroundColor/.test(html), true);
+// Anything see-through is not what is being seen; the probe keeps walking up.
+ok('and it ignores anything transparent on the way up',
+   /Number\(alpha\) > 0\.9/.test(html), true);
+// The hero is a photograph under a flat veil, so it has no background-color
+// to read. Its two values are measured off the file, one per theme.
+ok('the hero has its own measured colour', /HERO_LIGHT = \[50, 33, 25\]/.test(html), true);
+ok('and a different one for a dark device', /HERO_DARK  = \[41, 29, 23\]/.test(html), true);
+// Three numbers, not hex: asRgb reads what getComputedStyle returns, and
+// handed a hex string it finds one number instead of three and gives up —
+// which made the whole paint return early and leave the strip on its last
+// colour, in silence. That was the first version of this.
+ok('written as numbers, because that is what the reader parses',
+   /HERO_LIGHT = '#/.test(html), false);
+// Once the page has scrolled the strip sits directly on the header's glass,
+// so it is the section's colour with the same glass over it. Otherwise the
+// two read as two bars rather than one.
+ok('with the header glass laid over it once scrolled',
+   /over\(behind, isDark\(\) \? GLASS_DARK : GLASS_LIGHT\)/.test(html), true);
+// A section boundary is when the answer changes, and the only time it does.
+ok('watched at the boundary rather than polled every frame',
+   /new IntersectionObserver\(\(\) => repaint\(\)/.test(html), true);
+// Switching the phone between light and dark moves both colours at once.
+ok('and repainted if the device changes theme underneath it',
+   /prefers-color-scheme: dark\)'\)\.addEventListener\('change'/.test(html), true);
 // Painted from the same observer that decides the header's own state, so
 // the two cannot disagree about whether the page is at the top.
 ok('the strip and the header are decided together',

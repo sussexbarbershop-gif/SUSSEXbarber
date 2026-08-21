@@ -71,7 +71,7 @@ module.exports = async function handler(req, res) {
      * that is a fair price for the top of the screen; for anything longer it
      * would not be.
      */
-    display_override: ['fullscreen', 'standalone'],
+    display_override: ['standalone'],
     // And display itself, not only the override.
     //
     // display_override is read first by anything that understands it, and
@@ -81,7 +81,7 @@ module.exports = async function handler(req, res) {
     // the fallback chain when it is unsupported is fullscreen -> standalone,
     // which is exactly where this was. So there is no browser this makes
     // worse and one class of them it fixes.
-    display: 'fullscreen',
+    display: 'standalone',
     orientation: 'portrait',
     background_color: '#121212',
     theme_color: '#121212',

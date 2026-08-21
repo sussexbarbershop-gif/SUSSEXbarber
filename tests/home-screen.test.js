@@ -85,24 +85,21 @@ async function fetchManifest() {
   // There is no way to ask Chrome for "standalone, but let me draw behind the
   // status bar": on Android 15 it does that by itself and below it, it does
   // not. Fullscreen is what there is.
-  ok('fullscreen is asked for first', (m.display_override || [])[0], 'fullscreen');
-  // A preference, not a demand. A browser that understands the list takes the
-  // first mode it supports; one that does not ignores the list and reads
-  // display instead — which must therefore still be the safe answer.
-  ok('with standalone behind it', (m.display_override || [])[1], 'standalone');
-  // And display itself, because display_override is only read by browsers
-  // that understand it — the ones that do not read display, and leaving that
-  // at standalone is what left the band on the screen. The spec fallback for
-  // an unsupported fullscreen is standalone, which is where this was, so no
-  // browser is worse off.
-  ok('and display itself says fullscreen', m.display, 'fullscreen');
-  // iOS reads none of this: a home-screen app there is governed by
-  // apple-mobile-web-app-capable in index.html. This file cannot change the
-  // iPhone, which is the point — it had no problem.
-  ok('the iPhone is governed elsewhere, not here',
-     /apple-mobile-web-app-capable/.test(html), true);
-  // Neither of them may be "browser": that is the mode with the address bar,
-  // which is the whole thing installing was for.
+  // Fullscreen was tried and taken back out, and the reason is worth keeping
+  // so it is not tried again from the same reasoning.
+  //
+  // Chrome paints a band above a standalone app and starts the page below it.
+  // Fullscreen removes the band — the clock and the notification icons did
+  // disappear — but on the shop's phone it did not give the page those pixels:
+  // the report from the device read window 411x864 against screen 412x915,
+  // with safe-area-inset-top at 0. Fifty-one pixels outside the window, not an
+  // inset inside it, and no web API can claim them.
+  //
+  // So the same strip either way. In standalone it at least holds the clock
+  // and the battery; in fullscreen it held nothing at all.
+  ok('standalone, which is what the platform actually gives', m.display, 'standalone');
+  ok('and the override agrees rather than asking for more',
+     (m.display_override || []), ['standalone']);
   ok('nothing in the list opens a browser window',
      (m.display_override || []).includes('browser'), false);
 

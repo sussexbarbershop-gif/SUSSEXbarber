@@ -2447,15 +2447,129 @@
              * that costs nothing, because iOS is the platform that did not
              * need it.
              */
-            const light = document.getElementById('themeColorLight');
-            const HERO = '#121212';                 // the photograph is dark in both themes
-            const HEADER_LIGHT = '#fafafa';         // the bar, on a phone set to light
+            const metas = [document.getElementById('themeColorLight'),
+                           document.getElementById('themeColorDark')].filter(Boolean);
 
-            function paintStatusBar(atTop) {
-                if (light) light.setAttribute('content', atTop ? HERO : HEADER_LIGHT);
-                // The dark one is charcoal in both states, so there is nothing
-                // to swap: the header and the hero are the same colour there.
+            /**
+             * The colour of the top of the hero, which is a photograph under a
+             * flat veil and so has no background-color to read.
+             *
+             * Measured off the file rather than guessed: the top sixty rows
+             * average #4c2e1e, and the veil over them is 45% #121212 on a light
+             * device and 60% on a dark one. What is left is what the eye sees
+             * at the very top of the page.
+             */
+            // Written as three numbers, not as hex. asRgb below reads what
+            // getComputedStyle returns — rgb(...) — and handed a hex string it
+            // finds one number instead of three and gives up, which made the
+            // whole paint return early and leave the strip on its old colour.
+            // The first version did exactly that, silently.
+            const HERO_LIGHT = [50, 33, 25];    // #322119
+            const HERO_DARK  = [41, 29, 23];    // #291d17
+
+            /** The glass the header is made of, which the strip sits directly on. */
+            const GLASS_LIGHT = [255, 255, 255, 0.62];
+            const GLASS_DARK = [18, 18, 18, 0.55];
+
+            const isDark = () => matchMedia('(prefers-color-scheme: dark)').matches;
+
+            const asRgb = value => {
+                const n = String(value).match(/[\d.]+/g);
+                return n && n.length >= 3 ? n.slice(0, 3).map(Number) : null;
+            };
+            const asHex = c => '#' + c.map(v =>
+                Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+            const over = (under, [r, g, b, a]) =>
+                under.map((u, i) => u * (1 - a) + [r, g, b][i] * a);
+
+            /**
+             * What is behind the bar right now.
+             *
+             * Read off the page rather than written down section by section,
+             * which means it is right for a section added later, right in both
+             * themes without a second table, and cannot drift from the CSS —
+             * getComputedStyle already gives the colour the device's own
+             * light or dark setting resolved to.
+             *
+             * The probe goes just below the header, because the header itself
+             * is what covers the top of the page and would be all this ever
+             * found.
+             */
+            function behindTheBar() {
+                const bar = parseFloat(getComputedStyle(document.documentElement)
+                              .getPropertyValue('--nav-h')) || 80;
+                let el = document.elementFromPoint(Math.round(innerWidth / 2), Math.round(bar + 6));
+                while (el && el !== document.documentElement) {
+                    if (el.id === 'hero' || el.closest('#hero')) {
+                        return isDark() ? HERO_DARK : HERO_LIGHT;
+                    }
+                    const found = asRgb(getComputedStyle(el).backgroundColor);
+                    const alpha = (String(getComputedStyle(el).backgroundColor).match(/[\d.]+/g) || [])[3];
+                    // Skip anything see-through: it is not what is being seen.
+                    if (found && (alpha === undefined || Number(alpha) > 0.9)) return found;
+                    el = el.parentElement;
+                }
+                return asRgb(getComputedStyle(document.body).backgroundColor) || [18, 18, 18];
             }
+
+            let painted = '';
+
+            /**
+             * Paint the strip Android draws above the app to match the page.
+             *
+             * At the top of the page the header is transparent, so the strip
+             * should be the hero itself. Once it has scrolled the header is
+             * glass, and the strip sits directly on top of that — so it is the
+             * section's colour with the same glass laid over it, which is what
+             * makes the two read as one bar rather than two.
+             *
+             * Both meta tags get the same value. Only the one matching the
+             * device's setting is used, and the value has already been resolved
+             * for that setting by getComputedStyle, so there is nothing to
+             * choose between them.
+             */
+            function paintStatusBar(atTop) {
+                const behind = behindTheBar();
+                if (!behind) return;
+                const colour = asHex(atTop ? behind
+                                           : over(behind, isDark() ? GLASS_DARK : GLASS_LIGHT));
+                if (colour === painted) return;         // nothing to write
+                painted = colour;
+                metas.forEach(m => m.setAttribute('content', colour));
+            }
+
+            // The section under the bar changes as the page moves.
+            //
+            // Watched rather than listened for. A scroll listener would run on
+            // every frame of every scroll for the whole visit to answer a
+            // question whose answer changes eight times — the same argument
+            // that put the header on a sentinel, and the page is meant to have
+            // exactly one thing listening to scroll, which is the reveals.
+            //
+            // An observer per section fires at the boundary, which is the
+            // moment the colour should change and no other. What it does then
+            // is read the page rather than trust the entry: the probe already
+            // knows how to find what is under the bar, and a section leaving
+            // is another one arriving.
+            const repaint = () => paintStatusBar(nav && nav.classList.contains('at-top'));
+
+            const sections = document.querySelectorAll('section, footer');
+            if (sections.length) {
+                const watcher = new IntersectionObserver(() => repaint(), {
+                    // The line the bar sits on, not the top of the viewport.
+                    rootMargin: '-' + Math.round(
+                        parseFloat(getComputedStyle(document.documentElement)
+                          .getPropertyValue('--nav-h')) || 80) + 'px 0px 0px 0px'
+                });
+                sections.forEach(s => watcher.observe(s));
+            }
+
+            // And the colours themselves move if the device is switched
+            // between light and dark while the app is open.
+            matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+                painted = '';                            // both values have changed
+                repaint();
+            });
 
             if (nav) {
                 nav.classList.add('at-top');
