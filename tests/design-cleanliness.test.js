@@ -163,6 +163,44 @@ console.log('--- image filters left to do their job ---');
 ok('gallery photos are not run through a brightness/contrast stack',
    /brightness-90 contrast-125/.test(site), false);
 
+console.log('--- the map ---');
+// It was a bordered box with padding, around a second box, around the
+// iframe: three edges to look at before the map. One surface now, one
+// radius.
+ok('one card rather than a frame inside a frame',
+   /\.map-card \{[^}]*border-radius: 18px/.test(site), true);
+ok('and the old double frame is gone',
+   /aspect-video sm:aspect-square[^"]*border border-gray-200/.test(site), false);
+
+// The only instruction used to appear on hover, which on the phones nine
+// customers in ten arrive on is an instruction that never appears at all.
+ok('the action is visible without a pointer',
+   /class="map-go"/.test(site), true);
+ok('and it is not hidden behind a hover state',
+   /group-hover:opacity-100[^>]*>\s*<span class="bg-gold/.test(site), false);
+// A finger has to be able to hit it.
+ok('big enough to press', /\.map-go \{[\s\S]{0,400}min-height: 44px;/.test(site), true);
+
+// An interactive Google map inside a page catches a finger that was trying
+// to scroll past it. Covering it makes the map a picture that opens the
+// real thing when tapped — and the scrim over it must pass taps through, or
+// the bottom third of the card stops working.
+ok('the whole surface still opens Maps', /class="map-hit"/.test(site), true);
+ok('and the strip over it does not swallow taps',
+   /\.map-foot \{[\s\S]{0,700}pointer-events: none;/.test(site), true);
+
+// The dark treatment was four lines of JavaScript, on the stated grounds
+// that a filter cannot be applied to another document from a media query.
+// It can: the filter applies to the element, and the element is ours.
+ok('the dark map is CSS now', /\.map-card iframe \{[\s\S]{0,200}invert\(\.92\)/.test(site), true);
+ok('and the JavaScript that did it is gone', /paintMapForTheme/.test(site), false);
+// Full saturation on an inverted map turns water into sand.
+ok('with the saturation pulled back', /saturate\(\.78\)/.test(site), true);
+
+// If the shop moves, the line on the card moves with it.
+ok('the address on the card follows the settings',
+   /querySelectorAll\('\.cms-map-address'\)/.test(site), true);
+
 console.log('--- the logo, at the top of a photograph ---');
 // On a light device the black logo is right against the white glass header
 // and wrong at the top of the page, where the header is transparent and what

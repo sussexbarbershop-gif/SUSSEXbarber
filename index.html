@@ -135,6 +135,104 @@
             background-size: cover;
             background-position: center;
         }
+        /* ---- The map ---------------------------------------------------
+           One surface with one radius, and the action on it visible without
+           a pointer. See the note in the markup for what it replaced.
+
+           The dark treatment is a media query rather than the line of
+           JavaScript it used to be. The comment there said a filter could
+           not be applied to another document from a media query, which is
+           not so: the filter applies to the element, and the element is
+           ours. Google will not let its own colours be reached either way,
+           so an inversion is still the only lever — but tuned, rather than
+           inverted 90% and left. Full saturation on an inverted map turns
+           water into sand. */
+        .map-card {
+            position: relative;
+            border-radius: 18px;
+            overflow: hidden;
+            isolation: isolate;
+            background: #e9eaec;              /* while the iframe is loading */
+            box-shadow: var(--lift-2);
+        }
+        .map-card iframe {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+            filter: saturate(.92);
+        }
+        @media (prefers-color-scheme: dark) {
+            .map-card { background: #1c1c1c; }
+            .map-card iframe {
+                filter: invert(.92) hue-rotate(180deg) saturate(.78) brightness(1.04) contrast(.95);
+            }
+        }
+
+        /* The whole surface opens Maps. It also stops the embedded map from
+           catching a finger that was scrolling past it. */
+        .map-hit { position: absolute; inset: 0; z-index: 2; }
+
+        .map-foot {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 3;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 40px 14px 14px;
+            background: linear-gradient(to top, rgba(8, 8, 8, .88) 0%,
+                                                rgba(8, 8, 8, .55) 52%,
+                                                rgba(8, 8, 8, 0) 100%);
+            /* So a tap anywhere on the scrim still opens Maps; only the
+               button below takes its own. */
+            pointer-events: none;
+        }
+        .map-who { min-width: 0; }
+        .map-name {
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            line-height: 1.3;
+        }
+        .map-address {
+            color: rgba(255, 255, 255, .74);
+            font-size: 12.5px;
+            line-height: 1.35;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .map-go {
+            pointer-events: auto;
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 44px;
+            padding: 0 18px;
+            border-radius: 999px;
+            background: var(--gold, #d4af37);
+            color: #121212;
+            font-size: 12.5px;
+            font-weight: 600;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            box-shadow: var(--lift-1);
+            transition: transform var(--m3-short-4) var(--ease),
+                        box-shadow var(--m3-short-4) var(--ease);
+        }
+        .map-go svg { width: 15px; height: 15px; }
+        .map-go:active { transform: scale(.97); }
+        @media (hover: hover) {
+            .map-go:hover { transform: translateY(-1px); box-shadow: var(--lift-2); }
+        }
+
         /* ---- The logo, at the top of a photograph ---------------------
            On a light device the black logo is the right one: the header is
            white glass and it reads cleanly against it. But at the top of the
@@ -2230,28 +2328,47 @@
                 <!-- A 400px square of map is a screenful on a phone for something
                      the Directions button above already covers, so it is a 16:9
                      strip there and the full panel from sm: up. -->
-                <div class="w-full aspect-video sm:aspect-square sm:min-h-[400px] md:h-[600px] bg-gray-100 dark:bg-charcoal-800 border border-gray-200 dark:border-charcoal-700 p-1.5 sm:p-2 relative group overflow-hidden rounded-xl shadow-lg sm:shadow-xl shadow-black/5 dark:shadow-black/20">
-                    <a href="https://maps.app.goo.gl/vhDfYkHsUg5vzWHB8" target="_blank" rel="noopener noreferrer" data-cms-link="maps" class="absolute inset-0 z-30 w-full h-full cursor-pointer" aria-label="View Location on Google Maps"></a>
+                <!-- One card, not a frame inside a frame.
 
-                    <!-- Clouds and a drifting plane used to sit over the map: decoration
-                         doing nothing to help someone find the shop, and animating
-                         forever whether or not anyone was looking. Removed rather than
-                         just hidden on a phone, since it did not belong at any size. -->
-                    <div class="absolute inset-0 z-40 flex items-center justify-center bg-black/40 dark:bg-charcoal-900/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-                        <span class="bg-gold text-charcoal-900 px-6 py-3 text-sm font-semibold tracking-wider uppercase shadow-lg rounded-md">Open in Maps</span>
-                    </div>
+                     What was here: a bordered box with padding, around a
+                     second box, around the iframe — three edges to look at
+                     before the map. Over it, a panel that appeared on hover
+                     saying "Open in Maps", which on the phones nine
+                     customers in ten arrive on is a panel that never appears
+                     at all. So the only visible instruction was one nobody
+                     on a phone could see.
 
-                    <div class="w-full h-full bg-gray-100 dark:bg-charcoal-900 flex items-center justify-center text-gray-500 rounded-lg overflow-hidden relative z-10">
-                        <iframe 
-                            id="mapIframe"
-                            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2449.610582236528!2d4.394628212130325!3d52.1412030656041!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47c5b736b4421bfd%3A0xc6c4293e50ab52e4!2sVan%20Hogendorpstraat%2010%2C%202242%20KZ%20Wassenaar%2C%20Netherlands!5e0!3m2!1sen!2sus!4v1715690000000!5m2!1sen!2sus" 
-                            width="100%" 
-                            height="100%" 
-                            style="border:0;" 
-                            allowfullscreen="" 
-                            loading="lazy" 
-                            referrerpolicy="no-referrer-when-downgrade">
-                        </iframe>
+                     The full-surface link stays, and it is not decoration:
+                     an interactive Google map inside a page catches a finger
+                     that was trying to scroll past it. Covering it makes the
+                     map a picture that opens the real thing when tapped. The
+                     Directions button sits above that link and takes its own
+                     taps. -->
+                <div class="map-card w-full aspect-video sm:aspect-square sm:min-h-[400px] md:h-[600px]">
+                    <iframe
+                        id="mapIframe"
+                        title="Sussex Barber Shop on the map"
+                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2449.610582236528!2d4.394628212130325!3d52.1412030656041!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47c5b736b4421bfd%3A0xc6c4293e50ab52e4!2sVan%20Hogendorpstraat%2010%2C%202242%20KZ%20Wassenaar%2C%20Netherlands!5e0!3m2!1sen!2sus!4v1715690000000!5m2!1sen!2sus"
+                        loading="lazy"
+                        referrerpolicy="no-referrer-when-downgrade"></iframe>
+
+                    <a href="https://maps.app.goo.gl/vhDfYkHsUg5vzWHB8" target="_blank"
+                       rel="noopener noreferrer" data-cms-link="maps" class="map-hit"
+                       aria-label="Open Sussex Barber Shop in Google Maps"></a>
+
+                    <div class="map-foot">
+                        <div class="map-who">
+                            <p class="map-name">Sussex Barber Shop</p>
+                            <p class="map-address cms-map-address">Van Hogendorpstraat 10, Wassenaar</p>
+                        </div>
+                        <a href="https://maps.app.goo.gl/vhDfYkHsUg5vzWHB8" target="_blank"
+                           rel="noopener noreferrer" data-cms-link="maps" class="map-go">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                 stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 11l19-9-9 19-2-8-8-2z"></path>
+                            </svg>
+                            <span data-translate="Directions">Directions</span>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -2413,28 +2530,13 @@
         updateBusinessStatus();
         setInterval(updateBusinessStatus, 60000);
 
-        // --- 3. The map, in whichever theme the device is set to ---
-        // The theme itself needs no JavaScript: darkMode is 'media', so every
-        // dark: utility is a prefers-color-scheme query the browser answers on
-        // its own, before the first paint and with nothing stored.
-        //
-        // The map is the one exception. It is a Google iframe, so its own
-        // colours cannot be reached from here and are inverted from outside
-        // instead - and a filter is not something a media query can apply to
-        // another document's contents.
+        // --- 3. The map ---
+        // Its dark treatment used to be four lines of JavaScript here, on the
+        // stated grounds that a filter could not be applied to another
+        // document from a media query. That is not so — the filter applies to
+        // the element, and the element is ours — so it is CSS now and this
+        // listener is gone with it. See .map-card in the stylesheet.
         const darkMode = window.matchMedia('(prefers-color-scheme: dark)');
-        const mapIframe = document.getElementById('mapIframe');
-
-        function paintMapForTheme(isDark) {
-            if (mapIframe) {
-                mapIframe.style.filter = isDark ? 'invert(90%) hue-rotate(180deg)' : 'none';
-            }
-        }
-
-        paintMapForTheme(darkMode.matches);
-        // Follows the device for as long as the page is open, so switching the
-        // phone to dark at dusk does not leave one white rectangle behind.
-        darkMode.addEventListener('change', (e) => paintMapForTheme(e.matches));
 
         // --- 4. Scroll Entrance Animations ---
         //
@@ -4550,6 +4652,21 @@
                 const el = document.getElementById(id);
                 if (el && map[id]) setText(el, map[id]);
             });
+
+            // The line on the map card. One line rather than the three the
+            // panel above uses, because it sits in a strip beside a button —
+            // so the country comes off and what is left is the street and the
+            // town, which is what somebody standing outside needs.
+            const onTheMap = String(settings.contact_address || '').trim();
+            if (onTheMap) {
+                const parts = onTheMap.split(/[,\n]+/).map(p => p.trim()).filter(Boolean);
+                // "2242 KZ Wassenaar" is a postcode and a town. Outside the
+                // door, the town is the part that means anything.
+                const town = (parts[1] || '').replace(/^\d{4}\s*[A-Z]{2}\s*/, '');
+                const short = [parts[0], town].filter(Boolean).join(', ');
+                document.querySelectorAll('.cms-map-address')
+                    .forEach(el => { el.textContent = short || onTheMap; });
+            }
 
             // The phone number appears in four places and was written into all
             // of them. The panel has a "Contact Phone Number" box that nothing
