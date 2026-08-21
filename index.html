@@ -2360,7 +2360,7 @@
     <section id="gallery" class="py-14 sm:py-24 bg-white dark:bg-charcoal-900 transition-colors duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 reveal">
             <div class="text-center mb-7 sm:mb-16">
-                <h2 class="font-serif text-3xl sm:text-4xl text-gray-900 dark:text-white mb-4">Our Work</h2>
+                <h2 class="font-serif text-3xl sm:text-4xl text-gray-900 dark:text-white mb-4" data-translate="Gallery">Gallery</h2>
                 <div class="w-16 h-px bg-gold mx-auto"></div>
             </div>
             <!-- Masonry Grid -->
@@ -2987,11 +2987,27 @@
              * for that setting by getComputedStyle, so there is nothing to
              * choose between them.
              */
-            function paintStatusBar(atTop) {
+            /**
+             * How far the bar has filled in, as the strip needs to know it too.
+             *
+             * The strip used to take the glass at full strength or not at all,
+             * on a boolean that flipped six tenths of the way down the ramp.
+             * The bar under it fills in continuously — so for most of a scroll
+             * the two were different colours meeting along a straight edge, and
+             * that edge is the line the shop kept seeing across the top of the
+             * screen. It was never a border. It was two things disagreeing.
+             */
+            let navProgress = 0;
+
+            function paintStatusBar(p) {
+                if (typeof p === 'number') navProgress = p;
                 const behind = behindTheBar();
                 if (!behind) return;
-                const colour = asHex(atTop ? behind
-                                           : over(behind, isDark() ? GLASS_DARK : GLASS_LIGHT));
+                const glass = (isDark() ? GLASS_DARK : GLASS_LIGHT).slice();
+                // The same glass the bar is wearing at this moment, not the
+                // glass it will be wearing when it has finished.
+                glass[3] = glass[3] * navProgress;
+                const colour = asHex(over(behind, glass));
                 if (colour === painted) return;         // nothing to write
                 painted = colour;
                 metas.forEach(m => m.setAttribute('content', colour));
@@ -3040,7 +3056,7 @@
             }
 
             const repaint = () => {
-                paintStatusBar(nav && nav.classList.contains('at-top'));
+                paintStatusBar();       // whatever the bar is wearing now
                 markWhereYouAre();
             };
 
@@ -3091,12 +3107,15 @@
                     queued = false;
                     const p = Math.min(1, Math.max(0, window.scrollY / SETTLE));
                     document.documentElement.style.setProperty('--nav-p', p.toFixed(3));
+                    // Every frame, so the strip above the page is never a
+                    // different colour from the bar below it. It writes only
+                    // when the colour it works out has actually changed.
+                    paintStatusBar(p);
 
                     const atTop = p < 0.6;
                     if (atTop === wasAtTop) return;
                     wasAtTop = atTop;
                     nav.classList.toggle('at-top', atTop);
-                    paintStatusBar(atTop);
                     // For a page opened part-way down — a restored tab, or a
                     // link straight to a section.
                     markWhereYouAre();
@@ -4105,7 +4124,6 @@
             'Your Phone Number': 'Uw Telefoonnummer',
             'Not you? Forget this number': 'Niet u? Vergeet dit nummer',
             'Cancel Booking': 'Boeking Annuleren',
-            'Our Work': 'Ons Werk',
             'Our Master Barbers': 'Onze Meesterkappers',
             'Our Services': 'Onze Diensten',
             'Book an Appointment': 'Maak een afspraak',

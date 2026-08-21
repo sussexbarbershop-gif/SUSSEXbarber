@@ -274,7 +274,7 @@ ok('written as numbers, because that is what the reader parses',
 // so it is the section's colour with the same glass over it. Otherwise the
 // two read as two bars rather than one.
 ok('with the header glass laid over it once scrolled',
-   /over\(behind, isDark\(\) \? GLASS_DARK : GLASS_LIGHT\)/.test(html), true);
+   /glass\[3\] = glass\[3\] \* navProgress;/.test(html), true);
 // A section boundary is when the answer changes, and the only time it does.
 ok('watched at the boundary rather than polled every frame',
    /new IntersectionObserver\(\(\) => repaint\(\)/.test(html), true);
@@ -287,7 +287,7 @@ ok('and repainted if the device changes theme underneath it',
 // the same progress value, so they cannot disagree about whether the page
 // has left the top.
 ok('the strip and the header are decided together',
-   /nav\.classList\.toggle\('at-top', atTop\);\s*paintStatusBar\(atTop\);/.test(html), true);
+   /setProperty\('--nav-p', p\.toFixed\(3\)\);[\s\S]{0,400}paintStatusBar\(p\);/.test(html), true);
 ok('and it is right before a scroll ever happens',
    /settle\(\);\s*addEventListener\('scroll'/.test(html), true);
 
@@ -507,7 +507,7 @@ ok('the links stay legible over the photograph',
 ok('driven by a sentinel', /sentinel/.test(html), true);
 // The observer that answered this is gone: the question is continuous now.
 ok('and a rAF-throttled listener, not an observer',
-   /const settle = \(\) => \{[\s\S]{0,900}requestAnimationFrame\(settle\)/.test(html), true);
+   /const settle = \(\) => \{[\s\S]{0,1400}requestAnimationFrame\(settle\)/.test(html), true);
 // Two scroll listeners, and both earn it. This test used to insist on one,
 // and the reasoning was right for the question the header was asking then:
 // "has the page left the top" changes twice a visit, and paying for that on

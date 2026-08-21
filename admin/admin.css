@@ -1184,21 +1184,47 @@ textarea.form-control { resize: vertical; line-height: 1.6; }
     box-shadow: 0 0 0 3px rgba(212,175,55,.25);
 }
 
-/* The one switch in a barber's dialog. Written out rather than reaching for a
-   component, because it is the only one in the panel. */
-.team-switch {
+/* The one switch in a barber's dialog.
+ *
+ * Written at this specificity because the first version was not, and the
+ * result is in a screenshot: a <label> inside .form-group picks up "display:
+ * block, uppercase, letter-spaced, 12px" from the rule that styles field
+ * captions, and an <input> inside .form-group picks up "width: 100%, padding
+ * 12px 16px" from the rule that styles text boxes. So the caption came out
+ * shouting in capitals and the checkbox came out a gold square the size of a
+ * button. Neither was written here; both were inherited from being in a form.
+ */
+.form-group label.team-switch {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-top: 14px;
-    min-height: 44px;
+    gap: 12px;
+    margin: 16px 0 0;
+    padding: 10px 12px;
+    min-height: 48px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
     cursor: pointer;
-    color: var(--text-primary);
+    /* Undoing the caption styling, one property per line it set. */
     font-size: 14px;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: normal;
+    color: var(--text-primary);
+    transition: var(--transition);
 }
-.team-switch input {
-    width: 18px;
-    height: 18px;
+/* Guarded, like every other hover in this panel: on a touch screen there is
+   no pointer to leave, so the hover state latches on tap and stays until
+   something else is tapped. */
+@media (hover: hover) {
+    .form-group label.team-switch:hover { border-color: var(--gold); }
+}
+.form-group .team-switch input[type="checkbox"] {
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    margin: 0;
     accent-color: var(--gold);
     cursor: pointer;
 }
