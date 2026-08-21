@@ -175,6 +175,14 @@ ok('and the hours keep theirs, being what the section is opened for',
 // rather than things to read.
 ok('the rest are rows that look alike',
    (site.match(/class="visit-row[" ]/g) || []).length, 3);
+// Calling comes first: it is the one thing somebody does when the booking
+// form has not answered their question. The address is last because the map
+// is beside it and says the same thing.
+ok('in the order the shop asked for',
+   ((site.match(/<ul class="visit-rows">[\s\S]*?<\/ul>/) || [''])[0]
+     .match(/visit-label" data-translate="(\w+)"/g) || [])
+     .map(m => m.replace(/.*data-translate="/, '').replace('"', '')),
+   ['Call', 'Instagram', 'Location']);
 ok('each of them big enough to press',
    /\.visit-row \{[\s\S]{0,300}min-height: 56px;/.test(site), true);
 // The phone row used to be hidden below the sm breakpoint — on a phone, which
