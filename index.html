@@ -486,6 +486,117 @@
             transform: none;
         }
 
+
+        /* ---- Where you are, in the menu -------------------------------
+           One item was gold and it was always the same item: My Bookings
+           was written that way in the markup, so the menu said the same
+           thing whichever part of the page you had come from.
+
+           The gold means "this is the section you are in" now. It is the
+           one piece of information a menu can give that the links
+           themselves cannot, and it costs nothing to show. At the top of
+           the page nothing is marked, because the hero is not a menu
+           item and pretending otherwise would point at the wrong thing. */
+        .mobile-link.is-here {
+            color: var(--gold, #d4af37);
+        }
+        /* A dot beside it, for anybody who cannot separate gold from white
+           — colour on its own is not something to depend on. */
+        .mobile-link.is-here::before {
+            content: "";
+            display: inline-block;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: currentColor;
+            margin-inline-end: 10px;
+            vertical-align: middle;
+        }
+
+        /* ---- The messages the page speaks with ------------------------
+           Pinned to the top right corner, twenty pixels down. On a desktop
+           that is empty space; on a phone in a home-screen app it is the
+           status bar, and the one screenshot of this in the wild has a red
+           slab across the clock and half the shop's logo.
+
+           They come from the bottom now. It is the corner a thumb is already
+           near, it is the one place on a phone that nothing else is pinned
+           to, and it cannot collide with a notch. Above the home indicator,
+           because that is the other thing down there.
+
+           And they are a card rather than a coloured slab: the shop's own
+           charcoal, with the colour carried by a small round icon instead of
+           by the whole rectangle. A booking that failed does not need to
+           shout in red across the screen; it needs to be read. */
+        #toastContainer {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: calc(env(safe-area-inset-bottom) + 18px);
+            z-index: 90;
+            display: flex;
+            flex-direction: column-reverse;   /* newest nearest the thumb */
+            align-items: center;
+            gap: 10px;
+            padding: 0 14px;
+            pointer-events: none;
+        }
+        @media (min-width: 640px) {
+            /* Room to spare, so out of the way of the page instead. */
+            #toastContainer { align-items: flex-end; padding: 0 22px; }
+        }
+
+        .toast {
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            max-width: min(30rem, 100%);
+            padding: 13px 18px 13px 14px;
+            border-radius: 14px;
+            background: rgba(24, 24, 24, .92);
+            -webkit-backdrop-filter: blur(20px) saturate(150%);
+            backdrop-filter: blur(20px) saturate(150%);
+            border: 1px solid rgba(255, 255, 255, .09);
+            box-shadow: var(--lift-3, 0 18px 40px rgba(0,0,0,.45));
+            color: #f4f4f5;
+            font-size: 14px;
+            line-height: 1.45;
+            cursor: pointer;
+            /* Comes up from where it is going back down to. */
+            opacity: 0;
+            transform: translateY(14px) scale(.97);
+            transition: opacity var(--m3-medium-4) var(--enter),
+                        transform var(--m3-long-2) var(--enter);
+        }
+        .toast.shown { opacity: 1; transform: none; }
+        .toast.going {
+            opacity: 0;
+            transform: translateY(8px) scale(.97);
+            transition: opacity var(--m3-short-4) var(--leave),
+                        transform var(--m3-short-4) var(--leave);
+        }
+        @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+            .toast { background: rgba(24, 24, 24, .98); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .toast, .toast.going { transform: none; }
+        }
+
+        /* The colour lives here, on eighteen pixels of icon, rather than on
+           the whole card. */
+        .toast-mark {
+            flex: 0 0 auto;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+        }
+        .toast-mark svg { width: 15px; height: 15px; stroke-width: 2.6; }
+        .toast-success .toast-mark { background: rgba(16, 185, 129, .18); color: #34d399; }
+        .toast-error   .toast-mark { background: rgba(244,  63,  94, .18); color: #fb7185; }
+        .toast-info    .toast-mark { background: rgba(212, 175,  55, .18); color: var(--gold, #d4af37); }
         /* The two pickers, which had no movement at all. They were shown and
            hidden with `hidden`, so every duration set above them was applied to
            something that appeared and vanished between one frame and the next —
@@ -1068,7 +1179,7 @@
 <body class="antialiased font-sans selection:bg-gold selection:text-charcoal-900 overflow-x-hidden">
 
     <!-- Toast Notifications Container -->
-    <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col gap-3 pointer-events-none"></div>
+    <div id="toastContainer" aria-live="polite" aria-atomic="false"></div>
 
     <!-- Navigation Bar -->
     <nav class="fixed w-full z-40 bg-white/90 dark:bg-charcoal-900/90 backdrop-blur-md border-b border-gray-200 dark:border-charcoal-700 transition-colors duration-300">
@@ -1134,7 +1245,7 @@
         <button id="closeMobileMenuBtn" type="button" aria-label="Close menu" class="absolute top-6 right-6 p-2 text-gray-900 dark:text-white focus:outline-none hover:text-gold dark:hover:text-gold transition-colors">
             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
         </button>
-        <a href="#booking" class="mobile-link text-2xl font-serif text-gold hover:text-white transition-colors" data-translate="My Bookings">My Bookings</a>
+        <a href="#booking" class="mobile-link text-2xl font-serif text-gray-900 dark:text-white hover:text-gold dark:hover:text-gold transition-colors" data-translate="My Bookings">My Bookings</a>
         <a href="#about" class="mobile-link text-2xl font-serif text-gray-900 dark:text-white hover:text-gold dark:hover:text-gold transition-colors" data-translate="About">About</a>
         <a href="#team" class="mobile-link text-2xl font-serif text-gray-900 dark:text-white hover:text-gold dark:hover:text-gold transition-colors" data-translate="Our Barbers">Our Barbers</a>
         <a href="#services" class="mobile-link text-2xl font-serif text-gray-900 dark:text-white hover:text-gold dark:hover:text-gold transition-colors" data-translate="Services">Services</a>
@@ -2119,28 +2230,70 @@
     <!-- Main JavaScript Logic -->
     <script>
         // --- 1. Toast Notification System ---
+        /**
+         * What the page says when something has happened.
+         *
+         * Three changes from what this was, and each of them is something
+         * that went wrong on a real phone rather than a preference.
+         *
+         * It comes from the bottom. It used to be pinned twenty pixels from
+         * the top right, which is empty space on a desktop and the status bar
+         * on a phone — there is a screenshot of a red slab lying across the
+         * clock and half the shop's logo.
+         *
+         * It is a card, not a coloured rectangle. A booking that failed does
+         * not need to shout in red across the width of the screen; it needs
+         * to be read, and then to go away. The colour is carried by an icon.
+         *
+         * It can be dismissed. Four seconds is right for "Saved" and much too
+         * long for something in the way, so a tap sends it off early — and the
+         * timer is cleared with it, so the two cannot both try to remove the
+         * same element.
+         */
+        const TOAST_MARKS = {
+            success: 'M5 13l4 4L19 7',
+            error: 'M6 18L18 6M6 6l12 12',
+            info: 'M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z'
+        };
+
         function showToast(message, type = 'success') {
             const container = document.getElementById('toastContainer');
-            const toast = document.createElement('div');
-            toast.className = `pointer-events-auto flex items-center space-x-3 px-5 py-3.5 rounded-lg shadow-2xl text-sm font-medium transition-all duration-300 transform translate-x-10 opacity-0 ${
-                type === 'success' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
-            }`;
-            
-            const icon = type === 'success' 
-                ? `<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`
-                : `<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
+            if (!container) return;
+            const kind = TOAST_MARKS[type] ? type : 'info';
 
-            toast.innerHTML = `${icon}<span>${message}</span>`;
+            const toast = document.createElement('div');
+            toast.className = 'toast toast-' + kind;
+            toast.setAttribute('role', kind === 'error' ? 'alert' : 'status');
+
+            const mark = document.createElement('span');
+            mark.className = 'toast-mark';
+            mark.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+                'stroke-linecap="round" stroke-linejoin="round"><path d="' +
+                TOAST_MARKS[kind] + '"></path></svg>';
+
+            const words = document.createElement('span');
+            // textContent, not innerHTML: some of these carry a message from
+            // the server, and a server's words are not markup.
+            words.textContent = message;
+
+            toast.append(mark, words);
             container.appendChild(toast);
 
-            requestAnimationFrame(() => {
-                toast.classList.remove('translate-x-10', 'opacity-0');
-            });
+            // One frame at the starting position, so there is something to
+            // move from. Without it the browser collapses both states into
+            // the final one and nothing animates.
+            requestAnimationFrame(() => toast.classList.add('shown'));
 
-            setTimeout(() => {
-                toast.classList.add('opacity-0', 'translate-x-10');
-                setTimeout(() => toast.remove(), 300);
-            }, 4000);
+            let leaving = false;
+            const dismiss = () => {
+                if (leaving) return;
+                leaving = true;
+                toast.classList.add('going');
+                setTimeout(() => toast.remove(), 260);
+            };
+
+            const timer = setTimeout(dismiss, 4200);
+            toast.addEventListener('click', () => { clearTimeout(timer); dismiss(); });
         }
 
         // --- 2. Live Business Status (Netherlands Local Time) ---
@@ -2551,7 +2704,39 @@
             // is read the page rather than trust the entry: the probe already
             // knows how to find what is under the bar, and a section leaving
             // is another one arriving.
-            const repaint = () => paintStatusBar(nav && nav.classList.contains('at-top'));
+            /**
+             * Which section the page is showing, as an id.
+             *
+             * The same probe the strip colour uses, asked a different way:
+             * whatever is under the header is the section you are in. At
+             * the top that is the hero, which has no menu item, so nothing
+             * is marked.
+             */
+            function sectionNow() {
+                const barHeight = parseFloat(getComputedStyle(document.documentElement)
+                                    .getPropertyValue('--nav-h')) || 80;
+                const el = document.elementFromPoint(Math.round(innerWidth / 2),
+                                                     Math.round(barHeight + 6));
+                const section = el && el.closest && el.closest('section[id]');
+                return section ? section.id : '';
+            }
+
+            /** Gold on the item you are in, and on no other. */
+            function markWhereYouAre() {
+                const here = sectionNow();
+                document.querySelectorAll('.mobile-link').forEach(link => {
+                    const mine = link.getAttribute('href') === '#' + here;
+                    link.classList.toggle('is-here', Boolean(here) && mine);
+                    // For a screen reader, which cannot see the colour.
+                    if (Boolean(here) && mine) link.setAttribute('aria-current', 'true');
+                    else link.removeAttribute('aria-current');
+                });
+            }
+
+            const repaint = () => {
+                paintStatusBar(nav && nav.classList.contains('at-top'));
+                markWhereYouAre();
+            };
 
             const sections = document.querySelectorAll('section, footer');
             if (sections.length) {
@@ -2574,6 +2759,11 @@
             if (nav) {
                 nav.classList.add('at-top');
                 paintStatusBar(true);
+                // And once now, for a page opened part-way down — a restored
+                // tab, or a link straight to a section. Waiting for the first
+                // boundary would leave the menu marking nothing until the
+                // reader happened to scroll.
+                markWhereYouAre();
                 new IntersectionObserver(([entry]) => {
                     nav.classList.toggle('at-top', entry.isIntersecting);
                     paintStatusBar(entry.isIntersecting);

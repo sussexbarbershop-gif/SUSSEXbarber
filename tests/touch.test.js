@@ -174,6 +174,33 @@ ok('the move listener can actually stop the scroll',
 ok('and the start listener does not, because it only ever reads',
    /'touchstart'[\s\S]{0,600}\{ passive: true \}/.test(html), true);
 
+console.log('--- the messages the page speaks with ---');
+// Pinned twenty pixels from the top right, which is empty space on a desktop
+// and the status bar on a phone. There is a screenshot of a green slab lying
+// across the clock, the shop's logo and half the BOOK NOW button.
+ok('they are not pinned to the top any more',
+   /id="toastContainer" class="fixed top-5/.test(html), false);
+ok('they come from the bottom, where nothing else is pinned',
+   /#toastContainer \{[^}]*bottom: calc\(env\(safe-area-inset-bottom\)/.test(style), true);
+// Above the home indicator, which is the other thing down there.
+ok('and clear of the home indicator',
+   /#toastContainer \{[^}]*env\(safe-area-inset-bottom\) \+ 18px\)/.test(style), true);
+// A card, not a coloured rectangle. A booking that failed does not need to
+// shout in red across the width of the screen; it needs to be read.
+ok('the card is the shop\'s own charcoal',
+   /\.toast \{[^}]*background: rgba\(24, 24, 24, \.92\)/.test(style), true);
+ok('and the colour is carried by the icon instead',
+   /\.toast-error\s+\.toast-mark \{ background: rgba\(244,  63,  94, \.18\)/.test(style), true);
+// Four seconds is right for "Saved" and far too long for something in the
+// way of what you are reading.
+ok('a tap sends one away early', /toast\.addEventListener\('click'/.test(html), true);
+ok('and the timer is cleared with it, so neither removes it twice',
+   /clearTimeout\(timer\); dismiss\(\);/.test(html), true);
+// Some of these carry a sentence from the server, and a server's words are
+// not markup.
+ok('the message is set as text, never as html',
+   /words\.textContent = message;/.test(html), true);
+
 console.log('--- the strip Android paints above the app ---');
 // The two platforms disagree about where an app begins. iOS was told the
 // page may run under the status bar, so the hero photograph goes to the top

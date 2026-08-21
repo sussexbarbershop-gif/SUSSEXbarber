@@ -163,6 +163,35 @@ console.log('--- image filters left to do their job ---');
 ok('gallery photos are not run through a brightness/contrast stack',
    /brightness-90 contrast-125/.test(site), false);
 
+console.log('--- the menu says which section you are in ---');
+// One item was gold and it was always the same item: My Bookings was written
+// that way in the markup, so the menu said the same thing whichever part of
+// the page you had come from.
+ok('My Bookings is no longer gold by birth',
+   /class="mobile-link[^"]*\stext-gold\b/.test(site), false);
+ok('the gold is a state now, not a class in the markup',
+   /\.mobile-link\.is-here \{\s*color: var\(--gold/.test(site), true);
+// Colour on its own is not something to depend on.
+ok('with a dot beside it as well as the colour',
+   /\.mobile-link\.is-here::before/.test(site), true);
+// The same probe that colours the strip, asked a different way — one answer
+// to "which section is this", used by both.
+ok('it reads the section under the header',
+   /function sectionNow\(\)[\s\S]{0,400}closest\('section\[id\]'\)/.test(site), true);
+ok('and marks the link whose href matches it',
+   /link\.getAttribute\('href'\) === '#' \+ here/.test(site), true);
+// At the top there is no menu item for the hero, and marking the nearest one
+// would point at the wrong thing.
+ok('nothing is marked at the top of the page',
+   /Boolean\(here\) && mine/.test(site), true);
+// A screen reader cannot see gold.
+ok('and it is announced, not only coloured',
+   /setAttribute\('aria-current', 'true'\)/.test(site), true);
+// A page opened part-way down — a restored tab, or a link to a section —
+// would otherwise mark nothing until the reader happened to scroll.
+ok('marked at load as well as at each boundary',
+   /paintStatusBar\(true\);[\s\S]{0,320}markWhereYouAre\(\);/.test(site), true);
+
 console.log('--- glass, on the phones that can draw it ---');
 // Safari only learned the unprefixed backdrop-filter in version 18. Every
 // iPhone on iOS 17 or below draws the -webkit- one and answers "no" to the
