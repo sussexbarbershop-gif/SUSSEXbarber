@@ -228,8 +228,14 @@ const indexToIso = idx => (Number(idx) === 0 ? 7 : Number(idx));
 async function readConfig() {
   const sql = db();
 
+  // Wrapped, and this is the lesson from adding on_team: the column went into
+  // the schema file and into ensureSchema, and this read still went straight
+  // at the database and threw 42703 on a deployment whose migration had not
+  // run yet. Every other reader on the site is wrapped; this one — the widest
+  // of them, the one the whole page is built from — was not, so the config
+  // answered 500 and the site fell back to its defaults.
   const [settingsRows, barberRows, galleryRows, serviceRows, hourRows,
-         barberHourRows, timeOffRows] = await Promise.all([
+         barberHourRows, timeOffRows] = await withNewSchema(() => Promise.all([
     sql`SELECT key, value FROM settings`,
     sql`SELECT id, name, image_url, on_team FROM barbers ORDER BY position, id`,
     sql`SELECT image_url FROM gallery ORDER BY position, id`,
@@ -245,7 +251,7 @@ async function readConfig() {
     sql`SELECT b.name, to_char(t.starts_on, 'YYYY-MM-DD') AS starts_on,
                to_char(t.ends_on, 'YYYY-MM-DD') AS ends_on, t.note
           FROM time_off t JOIN barbers b ON b.id = t.barber_id`
-  ]);
+  ]));
 
   const settings = {};
   settingsRows.forEach(r => { settings[r.key] = r.value; });

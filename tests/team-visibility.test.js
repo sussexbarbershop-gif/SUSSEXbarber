@@ -37,6 +37,12 @@ ok('there is one', /ADD COLUMN IF NOT EXISTS on_team boolean/.test(schema), true
 ok('and it defaults to shown', /on_team boolean NOT NULL DEFAULT true/.test(schema), true);
 // A database that is behind gets caught up on the first query that needs it.
 ok('an older database is brought forward', /ALTER TABLE barbers ADD COLUMN IF NOT EXISTS on_team/.test(db), true);
+// And the read that needs it has to be the kind that catches up. Adding the
+// column to the schema file and to ensureSchema was not enough: readConfig
+// went straight at the database, threw on a deployment whose migration had
+// not run, and the live config answered 500 until this was wrapped.
+ok('and the config read is what triggers the catch-up',
+   /await withNewSchema\(\(\) => Promise\.all\(\[/.test(db), true);
 
 console.log('--- what the site is told ---');
 ok('the flag is read back', /SELECT id, name, image_url, on_team FROM barbers/.test(db), true);
