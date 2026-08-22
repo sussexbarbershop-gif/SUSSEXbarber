@@ -201,6 +201,36 @@ ok('and the timer is cleared with it, so neither removes it twice',
 ok('the message is set as text, never as html',
    /words\.textContent = message;/.test(html), true);
 
+console.log('--- what a slow connection waits on ---');
+// The fonts are 354KB behind a stylesheet on one origin pointing at files on
+// another, and the browser does not learn about the second until it has
+// parsed the first. On a weak signal that is a DNS lookup and a handshake
+// discovered late, with nothing on screen.
+ok('both font origins are opened early',
+   /rel="preconnect" href="https:\/\/fonts\.googleapis\.com"/.test(html) &&
+   /rel="preconnect" href="https:\/\/fonts\.gstatic\.com" crossorigin/.test(html), true);
+// The hero is a CSS background, so it is the largest thing on the first
+// screen and the last thing discovered.
+ok('and the hero is asked for with the stylesheet, not after it',
+   /rel="preload" as="image" href="assets\/hero_bg_shop\.jpg" fetchpriority="high"/.test(html), true);
+
+console.log('--- the work Safari was doing twice ---');
+// The address bar collapses and expands as you scroll, and each of those
+// fires resize. Every resize listener therefore ran on nearly every scroll —
+// on the website only. The installed app has no address bar, which is the
+// difference the shop felt between the two on the same phone.
+//
+// The width is what changes when a phone is turned over, and exactly what
+// does not change when the address bar moves.
+ok('the reveals ignore a height-only resize',
+   /if \(window\.innerWidth === lastWidth\) return;/.test(html), true);
+ok('and so does the nav height tracker',
+   /if \(window\.innerWidth === lastWindowWidth\) return;/.test(html), true);
+// And the nav height is only written when it has actually moved, so the
+// ResizeObserver path is cheap too.
+ok('which writes only when the number changed',
+   /if \(h === lastNavHeight\) return;/.test(html), true);
+
 console.log('--- the bar arriving, rather than switching ---');
 // It was a one-pixel sentinel and an observer: the bar went from nothing to
 // glass in one step, easing over half a second on its own clock — so it

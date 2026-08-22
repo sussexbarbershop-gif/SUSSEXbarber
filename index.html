@@ -101,7 +101,35 @@
          same origin, so 'self' covers it, and a policy that still allowed the
          Apps Script would be permission for a host this site no longer calls. -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com data: blob:; frame-src https://www.google.com https://maps.google.com; img-src 'self' https://maps.gstatic.com https://*.public.blob.vercel-storage.com data: blob:;">
+    <!-- ---- The two things a slow connection waits on ------------------
+
+         The fonts come from fonts.googleapis.com, and the files that
+         stylesheet points at come from fonts.gstatic.com — a second origin
+         the browser does not know about until it has downloaded and parsed
+         the first. On a phone with a weak signal that is a DNS lookup and a
+         TLS handshake discovered late, while the page has nothing to show.
+         Measured: 354KB of font files behind that, more than everything
+         else on the page put together.
+
+         preconnect opens both doors while the HTML is still arriving. It
+         changes nothing about what is downloaded — only when the waiting
+         starts. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+
+    <!-- The hero photograph is the largest thing on the first screen and
+         the last thing discovered: it is a CSS background, so the browser
+         only learns it exists after the stylesheet has been fetched and
+         parsed. On a slow link that is the whole first impression waiting
+         on a round trip it did not need to.
+
+         Preloaded, so it starts arriving with the stylesheet rather than
+         after it. fetchpriority high because this is the one image that is
+         on screen before anything is scrolled; everything else on the page
+         is lazy and can wait. -->
+    <link rel="preload" as="image" href="assets/hero_bg_shop.jpg" fetchpriority="high">
     <!-- Tailwind is compiled to assets/tailwind.css by the build script in
          package.json. The CDN build used to run here, which shipped the whole
          framework and generated styles after first paint, so the page flashed
@@ -1593,8 +1621,18 @@
         (function trackNavHeight() {
             const bar = document.querySelector('nav');
             if (!bar) return;
-            const publish = () => document.documentElement.style
-                .setProperty('--nav-h', `${Math.round(bar.getBoundingClientRect().height)}px`);
+            // Only written when the number has actually moved. This runs from
+            // a ResizeObserver and from every resize event, and in Safari the
+            // address bar collapsing counts as a resize — so on the website it
+            // fired on nearly every scroll to write the same value it had
+            // already written.
+            let lastNavHeight = -1;
+            const publish = () => {
+                const h = Math.round(bar.getBoundingClientRect().height);
+                if (h === lastNavHeight) return;
+                lastNavHeight = h;
+                document.documentElement.style.setProperty('--nav-h', h + 'px');
+            };
             publish();
             // ResizeObserver rather than the resize event: the bar also changes
             // height when its contents do — a language switch rewrapping it —
@@ -1609,8 +1647,15 @@
             }
             // The resize listener stays either way. It is the one that fires
             // when a phone is turned on its side, which is the case that
-            // actually happens.
-            window.addEventListener('resize', publish);
+            // actually happens — and on the width, because Safari fires resize
+            // every time the address bar moves during a scroll, which is not a
+            // resize of anything this cares about.
+            let lastWindowWidth = window.innerWidth;
+            window.addEventListener('resize', () => {
+                if (window.innerWidth === lastWindowWidth) return;
+                lastWindowWidth = window.innerWidth;
+                publish();
+            });
             // Fonts land after first paint and the bar is sized by its text,
             // so measure again once they have.
             if (document.fonts && document.fonts.ready) document.fonts.ready.then(publish);
@@ -2801,7 +2846,30 @@
                 window.__relinkReveals = register;
 
                 addEventListener('scroll', onScroll, { passive: true });
-                addEventListener('resize', onScroll, { passive: true });
+
+                /**
+                 * Only a real resize, which on a phone means turning it over.
+                 *
+                 * This listened to every resize, and in Safari that is not
+                 * what it sounds like: the address bar collapses and expands
+                 * as you scroll, and each of those fires resize. So on the
+                 * website every scroll did this work twice — once for the
+                 * scroll and once for the bar moving — while in the installed
+                 * app, which has no address bar, it did it once. That is the
+                 * difference the shop felt between the two, on the same phone
+                 * and the same page.
+                 *
+                 * The width is what actually changes when a phone is turned,
+                 * and it is exactly what does not change when the address bar
+                 * moves. So the height is ignored and the work goes back to
+                 * being done once.
+                 */
+                let lastWidth = window.innerWidth;
+                addEventListener('resize', () => {
+                    if (window.innerWidth === lastWidth) return;
+                    lastWidth = window.innerWidth;
+                    onScroll();
+                }, { passive: true });
             } catch (err) {
                 console.warn('[reveals] falling back to the observer', err);
                 root.classList.remove('scroll-linked');
@@ -4046,6 +4114,46 @@
             document.getElementById('booking').scrollIntoView({ behavior: 'smooth' });
         });
 
+        /**
+         * The moment a wall-clock time in the shop actually is.
+         *
+         * The same two-pass trick as shopTimeToUtc in api/event.js, and it has
+         * to be here as well because the two platforms take different routes:
+         * an iPhone is sent to /api/event, where the server does this, and
+         * everything else opens Google Calendar through a URL built in the
+         * browser. That URL was built from new Date(date) plus setHours, which
+         * sets the hour on *this device's* clock — so it was only ever right
+         * for somebody already on Amsterdam time.
+         *
+         * It looks right when it is wrong, which is why it lasted. A customer
+         * in Iraq books 10:30 and sees 10:30 in their calendar; the numbers
+         * match, so nothing seems amiss. But 10:30 in Wassenaar is 11:30 in
+         * Baghdad, and the entry they have saved is an hour early. From New
+         * York it is off by six and lands on the day before.
+         *
+         * Guess the time is UTC, ask what the shop's clock reads then, and
+         * shift by the difference. Twice, because on the two nights a year the
+         * clocks change, one shift can land the other side of the boundary.
+         */
+        function shopInstant(date, time) {
+            const wanted = Date.parse(date + 'T' + time + ':00Z');
+            let at = wanted;
+            for (let i = 0; i < 2; i++) {
+                const parts = new Intl.DateTimeFormat('en-CA', {
+                    timeZone: 'Europe/Amsterdam', year: 'numeric', month: '2-digit',
+                    day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false
+                }).formatToParts(new Date(at)).reduce((acc, p) => {
+                    acc[p.type] = p.value; return acc;
+                }, {});
+                const hour = parts.hour === '24' ? '00' : parts.hour;
+                const shown = Date.parse(parts.year + '-' + parts.month + '-' + parts.day +
+                                         'T' + hour + ':' + parts.minute + ':00Z');
+                if (shown === wanted) break;
+                at += wanted - shown;
+            }
+            return new Date(at);
+        }
+
         document.getElementById('addToCalendarBtn').addEventListener('click', () => {
             if (!window.lastBookingData) return;
             const b = window.lastBookingData;
@@ -4103,7 +4211,10 @@
                 const title = encodeURIComponent("Haircut at Sussex Barber Shop");
                 const details = encodeURIComponent(`Appointment for: ${b.service}`);
                 const location = encodeURIComponent("Van Hogendorpstraat 10, 2242 KZ Wassenaar, Netherlands");
-                const dates = `${formatCalDateUTC(dateObj)}/${formatCalDateUTC(endDate)}`;
+                // The shop's clock, not this device's. See shopInstant above.
+                const startsAt = shopInstant(b.date, (b.time || '').slice(0, 5));
+                const endsAt = new Date(startsAt.getTime() + slots * 30 * 60000);
+                const dates = `${formatCalDateUTC(startsAt)}/${formatCalDateUTC(endsAt)}`;
                 const googleCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}&location=${location}`;
                 window.open(googleCalUrl, '_blank');
             }

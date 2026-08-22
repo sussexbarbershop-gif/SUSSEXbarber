@@ -61,10 +61,23 @@ async function optimize(file) {
   // converted to sRGB and then said so. Converting without tagging would be
   // the same silence in a different colour space.
   pipeline = pipeline.toColourspace('srgb').withIccProfile('srgb');
-  if (ext === '.png') {
+  // Which encoder, decided by what the file *is* rather than what it is
+  // called.
+  //
+  // This used to read the extension, and one file in /assets is a JPEG named
+  // .PNG — a phone or a messaging app renamed it somewhere along the way. So
+  // the PNG encoder was handed JPEG pixels, produced something larger than it
+  // started with, and the "only overwrite if it shrank" rule then left the
+  // original in place. The script reported it as already optimal and moved on.
+  // It was 417KB, the largest thing the site serves, and it is a photograph
+  // with no transparency in it.
+  //
+  // sharp has already read the header by this point, so the real format costs
+  // nothing to ask for.
+  const isPng = meta.format === 'png';
+  if (isPng) {
     pipeline = pipeline.png({ quality: PNG_QUALITY, compressionLevel: 9 });
   } else {
-    // .jpg, .jpeg
     pipeline = pipeline.jpeg({ quality: JPEG_QUALITY, mozjpeg: true });
   }
 
@@ -84,7 +97,8 @@ async function optimize(file) {
     console.log(
       `${file.padEnd(40)} ${(before / 1024).toFixed(0).padStart(6)} KB -> ${(after / 1024).toFixed(0).padStart(6)} KB` +
       `  (${(100 - (100 * after / before)).toFixed(0)}% smaller)` +
-      (untagged ? '  +sRGB' : '')
+      (untagged ? '  +sRGB' : '') +
+      (isPng === (ext === '.png') ? '' : `  (a ${meta.format} named ${ext})`)
     );
   } else {
     console.log(`${file.padEnd(40)} already smaller than a re-encode (${(before / 1024).toFixed(0)} KB) - left alone`);

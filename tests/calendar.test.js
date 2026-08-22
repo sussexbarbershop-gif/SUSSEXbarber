@@ -105,6 +105,57 @@ console.log('--- what it refuses ---');
 
 console.log('--- and the button points at it ---');
 const page = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+
+console.log('--- the shop\'s clock, on a device that is not in the shop ---');
+// The iPhone route goes to /api/event and the server resolves the time.
+// Everything else opens Google Calendar through a URL built in the browser,
+// and that URL was built from new Date(date) plus setHours — which sets the
+// hour on the *device's* clock. It was only ever right for somebody already
+// on Amsterdam time.
+//
+// It looks right when it is wrong, which is why it lasted: a customer in
+// Iraq books 10:30 and sees 10:30 in their calendar, so the numbers match.
+// But 10:30 in Wassenaar is 11:30 in Baghdad, and from New York the entry
+// lands six hours early on the day before.
+ok('the browser has the same conversion the server has',
+   /function shopInstant\(date, time\)/.test(page), true);
+ok('and it resolves in the shop\'s timezone',
+   /shopInstant[\s\S]{0,700}timeZone: 'Europe\/Amsterdam'/.test(page), true);
+// Two passes, because on the two nights a year the clocks change one shift
+// can land the other side of the boundary.
+ok('twice, for the mornings the clocks change',
+   /shopInstant[\s\S]{0,500}for \(let i = 0; i < 2; i\+\+\)/.test(page), true);
+ok('the Google link is built from it',
+   /const startsAt = shopInstant\(b\.date, \(b\.time \|\| ''\)\.slice\(0, 5\)\);/.test(page), true);
+ok('and no longer from the device\'s own clock',
+   /const dates = \`\$\{formatCalDateUTC\(dateObj\)\}/.test(page), false);
+
+/** The page's own converter, lifted out rather than reimplemented. */
+const shopInstant = new Function(
+  (page.match(/function shopInstant\(date, time\)[\s\S]*?\n        \}/) || [''])[0] +
+  '; return shopInstant;')();
+const stamp = d => d.toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+
+// Summer and winter are an hour apart, and a fixed offset would put every
+// appointment between November and March wrong.
+ok('half past ten in August', stamp(shopInstant('2026-08-22', '10:30')), '20260822T083000Z');
+ok('and half past ten in January', stamp(shopInstant('2026-01-20', '10:30')), '20260120T093000Z');
+ok('the morning the clocks go forward', stamp(shopInstant('2026-03-29', '09:00')), '20260329T070000Z');
+ok('and the morning they go back', stamp(shopInstant('2026-10-25', '09:00')), '20261025T080000Z');
+
+console.log('--- and both routes agree, whichever device books ---');
+// An iPhone is sent to /api/event and the server converts. Everything else
+// opens a Google Calendar link the browser builds. Two implementations of the
+// same sum is two chances to be wrong, so they are checked against each other
+// rather than each against a number written down here.
+[['2026-08-22', '10:30'], ['2026-01-20', '10:30'],
+ ['2026-03-29', '09:00'], ['2026-10-25', '09:00'],
+ ['2026-12-31', '17:45']].forEach(([d, t]) => {
+  ok(d + ' ' + t + ' is the same moment either way',
+     stamp(shopInstant(d, t)), stamp(event.shopTimeToUtc(d, t)));
+});
+
+
 const runnable = page.split('\n').filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
 ok('nothing navigates to a data: URL any more',
    /location\.assign\('data:text\/calendar/.test(runnable), false);
