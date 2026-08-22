@@ -214,6 +214,16 @@ ok('both font origins are opened early',
 ok('and the hero is asked for with the stylesheet, not after it',
    /rel="preload" as="image" href="assets\/hero_bg_shop\.jpg" fetchpriority="high"/.test(html), true);
 
+// font-bold is used in eight places and 700 was never requested, so the
+// browser thickened 600 itself — synthetic bold, which smears the stems and
+// fills in the counters. Asking for it costs nothing: Google serves one file
+// per subset with every weight inside, measured at 15 files and 354KB either
+// way with zero URLs added.
+ok('every weight the page uses is a weight it asks for',
+   /family=Inter:wght@300;400;500;600;700/.test(html), true);
+ok('the serif too, which carries four of the eight',
+   /Playfair\+Display:ital,wght@0,400;0,600;0,700;1,400/.test(html), true);
+
 console.log('--- the work Safari was doing twice ---');
 // The address bar collapses and expands as you scroll, and each of those
 // fires resize. Every resize listener therefore ran on nearly every scroll —
