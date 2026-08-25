@@ -86,15 +86,33 @@ ok('and the form is what gets hidden',
    /form\.classList\.toggle\('hidden', !open\)/.test(site), true);
 // The shop's number, so the visit is not simply lost.
 ok('with the shop\'s number to call',
-   /id="bookingClosed"[\s\S]{0,1400}cms-contact-phone-link/.test(site), true);
+   /id="bookingClosed"[\s\S]{0,3000}cms-contact-phone-link/.test(site), true);
 // It follows the settings like every other number on the page.
 ok('which follows the panel too',
-   /id="bookingClosed"[\s\S]{0,2200}class="cms-contact-phone"/.test(site), true);
+   /id="bookingClosed"[\s\S]{0,3600}class="cms-contact-phone"/.test(site), true);
 // Both languages, because the site is EN and NL and the shop should not have
 // to write Dutch to close a form.
 ok('in Dutch as well', /'Online reserveren opent binnenkort'/.test(site), true);
 ok('including the line under it',
    /We zijn alles aan het klaarmaken/.test(site), true);
+
+console.log('--- and a word to the people who booked before it closed ---');
+// Their appointment is in the diary, but the shop was not taking bookings
+// that way yet, so it may not have been picked up. Somebody who turns up to a
+// chair nobody was expecting has been let down by the website, not the shop.
+ok('the notice apologises to them', /we are sorry/i.test(site), true);
+// True either way. It must not say the booking was cancelled, because it may
+// well be kept — only that it may not have arrived.
+// The comments in the markup explain the wording and use the very word being
+// looked for, so they come out first: this is about what a customer reads.
+const closedNotice = (site.match(/id="bookingClosed"[\s\S]*?<\/a>/) || [''])[0]
+  .replace(/<!--[\s\S]*?-->/g, '');
+ok('without claiming the booking is gone', /cancelled|canceled/i.test(closedNotice), false);
+ok('and it gives them the one thing that settles it',
+   /call and we will confirm it/i.test(site), true);
+// Both languages, like everything else in this notice.
+ok('in Dutch as well', /Onze excuses/.test(site), true);
+ok('with the same instruction', /dan bevestigen we het voor u/.test(site), true);
 
 console.log('--- and what still works while it is closed ---');
 // Somebody who already booked has to be able to find and cancel it.
