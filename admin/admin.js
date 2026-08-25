@@ -1639,6 +1639,14 @@ function renderCms() {
         const el = document.getElementById(id);
         if (el) el.value = settings[CMS_FIELDS[id]] || '';
     });
+    // A checkbox, so it is not one of the text fields above. Absent reads as
+    // off: the setting shipped closed, and a settings table that has never
+    // heard of it is one from before the shop opened booking.
+    const openBox = document.getElementById('cms_booking_open');
+    if (openBox) {
+        openBox.checked = String(settings.booking_open || '')
+            .trim().toLowerCase() === 'yes';
+    }
     loadSavedIcon();
     showLiveIcon();
 }
@@ -1656,6 +1664,13 @@ async function saveCMSData() {
         const el = document.getElementById(id);
         if (el) next[CMS_FIELDS[id]] = el.value;
     });
+
+    // Written as a word rather than a boolean because every other setting is a
+    // string, and a mixed table is a table somebody has to remember the shape
+    // of. Written explicitly either way, so the value stops being absent the
+    // first time this page is saved.
+    const openBox = document.getElementById('cms_booking_open');
+    if (openBox) next.booking_open = openBox.checked ? 'yes' : 'no';
 
     // saveCMS rewrites the settings from what it is sent, so the
     // visit counter has to travel with it or it resets to zero.

@@ -2193,6 +2193,29 @@
                     </div>
 
                     <!-- Multi-step Form -->
+                    <!-- Shown instead of the form until the shop opens online
+                         booking in the panel. The server refuses these bookings
+                         as well — see bookingIsOpen in api/index.js — because a
+                         hidden form is still a form anybody can post to. -->
+                    <div id="bookingClosed" class="hidden bg-white dark:bg-charcoal-900 p-6 sm:p-10 shadow-xl text-center border border-gray-200 dark:border-charcoal-700 rounded-lg relative z-30">
+                        <div class="w-14 h-14 mx-auto mb-5 rounded-full grid place-items-center" style="background:rgba(212,175,55,.12)">
+                            <svg class="w-7 h-7 text-gold" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path>
+                            </svg>
+                        </div>
+                        <h3 class="font-serif text-2xl sm:text-3xl text-gray-900 dark:text-white mb-3"
+                            data-translate="Online booking opens soon">Online booking opens soon</h3>
+                        <p class="text-gray-600 dark:text-gray-400 font-light mb-7 max-w-md mx-auto"
+                           data-translate="We are getting everything ready. Call us and we will book you in.">We are getting everything ready. Call us and we will book you in.</p>
+                        <a href="tel:+31653730803"
+                           class="cms-contact-phone-link tap-44 inline-flex items-center justify-center gap-2.5 bg-gold text-charcoal-900 px-7 py-3.5 rounded-lg font-semibold tracking-wider uppercase text-sm shadow-md">
+                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 9.8a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.8 2.1z"></path>
+                            </svg>
+                            <span class="cms-contact-phone">+31 6 53730803</span>
+                        </a>
+                    </div>
+
                     <form id="bookingForm" class="bg-white dark:bg-charcoal-900 p-4 sm:p-10 shadow-xl text-left border border-gray-200 dark:border-charcoal-700 transition-colors duration-300 rounded-lg relative z-30">
                 <!-- All three start empty. A barber and a service used to be
                      pre-filled, which meant a customer who never touched either
@@ -4236,6 +4259,9 @@
             'About': 'Over Ons',
             'Services': 'Diensten',
             'Gallery': 'Gallerij',
+            'Online booking opens soon': 'Online reserveren opent binnenkort',
+            'We are getting everything ready. Call us and we will book you in.':
+                'We zijn alles aan het klaarmaken. Bel ons en we boeken u in.',
             'Contact': 'Contact',
             'Book Now': 'Boek Nu',
             'My Bookings': 'Mijn Boekingen',
@@ -5161,6 +5187,32 @@
             node.textContent = JSON.stringify(data, null, 2);
         }
 
+        /**
+         * The booking form, or the notice that replaces it.
+         *
+         * The shop went on Google Maps before the website was ready to take
+         * appointments, and people arrived and booked. So the form is closed
+         * until the panel says otherwise — and the server refuses these
+         * bookings too, because hiding a form does not stop anybody posting to
+         * the address it points at.
+         *
+         * Absent means closed. This shipped on the day the shop asked for it,
+         * so a settings table that has never heard of the key is one from
+         * before they opened it. The panel writes yes or no explicitly.
+         *
+         * The lookup above it stays either way: somebody who has already
+         * booked still needs to find or cancel their appointment.
+         */
+        function showBookingIfOpen(settings) {
+            const open = String((settings || {}).booking_open || '')
+                .trim().toLowerCase() === 'yes';
+            const form = document.getElementById('bookingForm');
+            const notice = document.getElementById('bookingClosed');
+            if (!form || !notice) return;
+            form.classList.toggle('hidden', !open);
+            notice.classList.toggle('hidden', open);
+        }
+
         function applyConfig(config) {
             // The grids below are rebuilt from this, so anything scroll-linked
             // has to be told about the new cards. Called at the end, once they
@@ -5193,6 +5245,7 @@
 
             updateStructuredData(config);
             updateIcons(config);
+            showBookingIfOpen(config.settings);
 
             // Newly injected markup is English; restore the active language.
             if (typeof applyLanguage === 'function') applyLanguage(window.currentLang || 'en');

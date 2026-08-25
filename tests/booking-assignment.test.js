@@ -19,7 +19,10 @@ const rota = shifts => WEEKDAY_NAMES.map(d => shifts[d]
 // Tuesday 2099-09-08. Three barbers on the floor, in an order of the shop's
 // choosing that is deliberately not the order they are listed in.
 const config = {
-  settings: { barber_priority: 'Saan,Bassam,Raman' },
+  // booking_open, because this file is about which barber a booking lands on
+  // and not about whether the website is taking bookings — that gate has its
+  // own file, booking-open, and would otherwise refuse every case here.
+  settings: { barber_priority: 'Saan,Bassam,Raman', booking_open: 'yes' },
   barbers: [{ name: 'Any Available' }, { name: 'Raman' }, { name: 'Bassam' }, { name: 'Saan' }],
   hours: WEEKDAY_NAMES.map(d => ({ day: d, open: d !== 'Sunday', from: '10:00', to: '18:00' })),
   barberHours: {

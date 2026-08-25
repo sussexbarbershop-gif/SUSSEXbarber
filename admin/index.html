@@ -348,6 +348,25 @@
                                 <br>Make your changes in the boxes below, then click <b>Save to Website</b>.
                             </p>
                             
+                            <!-- First, because it is the one thing on this page
+                                 that decides whether customers can book at all.
+                                 The server reads the same setting, so this is
+                                 not only a matter of what is shown. -->
+                            <div class="form-group cms-field">
+                                <label class="cms-label">Online Booking</label>
+                                <p class="cms-hint">
+                                    While this is off, the booking form is replaced by a
+                                    notice telling customers online booking opens soon and
+                                    asking them to call. The shop can still take bookings
+                                    over the phone from the Bookings page — only the
+                                    website's own form is closed.
+                                </p>
+                                <label class="team-switch">
+                                    <input type="checkbox" id="cms_booking_open">
+                                    <span>Customers can book on the website</span>
+                                </label>
+                            </div>
+
                             <div class="form-group cms-field">
                                 <label class="cms-label">1. Hero Title (Main Website Title)</label>
                                 <!-- This used to tell the owner to type HTML.

@@ -123,7 +123,7 @@ console.log('--- the icon already in use ---');
 // Opening the editor on an empty box means the only way to see the current
 // icon is to install the site, and the only way to change it slightly is to
 // find the original file and start again.
-ok('the page opens on the icon that is live', /renderCms[\s\S]{0,200}loadSavedIcon\(\)/.test(panel), true);
+ok('the page opens on the icon that is live', /renderCms[\s\S]{0,600}loadSavedIcon\(\)/.test(panel), true);
 const loader = (panel.match(/function loadSavedIcon\(\)[\s\S]*?\n\}/) || [''])[0];
 ok('it reads the saved URL', /settings\.icon_512/.test(loader), true);
 // The icons come from the blob store. Drawing a cross-origin picture onto a

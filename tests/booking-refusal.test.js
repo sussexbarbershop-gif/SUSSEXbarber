@@ -18,6 +18,10 @@ const rota = shifts => WEEKDAY_NAMES.map(d => shifts[d]
   : { day:d, working:false, from:'', to:'', breakFrom:'', breakTo:'' });
 
 const config = {
+  // Open, because this file is about the rules a booking has to satisfy — the
+  // rota, the notice period, the clashes — and not about whether the website
+  // is taking bookings at all. That gate has its own file: booking-open.
+  settings: { booking_open: 'yes' },
   barberNames: ['Any Available', 'Hemen', 'Amir', 'Raman'],
   hours: WEEKDAY_NAMES.map(d => ({
     day: d, open: d !== 'Sunday', from: d === 'Monday' ? '12:00' : '10:00', to: '18:00'

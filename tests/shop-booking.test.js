@@ -32,7 +32,11 @@ const rota = shifts => WEEKDAY_NAMES.map(d => shifts[d]
 // weekday the suite happens to be run on.
 const EVERY_DAY = WEEKDAY_NAMES.reduce((all, d) => (all[d] = FULL_DAY, all), {});
 const config = {
-  settings: { barber_priority: 'Saan,Raman' },
+  // booking_open, because the last case here is a booking made from the
+  // website and this file is about where a booking came from, not about
+  // whether the website is open. Without it that case is refused — which is
+  // the gate working, and is checked properly in booking-open.
+  settings: { barber_priority: 'Saan,Raman', booking_open: 'yes' },
   barbers: [{ name: 'Any Available' }, { name: 'Raman' }, { name: 'Bassam' }, { name: 'Saan' }],
   hours: WEEKDAY_NAMES.map(d => ({ day: d, open: d !== 'Sunday', from: '10:00', to: '18:00' })),
   barberHours: {

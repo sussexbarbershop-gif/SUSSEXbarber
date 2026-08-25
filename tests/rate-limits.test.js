@@ -48,7 +48,10 @@ process.env.ADMIN_PASSWORD = 'the-panel-password';
 
 const WEEKDAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const config = {
-  settings: {},
+  // Open, because this file is about how many bookings one address may make,
+  // not about whether the website is taking them at all. That gate has its own
+  // file: booking-open.
+  settings: { booking_open: 'yes' },
   barbers: [{ name: 'Saan' }],
   hours: WEEKDAY_NAMES.map(d => ({ day: d, open: true, from: '10:00', to: '18:00' })),
   barberHours: {},

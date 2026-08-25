@@ -40,6 +40,20 @@ const { sendBookingNotice, sendCustomerConfirmation, sendCancellationNotice,
 const BACKEND_VERSION = '12-neon';
 
 /**
+ * Whether the website is taking bookings.
+ *
+ * Absent means no, and that is deliberate rather than tidy: this shipped on
+ * the day the shop asked for the form to be closed, so a database that has
+ * never heard of the setting is a database from before they opened it. The
+ * panel writes 'yes' or 'no' explicitly from then on, and the key is in
+ * KEPT_SETTINGS so a Website Text save cannot prune it back to absent.
+ */
+function bookingIsOpen(config) {
+  const settings = (config && config.settings) || {};
+  return String(settings.booking_open || '').trim().toLowerCase() === 'yes';
+}
+
+/**
  * The deploy that is answering, as a short commit.
  *
  * Empty when running anywhere that is not Vercel, and the clients treat an
@@ -631,6 +645,21 @@ async function refuseBooking(config, payload, byShop) {
   const date = trimmed(payload.date);
   const time = trimmed(payload.time);
 
+  // Online booking not open yet.
+  //
+  // The shop is listed on Google Maps before it is ready to take appointments
+  // through the website, and people were already arriving and booking. Hiding
+  // the form would not have stopped that: a form is markup, and the address it
+  // posts to is public. This is the line that actually refuses.
+  //
+  // Not for the shop's own bookings. The panel takes appointments over the
+  // phone through the same code with byShop set, and that has to keep working
+  // — the whole reason for closing the public form is that the shop is taking
+  // them another way for now.
+  if (!byShop && !bookingIsOpen(config)) {
+    return 'Online booking is not open yet. Please call the shop and we will book you in.';
+  }
+
   if (!date || !time) return 'Please choose a date and a time';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return 'That date is not valid';
 
@@ -1167,7 +1196,7 @@ const SITE_SETTINGS = ['hero_title', 'hero_subtitle', 'about_text',
  * sitting in customers' inboxes stop — which the shop hears about, if at all,
  * as customers ringing up to cancel.
  */
-const KEPT_SETTINGS = ['visit_count', 'cancel_key']
+const KEPT_SETTINGS = ['visit_count', 'cancel_key', 'booking_open']
   .concat(require('./_lib/icons').ICON_SETTINGS);
 
 /**
