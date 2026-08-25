@@ -74,15 +74,32 @@ for a reason worth understanding before changing either.
 
 | Round | When | Scheduled by |
 |---|---|---|
-| `?job=soon` | every 15 minutes, 06:00–17:00 UTC | GitHub Actions |
+| `?job=soon` | asked for every 15 minutes, 06:00–17:00 UTC; GitHub starts 6–11 a day | GitHub Actions |
 | `?job=evening` | 18:00 UTC — 20:00 in Amsterdam in summer, 19:00 in winter | Vercel |
 
-**`soon` is the reminder**, sent about an hour before the appointment. There
+**`soon` is the reminder**, sent an hour or two before the appointment. There
 was a nine-in-the-morning round as well and it was dropped: two emails for one
-haircut is one more than anybody wants, and an hour before is when a reminder
-is actually read. It runs every quarter of an hour because "an hour before"
-cannot be done once a day when appointments run from ten until six — and a
-Vercel Hobby cron runs once a day. Hence GitHub.
+haircut is one more than anybody wants, and shortly before is when a reminder
+is actually read. It is asked for every quarter of an hour because "before the
+appointment" cannot be done once a day when appointments run from ten until
+six — and a Vercel Hobby cron runs once a day. Hence GitHub.
+
+**Asked for, not delivered.** This file used to say the round runs every
+fifteen minutes. It does not. Counted over 18–25 August 2026, GitHub started
+the workflow **six to eleven times a day**, with gaps from 54 minutes to 176.
+That is GitHub's scheduler being what it is on a free account, and no amount of
+editing `nudge.yml` changes it.
+
+It matters more than it sounds, because a reminder is not delayed by a gap —
+it is lost to one. A round covers from now until some cutoff; an appointment
+past the cutoff is skipped, and by the next round it is in the past and no
+query will ever pick it up again. So each round looks **at least two hours
+ahead**, and further when it has already been quiet longer than that. Replayed
+against the real start times with no visitor standing in, that takes the
+appointments nobody would have been written to from 48 in eight days to 10 —
+and five of the ten are a ten o'clock appointment on a day whose first round
+came after ten, which no window can reach. The reasoning and the measurements
+are in `LEAST_MINUTES_AHEAD` in `api/daily.js`.
 
 **`evening` thanks** everybody who came in that day and asks for a review, but
 only once `review_url` is filled in on the panel's Website Text page. Empty
@@ -121,10 +138,16 @@ workflow is re-enabled from the **Actions** tab with one button.
 holds the moment the round last ran, whoever set it off, and an ordinary
 request from an ordinary visitor checks it: if it is more than thirty minutes
 old and the hour is one the workflow covers, that request runs the round
-itself. GitHub runs every fifteen minutes, so while it is working the row is
-never stale and this never fires once. `standInForTheClock()` in
-`api/index.js` has the reasoning; `tests/reminder-fallback.test.js` holds it
-to it.
+itself.
+
+This was written as a net for the sixty-day case and it is not one: since
+GitHub actually starts the workflow six to eleven times a day, the row is stale
+most hours and the stand-in is part of the ordinary path. Correctness no longer
+rests on it — the two-hour window above is what stops reminders being lost — but
+it is what keeps them arriving at the hour they were meant to, and it is the
+only thing that can catch an early appointment on a morning GitHub sleeps
+through. `standInForTheClock()` in `api/index.js` has the reasoning;
+`tests/reminder-fallback.test.js` holds it to it.
 
 The claim is a single conditional UPDATE rather than a read and then a write,
 so a busy afternoon produces one round rather than one per visitor. It is
@@ -178,7 +201,7 @@ works identically without it:
 | When | What |
 |---|---|
 | the booking is made | a confirmation |
-| about an hour before it | a reminder |
+| an hour or two before it | a reminder |
 | if it is cancelled | a note saying so |
 | a few hours after it | a thank-you, and a review link — only if `review_url` is set |
 

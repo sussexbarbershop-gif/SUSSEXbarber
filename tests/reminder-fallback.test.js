@@ -7,9 +7,22 @@
  * date nobody wrote down and press Enable. So the site stands in — an
  * ordinary visitor's request sets the round off when it has gone overdue.
  *
- * That is a fallback, and a fallback nobody watches is the kind of code that
- * quietly stops being true. These are the properties that make it safe rather
- * than a way to email somebody twice.
+ * That was written as a net for one rare day. It is not one. The workflow asks
+ * GitHub for forty-eight starts a day and got six to eleven over 18-25 August
+ * 2026, with gaps up to 176 minutes — so the site stands in most hours of most
+ * days, and the comment that used to say it "never fires once" was wrong about
+ * the only thing it claimed.
+ *
+ * What that changes here: this is no longer where correctness lives. A gap
+ * wider than the reminder window used to mean a customer nobody wrote to, and
+ * the fix for that is in sendReminders(), which widens its window to whatever
+ * silence it finds. The stand-in keeps reminders *timely*; the window keeps
+ * them *sent*. Both are tested, and the seam between them — the number one
+ * hands the other — is the part that would break silently.
+ *
+ * A fallback nobody watches is the kind of code that quietly stops being true.
+ * These are the properties that make it safe rather than a way to email
+ * somebody twice.
  */
 const fs = require('fs');
 const path = require('path');
@@ -44,16 +57,42 @@ console.log('--- it is awaited, not left running after the response ---');
 // a round is emails sent with nothing recording that they were sent.
 ok('the handler awaits the stand-in', /await standInForTheClock\(\)/.test(api), true);
 
-console.log('--- and it costs nothing while GitHub is still running ---');
+console.log('--- how overdue is overdue ---');
 const stale = Number((api.match(/const STALE_MINUTES = (\d+)/) || [])[1]);
 const cron = (nudge.match(/cron: '([^']+)'/) || [])[1] || '';
 const minutes = (cron.split(' ')[0] || '').split(',').map(Number).sort((a, b) => a - b);
 const gap = minutes.length > 1 ? minutes[1] - minutes[0] : 0;
-ok('the workflow still runs on a fixed gap', gap > 0, true);
-// Comfortably more than one workflow gap, or a single late run from GitHub —
-// which is normal, GitHub's scheduler is not punctual — sets off a second
-// round for no reason.
-ok('stale is well clear of that gap', stale >= gap * 2, true);
+ok('the workflow still asks for a fixed gap', gap > 0, true);
+// Clear of the gap the workflow asks for, so a run arriving a few minutes late
+// does not set off a second round on top of it. That is all this number is for
+// now — it decides how fresh reminders are, not whether they are sent, and
+// each firing is paid for by one visitor waiting on it.
+ok('stale is clear of the gap that is asked for', stale >= gap * 2, true);
+
+console.log('--- the seam: the silence is read before it is destroyed ---');
+const standIn = (api.match(/async function standInForTheClock\(\)[\s\S]*?\n}/) || [''])[0];
+// claimJobRun() sets ran_at to now() in the act of winning. Read it after that
+// and the answer is always "no time at all" — so the round would go back to a
+// one-hour window on exactly the occasions it must not, and the widening in
+// sendReminders() would be dead code that still passes its own tests.
+ok('the stand-in reads how long it has been', /minutesSinceJobRun\('soon'\)/.test(standIn), true);
+ok('before it claims the row',
+   standIn.indexOf("minutesSinceJobRun('soon')") < standIn.indexOf("claimJobRun('soon'"), true);
+ok('and hands the number to the round',
+   /runDailyJob\('soon', silentFor\)/.test(standIn), true);
+// Reading first also has to not become the whole check: the claim is still
+// what decides, because ten requests can arrive between the read and it.
+ok('the claim still decides', /if \(!await claimJobRun\('soon', STALE_MINUTES\)\) return;/.test(standIn), true);
+
+console.log('--- and that read is a read ---');
+const since = (dbjs.match(/async function minutesSinceJobRun[\s\S]*?\n}/) || [''])[0];
+ok('minutesSinceJobRun exists', since.length > 0, true);
+ok('it only selects', /SELECT/.test(since) && !/INSERT|UPDATE|DELETE/.test(since), true);
+// A missing row is "never run", not zero minutes: zero would read as a round
+// that had just happened and would suppress the very first one.
+ok('a table with no row yet answers null', /return Number\.isFinite\(minutes\) \? minutes : null;/.test(since), true);
+ok('and the caller treats null as not stale-checked, not as fresh',
+   /silentFor !== null && silentFor < STALE_MINUTES/.test(standIn), true);
 
 console.log('--- the hours it covers are the workflow\'s hours ---');
 // Emailing somebody a reminder at four in the morning because a visitor from

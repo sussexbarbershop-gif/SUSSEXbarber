@@ -4,10 +4,13 @@
  * Vercel calls this twice a day (see vercel.json), and the query string says
  * which round it is:
  *
- *   soon      The reminder, about an hour before the appointment. Every
- *             quarter of an hour, from GitHub Actions — Vercel's own scheduler
- *             runs a job once a day on this plan, which cannot do "an hour
- *             before" for appointments spread across a working day.
+ *   soon      The reminder, an hour or two before the appointment. Asked for
+ *             every quarter of an hour from GitHub Actions — Vercel's own
+ *             scheduler runs a job once a day on this plan, which cannot do
+ *             "before the appointment" for a day full of them. Asked for, not
+ *             delivered: GitHub starts a fraction of those, so the round has
+ *             to survive being late, and how it does is the longest comment in
+ *             this file. See LEAST_MINUTES_AHEAD.
  *   evening   Thanks everybody who came in today and asks them for a review,
  *             sweeps the rate-limit counters, and counts anything the reminder
  *             round should have caught and did not.
@@ -36,7 +39,8 @@
  *                 leave open while somebody remembers to configure it.
  */
 
-const { db, readConfig, withNewSchema, getCancelKey, markJobRun } = require('./_lib/db');
+const { db, readConfig, withNewSchema, getCancelKey,
+        markJobRun, minutesSinceJobRun } = require('./_lib/db');
 const rota = require('./_lib/rota');
 const { sendReminder, sendReviewRequest } = require('./_lib/mail');
 const { sweepOldCounters } = require('./_lib/limits');
@@ -141,7 +145,7 @@ module.exports = async function handler(req, res) {
   }
 };
 
-async function runDailyJob(job) {
+async function runDailyJob(job, silentFor) {
   const sql = db();
   const config = await readConfig();
   const today = shopDate(0);
@@ -149,7 +153,14 @@ async function runDailyJob(job) {
   // The one that runs through the day, and does nothing at all most times it
   // runs. See sendReminders() for what it is actually for.
   if (job === 'soon') {
-    const nudged = await sendReminders(sql, config, today, shopTime(), soonCutoff());
+    // How long since the last round, which decides how far ahead this one
+    // looks. The stand-in already knows — it reads the row to decide whether
+    // to wake at all, and the claim it makes overwrites the answer — so it
+    // hands the number over rather than making this ask a question that can no
+    // longer be answered truthfully.
+    const quiet = silentFor === undefined ? await minutesSinceJobRun('soon') : silentFor;
+    const nudged = await sendReminders(sql, config, today, shopTime(),
+                                       soonCutoff(null, quiet));
     // Recorded whoever set this off — GitHub's clock, the button, or an
     // ordinary visitor standing in for both. The stand-in only wakes up when
     // this timestamp has gone stale, so it has to be written here rather than
@@ -183,8 +194,54 @@ async function runDailyJob(job) {
  * one haircut is one more than anybody wants, and the shop would rather the
  * one it sends be the useful one.
  *
- * The job runs every quarter of an hour, so in practice this fires between
- * forty-five and sixty minutes before. A late run fires later and still fires.
+ * An hour is right while the clock is keeping time. It is wrong the moment it
+ * is not, and this window is where that stops being a delay and becomes a
+ * customer nobody wrote to.
+ *
+ * The hole is worth spelling out, because it is not the obvious one. A round
+ * at 10:30 covers 10:30 to 11:30. If the next round is at 12:23, it covers
+ * 12:23 onwards — and an appointment at 12:00 was too far off for the first
+ * and already past for the second. Nothing retries it: by tomorrow the
+ * appointment has happened, so the query cannot pick it up again. One silence
+ * longer than this window is one customer who is simply never told.
+ *
+ * That is not hypothetical. nudge.yml asks GitHub for forty-eight runs a day;
+ * across 18-25 August it started between six and eleven, with gaps of 54 to
+ * 176 minutes. The first run of the day landed at 10:30 shop time more than
+ * once, which is after the shop opens — so the first appointment of the day
+ * was the one most reliably missed.
+ *
+ * The first answer was to widen the window to match the silence behind it. It
+ * helps and it is not enough, and the reason is worth keeping: the silence
+ * behind a round says nothing about the silence in front of it. Replaying the
+ * real start times, 19 August had a round at 13:58 whose previous gap was a
+ * healthy 57 minutes — so it looked one hour ahead, to 14:58 — and then
+ * nothing came for 130 minutes. Three o'clock, half past and four fell in the
+ * hole anyway. A backward-looking window cannot see a gap coming.
+ *
+ * So there is a floor as well, and the floor is the part that does the work.
+ * Every round looks at least two hours ahead whatever the clock has been
+ * doing, and further when it has already been quiet longer than that. The
+ * numbers come from replaying those eight days against the shop's own half-
+ * hourly slots, with no visitor ever standing in — the worst case there is:
+ *
+ *     looking ahead      never reminded     average notice
+ *        60 min            25 of 136           70 min
+ *       120 min            10 of 136           84 min
+ *       180 min             5 of 136          114 min
+ *
+ * Two hours is where the curve turns. It removes three fifths of the misses
+ * for fourteen minutes of notice; going on to three hours buys five more and
+ * costs half an hour, which is the point where "about an hour before" stops
+ * being a fair description of what the shop is sending.
+ *
+ * The five that survive at any width are the same five: an appointment at ten
+ * o'clock on a day whose first round did not arrive until after ten. No window
+ * reaches backwards. Those are the stand-in's to catch — one visitor before
+ * opening is enough — and nothing else can.
+ *
+ * The cost, then, is a reminder that lands an hour and a half before instead
+ * of an hour. The thing bought with it is that it lands at all.
  *
  * Two hours of age, because somebody who booked twenty minutes ago does not
  * need reminding of it: they would have a confirmation and a reminder in the
@@ -192,13 +249,33 @@ async function runDailyJob(job) {
  * who books within two hours of their own appointment gets no reminder, and
  * does not need one.
  */
-const SOON_MINUTES = 60;
+const LEAST_MINUTES_AHEAD = 120;
+const MOST_MINUTES_AHEAD = 180;
 const SETTLED_HOURS = 2;
 
-/** 'HH:MM' an hour from now, or '23:59' if that would pass midnight. */
-function soonCutoff(at) {
+/**
+ * How far ahead this round should look, given how long the last one was ago.
+ *
+ * Two hours whatever has happened, because the next gap is unknowable and a
+ * gap wider than the window is a customer nobody writes to. Wider when the
+ * clock has already been quiet longer than that, since a silence of two and a
+ * half hours behind is the best evidence there is of one ahead. Capped, or the
+ * first round after a night off becomes a ten o'clock email about a six
+ * o'clock haircut.
+ *
+ * Unknown reads as the floor, not as alarm: a database with no row yet has no
+ * appointments in it either.
+ */
+function minutesAhead(silentFor) {
+  const silence = Number(silentFor);
+  if (!Number.isFinite(silence)) return LEAST_MINUTES_AHEAD;
+  return Math.min(MOST_MINUTES_AHEAD, Math.max(LEAST_MINUTES_AHEAD, Math.round(silence)));
+}
+
+/** 'HH:MM' two hours from now — further if the clock has been quiet — or '23:59'. */
+function soonCutoff(at, silentFor) {
   const [h, m] = shopTime(at).split(':').map(Number);
-  const minutes = h * 60 + m + SOON_MINUTES;
+  const minutes = h * 60 + m + minutesAhead(silentFor);
   if (minutes >= 24 * 60) return '23:59';
   return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
 }
@@ -208,11 +285,12 @@ function soonCutoff(at) {
  *
  * With no `until`, this is the morning run: everyone booked in today.
  *
- * With one, it is the run that goes through the day every quarter of an hour —
- * and its whole purpose is the hole the morning run leaves. A customer who
- * books at ten past ten for four o'clock gets no reminder at all, because the
- * morning run happened an hour before they existed. That is not a rare case;
- * it is most of a barber shop's day.
+ * With one, it is the run that goes through the day — asked for every quarter
+ * of an hour, arriving rather less often than that, which is what
+ * minutesAhead() is about. Its whole purpose is the hole the morning run
+ * leaves behind it: a customer who books at ten past ten for four o'clock gets
+ * no reminder at all, because the morning run happened an hour before they
+ * existed. That is not a rare case; it is most of a barber shop's day.
  *
  * Both write the same `reminded_at`, which is what stops anybody getting two.
  * The morning run has already marked everything it saw, so this one can only
@@ -221,17 +299,19 @@ function soonCutoff(at) {
 /**
  * The reminders due now.
  *
- * The clock is passed in, and it is not decoration. This round is supposed to
- * run every quarter of an hour; measured over two days, GitHub's scheduler
- * actually leaves gaps of a hundred minutes and more — 138 between one pair,
- * 850 overnight. Without a lower bound the first run after a gap picks up
- * every appointment it missed and tells those customers their haircut is in
- * about an hour, having already happened. The worst case here is not a late
- * email, it is a wrong one.
+ * The clock is passed in, and it is not decoration. This round is asked for
+ * every quarter of an hour; measured over 18-25 August 2026 GitHub started it
+ * six to eleven times a day, leaving gaps of a hundred minutes and more — 176
+ * between one pair, and the whole night between the last of one day and the
+ * first of the next. Without a lower bound the first run after a gap picks up
+ * every appointment it missed and tells those customers their haircut is
+ * shortly, having already happened. The worst case here is not a late email,
+ * it is a wrong one.
  *
- * So the window has both ends: after now, and within the next hour. An
- * appointment that has already started is left alone, which is the honest
- * answer — there is nothing useful left to say about it.
+ * So the window has both ends. The floor is now: an appointment that has
+ * already started is left alone, which is the honest answer — there is nothing
+ * useful left to say about it. The ceiling is minutesAhead(), which is the
+ * other half of the same problem and has the reasoning.
  */
 async function sendReminders(sql, config, today, from, until) {
   const rows = await withNewSchema(() => sql`
@@ -376,4 +456,5 @@ module.exports.runDailyJob = runDailyJob;
 module.exports.shopDate = shopDate;
 module.exports.askingCutoff = askingCutoff;
 module.exports.soonCutoff = soonCutoff;
+module.exports.minutesAhead = minutesAhead;
 module.exports.isTheCron = isTheCron;

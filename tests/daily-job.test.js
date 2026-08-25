@@ -241,16 +241,82 @@ async function main() {
   // refuses at three in the afternoon on a live database.
   ok('with the types written down', /::time/.test(soonSql) && /::int/.test(soonSql), true);
 
-  console.log('--- an hour ahead, and not round the back of midnight ---');
+  console.log('--- two hours ahead, and not round the back of midnight ---');
   const at = (hhmm) => {
     const [h, m] = hhmm.split(':').map(Number);
     return new Date(Date.UTC(2026, 0, 2, h, m));
   };
-  ok('an hour ahead', daily.soonCutoff(at('14:00')), '15:00');
-  ok('and again off the hour', daily.soonCutoff(at('09:15')), '10:15');
+  // This was an hour, because an hour before is when a reminder is read. It is
+  // two because the round that would have sent it an hour before does not
+  // reliably happen: see the table in api/daily.js. A window narrower than the
+  // gap between rounds does not delay a reminder, it deletes it.
+  ok('two hours ahead', daily.soonCutoff(at('14:00')), '16:00');
+  ok('and again off the hour', daily.soonCutoff(at('09:15')), '11:15');
   // Postgres wraps `time` arithmetic round midnight; this must not.
   ok('it stops at the end of the day', daily.soonCutoff(at('23:30')), '23:59');
   ok('and exactly at eleven', daily.soonCutoff(at('23:00')), '23:59');
+
+  console.log('--- and further ahead when the clock has been quiet ---');
+  // The window is an hour because that is when a reminder is read. It is only
+  // an hour while something is actually asking for a round every quarter of an
+  // hour, and nothing is: nudge.yml requests forty-eight starts a day and
+  // GitHub gave six to eleven over 18-25 August 2026, with gaps up to 176
+  // minutes. A gap wider than the window is not a late reminder, it is a
+  // customer who is never written to at all — the round on the far side finds
+  // the appointment already in the past and no round ever retries it.
+  // The floor is the part that does the work, and it has to hold even when the
+  // clock looks healthy. On 19 August a round at 13:58 followed a perfectly
+  // ordinary 57-minute gap — and then nothing came for 130 minutes. A window
+  // sized from the gap behind it would have stopped at 14:58 and lost three
+  // o'clock, half past and four. The silence behind a round says nothing about
+  // the silence in front of it.
+  ok('a round that has just run still looks two hours ahead', daily.minutesAhead(15), 120);
+  ok('and so does one an hour late', daily.minutesAhead(60), 120);
+  // Absent is the ordinary case, not the alarming one: a database with no row
+  // yet has no appointments in it either.
+  ok('an unknown silence is treated as ordinary', daily.minutesAhead(null), 120);
+  ok('and so is nonsense', daily.minutesAhead('soon'), 120);
+  // Past the floor the window becomes the silence, because a gap that long
+  // behind is the only evidence available of one ahead.
+  ok('a two-hour silence looks two hours ahead', daily.minutesAhead(120), 120);
+  ok('and a longer one looks further', daily.minutesAhead(150), 150);
+  ok('and 176 minutes, the worst gap measured', daily.minutesAhead(176), 176);
+  // Capped, or the first round after a night off is a ten o'clock email about
+  // a six o'clock haircut.
+  ok('but never further than three hours', daily.minutesAhead(14 * 60), 180);
+  ok('the cutoff widens with it', daily.soonCutoff(at('14:00'), 120), '16:00');
+  ok('and still does not wrap past midnight', daily.soonCutoff(at('23:00'), 120), '23:59');
+
+  // The day that produced the floor, replayed. 19 August: a round at 13:58, an
+  // ordinary 57-minute gap behind it, and 130 minutes of nothing in front.
+  const lateAfternoon = daily.soonCutoff(at('13:58'), 57);
+  ok('a round at 13:58 now reaches three o\'clock', lateAfternoon >= '15:00', true);
+  ok('and half past three', lateAfternoon >= '15:30', true);
+  // Four it does not, and pretending otherwise would be the kind of test that
+  // asserts an intention rather than a behaviour. The next round came at 16:08,
+  // eight minutes too late to catch it. That one belongs to the stand-in, and
+  // no width of window would have got it.
+  ok('four o\'clock is still past the edge', lateAfternoon >= '16:00', false);
+  // 24 August, the other shape of miss: the first round of the day arrived at
+  // 10:23, and the shop opens at ten. A window is a ceiling — the floor is the
+  // moment the round runs — so ten o'clock was gone before anything looked.
+  ok('and nothing reaches an appointment already in the past',
+     /booked_at >= \?::time/.test(soonSql), true);
+
+  console.log('--- and the round asks with the wider window ---');
+  reset();
+  dueToday = [];
+  await daily.runDailyJob('soon', 150);
+  const lateArgs = (queried.find(q => q[0] === 'reminders') || [])[3] || [];
+  ok('the silence it was handed reaches the query',
+     lateArgs.includes(daily.soonCutoff(null, 150)), true);
+  // Handed over rather than looked up, because by then the answer is gone:
+  // the stand-in claims the row by setting ran_at to now(), so a round that
+  // asked the database afterwards would be told the silence was nothing.
+  ok('and a round given nothing looks it up instead',
+     /silentFor === undefined \? await minutesSinceJobRun\('soon'\)/
+       .test(require('fs').readFileSync(path.join(__dirname, '..', 'api', 'daily.js'), 'utf8')),
+     true);
 
   console.log('--- one round or the other ---');
   reset();

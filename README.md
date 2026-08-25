@@ -145,12 +145,13 @@ to work the diary; the takings, the prices and the shop's hours are behind the
 PIN. `ADMIN_PASSWORD` and `REPORTS_PIN`.
 
 **The reminders run on GitHub Actions**, because a Vercel Hobby cron runs once a
-day and "an hour before the appointment" cannot be done once a day. GitHub
-disables a scheduled workflow in a repository with no activity for sixty days,
-and a shop that is running well does not push code — so the site stands in.
-A visitor's request sets the round off when it has gone half an hour overdue,
-which while GitHub is running never happens. `standInForTheClock()` in
-`api/index.js`, and MIGRATION.md for the whole picture.
+day and "before the appointment" cannot be done once a day. GitHub is asked for
+forty-eight runs a day and starts six to eleven of them, with gaps up to three
+hours — so the round looks at least two hours ahead rather than one, because a
+gap wider than the window loses a reminder rather than delaying it. A visitor's
+request also sets the round off when it has gone half an hour overdue, which on
+this schedule happens most days. `LEAST_MINUTES_AHEAD` and
+`standInForTheClock()`, and MIGRATION.md for the whole picture.
 
 **Email fails silently by design.** Nothing on the site shows it. The reason is
 in `mail.js`; the place to look is the Vercel log, for a line starting

@@ -21,7 +21,8 @@
  */
 
 const { db, readConfig, readRotaConfig, indexToIso, WEEKDAY_NAMES,
-        withNewSchema, customerFor, claimJobRun, getCancelKey } = require('./_lib/db');
+        withNewSchema, customerFor, claimJobRun, minutesSinceJobRun,
+        getCancelKey } = require('./_lib/db');
 const rota = require('./_lib/rota');
 const { isAuthorized, isPinCorrect, isOwner, reportsPinIsSet, issueUnlockPass,
         UNLOCK_MINUTES, throttleFailedLogin, resetFailedLogins,
@@ -162,10 +163,24 @@ function isOwnOrigin(req) {
  * nothing that expires — the three things every other fix here would have
  * needed, and each of them is its own future morning of it not working.
  *
- * Four things keep it from costing anything:
+ * It was written as a sixty-day safety net and it is not one. That paragraph
+ * above assumed GitHub honours the schedule it is given; measured across
+ * 18-25 August, the workflow asked for forty-eight starts a day and got six to
+ * eleven, with gaps of up to 176 minutes. So this is not a net for the day the
+ * workflow is disabled — it is part of the ordinary path, most hours of most
+ * days, and the assumption that it "never fires once" was simply wrong.
  *
- *   - STALE_MINUTES is thirty, and GitHub runs every fifteen. While that is
- *     working the row is never stale and this never fires once.
+ * It is left at thirty minutes all the same. Correctness does not rest here
+ * any more: sendReminders() widens its window to match whatever silence it
+ * finds, so a gap costs an early reminder rather than a missing one. What this
+ * buys is freshness — a round every half hour while anybody is visiting keeps
+ * reminders at the hour they were designed for — and each firing is paid for
+ * by one visitor waiting on it, which is a reason to keep it modest.
+ *
+ * Four things keep it from costing much:
+ *
+ *   - It reads the row before claiming it. Not stale is one SELECT and out,
+ *     which is the answer nearly every time it is asked.
  *   - Only inside the hours the workflow covers, so a visitor at midnight
  *     never pays for it and nobody is emailed at an hour they would mind.
  *   - At most one look per lambda per CHECK_EVERY, so a busy afternoon does
@@ -193,11 +208,26 @@ async function standInForTheClock() {
   if (hour < COVERED_HOURS[0] || hour > COVERED_HOURS[1]) return;
 
   try {
+    // Read first. Two reasons, and the cheap one is not the important one:
+    // nearly every check is "not stale", and a SELECT that finds a fresh row
+    // is less work than an upsert that refuses one. The important one is that
+    // claimJobRun() sets ran_at to now() in the act of winning, so this is the
+    // last moment anybody can say how long the silence actually was — and the
+    // round needs that number to decide how far ahead to look.
+    const silentFor = await minutesSinceJobRun('soon');
+    if (silentFor !== null && silentFor < STALE_MINUTES) return;
+    // Still claimed, and still one conditional statement: ten requests can
+    // arrive between the read and here, and only one of them may go on.
     if (!await claimJobRun('soon', STALE_MINUTES)) return;
-    console.warn('[daily] no reminder round in %d minutes — the site is standing in. ' +
-                 'Is the GitHub Actions workflow still enabled?', STALE_MINUTES);
+    // Says the real number, because that number is the diagnosis. Thirty-five
+    // is GitHub being GitHub; six hundred is a workflow that has been disabled
+    // and nobody told. Null is a database that has never run one at all.
+    console.warn('[daily] no reminder round in %s — the site is standing in. ' +
+                 'Is the GitHub Actions workflow still enabled?',
+                 silentFor === null ? 'this database\'s history'
+                                    : `${Math.round(silentFor)} minutes`);
     const { runDailyJob } = require('./daily');
-    console.log('[daily]', JSON.stringify(await runDailyJob('soon')));
+    console.log('[daily]', JSON.stringify(await runDailyJob('soon', silentFor)));
   } catch (err) {
     // Never the visitor's problem. They asked for opening hours.
     console.error('[daily] the stand-in round failed', err);

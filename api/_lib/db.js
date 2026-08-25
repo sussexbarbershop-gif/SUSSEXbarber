@@ -161,6 +161,28 @@ async function claimJobRun(job, minutes) {
   return rows.length > 0;
 }
 
+/**
+ * How long a round has been silent, in minutes, or null if it has never run.
+ *
+ * Read rather than assumed, because the schedule is not what it looks like.
+ * nudge.yml asks GitHub for forty-eight runs a day; measured across a week it
+ * started between six and eleven times, with gaps from fifty-four minutes to
+ * just under three hours. Anything deciding how far ahead to look has to know
+ * which of those it is dealing with, and this row is the only thing that does.
+ *
+ * Read before the claim, not after: claimJobRun() sets ran_at to now() in the
+ * act of winning, so by the time a round is running the answer has been
+ * overwritten by the round itself.
+ */
+async function minutesSinceJobRun(job) {
+  const sql = db();
+  const rows = await withNewSchema(() => sql`
+    SELECT extract(epoch FROM now() - ran_at) / 60 AS minutes
+      FROM job_runs WHERE job = ${job}`);
+  const minutes = rows.length ? Number(rows[0].minutes) : NaN;
+  return Number.isFinite(minutes) ? minutes : null;
+}
+
 /** Record that a round ran, however it was set off. Never refused. */
 async function markJobRun(job) {
   const sql = db();
@@ -372,4 +394,4 @@ async function customerFor({ phone, name, email }) {
 module.exports = { db, customerFor, readConfig, readRotaConfig, hhmm, isoToIndex, indexToIso,
                    WEEKDAY_NAMES, WEEKDAY_NL,
                    ensureSchema, withNewSchema, isMissingSchema,
-                   claimJobRun, markJobRun, getCancelKey };
+                   claimJobRun, markJobRun, minutesSinceJobRun, getCancelKey };
