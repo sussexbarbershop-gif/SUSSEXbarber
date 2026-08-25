@@ -12,7 +12,29 @@ const ANY_BARBER = 'Any Available';
 const barberField = { value: '' };
 const serviceField = { value: '' };
 const container = { innerHTML: '' };
-const teamContainer = { innerHTML: '' };
+// A real enough classList to be worth asserting against: renderTeamGrid sets
+// the column count from the size of the team, and a stub that swallowed the
+// calls would let that silently stop happening.
+const classSet = (initial) => {
+  const set = new Set(String(initial || '').split(/\s+/).filter(Boolean));
+  return {
+    add: (...c) => c.forEach(x => set.add(x)),
+    remove: (...c) => c.forEach(x => set.delete(x)),
+    contains: c => set.has(c),
+    has: c => set.has(c),
+    toggle(c, on) {
+      if (on === undefined) { set.has(c) ? set.delete(c) : set.add(c); }
+      else if (on) set.add(c); else set.delete(c);
+      return set.has(c);
+    }
+  };
+};
+// Started from what the markup actually carries, so the first render is asked
+// to correct a real starting state rather than an empty one.
+const teamContainer = {
+  innerHTML: '',
+  classList: classSet('stagger reveal grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6 lg:gap-8')
+};
 const noopClassList = { add() {}, remove() {}, toggle() {}, contains: () => false };
 const pickerLabel = { textContent: '', classList: noopClassList };
 const continueBtn = { disabled: true };
@@ -101,6 +123,32 @@ window.sussexBarberHours = {
 renderTeamGrid([{ name: 'Hemen' }]);
 ok('team grid: shows real working days, not a rating', teamContainer.innerHTML.includes('Tue · Fri'), true);
 ok('team grid: no invented star rating', teamContainer.innerHTML.includes('★'), false);
+
+console.log('--- and the row is centred whatever the size of the team ---');
+// The shop turned all but two barbers off in the panel, and the two that were
+// left sat in the first two of three columns — left of a centred heading, with
+// an empty third column nobody could see. It looked like a broken page rather
+// than a shop with two barbers, and the cause was invisible from the outside.
+const shape = () => ['grid-cols-1', 'grid-cols-2', 'md:grid-cols-2', 'md:grid-cols-3',
+                     'max-w-xs', 'md:max-w-3xl', 'mx-auto']
+  .filter(c => teamContainer.classList.has(c));
+
+window.sussexBarberHours = {};
+renderTeamGrid([{ name: 'Hemen' }, { name: 'Amir' }, { name: 'Raman' }]);
+ok('three fill the three columns', shape(), ['grid-cols-2', 'md:grid-cols-3']);
+
+renderTeamGrid([{ name: 'Hemen' }, { name: 'Amir' }]);
+ok('two make two columns, and centre',
+   shape(), ['grid-cols-2', 'md:grid-cols-2', 'md:max-w-3xl', 'mx-auto']);
+
+renderTeamGrid([{ name: 'Hemen' }]);
+ok('one is a single card, not a half-width one',
+   shape(), ['grid-cols-1', 'max-w-xs', 'mx-auto']);
+
+// Back up again: the classes have to come off as well as go on, or the shop
+// turning a barber back on would leave the row stuck at the narrower measure.
+renderTeamGrid([{ name: 'A' }, { name: 'B' }, { name: 'C' }, { name: 'D' }]);
+ok('and four go back to three columns', shape(), ['grid-cols-2', 'md:grid-cols-3']);
 
 renderTeamGrid([]);
 ok('team grid: empty sheet renders nothing, not stale cards', teamContainer.innerHTML, '');

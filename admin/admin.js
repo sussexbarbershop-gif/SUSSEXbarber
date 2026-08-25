@@ -1623,6 +1623,8 @@ const CMS_FIELDS = {
     cms_hero_title: 'hero_title',
     cms_hero_subtitle: 'hero_subtitle',
     cms_about_text: 'about_text',
+    cms_team_title: 'team_title',
+    cms_team_text: 'team_text',
     cms_contact_phone: 'contact_phone',
     cms_contact_address: 'contact_address',
     cms_instagram_url: 'instagram_url',

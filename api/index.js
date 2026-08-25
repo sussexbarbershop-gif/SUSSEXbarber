@@ -1208,6 +1208,7 @@ async function uploadAppIcon(payload, res) {
  * treat as the complete set.
  */
 const SITE_SETTINGS = ['hero_title', 'hero_subtitle', 'about_text',
+                       'team_title', 'team_text',
                        'contact_phone', 'contact_address', 'instagram_url',
                        'maps_url', 'maps_embed_url'];
 

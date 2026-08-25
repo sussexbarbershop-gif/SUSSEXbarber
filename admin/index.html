@@ -391,37 +391,54 @@
                                 <textarea id="cms_about_text" class="form-control" rows="6"></textarea>
                             </div>
                             
+                            <!-- The two lines above the barbers' photographs.
+                                 Here rather than written into the page,
+                                 because "Master Barbers" is a claim about the
+                                 people who work there and only the shop can
+                                 say whether it is the one they want to make. -->
                             <div class="form-group cms-field">
-                                <label class="cms-label">4. Contact Phone Number</label>
+                                <label class="cms-label">4. Our Barbers — Heading</label>
+                                <p class="cms-hint">The title above your barbers' photos.</p>
+                                <input type="text" id="cms_team_title" class="form-control">
+                            </div>
+
+                            <div class="form-group cms-field">
+                                <label class="cms-label">5. Our Barbers — Text</label>
+                                <p class="cms-hint">The sentence under that title. Leave both boxes empty to keep the words the website came with, which are the only ones that also appear in Dutch.</p>
+                                <textarea id="cms_team_text" class="form-control" rows="3"></textarea>
+                            </div>
+
+                            <div class="form-group cms-field">
+                                <label class="cms-label">6. Contact Phone Number</label>
                                 <input type="text" id="cms_contact_phone" class="form-control" style="max-width:300px;">
                             </div>
                             
                             <div class="form-group cms-field">
-                                <label class="cms-label">5. Contact Address</label>
+                                <label class="cms-label">7. Contact Address</label>
                                 <p class="cms-hint">Separate the street, the postcode and the country with commas.</p>
                                 <input type="text" id="cms_contact_address" class="form-control" style="max-width:300px;">
                             </div>
 
                             <div class="form-group cms-field">
-                                <label class="cms-label">6. Instagram Page</label>
+                                <label class="cms-label">8. Instagram Page</label>
                                 <p class="cms-hint">The full address of your Instagram profile. The @name shown on the website is taken from the end of it.</p>
                                 <input type="url" id="cms_instagram_url" class="form-control" placeholder="https://www.instagram.com/sussexbarbershop">
                             </div>
 
                             <div class="form-group cms-field">
-                                <label class="cms-label">7. Directions Link</label>
+                                <label class="cms-label">9. Directions Link</label>
                                 <p class="cms-hint">Where the "Directions" button and the map open. In Google Maps: find the shop, press Share, and copy the link.</p>
                                 <input type="url" id="cms_maps_url" class="form-control" placeholder="https://maps.app.goo.gl/...">
                             </div>
 
                             <div class="form-group cms-field">
-                                <label class="cms-label">8. Map Shown on the Page</label>
+                                <label class="cms-label">10. Map Shown on the Page</label>
                                 <p class="cms-hint">Only change this if you move premises. In Google Maps: Share &rarr; Embed a map &rarr; copy HTML, then paste only the address inside src="...". It must start with https://www.google.com/maps/embed</p>
                                 <input type="url" id="cms_maps_embed_url" class="form-control" placeholder="https://www.google.com/maps/embed?pb=...">
                             </div>
 
                             <div class="form-group cms-field">
-                                <label class="cms-label">9. Review Link</label>
+                                <label class="cms-label">11. Review Link</label>
                                 <!-- Left empty until the shop has its Google
                                      listing back. Empty means no review email
                                      is sent at all, rather than one with a
@@ -435,7 +452,7 @@
                                  a script on somebody's laptop, because the
                                  shop should never have to ask to change it. -->
                             <div class="form-group cms-field">
-                                <label class="cms-label">10. App Icon</label>
+                                <label class="cms-label">12. App Icon</label>
                                 <p class="cms-hint">What your shop looks like on a customer's home screen and in their browser tab. Drag to move it, use the slider to zoom. Everything inside the circle is kept — Android crops the corners off.</p>
 
                                 <div class="icon-editor">

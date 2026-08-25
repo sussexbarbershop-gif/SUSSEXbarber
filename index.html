@@ -2083,9 +2083,17 @@
     <section id="team" class="py-14 sm:py-24 bg-white dark:bg-charcoal-900 transition-colors duration-300">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 reveal">
             <div class="text-center mb-7 sm:mb-16">
-                <h2 class="font-serif text-3xl sm:text-4xl text-gray-900 dark:text-white mb-4">Our Master Barbers</h2>
+                <!-- Both lines are the shop's to change from the panel. The
+                     English written here is the default and the only version
+                     the Dutch dictionary knows: leave it alone and the page
+                     still reads "Onze Meesterkappers" in NL, change it and both
+                     languages show what was typed. That is the same bargain
+                     the hero line and the About paragraph already make, and it
+                     is the right way round — the shop's own words in one
+                     language beat somebody else's in two. -->
+                <h2 id="cms-team-title" class="font-serif text-3xl sm:text-4xl text-gray-900 dark:text-white mb-4">Our Master Barbers</h2>
                 <div class="w-16 h-px bg-gold mx-auto"></div>
-                <p class="text-gray-600 dark:text-gray-400 mt-3 sm:mt-6 font-light text-sm sm:text-base max-w-2xl mx-auto">Meet the experienced professionals dedicated to giving you the perfect look. Every barber at Sussex is a master of their craft.</p>
+                <p id="cms-team-text" class="text-gray-600 dark:text-gray-400 mt-3 sm:mt-6 font-light text-sm sm:text-base max-w-2xl mx-auto">Meet the experienced professionals dedicated to giving you the perfect look. Every barber at Sussex is a master of their craft.</p>
             </div>
             
             <!-- Built by renderTeamGrid() from the Barbers sheet. This used to be
@@ -4856,6 +4864,28 @@
                 b.onTeam !== false);
             if (staff.length === 0) { container.innerHTML = ''; return; }
 
+            // The columns follow the number of people, rather than always
+            // being three.
+            //
+            // Three is right for three. With two it put both cards in the
+            // first two columns and left the third empty, so the pair sat left
+            // of a heading that is centred — which reads as a page that has
+            // come apart, not as a shop with two barbers. Nobody would notice
+            // the cause; they would just see it looking wrong.
+            //
+            // The width is capped alongside it. Two cards spread across the
+            // full six-column measure would be a pair of very large photographs
+            // and the same problem the other way round, so the row keeps close
+            // to the size a card has always been and centres itself.
+            const columns = Math.min(staff.length, 3);
+            container.classList.toggle('grid-cols-1', columns === 1);
+            container.classList.toggle('grid-cols-2', columns >= 2);
+            container.classList.toggle('md:grid-cols-2', columns === 2);
+            container.classList.toggle('md:grid-cols-3', columns >= 3);
+            container.classList.toggle('max-w-xs', columns === 1);
+            container.classList.toggle('md:max-w-3xl', columns === 2);
+            container.classList.toggle('mx-auto', columns < 3);
+
             const dayShort = { Monday:'Mon', Tuesday:'Tue', Wednesday:'Wed', Thursday:'Thu',
                                 Friday:'Fri', Saturday:'Sat', Sunday:'Sun' };
 
@@ -5034,6 +5064,8 @@
             const map = {
                 'cms-hero-subtitle': settings.hero_subtitle,
                 'cms-about-text': settings.about_text,
+                'cms-team-title': settings.team_title,
+                'cms-team-text': settings.team_text,
                 'cms-contact-address': settings.contact_address
             };
             Object.keys(map).forEach(id => {
