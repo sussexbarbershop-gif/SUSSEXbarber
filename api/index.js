@@ -1242,7 +1242,11 @@ async function saveCMS(payload, res) {
   const statements = [];
 
   if (payload.settings) {
-    const keys = Object.keys(payload.settings);
+    // Old tabs may still echo the signing key from a config loaded before it
+    // was made private. Never let a CMS save create or overwrite that key:
+    // even a stale value would invalidate links already sent to customers.
+    // KEPT_SETTINGS below also keeps a complete save from deleting it.
+    const keys = Object.keys(payload.settings).filter(key => key !== 'cancel_key');
     keys.forEach(key => {
       statements.push(sql`
         INSERT INTO settings (key, value) VALUES (${key}, ${String(payload.settings[key] ?? '')})

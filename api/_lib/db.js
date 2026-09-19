@@ -203,7 +203,8 @@ async function markJobRun(job) {
  * reason to touch does not have that failure.
  *
  * Cached per process, because it is read on every booking and every click of
- * a cancel link and it never changes.
+ * a cancel link and routine edits must never change it. A deliberate security
+ * rotation must also replace those cached copies; see MIGRATION.md.
  *
  * `ON CONFLICT DO NOTHING` then read back, rather than read-then-write: two
  * bookings arriving together would otherwise each make a key and the second
@@ -276,7 +277,12 @@ async function readConfig() {
   ]));
 
   const settings = {};
-  settingsRows.forEach(r => { settings[r.key] = r.value; });
+  // Both getConfig and getSettings are public. Returning every row here used
+  // to hand visitors the key for signing any booking's cancel link. Keep it
+  // out of the shared config, including the panel's copy; only getCancelKey()
+  // may supply it to server code that signs or verifies a link.
+  settingsRows.filter(r => r.key !== 'cancel_key')
+    .forEach(r => { settings[r.key] = r.value; });
 
   // The shop is described a day at a time, and a missing row means closed
   // rather than an absent day — the front end looks days up by name.

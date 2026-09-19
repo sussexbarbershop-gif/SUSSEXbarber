@@ -36,7 +36,7 @@ api/
     limits.js       how often one number may book
     reports.js      the takings, for the owner's page
 db/schema.sql       the database, and why each column is the way it is
-tests/              44 files, run by `npm test`
+tests/              45 files, run by `npm test`
 MIGRATION.md        how the backend works and what to set up from nothing
 ```
 
@@ -63,6 +63,13 @@ named that way.
 
 The reverse — cancelling — is the same shape: a signed token from the email, or
 the phone number on the site.
+
+The email signing key, `cancel_key`, stays on the server. The public config
+used to return it alongside the website text, letting a visitor sign a cancel
+link for another booking. Both config actions now omit it, and CMS saves
+cannot create, replace or delete it. Existing email links keep working.
+Stopping disclosure does not revoke a key already copied; see the signing-key
+rotation notes in [MIGRATION.md](MIGRATION.md) before deploying this fix.
 
 ---
 
@@ -116,6 +123,7 @@ twice. A few worth reading before making changes in their area:
 | `panel-structure` | one stray `</div>` putting two pages outside the padding |
 | `booking-clash` | two customers, one chair |
 | `daily-job` | a reminder sent twice, or not at all |
+| `private-settings` | the public config exposing the cancel signing key, and an old panel tab overwriting it |
 | `image-upload` | a phone photo published with its GPS coordinates in it |
 | `docs-current` | this file describing a file that had been renamed away |
 | `reminder-fallback` | every reminder depending on a button somebody had to press |
