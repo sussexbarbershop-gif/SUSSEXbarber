@@ -83,7 +83,7 @@ ok('a later booking refreshes the name',
 // An empty name on one booking must not wipe a good one from an earlier
 // booking, which is what a plain EXCLUDED.name would do.
 ok('but an empty one does not wipe it', /NULLIF\(EXCLUDED\.name, ''\)/.test(fn), true);
-ok('the booking carries the link', /customer_id\)[\s\S]{0,300}\$\{customerId\}/.test(api), true);
+ok('the booking carries the link', /customer_id, duration_min\)[\s\S]{0,300}\$\{customerId\}/.test(api), true);
 // A number that is not one — the shop typing in a walk-in with no phone — must
 // still produce a booking.
 ok('no number still books', /if \(!key\) return null/.test(fn), true);

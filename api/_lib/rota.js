@@ -128,7 +128,7 @@ function isBarberOnLeave(config, barberName, dateStr) {
  * no rota row yet works whenever the shop is open — otherwise adding someone
  * in the panel would make them unbookable until a rota was filled in.
  */
-function isBarberWorkingAt(config, barberName, dateStr, minutes) {
+function isBarberWorkingAt(config, barberName, dateStr, minutes, duration = SLOT_MINUTES) {
   if (isBarberOnLeave(config, barberName, dateStr)) return false;
 
   const shop = hoursForDay(config, dateStr);
@@ -137,7 +137,7 @@ function isBarberWorkingAt(config, barberName, dateStr, minutes) {
   const shopTo = parseClock(shop.to);
   if (shopFrom === null || shopTo === null) return false;
   // The appointment has to finish by closing, not merely start before it.
-  if (minutes < shopFrom || minutes + SLOT_MINUTES > shopTo) return false;
+  if (minutes < shopFrom || minutes + duration > shopTo) return false;
 
   const entry = barberDayEntry(config, barberName, dateStr);
   if (!entry) return true;                  // no rota yet: shop hours apply
@@ -146,24 +146,24 @@ function isBarberWorkingAt(config, barberName, dateStr, minutes) {
   const from = parseClock(entry.from);
   const to = parseClock(entry.to);
   if (from === null || to === null) return true;
-  if (minutes < from || minutes + SLOT_MINUTES > to) return false;
+  if (minutes < from || minutes + duration > to) return false;
 
   // The daily break. A slot starting inside it is out; one ending exactly as
   // the break begins is still fine.
   const breakFrom = parseClock(entry.breakFrom);
   const breakTo = parseClock(entry.breakTo);
   if (breakFrom !== null && breakTo !== null && breakTo > breakFrom) {
-    if (minutes + SLOT_MINUTES > breakFrom && minutes < breakTo) return false;
+    if (minutes + duration > breakFrom && minutes < breakTo) return false;
   }
   return true;
 }
 
 /** Every real barber (never ANY_BARBER) rostered at that moment. */
-function barbersWorkingAt(config, dateStr, minutes) {
+function barbersWorkingAt(config, dateStr, minutes, duration = SLOT_MINUTES) {
   return (config.barberNames || [])
     .map(n => String(n).trim())
     .filter(n => n && n !== ANY_BARBER)
-    .filter(n => isBarberWorkingAt(config, n, dateStr, minutes));
+    .filter(n => isBarberWorkingAt(config, n, dateStr, minutes, duration));
 }
 
 /**
@@ -173,7 +173,7 @@ function barbersWorkingAt(config, dateStr, minutes) {
  * the shop's clock decides what has already gone, not the visitor's, and a
  * test needs to be able to say what time it is.
  */
-function slotsForDate(config, dateStr, barberName, todayStr, nowMinutes) {
+function slotsForDate(config, dateStr, barberName, todayStr, nowMinutes, duration = SLOT_MINUTES) {
   const entry = hoursForDay(config, dateStr);
   if (!entry || entry.open !== true) return [];
   const from = parseClock(entry.from);
@@ -188,11 +188,13 @@ function slotsForDate(config, dateStr, barberName, todayStr, nowMinutes) {
     ? '' : String(barberName || '').trim();
 
   const slots = [];
-  for (let t = from; t + SLOT_MINUTES <= to; t += SLOT_MINUTES) {
+  // Start times keep their half-hour grid; duration controls the end, not
+  // the spacing. A sixty-minute cut can still start at half past ten.
+  for (let t = from; t + duration <= to; t += SLOT_MINUTES) {
     if (t < earliest) continue;
     const open = wanted
-      ? isBarberWorkingAt(config, wanted, dateStr, t)
-      : barbersWorkingAt(config, dateStr, t).length > 0;
+      ? isBarberWorkingAt(config, wanted, dateStr, t, duration)
+      : barbersWorkingAt(config, dateStr, t, duration).length > 0;
     if (open) slots.push(minutesToLabel(t));
   }
   return slots;
@@ -209,11 +211,11 @@ function slotsForDate(config, dateStr, barberName, todayStr, nowMinutes) {
  * not a uniqueness one — so the database enforces "one named barber, one
  * appointment" and this decides the rest.
  */
-function isSlotFree(config, dateStr, slotLabel, holders, wanted) {
+function isSlotFree(config, dateStr, slotLabel, holders, wanted, duration = SLOT_MINUTES) {
   const minutes = clockToMinutes(slotLabel);
   if (minutes === null) return true;
 
-  const working = barbersWorkingAt(config, dateStr, minutes);
+  const working = barbersWorkingAt(config, dateStr, minutes, duration);
   if (working.length === 0) return false;          // nobody on the floor
 
   const named = [];
@@ -252,11 +254,11 @@ function isSlotFree(config, dateStr, slotLabel, holders, wanted) {
  * on that list is tried afterwards, so a barber added this morning is still
  * bookable before the owner has thought about where they belong.
  */
-function nextFreeBarber(config, dateStr, slotLabel, holders) {
+function nextFreeBarber(config, dateStr, slotLabel, holders, duration = SLOT_MINUTES) {
   const minutes = clockToMinutes(slotLabel);
   if (minutes === null) return '';
 
-  const working = barbersWorkingAt(config, dateStr, minutes);
+  const working = barbersWorkingAt(config, dateStr, minutes, duration);
   if (working.length === 0) return '';
 
   const named = [];

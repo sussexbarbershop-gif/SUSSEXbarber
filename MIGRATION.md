@@ -298,10 +298,32 @@ not come up; if it does, the log says `[db] adding the booking columns…`.
 
 ## What changed underneath
 
-**Double booking is now impossible, rather than unlikely.** It used to be held
-off by a ten-second lock around a read and a write. It is now a unique index:
-two requests can arrive in the same millisecond and the database refuses the
-second one.
+**Overlapping bookings are refused by PostgreSQL.** The old unique index only
+compared start times: 10:00 and 10:15 could both take the same chair. The
+`bookings_no_overlap` GiST exclusion constraint compares the entire saved
+interval for each active named barber. Endpoints may touch; cancelled rows do
+not block. The API handles constraint clashes and retries a deadlock at most
+twice, since simultaneous exclusion checks can make PostgreSQL abort a writer.
+Legacy rows with no barber remain outside the constraint and consume capacity
+in the API; new bookings always receive a named barber.
+
+**Duration is a booking snapshot.** `bookings.duration_min` defaults to 30 for
+legacy rows, matching the previous scheduling rule. Do not backfill it from
+today's service catalogue: that would move old appointment end times when an
+owner edits a service. New rows take duration and price from the service table.
+Both pickers ask availability with the chosen service, and calendar exports use
+the saved duration. Service edits affect new appointments only.
+
+Before rollout, check existing active intervals for overlaps and check that
+`btree_gist` is available. If conflicts exist, stop and resolve them with the
+shop; never delete or move bookings automatically to make the migration pass.
+Run the booking-protection `DO` block in `db/schema.sql` before deploying when
+possible. It adds the column and constraint atomically, briefly locks bookings,
+and leaves existing rows unchanged except for the 30-minute snapshot. The same
+guard runs automatically on the first insert if missing, serialized by an
+advisory lock across cold functions. A failed migration rolls back and refuses
+the insert instead of accepting an unprotected booking. Keep this additive
+schema during a code rollback; dropping it would remove the concurrency guard.
 
 **Saving from the panel is all-or-nothing.** The Apps Script wrote each sheet
 in turn, so a failure halfway through saved the services and not the hours,

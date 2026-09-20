@@ -72,6 +72,9 @@ ok('it says where the shop is', /LOCATION:Van Hogendorpstraat 10/.test(good.body
 ok('and reminds them an hour before', /TRIGGER:-PT1H/.test(good.body), true);
 
 console.log('--- text that would otherwise break the file ---');
+const timed = call({d:'2026-08-20',t:'14:30',minutes:'45',s:'Cut, wash'});
+ok('saved service minutes determine the calendar end', timed.body.includes('DTEND:20260820T131500Z'), true);
+ok('invalid minutes are refused', call({d:'2026-08-20',t:'14:30',minutes:'0'}).code,400);
 // Commas and semicolons separate fields in this format. A service called
 // "Cut, wash & finish" would end the summary early and leave the rest as an
 // unknown property, which some calendars refuse the whole file over.

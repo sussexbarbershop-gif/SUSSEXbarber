@@ -22,7 +22,7 @@
 
 const { db, readConfig, readRotaConfig, indexToIso, WEEKDAY_NAMES,
         withNewSchema, customerFor, claimJobRun, minutesSinceJobRun,
-        getCancelKey } = require('./_lib/db');
+        getCancelKey, ensureBookingProtection } = require('./_lib/db');
 const rota = require('./_lib/rota');
 const { isAuthorized, isPinCorrect, isOwner, reportsPinIsSet, issueUnlockPass,
         UNLOCK_MINUTES, throttleFailedLogin, resetFailedLogins,
@@ -307,19 +307,33 @@ async function handleGet(req, res) {
     const sql = db();
     const [config, rows] = await Promise.all([
       readRotaConfig(),
-      sql`SELECT booked_at, barber FROM bookings
-           WHERE booked_on = ${dateParam} AND status = 'active'`
+      withNewSchema(() => sql`SELECT booked_at, barber, duration_min,
+               extract(epoch FROM (booked_on + booked_at - ${dateParam}::date)) / 60 AS start_minute
+           FROM bookings WHERE status = 'active'
+             AND booked_on + booked_at < ${dateParam}::date + interval '1 day'
+             AND booked_on + booked_at + duration_min * interval '1 minute' > ${dateParam}::date`)
     ]);
 
-    const takenBy = {};
+    const service = (config.services || []).find(s =>
+      s.nameEN === trimmed(q.service) || s.nameNL === trimmed(q.service));
+    const duration = Number(service && service.duration) || rota.SLOT_MINUTES;
+    // An appointment occupies its whole saved interval. Grouping only by
+    // start time offered 10:30 inside a 10:00–11:00 booking. Include the old
+    // off-grid starts too, so an existing 10:15 booking blocks nearby chips.
+    const starts = new Set(rota.slotsForDate(config, dateParam, wanted, '', 0, duration));
     rows.forEach(r => {
-      const label = rota.minutesToLabel(rota.parseClock(r.booked_at));
-      (takenBy[label] = takenBy[label] || []).push(trimmed(r.barber));
+      const start = Number(r.start_minute ?? rota.parseClock(r.booked_at));
+      if (start >= 0 && start < 1440) starts.add(rota.minutesToLabel(start));
     });
-
     const unavailable = [];
-    Object.keys(takenBy).forEach(label => {
-      if (!rota.isSlotFree(config, dateParam, label, takenBy[label], wanted)) {
+    starts.forEach(label => {
+      const start = rota.clockToMinutes(label);
+      const holders = rows.filter(r => {
+        const heldStart = Number(r.start_minute ?? rota.parseClock(r.booked_at));
+        return heldStart < start + duration &&
+               heldStart + (Number(r.duration_min) || rota.SLOT_MINUTES) > start;
+      }).map(r => r.barber);
+      if (!rota.isSlotFree(config, dateParam, label, holders, wanted, duration)) {
         unavailable.push(label);
       }
     });
@@ -364,7 +378,7 @@ async function handleGet(req, res) {
     if (trimmed(q.slots) === '1') {
       return json(res, {
         slots: rota.slotsForDate(config, dateParam, wanted,
-                                 trimmed(q.past) === '1' ? '' : now.date, now.minutes),
+                                 trimmed(q.past) === '1' ? '' : now.date, now.minutes, duration),
         unavailable
       });
     }
@@ -443,7 +457,7 @@ async function handlePost(req, res) {
     const rows = await withNewSchema(() => sql`
       SELECT id,
              to_char(booked_on, 'YYYY-MM-DD') AS booked_on,
-             booked_at, service, barber, customer_name, phone, email, source,
+             booked_at, service, barber, customer_name, phone, email, source, duration_min,
              to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at
         FROM bookings WHERE status = 'active'
        ORDER BY booked_on, booked_at`);
@@ -452,6 +466,7 @@ async function handlePost(req, res) {
       date: r.booked_on,
       time: rota.minutesToLabel(rota.parseClock(r.booked_at)),
       service: r.service,
+      duration: r.duration_min,
       barber: r.barber,
       name: r.customer_name,
       phone: r.phone,
@@ -495,16 +510,17 @@ async function handlePost(req, res) {
     if (!key) return json(res, []);
     const sql = db();
     const today = shopNow().date;
-    const rows = await sql`
+    const rows = await withNewSchema(() => sql`
       SELECT to_char(booked_on, 'YYYY-MM-DD') AS booked_on,
-             booked_at, service, barber, customer_name, phone
+             booked_at, service, barber, customer_name, phone, duration_min
         FROM bookings
        WHERE phone_key = ${key} AND status = 'active' AND booked_on >= ${today}
-       ORDER BY booked_on, booked_at`;
+       ORDER BY booked_on, booked_at`);
     return json(res, rows.map(r => ({
       date: r.booked_on,
       time: rota.minutesToLabel(rota.parseClock(r.booked_at)),
       service: r.service,
+      duration: r.duration_min,
       barber: r.barber,
       name: r.customer_name,
       phone: r.phone
@@ -671,7 +687,7 @@ const MOST_PER_CUSTOMER = 10;
  * twenty past" works at the counter, and the per-number limit, whose own
  * refusal tells the customer to phone the shop.
  */
-async function refuseBooking(config, payload, byShop) {
+async function refuseBooking(config, payload, byShop, duration = rota.SLOT_MINUTES) {
   const date = trimmed(payload.date);
   const time = trimmed(payload.time);
 
@@ -733,16 +749,19 @@ async function refuseBooking(config, payload, byShop) {
   if (wanted) {
     if (config.barberNames.indexOf(wanted) === -1) return 'We have no barber by that name';
     if (rota.isBarberOnLeave(config, wanted, date)) return wanted + ' is away on that date';
-    if (!rota.isBarberWorkingAt(config, wanted, date, minutes)) {
+    if (!rota.isBarberWorkingAt(config, wanted, date, minutes, duration)) {
       return wanted + ' does not work at that time';
     }
   }
 
   const sql = db();
   const [held, mine] = await Promise.all([
-    sql`SELECT barber FROM bookings
-         WHERE booked_on = ${date} AND booked_at = ${rota.minutesToClock(minutes)}
-           AND status = 'active'`,
+    withNewSchema(() => sql`SELECT barber FROM bookings
+         WHERE status = 'active'
+           AND booked_on + booked_at < ${date}::date + ${rota.minutesToClock(minutes)}::time
+                                        + ${duration} * interval '1 minute'
+           AND booked_on + booked_at + duration_min * interval '1 minute'
+                 > ${date}::date + ${rota.minutesToClock(minutes)}::time`),
     sql`SELECT count(*) AS held FROM bookings
          WHERE phone_key = ${phoneKey(phone)} AND status = 'active'
            AND booked_on >= ${now.date}`
@@ -760,11 +779,11 @@ async function refuseBooking(config, payload, byShop) {
   // things to be told. On the public form both read as "pick another time" and
   // that was near enough; the shop typing a booking in needs to know whether
   // it is chasing a free chair or a day nobody works.
-  if (rota.barbersWorkingAt(config, date, minutes).length === 0) {
+  if (rota.barbersWorkingAt(config, date, minutes, duration).length === 0) {
     return 'Nobody is working at that time';
   }
 
-  if (!rota.isSlotFree(config, date, time, held.map(r => r.barber), wanted)) {
+  if (!rota.isSlotFree(config, date, time, held.map(r => r.barber), wanted, duration)) {
     return byShop
       ? 'Every chair at that time is taken'
       : 'Someone else booked that time while you were filling this in. Please choose another.';
@@ -782,7 +801,24 @@ async function refuseBooking(config, payload, byShop) {
  */
 async function addBooking(payload, res, byShop) {
   const config = await readRotaConfig();
-  const refusal = await refuseBooking(config, payload, byShop);
+  // Resolve the service once, on the server. This same duration controls the
+  // rota check, overlap query and saved row, even if the panel edits the
+  // service while this request is in flight. Never trust payload.duration.
+  if (!byShop && !bookingIsOpen(config)) {
+    return json(res, { status: 'error', message: await refuseBooking(config, payload, byShop) });
+  }
+  const sql = db();
+  const service = trimmed(payload.service);
+  const known = await sql`
+    SELECT name_en, price, duration_min FROM services
+     WHERE name_en = ${service} OR name_nl = ${service}
+     ORDER BY position LIMIT 1`;
+  if (!known.length) {
+    return json(res, { status: 'error', message: 'Please choose one of the services offered' });
+  }
+  const duration = Number(known[0].duration_min) || rota.SLOT_MINUTES;
+  const price = Number(known[0].price);
+  const refusal = await refuseBooking(config, payload, byShop, duration);
   if (refusal) return json(res, { status: 'error', message: refusal });
 
   const date = trimmed(payload.date);
@@ -790,23 +826,6 @@ async function addBooking(payload, res, byShop) {
   const minutes = rota.clockToMinutes(time);
   const clock = rota.minutesToClock(minutes);
   const asked = normaliseBarber(payload.barber);
-  const sql = db();
-
-  // The service is the shop's, not the request's. Anything that is not on the
-  // list is refused rather than stored: a diary row reading "Free Haircut" is
-  // a row somebody wrote, and the price would have come out null and quietly
-  // vanished from the takings.
-  const service = trimmed(payload.service);
-  const known = await sql`
-    SELECT name_en, price FROM services
-     WHERE name_en = ${service} OR name_nl = ${service}
-     ORDER BY position LIMIT 1`;
-  if (!known.length) {
-    return json(res, { status: 'error', message: 'Please choose one of the services offered' });
-  }
-  // The price the browser sent is not the price recorded. It came from a
-  // public form and can say anything.
-  const price = Number(known[0].price);
 
   // Nobody asked for anyone, so the shop decides — in its own order, and only
   // among those actually on the floor. Written down rather than left empty:
@@ -814,7 +833,7 @@ async function addBooking(payload, res, byShop) {
   // which is how two people ever got the same last chair.
   const candidates = asked ? [asked] : [];
   const written = await insertBooking(sql, {
-    date, clock, service, price, payload, config, time, asked, candidates,
+    date, clock, service, price, duration, payload, config, time, asked, candidates,
     source: byShop ? 'shop' : 'web'
   });
 
@@ -845,7 +864,7 @@ async function addBooking(payload, res, byShop) {
     sendCustomerConfirmation(record, config)
   ]);
 
-  return json(res, { status: 'success', message: 'Booking added', barber: written.barber });
+  return json(res, { status: 'success', message: 'Booking added', barber: written.barber, duration });
 }
 
 /** 'Any Available', 'Any' and '' all mean the same thing: nobody was asked for. */
@@ -863,7 +882,10 @@ function normaliseBarber(value) {
  * would do at the counter.
  */
 async function insertBooking(sql, ctx) {
-  const { date, clock, service, price, payload, config, time, asked } = ctx;
+  const { date, clock, service, price, duration, payload, config, time, asked } = ctx;
+  // A pre-check alone loses a race. Verify the database exclusion constraint
+  // exists before any insert, including on deployments with an older schema.
+  await ensureBookingProtection();
   const source = ctx.source === 'shop' ? 'shop' : 'web';
   // Two languages, and anything else is English. Whatever the browser sent is
   // going into a column and then into the choice of wording for four emails;
@@ -876,15 +898,18 @@ async function insertBooking(sql, ctx) {
   // to show the row that just beat it is a loop that can pick the same barber
   // again. There are only so many chairs, so this ends.
   const refused = [];
+  let deadlockRetries = 0;
 
   for (let attempt = 0; attempt <= (config.barberNames || []).length; attempt++) {
     let barber = asked;
     if (!asked) {
-      const held = await sql`
+      const held = await withNewSchema(() => sql`
         SELECT barber FROM bookings
-         WHERE booked_on = ${date} AND booked_at = ${clock} AND status = 'active'`;
+         WHERE status = 'active'
+           AND booked_on + booked_at < ${date}::date + ${clock}::time + ${duration} * interval '1 minute'
+           AND booked_on + booked_at + duration_min * interval '1 minute' > ${date}::date + ${clock}::time`);
       barber = rota.nextFreeBarber(config, date, time,
-                                   held.map(r => r.barber).concat(refused));
+                                   held.map(r => r.barber).concat(refused), duration);
       if (!barber) return { error: clash };
     }
 
@@ -904,14 +929,20 @@ async function insertBooking(sql, ctx) {
 
       const written = await withNewSchema(() => sql`
         INSERT INTO bookings (booked_on, booked_at, service, barber, customer_name,
-                              phone, email, price, source, lang, customer_id)
+                              phone, email, price, source, lang, customer_id, duration_min)
         VALUES (${date}, ${clock}, ${service}, ${barber}, ${trimmed(payload.name)},
                 ${trimmed(payload.phone)}, ${trimmed(payload.email)}, ${price},
-                ${source}, ${lang}, ${customerId})
+                ${source}, ${lang}, ${customerId}, ${duration})
         RETURNING id`);
       return { barber, id: (written[0] || {}).id, lang };
     } catch (err) {
-      if (!String(err.message || '').includes('bookings_one_chair')) throw err;
+      // Concurrent GiST checks can deadlock. PostgreSQL has rolled this
+      // statement back; retry it so the winner becomes an ordinary clash.
+      if (err.code === '40P01' && deadlockRetries++ < 2) {
+        attempt--;
+        continue;
+      }
+      if (!/bookings_one_chair|bookings_no_overlap/.test(String(err.constraint || '') + ' ' + String(err.message || ''))) throw err;
       // Someone took that chair between the read and the write. If the
       // customer named them, that is the end of it — they asked for that
       // barber and must not be quietly given another.

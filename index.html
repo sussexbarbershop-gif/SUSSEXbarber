@@ -3347,7 +3347,7 @@
         /** Is this barber on the floor at `minutes` past midnight on this date?
          *  Their rota narrows the shop hours; it never widens them. A barber with
          *  no rota yet works whenever the shop is open. */
-        function isBarberWorkingAt(barberName, dateObj, minutes) {
+        function isBarberWorkingAt(barberName, dateObj, minutes, duration = SLOT_MINUTES) {
             if (isBarberOnLeave(barberName, dateObj)) return false;
 
             const shop = hoursForDay(dateObj);
@@ -3355,7 +3355,7 @@
             const shopFrom = parseClock(shop.from);
             const shopTo = parseClock(shop.to);
             if (shopFrom === null || shopTo === null) return false;
-            if (minutes < shopFrom || minutes + SLOT_MINUTES > shopTo) return false;
+            if (minutes < shopFrom || minutes + duration > shopTo) return false;
 
             const entry = barberDayEntry(barberName, dateObj);
             if (!entry) return true;
@@ -3364,22 +3364,22 @@
             const from = parseClock(entry.from);
             const to = parseClock(entry.to);
             if (from === null || to === null) return true;
-            if (minutes < from || minutes + SLOT_MINUTES > to) return false;
+            if (minutes < from || minutes + duration > to) return false;
 
             const breakFrom = parseClock(entry.breakFrom);
             const breakTo = parseClock(entry.breakTo);
             if (breakFrom !== null && breakTo !== null && breakTo > breakFrom) {
-                if (minutes + SLOT_MINUTES > breakFrom && minutes < breakTo) return false;
+                if (minutes + duration > breakFrom && minutes < breakTo) return false;
             }
             return true;
         }
 
         /** Real barbers (never ANY_BARBER) rostered at that moment. */
-        function barbersWorkingAt(dateObj, minutes) {
+        function barbersWorkingAt(dateObj, minutes, duration = SLOT_MINUTES) {
             return (window.sussexBarbers || [])
                 .map(n => String(n).trim())
                 .filter(n => n && n !== ANY_BARBER)
-                .filter(n => isBarberWorkingAt(n, dateObj, minutes));
+                .filter(n => isBarberWorkingAt(n, dateObj, minutes, duration));
         }
 
         /** The barber the customer has picked, or '' for no preference. */
@@ -3399,7 +3399,17 @@
          *  Code.gs, which enforces it. */
         const MIN_NOTICE_MINUTES = 15;
 
-        function slotsForDate(dateObj, barberName) {
+        // Match the service the panel saved. Counting commas in its name used
+        // to make every service thirty minutes (and a comma two services).
+        function selectedServiceDuration() {
+            const field = document.getElementById('service');
+            const service = (window.sussexServices || []).find(s =>
+                s.nameEN === (field && field.value) || s.nameNL === (field && field.value));
+            const duration = Number(service && service.duration);
+            return Number.isInteger(duration) && duration > 0 ? duration : SLOT_MINUTES;
+        }
+
+        function slotsForDate(dateObj, barberName, duration = selectedServiceDuration()) {
             const entry = hoursForDay(dateObj);
             if (!entry || entry.open !== true) return [];
             const from = parseClock(entry.from);
@@ -3416,11 +3426,11 @@
 
             const wanted = barberName === undefined ? selectedBarberName() : barberName;
             const slots = [];
-            for (let t = from; t + SLOT_MINUTES <= to; t += SLOT_MINUTES) {
+            for (let t = from; t + duration <= to; t += SLOT_MINUTES) {
                 if (t < earliest) continue;
                 const open = wanted
-                    ? isBarberWorkingAt(wanted, dateObj, t)
-                    : barbersWorkingAt(dateObj, t).length > 0;
+                    ? isBarberWorkingAt(wanted, dateObj, t, duration)
+                    : barbersWorkingAt(dateObj, t, duration).length > 0;
                 if (open) slots.push(minutesToLabel(t));
             }
             return slots;
@@ -3607,10 +3617,6 @@
 
             const dateObj = new Date(selectedDate + 'T00:00:00');
 
-            const selectedServicesStr = document.getElementById('service').value;
-            const selectedServicesCount = selectedServicesStr ? selectedServicesStr.split(',').length : 1;
-            const intervalStep = Math.max(1, selectedServicesCount);
-
             const validTimes = slotsForDate(dateObj);
             if (validTimes.length === 0) {
                 const who = selectedBarberName();
@@ -3620,9 +3626,7 @@
                 return;
             }
 
-            validTimes.forEach((t, i) => {
-                // For each additional service, add 30 mins to the interval (skip slots)
-                if (i % intervalStep !== 0) return;
+            validTimes.forEach(t => {
                 
                 const isBooked = bookedTimesList.includes(t);
                 const isSelected = selectedTime === t;
@@ -3668,7 +3672,11 @@
         }
 
         // Date Change Event (Fetch availability)
+        // A slow response for the previous service must not replace the
+        // current service's longer reservation window.
+        let availabilityRequest = 0;
         document.getElementById('date').addEventListener('change', async function() {
+            const request = ++availabilityRequest;
             const dateVal = this.value;
             document.getElementById('time').value = "";
 
@@ -3719,12 +3727,15 @@
                 // others free, so availability is asked for per barber.
                 const wanted = selectedBarberName();
                 const url = `${API_URL}?date=${encodeURIComponent(dateVal)}` +
-                    (wanted ? `&barber=${encodeURIComponent(wanted)}` : '');
+                    (wanted ? `&barber=${encodeURIComponent(wanted)}` : '') +
+                    `&service=${encodeURIComponent(document.getElementById('service').value)}`;
                 const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const data = await response.json();
+                if (request !== availabilityRequest) return;
                 bookedTimesList = Array.isArray(data) ? data : [];
             } catch (error) {
+                if (request !== availabilityRequest) return;
                 console.error("Error fetching booked slots:", error);
                 bookedTimesList = [];
                 lookupFailed = true;
@@ -4049,7 +4060,7 @@
                     service: bookingData.service,
                     date: bookingData.date,
                     time: bookingData.time,
-                    duration: 30 // Approx 30 mins
+                    duration: result.duration || selectedServiceDuration()
                 };
 
                 // Reset form in background
@@ -4238,8 +4249,7 @@
                 dateObj.setHours(hours, mins, 0);
             }
 
-            const serviceCount = b.service ? b.service.split(',').length : 1;
-            const durationMins = serviceCount * 30;
+            const durationMins = Number(b.duration) || 30;
             const endDate = new Date(dateObj.getTime() + durationMins * 60000);
 
             // Format to UTC (YYYYMMDDTHHMMSSZ)
@@ -4253,10 +4263,9 @@
             // clock reads them: /api/event turns them into a real instant in
             // the shop's timezone, so a customer whose phone is set to another
             // country still gets the appointment at the hour they booked.
-            const slots = Math.max(1, Math.min(8, serviceCount));
             const eventUrl = '/api/event?d=' + encodeURIComponent(b.date) +
                              '&t=' + encodeURIComponent((b.time || '').slice(0, 5)) +
-                             '&n=' + slots +
+                             '&minutes=' + durationMins +
                              '&s=' + encodeURIComponent(b.service || '');
 
             if (isApple) {
@@ -4992,7 +5001,9 @@
             closeServicePicker();
 
             const selectedDate = document.getElementById('date').value;
-            if (selectedDate) renderTimeChips();
+            // A longer service needs a fresh overlap check, not just a redraw
+            // of the shorter service's cached availability.
+            if (selectedDate) document.getElementById('date').dispatchEvent(new Event('change'));
         }
 
         // ---- Populate Working Hours ----

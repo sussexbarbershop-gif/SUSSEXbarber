@@ -36,7 +36,8 @@ api/
     limits.js       how often one number may book
     reports.js      the takings, for the owner's page
 db/schema.sql       the database, and why each column is the way it is
-tests/              45 files, run by `npm test`
+tests/              46 files, run by `npm test`
+                    booking-overlap.postgres.cjs: isolated PostgreSQL integration checks
 MIGRATION.md        how the backend works and what to set up from nothing
 ```
 
@@ -55,14 +56,23 @@ named that way.
    thing again — the browser is not trusted, because the form is public.
 3. **`refuseBooking`** is the gate: the date, the notice period, the barber's
    rota, the per-number limit, and whether the slot is still free.
-4. **The row is written.** A unique index (`bookings_one_chair`) makes a double
-   booking impossible even if two requests arrive in the same millisecond.
+4. **The row is written.** `bookings_no_overlap` excludes overlapping active
+   intervals for the same named barber, even when two requests arrive together.
+   The old unique index only prevented identical starts, allowing 10:15 inside
+   a 10:00 appointment. Cancelled appointments release their intervals.
 5. **Emails go out** afterwards, never before — and their failure is swallowed,
    because the booking is already saved and a bounced address must not be
    reported to the customer as a failed appointment.
 
 The reverse — cancelling — is the same shape: a signed token from the email, or
 the phone number on the site.
+
+The service duration saved by the owner now controls public and panel time
+pickers, closing/break checks, availability and calendar exports. Previously
+these treated bookings as thirty minutes regardless of the panel's duration.
+Each booking saves its own `duration_min`: editing a service changes new
+bookings, never silently lengthens old ones. Existing bookings retain their
+original thirty-minute windows; offered starts still use the thirty-minute grid.
 
 The email signing key, `cancel_key`, stays on the server. The public config
 used to return it alongside the website text, letting a visitor sign a cancel
@@ -98,6 +108,13 @@ npm test
 The tests need no database and no network — they read the source and drive the
 real functions, which is why the whole suite runs in seconds.
 
+For the database race and migration checks, set `TEST_DATABASE_URL` to a
+disposable PostgreSQL server on localhost and run `npm run test:postgres`.
+It needs permission to install `btree_gist` and create schemas. It creates and
+drops only its own randomly named schema; it refuses remote database URLs.
+Never use a production database for this test. The separate suite drives the
+real booking API, owner service save, concurrent inserts and automatic upgrade.
+
 There is no build step for the site. `assets/tailwind.css` is compiled and
 committed; if you add a Tailwind class, run:
 
@@ -122,6 +139,7 @@ twice. A few worth reading before making changes in their area:
 | `scroll-lock` | the page sliding sideways by the width of the scrollbar |
 | `panel-structure` | one stray `</div>` putting two pages outside the padding |
 | `booking-clash` | two customers, one chair |
+| `service-duration` | a longer service running past closing or through a break |
 | `daily-job` | a reminder sent twice, or not at all |
 | `private-settings` | the public config exposing the cancel signing key, and an old panel tab overwriting it |
 | `image-upload` | a phone photo published with its GPS coordinates in it |

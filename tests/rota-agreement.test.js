@@ -19,7 +19,7 @@ const server = require(path.join(root, 'api', '_lib', 'rota.js'));
 
 const BROWSER_FNS = ['parseClock', 'minutesToLabel', 'hoursForDay', 'isClosedOn',
   'dateKey', 'barberDayEntry', 'isBarberOnLeave', 'isBarberWorkingAt',
-  'barbersWorkingAt', 'selectedBarberName', 'slotsForDate', 'noSlotsOn'];
+  'barbersWorkingAt', 'selectedBarberName', 'selectedServiceDuration', 'slotsForDate', 'noSlotsOn'];
 
 const src = BROWSER_FNS.map(n => {
   const m = html.match(new RegExp('^        function ' + n + '\\([\\s\\S]*?^        }', 'm'));

@@ -44,6 +44,40 @@ function db() {
  */
 let schemaEnsured = null;
 
+// Adding a duration column is not enough: a database that has it but lacks
+// the exclusion constraint would still accept two simultaneous overlaps.
+// Cache only a successful check. The migration is serialized across cold
+// functions, and refuses existing conflicts instead of rewriting bookings.
+let bookingProtection = null;
+async function ensureBookingProtection() {
+  if (!bookingProtection) {
+    bookingProtection = (async () => {
+      const sql = db();
+      const rows = await sql`SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'bookings'::regclass AND conname = 'bookings_no_overlap'`;
+      if (rows.length) return;
+      await sql`DO $$
+        BEGIN
+          PERFORM pg_advisory_xact_lock(73021, 2046);
+          ALTER TABLE bookings ADD COLUMN IF NOT EXISTS duration_min integer
+            NOT NULL DEFAULT 30 CHECK (duration_min > 0);
+          CREATE EXTENSION IF NOT EXISTS btree_gist;
+          IF NOT EXISTS (SELECT 1 FROM pg_constraint
+            WHERE conrelid = 'bookings'::regclass AND conname = 'bookings_no_overlap') THEN
+            ALTER TABLE bookings ADD CONSTRAINT bookings_no_overlap
+              EXCLUDE USING gist (
+                barber WITH =,
+                tsrange(booked_on + booked_at,
+                  booked_on + booked_at + duration_min * interval '1 minute', '[)') WITH &&
+              ) WHERE (status = 'active' AND barber <> '');
+          END IF;
+        END $$`;
+    })();
+    bookingProtection.catch(() => { bookingProtection = null; });
+  }
+  return bookingProtection;
+}
+
 function ensureSchema() {
   if (!schemaEnsured) {
     const sql = db();
@@ -81,6 +115,7 @@ function ensureSchema() {
                   first_seen timestamptz NOT NULL DEFAULT now(),
                   last_seen  timestamptz NOT NULL DEFAULT now())`;
       await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS customer_id integer`;
+      await ensureBookingProtection();
       await sql`CREATE INDEX IF NOT EXISTS bookings_by_customer ON bookings (customer_id)`;
 
       // The diary already holds every customer the shop has; this is the one
@@ -399,5 +434,5 @@ async function customerFor({ phone, name, email }) {
 
 module.exports = { db, customerFor, readConfig, readRotaConfig, hhmm, isoToIndex, indexToIso,
                    WEEKDAY_NAMES, WEEKDAY_NL,
-                   ensureSchema, withNewSchema, isMissingSchema,
+                   ensureSchema, ensureBookingProtection, withNewSchema, isMissingSchema,
                    claimJobRun, markJobRun, minutesSinceJobRun, getCancelKey };

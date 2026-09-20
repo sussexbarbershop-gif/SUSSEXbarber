@@ -5,7 +5,7 @@ const html = fs.readFileSync(require('path').join(__dirname, '..', "index.html")
 
 const NAMES = ['parseClock','minutesToLabel','hoursForDay','isClosedOn','dateKey',
   'barberDayEntry','isBarberOnLeave','isBarberWorkingAt','barbersWorkingAt',
-  'selectedBarberName','slotsForDate','noSlotsOn'];
+  'selectedBarberName','selectedServiceDuration','slotsForDate','noSlotsOn'];
 
 // The barber cards are built from the sheet, so the page must not carry a
 // hardcoded person; a name the sheet has never heard of gets no rota.

@@ -12,8 +12,8 @@
  * A real URL serving text/calendar is what iOS does open, straight into the
  * Add Event sheet, in Safari and inside a home-screen app alike.
  *
- * Nothing here identifies anybody. The query carries a date, a time and how
- * many half hours it runs for, and the file it builds says "Sussex Barber
+ * Nothing here identifies anybody. The query carries a date, a time and its
+ * saved duration in minutes (old links use half hours), and says "Sussex Barber
  * Shop" and the shop's address — the same three facts already on the screen
  * of whoever pressed the button. No name, no number, nothing that would be
  * worth having in a browser history or a server log.
@@ -96,13 +96,17 @@ module.exports = function handler(req, res) {
   const date = String(q.d || '').trim();
   const time = String(q.t || '').trim();
   const slots = Number(q.n || 1);
+  // New bookings carry their saved duration. Keep n for old tabs and links.
+  const minutes = q.minutes === undefined ? slots * 30 : Number(q.minutes);
   // Free text, so it is capped and stripped of anything that is not a plain
   // name — this ends up in a file a calendar will render.
   const service = String(q.s || '').replace(/[^\p{L}\p{N} ,&'+-]/gu, '').slice(0, 80).trim();
 
   const looksRight = /^\d{4}-\d{2}-\d{2}$/.test(date) &&
                      /^([01]\d|2[0-3]):[0-5]\d$/.test(time) &&
-                     Number.isInteger(slots) && slots >= 1 && slots <= MOST_SLOTS;
+                     (q.minutes === undefined
+                       ? Number.isInteger(slots) && slots >= 1 && slots <= MOST_SLOTS
+                       : Number.isInteger(minutes) && minutes > 0 && minutes <= 1440);
   if (!looksRight) {
     res.status(400);
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
@@ -115,7 +119,7 @@ module.exports = function handler(req, res) {
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     return res.send('That is not a date.');
   }
-  const end = new Date(start.getTime() + slots * 30 * 60000);
+  const end = new Date(start.getTime() + minutes * 60000);
 
   const ics = buildIcs({
     start, end,

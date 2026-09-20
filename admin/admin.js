@@ -1347,12 +1347,13 @@ async function loadShopBookingTimes() {
     if (!grid) return;
     const date = document.getElementById('shopBookDate').value;
     const barber = document.getElementById('shopBookBarber').value || ANY_BARBER;
+    const service = document.getElementById('shopBookService').value;
 
     shopBookingTime = '';
     grid.innerHTML = '';
+    const mine = ++shopBookingTimesToken;
     if (!date) return setShopBookingStatus('Choose a date first.');
 
-    const mine = ++shopBookingTimesToken;
     setShopBookingStatus('Loading times…');
 
     let all = [];
@@ -1360,7 +1361,7 @@ async function loadShopBookingTimes() {
     try {
         const url = `${API_URL}?date=${encodeURIComponent(date)}` +
                     `&barber=${encodeURIComponent(barber === ANY_BARBER ? '' : barber)}` +
-                    `&slots=1&past=1`;
+                    `&service=${encodeURIComponent(service)}&slots=1&past=1`;
         const res = await fetch(url, { cache: 'no-store' });
         const data = await res.json();
         all = Array.isArray(data && data.slots) ? data.slots : [];
@@ -3178,5 +3179,3 @@ function showToast(message, type = 'info') {
         setTimeout(() => toast.remove(), 300);
     }, 3000);
 }
-
-

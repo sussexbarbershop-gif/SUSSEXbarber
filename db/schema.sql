@@ -152,6 +152,10 @@ CREATE TABLE IF NOT EXISTS bookings (
     booked_on     date NOT NULL,
     booked_at     time NOT NULL,
     service       text NOT NULL,
+    -- A snapshot, like price: changing a service tomorrow must not move the
+    -- end of an appointment already agreed. Existing bookings occupied 30
+    -- minutes in the old scheduler, so that is the migration default.
+    duration_min  integer NOT NULL DEFAULT 30 CHECK (duration_min > 0),
     -- Kept by name and not by id on purpose: the diary is a record of what
     -- happened. Deleting a barber must not erase the appointments they worked,
     -- and renaming one must not rewrite last year's bookings.
@@ -217,6 +221,27 @@ CREATE TABLE IF NOT EXISTS bookings (
 CREATE UNIQUE INDEX IF NOT EXISTS bookings_one_chair
     ON bookings (booked_on, booked_at, barber)
     WHERE status = 'active' AND barber <> '';
+
+-- Unlike the exact-start index, this also rejects 10:15 inside 10:00–10:30.
+-- [) lets a new appointment begin exactly when the previous one ends. Kept
+-- in sync with ensureBookingProtection() in api/_lib/db.js. The whole change
+-- is atomic; existing overlaps make it fail without changing any bookings.
+DO $$
+BEGIN
+    PERFORM pg_advisory_xact_lock(73021, 2046);
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS duration_min integer
+        NOT NULL DEFAULT 30 CHECK (duration_min > 0);
+    CREATE EXTENSION IF NOT EXISTS btree_gist;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'bookings'::regclass AND conname = 'bookings_no_overlap') THEN
+        ALTER TABLE bookings ADD CONSTRAINT bookings_no_overlap
+            EXCLUDE USING gist (
+                barber WITH =,
+                tsrange(booked_on + booked_at,
+                    booked_on + booked_at + duration_min * interval '1 minute', '[)') WITH &&
+            ) WHERE (status = 'active' AND barber <> '');
+    END IF;
+END $$;
 
 -- Availability for a date, the busiest query on the site.
 CREATE INDEX IF NOT EXISTS bookings_by_day
@@ -303,6 +328,8 @@ ALTER TABLE bookings ADD COLUMN IF NOT EXISTS lang text NOT NULL DEFAULT 'en';
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS reminded_at timestamptz;
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS review_asked_at timestamptz;
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS customer_id integer;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS duration_min integer
+    NOT NULL DEFAULT 30 CHECK (duration_min > 0);
 
 -- The foreign key is added separately and only if it is not already there.
 -- Postgres has no ADD CONSTRAINT IF NOT EXISTS, and running this file twice
