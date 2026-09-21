@@ -102,10 +102,10 @@ console.log('--- the switch itself ---');
 ok('there is one in the barber dialog', /id="barberModalOnTeam"/.test(panelHtml), true);
 ok('it opens on what is stored', /onTeamBox\.checked = b\.onTeam !== false/.test(panel), true);
 ok('and saving carries it back',
-   /b\.onTeam = onTeamBox \? onTeamBox\.checked : true;/.test(panel), true);
+   /onTeam:onTeamBox \? onTeamBox\.checked : true/.test(panel), true);
 // The panel sends the whole array, so the flag travels with everything else.
 ok('the barbers array is what is sent',
-   /saveToServer\(\{ barbers, barberHours, timeOff \}\)/.test(panel), true);
+   /saveToServer\(\{barbers:nextBarbers,barberHours:nextHours,timeOff:nextTimeOff\}/.test(panel), true);
 // Somebody looking at the list should be able to see who is off without
 // opening each one.
 ok('the list says who is not on the website',

@@ -329,6 +329,23 @@ schema during a code rollback; dropping it would remove the concurrency guard.
 in turn, so a failure halfway through saved the services and not the hours,
 with no way to tell. It is one transaction now.
 
+Time-off/barber saves and final booking inserts share transaction advisory lock
+`(73021, 2047)`. The lock query must be a separate statement before the guarded
+insert, in the same READ COMMITTED transaction: after waiting, the insert needs
+a fresh snapshot of committed leave. Do not move the lock into the INSERT's
+CTE or back to a separate HTTP request. The former can retain a stale snapshot;
+the latter releases the transaction lock before it protects anything.
+The lock serializes final booking writes briefly; no network calls, emails or
+customer prompts run inside it. SQL scripts/direct writers outside this API
+must honor the same lock if they change leave or create bookings.
+
+This leave fix needs no schema migration and does not change existing bookings.
+An old deployment does not use the new lock: after rollout verify the production
+release before relying on the new race protection. Existing appointments on a
+newly closed date remain active; the save response counts them and the panel
+shows a notice for manual follow-up. A rollback restores the previous behavior,
+so it also loses the new leave-save safeguards.
+
 **There is no cache to wait for.** The old config was cached for two minutes
 because reading it cost twenty seconds, so the owner could save a price and
 watch the site ignore them. The queries are indexed and take milliseconds, so

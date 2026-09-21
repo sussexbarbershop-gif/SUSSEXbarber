@@ -71,12 +71,13 @@ const fakeSql = (strings, ...values) => {
     const [date, clock, service, barber, name, phone, email, price, source] = values;
     rows.push({ date, clock, service, barber, name, phone, email, price, source });
     held = held.concat(barber);
-    return Promise.resolve([]);
+    return Promise.resolve([{id:rows.length}]);
   }
   return Promise.resolve([]);
 };
 
 const Module = require('module');
+fakeSql.transaction = queries => Promise.all(queries);
 const realLoad = Module._load;
 Module._load = function (request, ...rest) {
   if (request === '@neondatabase/serverless') return { neon: () => fakeSql };

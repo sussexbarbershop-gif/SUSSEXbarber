@@ -59,12 +59,13 @@ const fakeSql = (strings, ...values) => {
     }
     inserted.push(barber);
     held = held.concat(barber);      // as the next read would see it
-    return Promise.resolve([]);
+    return Promise.resolve([{id:inserted.length}]);
   }
   return Promise.resolve([]);
 };
 
 const Module = require('module');
+fakeSql.transaction = queries => Promise.all(queries);
 const realLoad = Module._load;
 Module._load = function (request, ...rest) {
   if (request === '@neondatabase/serverless') return { neon: () => fakeSql };

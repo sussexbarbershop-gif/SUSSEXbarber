@@ -32,11 +32,13 @@ const fakeSql = (strings, ...values) => {
     return Promise.resolve([]);
   }
   if (/FROM services/.test(sql)) return Promise.resolve([{ name_en: 'Skin Fade', price: '28.00' }]);
+  if (/INSERT INTO bookings/.test(sql)) return Promise.resolve([{id:1}]);
   if (/count\(\*\)/.test(sql)) return Promise.resolve([{ held: 0 }]);
   return Promise.resolve([]);
 };
 
 const Module = require('module');
+fakeSql.transaction = queries => Promise.all(queries);
 const realLoad = Module._load;
 Module._load = function (request, ...rest) {
   if (request === '@neondatabase/serverless') return { neon: () => fakeSql };

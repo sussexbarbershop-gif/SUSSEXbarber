@@ -74,6 +74,15 @@ Each booking saves its own `duration_min`: editing a service changes new
 bookings, never silently lengthens old ones. Existing bookings retain their
 original thirty-minute windows; offered starts still use the thirty-minute grid.
 
+Time off blocks the whole date range, including both endpoints. The barber
+dialog keeps edits open until the server confirms them; a failed save no
+longer looks like a saved holiday. Blank/invalid dates reject the entire save.
+Availability also blocks an old browser tab's pre-leave slots. The final insert
+rechecks leave under the same transaction lock as schedule saves, so a booking
+that read an older rota cannot slip in after leave is committed. “Any Available”
+tries another working barber. Existing bookings are never cancelled by a leave
+save: the panel shows a count for the owner to review and contact those customers.
+
 The email signing key, `cancel_key`, stays on the server. The public config
 used to return it alongside the website text, letting a visitor sign a cancel
 link for another booking. Both config actions now omit it, and CMS saves
@@ -114,6 +123,8 @@ It needs permission to install `btree_gist` and create schemas. It creates and
 drops only its own randomly named schema; it refuses remote database URLs.
 Never use a production database for this test. The separate suite drives the
 real booking API, owner service save, concurrent inserts and automatic upgrade.
+It also checks leave saves, stale requests, both date boundaries, and existing
+booking preservation. No real customer or live database is used.
 
 There is no build step for the site. `assets/tailwind.css` is compiled and
 committed; if you add a Tailwind class, run:

@@ -134,7 +134,7 @@ async function uploadImage(file) {
 }
 
 /** Push the current content to the server so customers actually see it. */
-async function saveToServer(partial) {
+async function saveToServer(partial, onSaved) {
     if (!adminPassword) {
         showToast('Session expired — please sign in again', 'error');
         return false;
@@ -152,10 +152,11 @@ async function saveToServer(partial) {
             if (result.locked) lockOwnerPages();
             return false;
         }
+        if (onSaved) onSaved(result);
         return true;
     } catch (err) {
         console.error('Sync failed', err);
-        showToast('Could not reach the server — change saved locally only', 'error');
+        showToast('Could not confirm the save. Check your connection and try again.', 'error');
         return false;
     }
 }
@@ -244,6 +245,9 @@ async function fetchLiveCMS() {
         const data = await res.json();
         if (data.status !== 'success') throw new Error(data.message || 'bad response');
         noteRelease(data);
+        // A background refresh must not replace the person being edited or
+        // overwrite a draft while its save is still in flight.
+        if (typeof editingBarberIndex !== 'undefined' && editingBarberIndex >= 0) return;
 
         if (data.settings) {
             settings = data.settings;
@@ -1888,8 +1892,10 @@ let editingBarberIndex = -1;
 let draftRota = null;
 let draftTimeOff = null;
 let draftImage = '';
+let barberSaving = false;
 
 function openBarberModal(index) {
+    if (barberSaving) return;
     const b = barbers[index];
     if (!b) return;
     editingBarberIndex = index;
@@ -1924,6 +1930,7 @@ function setBarberModalPhoto(url) {
 }
 
 function closeBarberModal() {
+    if (barberSaving) return;
     document.getElementById('barberModal').classList.remove('active');
     editingBarberIndex = -1;
     draftRota = null;
@@ -2051,6 +2058,7 @@ function changeBarberPhoto() {
 }
 
 async function saveBarberModal() {
+    if (barberSaving) return;
     const b = barbers[editingBarberIndex];
     if (!b) return;
 
@@ -2066,28 +2074,45 @@ async function saveBarberModal() {
         return;
     }
 
-    const oldName = String(b.name).trim();
-    if (newName !== oldName) {
-        // The rota and time off are keyed by name, so carry them across or
-        // they would be orphaned and the barber would fall back to shop hours.
-        delete barberHours[oldName];
-        timeOff.forEach(t => { if (t.barber === oldName) t.barber = newName; });
-        draftTimeOff.forEach(t => { t.barber = newName; });
+    const validDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+        !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0,10) === value;
+    if (draftTimeOff.some(t => !validDate(t.from) || !validDate(t.to || t.from) || (t.to || t.from) < t.from)) {
+        showToast('Every time-off row needs valid start and end dates', 'error');
+        return;
     }
-
-    b.name = newName;
-    b.image = draftImage;
+    const oldName = String(b.name).trim();
     const onTeamBox = document.getElementById('barberModalOnTeam');
-    b.onTeam = onTeamBox ? onTeamBox.checked : true;
-    barberHours[newName] = draftRota;
-    timeOff = timeOff.filter(t => t.barber !== newName).concat(draftTimeOff);
-
+    // Build a detached proposal. Closing and mutating before the server
+    // answered made a refused holiday look saved and lost the retry draft.
+    const nextBarbers = barbers.map((other,i) => i === editingBarberIndex
+        ? {...other,name:newName,image:draftImage,onTeam:onTeamBox ? onTeamBox.checked : true} : {...other});
+    const nextHours = JSON.parse(JSON.stringify(barberHours));
+    delete nextHours[oldName];
+    nextHours[newName] = JSON.parse(JSON.stringify(draftRota));
+    const nextTimeOff = timeOff.filter(t => t.barber !== oldName)
+        .concat(draftTimeOff.map(t => ({...t,barber:newName})));
+    barberSaving = true;
+    const controls = document.querySelectorAll('#barberModal input, #barberModal button');
+    controls.forEach(el => { el.disabled = true; });
+    let saved = false, result = {};
+    try {
+        saved = await saveToServer({barbers:nextBarbers,barberHours:nextHours,timeOff:nextTimeOff}, data => {result=data;});
+    } finally {
+        barberSaving = false;
+        controls.forEach(el => { el.disabled = false; });
+    }
+    if (!saved) return;
+    barbers = nextBarbers;
+    barberHours = nextHours;
+    timeOff = nextTimeOff;
     closeBarberModal();
     renderBarbers();
-
-    if (await saveToServer({ barbers, barberHours, timeOff })) {
-        showToast(`${newName} updated — customers see this now`, 'success');
-    }
+    const count = result.timeOffConflictCount || 0;
+    const warning = document.getElementById('barberTimeOffWarning');
+    if (warning) warning.textContent = count
+        ? `Time off saved. ${count} existing booking(s) fall on time off. They are unchanged; review Bookings and contact the customers.` : '';
+    showToast(count ? 'Saved. Existing bookings need your attention — see the notice.'
+        : `${newName} updated — customers see this now`, count ? 'info' : 'success');
 }
 
 async function deleteBarberFromModal() {

@@ -21,6 +21,7 @@ let barbers, barberHours, timeOff;
 let editingBarberIndex = -1, draftRota = null, draftTimeOff = null, draftImage = '';
 let synced = null, toasts = [];
 let confirmAnswer = true;
+let saveAnswer = true, barberSaving = false, saveDetails = {}, saveGate = null;
 
 // --- stand-in DOM ------------------------------------------------------
 const fields = {};
@@ -28,6 +29,7 @@ const el = (id) => (fields[id] || (fields[id] = { value: '', textContent: '', in
   style: {}, src: '', classList: { add(){}, remove(){} } }));
 global.document = {
   getElementById: el,
+  querySelectorAll: () => [],
   createElement: () => ({
     set textContent(v) { this._t = String(v == null ? '' : v); },
     get innerHTML() { return this._t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -39,7 +41,12 @@ function escapeHtml(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;')
 function escapeAttr(s) { return escapeHtml(s).replace(/"/g,'&quot;'); }
 function renderBarbers() {}
 function uploadImage() { return null; }
-async function saveToServer(partial) { synced = partial; return true; }
+async function saveToServer(partial, onSaved) {
+  synced = partial;
+  if (saveGate) await saveGate;
+  if (saveAnswer && onSaved) onSaved(saveDetails);
+  return saveAnswer;
+}
 
 eval([
   'rotaFor', 'openBarberModal', 'setBarberModalPhoto', 'closeBarberModal',
@@ -66,7 +73,8 @@ function reset() {
       : { day: d, working: false, from: '', to: '', breakFrom: '', breakTo: '' })
   };
   timeOff = [{ barber: 'Hemen', from: '2026-09-01', to: '2026-09-03', note: 'holiday' }];
-  synced = null; toasts = []; confirmAnswer = true;
+  synced = null; toasts = []; confirmAnswer = true; saveAnswer = true; barberSaving = false;
+  saveDetails = {}; saveGate = null;
 }
 
 async function main() {
@@ -92,6 +100,39 @@ async function main() {
   ok('sheet was written',  Object.keys(synced).sort(), ['barberHours','barbers','timeOff']);
 
   console.log('--- renaming carries the schedule ---');
+  reset();
+  openBarberModal(1);
+  const beforeFailedSave = JSON.stringify({barbers,barberHours,timeOff});
+  draftTimeOff.push({barber:'Hemen',from:'2026-10-10',to:'2026-10-12',note:''});
+  saveAnswer = false;
+  await saveBarberModal();
+  ok('a refused save keeps the confirmed state',JSON.stringify({barbers,barberHours,timeOff}),beforeFailedSave);
+  ok('a refused save keeps the dialog open',editingBarberIndex,1);
+  ok('a refused save keeps the draft for retry',draftTimeOff && draftTimeOff.length,2);
+
+  reset();
+  openBarberModal(1);
+  draftTimeOff[0].from='';
+  await saveBarberModal();
+  ok('a blank leave start never reaches the server',synced,null);
+
+  reset();
+  openBarberModal(1);
+  let releaseSave;
+  saveGate = new Promise(resolve => {releaseSave=resolve;});
+  const pendingSave = saveBarberModal();
+  ok('pending save keeps the modal open',editingBarberIndex,1);
+  closeBarberModal();
+  ok('closing cannot discard an in-flight save',editingBarberIndex,1);
+  const sent = synced;
+  await saveBarberModal();
+  ok('a second save does not send another proposal',synced === sent,true);
+  saveDetails = {timeOffConflictCount:2};
+  releaseSave();
+  await pendingSave;
+  ok('success closes the modal',editingBarberIndex,-1);
+  ok('existing appointments get a persistent warning',/2 existing booking/.test(el('barberTimeOffWarning').textContent),true);
+
   reset();
   openBarberModal(1);
   el('barberModalName').value = 'Hemin';

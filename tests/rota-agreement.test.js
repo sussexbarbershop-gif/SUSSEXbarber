@@ -15,6 +15,13 @@ const root = path.join(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const server = require(path.join(root, 'api', '_lib', 'rota.js'));
 
+// These fixed September fixtures became "today" and failed after lunch.
+// Hold only this test's clock still; the notice-period tests cover real cutoffs.
+const NativeDate = global.Date;
+const Date = class extends NativeDate {
+  constructor(...args) { super(...(args.length ? args : ['2026-01-01T12:00:00'])); }
+};
+
 // ---- the browser's copy, lifted out of the page -------------------------
 
 const BROWSER_FNS = ['parseClock', 'minutesToLabel', 'hoursForDay', 'isClosedOn',

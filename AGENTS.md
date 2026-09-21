@@ -127,6 +127,7 @@ Worth knowing before you conclude something works:
 | A stray `</div>` | The browser closes it for you and the page still renders |
 | A cancel signing key exposed in config or overwritten by a CMS save | `tests/private-settings.test.js`; keep server secrets out of the shared config |
 | A service duration edit changing the picker but not the reservation | `tests/service-duration.test.js` and `npm run test:postgres`; keep the saved booking duration, both pickers and database exclusion in step |
+| Leave looking saved after a refused request, or a stale booking slipping past it | `tests/barber-panel.test.js` and `npm run test:postgres`; keep the draft until confirmation and keep schedule saves/final inserts under the same transaction lock |
 
 ---
 

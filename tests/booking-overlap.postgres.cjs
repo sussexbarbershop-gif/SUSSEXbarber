@@ -25,6 +25,9 @@ function sql(strings, ...values) {
   }};
 }
 sql.transaction = async queries => {
+  // Meet before acquiring the schedule lock: pausing an insert while holding
+  // that lock would prevent the other writer from ever reaching the barrier.
+  if (arrival && queries.some(q=>/INSERT INTO bookings/.test(q._text))) await arrival();
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -66,8 +69,11 @@ async function request(method, body) {
 const book = patch => request('POST', {action:'addBooking', date:day, time:'10:00',
   name:'Synthetic test', phone:'0612345678', service:'Short cut', barber:'Amir', ...patch});
 const availability = (service, barber = 'Amir') => request('GET', {date:day, service, barber, slots:'1'});
+const saveLeave = timeOff => request('POST',{action:'saveCMS',password:process.env.ADMIN_PASSWORD,
+  pin:process.env.REPORTS_PIN,timeOff});
 const reset = async () => {
   arrival = null;
+  await pool.query('DELETE FROM time_off');
   await pool.query('TRUNCATE bookings, customers, rate_limit RESTART IDENTITY CASCADE');
   await pool.query("UPDATE services SET duration_min = CASE name_en WHEN 'Long cut' THEN 60 ELSE 30 END");
 };
@@ -97,10 +103,77 @@ async function main() {
     await pool.query("INSERT INTO services(name_en,name_nl,price,duration_min,position) VALUES ('Short cut','Kort',25,30,1),('Long cut','Lang',40,60,2)");
     await pool.query("INSERT INTO settings(key,value) VALUES ('booking_open','yes'),('barber_priority','Amir,Saan')");
     await pool.query("INSERT INTO shop_hours(weekday,is_open,opens_at,closes_at) SELECT n,true,'10:00','18:00' FROM generate_series(1,7) n");
+    await check('saved leave closes both pickers, named bookings and Any assignment', async () => {
+      const saved=await request('POST',{action:'saveCMS',password:process.env.ADMIN_PASSWORD,pin:process.env.REPORTS_PIN,
+        timeOff:[{barber:'Amir',from:day,to:day,note:'Synthetic leave'}]});
+      assert.equal(saved.status,'success');
+      const times=await availability('Short cut');
+      assert.deepEqual(times.slots,[]);
+      assert.ok(times.unavailable.includes('10:00'),'an old public tab must also see the slot blocked');
+      assert.equal((await book({})).status,'error');
+      assert.equal((await book({action:'addBookingByShop',password:process.env.ADMIN_PASSWORD})).status,'error');
+      assert.equal((await book({barber:'Any Available'})).barber,'Saan');
+    });
     await check('a cancelled booking releases its whole interval', async () => {
       await insert(pool,'10:00',60);
       await pool.query("UPDATE bookings SET status='cancelled',cancelled_at=now()");
       await insert(pool,'10:15',45);
+    });
+    await check('saving leave preserves existing appointments and reports them to the owner', async () => {
+      await book({});
+      const before=(await pool.query('SELECT row_to_json(b) AS row FROM bookings b')).rows;
+      const answer=await saveLeave([{barber:'Amir',from:day,to:day}]);
+      assert.equal(answer.timeOffConflictCount,1);
+      assert.deepEqual((await pool.query('SELECT row_to_json(b) AS row FROM bookings b')).rows,before);
+      assert.equal((await book({time:'11:00'})).status,'error');
+    });
+    await check('invalid leave cannot silently erase the saved leave', async () => {
+      await saveLeave([{barber:'Amir',from:day,to:day}]);
+      const before=(await pool.query('SELECT row_to_json(t) AS row FROM time_off t')).rows;
+      for(const patch of [{from:''},{from:'2099-02-30'},{to:'2099-09-07'},{barber:'Typo'}]) {
+        const result=await saveLeave([{barber:'Amir',from:day,to:day,...patch}]);
+        assert.equal(result.status,'error');
+        assert.deepEqual((await pool.query('SELECT row_to_json(t) AS row FROM time_off t')).rows,before);
+      }
+    });
+    await check('leave start and end are inclusive and Any needs an available person', async () => {
+      await saveLeave(['Amir','Saan'].map(barber=>({barber,from:day,to:'2099-09-09'})));
+      assert.equal((await book({barber:'Any Available'})).status,'error');
+      assert.equal((await book({date:'2099-09-09'})).status,'error');
+      assert.equal((await book({date:'2099-09-10'})).status,'success');
+      await saveLeave([]);
+      assert.equal((await book({})).status,'success');
+    });
+    for(const barber of ['Amir','Any Available']) {
+      await check(`leave committed after the pre-check is respected for ${barber}`,async()=>{
+        arrival=async()=>{
+          arrival=null;
+          assert.equal((await saveLeave([{barber:'Amir',from:day,to:day}])).status,'success');
+        };
+        const result=await book({barber});
+        assert.equal(result.status,barber==='Amir'?'error':'success');
+        if(barber!=='Amir')assert.equal(result.barber,'Saan');
+      });
+    }
+    await check('a booking waits for an in-flight leave save, then refuses the absent barber',async()=>{
+      const editor=await pool.connect();
+      let booking;
+      try {
+        await editor.query('BEGIN');
+        await editor.query('SELECT pg_advisory_xact_lock(73021,2047)');
+        await editor.query("INSERT INTO time_off(barber_id,starts_on,ends_on) SELECT id,$1,$1 FROM barbers WHERE name='Amir'",[day]);
+        booking=book({});
+        let waiting=false;
+        for(let n=0;n<200;n++){
+          const locks=(await pool.query("SELECT 1 FROM pg_locks WHERE locktype='advisory' AND objid=2047 AND NOT granted")).rows;
+          if(locks.length){waiting=true;break;}
+          await new Promise(resolve=>setTimeout(resolve,10));
+        }
+        assert.equal(waiting,true);
+        await editor.query('COMMIT');
+        assert.equal((await booking).status,'error');
+        assert.equal((await pool.query('SELECT count(*)::int AS n FROM bookings')).rows[0].n,0);
+      } finally {await editor.query('ROLLBACK');editor.release();if(booking)await booking;}
     });
     await check('database exclusion also covers an interval across midnight', async () => {
       await insert(pool,'23:45',30);

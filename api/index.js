@@ -320,7 +320,13 @@ async function handleGet(req, res) {
     // An appointment occupies its whole saved interval. Grouping only by
     // start time offered 10:30 inside a 10:00–11:00 booking. Include the old
     // off-grid starts too, so an existing 10:15 booking blocks nearby chips.
-    const starts = new Set(rota.slotsForDate(config, dateParam, wanted, '', 0, duration));
+    // Old tabs still have the pre-leave rota. Return blocked starts as well
+    // as occupied starts, otherwise an empty answer makes a day off look free.
+    const starts = new Set();
+    for (let minute = 0; minute < 1440; minute += rota.SLOT_MINUTES) {
+      starts.add(rota.minutesToLabel(minute));
+    }
+    rota.slotsForDate(config, dateParam, wanted, '', 0, duration).forEach(t => starts.add(t));
     rows.forEach(r => {
       const start = Number(r.start_minute ?? rota.parseClock(r.booked_at));
       if (start >= 0 && start < 1440) starts.add(rota.minutesToLabel(start));
@@ -927,13 +933,27 @@ async function insertBooking(sql, ctx) {
         phone: payload.phone, name: payload.name, email: payload.email
       });
 
-      const written = await withNewSchema(() => sql`
+      // Serialize only the final write with schedule saves. A config read
+      // before the owner saved leave is not permission to book after it.
+      const results = await withNewSchema(() => sql.transaction([
+        sql`SELECT pg_advisory_xact_lock(73021, 2047)`,
+        sql`
         INSERT INTO bookings (booked_on, booked_at, service, barber, customer_name,
                               phone, email, price, source, lang, customer_id, duration_min)
-        VALUES (${date}, ${clock}, ${service}, ${barber}, ${trimmed(payload.name)},
+        SELECT ${date}::date, ${clock}::time, ${service}, ${barber}, ${trimmed(payload.name)},
                 ${trimmed(payload.phone)}, ${trimmed(payload.email)}, ${price},
-                ${source}, ${lang}, ${customerId}, ${duration})
-        RETURNING id`);
+                ${source}, ${lang}, ${customerId}, ${duration}
+        WHERE EXISTS (SELECT 1 FROM barbers WHERE name = ${barber})
+          AND NOT EXISTS (
+            SELECT 1 FROM time_off t JOIN barbers b ON b.id = t.barber_id
+             WHERE b.name = ${barber} AND ${date}::date BETWEEN t.starts_on AND t.ends_on)
+        RETURNING id`]));
+      const written = results[1];
+      if (!written.length) {
+        if (asked) return {error: 'That barber is no longer available on that date. Please choose another.'};
+        refused.push(barber);
+        continue;
+      }
       return { barber, id: (written[0] || {}).id, lang };
     } catch (err) {
       // Concurrent GiST checks can deadlock. PostgreSQL has rolled this
@@ -1271,6 +1291,24 @@ const KEPT_SETTINGS = ['visit_count', 'cancel_key', 'booking_open']
 async function saveCMS(payload, res) {
   const sql = db();
   const statements = [];
+  if (Array.isArray(payload.timeOff)) {
+    // Skipping a blank row used to report success while silently discarding
+    // the leave. Reject the whole edit before touching the saved schedule.
+    const validDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+      !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0,10) === value;
+    const names = Array.isArray(payload.barbers)
+      ? payload.barbers.map(b => trimmed(b.name))
+      : (await sql`SELECT name FROM barbers`).map(b => b.name);
+    for (const row of payload.timeOff) {
+      const from = trimmed(row && row.from), to = trimmed(row && row.to) || from;
+      if (!row || !validDate(from) || !validDate(to) || to < from || !names.includes(trimmed(row.barber))) {
+        return json(res, {status:'error',message:'Every time-off row needs a known barber and valid start/end dates. Nothing was saved.'});
+      }
+    }
+  }
+  if (Array.isArray(payload.timeOff) || Array.isArray(payload.barbers)) {
+    statements.push(sql`SELECT pg_advisory_xact_lock(73021, 2047)`);
+  }
 
   if (payload.settings) {
     // Old tabs may still echo the signing key from a config loaded before it
@@ -1391,9 +1429,21 @@ async function saveCMS(payload, res) {
     });
   }
 
+  // Leave closes new bookings; existing appointments must remain in the
+  // diary. Count them in the same transaction so the owner can contact them.
+  if (Array.isArray(payload.timeOff)) {
+    statements.push(sql`SELECT count(*)::int AS leave_conflicts FROM bookings k
+      WHERE k.status = 'active' AND k.booked_on >= (now() AT TIME ZONE 'Europe/Amsterdam')::date
+        AND EXISTS (SELECT 1 FROM time_off t JOIN barbers b ON b.id = t.barber_id
+          WHERE b.name = k.barber AND k.booked_on BETWEEN t.starts_on AND t.ends_on)`);
+  }
+  let timeOffConflictCount = 0;
   if (statements.length) {
     try {
-      await sql.transaction(statements);
+      const results = await sql.transaction(statements);
+      if (Array.isArray(payload.timeOff)) {
+        timeOffConflictCount = Number((results[results.length - 1][0] || {}).leave_conflicts) || 0;
+      }
     } catch (err) {
       // The database's own rules, said back in the panel's language. Without
       // this the owner sees a 500 and has to be told to read a log to find out
@@ -1403,7 +1453,7 @@ async function saveCMS(payload, res) {
       return json(res, { status: 'error', message: why });
     }
   }
-  return json(res, { status: 'success', message: 'Saved' });
+  return json(res, { status: 'success', message: 'Saved', timeOffConflictCount });
 }
 
 /** A CHECK constraint the panel can hit, in words, or '' for anything else. */
