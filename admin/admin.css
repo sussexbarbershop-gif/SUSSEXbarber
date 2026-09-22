@@ -1312,3 +1312,31 @@ textarea.form-control { resize: vertical; line-height: 1.6; }
     touch-action: none;
 }
 .icon-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* A booking conflict needs to remain visible after the save toast is gone. */
+.time-off-warning {
+    margin-top: 20px;
+    padding: 18px;
+    border: 2px solid #e8ad36;
+    border-left-width: 6px;
+    border-radius: 12px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+.time-off-warning[hidden] { display: none; }
+.time-off-warning strong { color: var(--text-primary); font-size: 18px; }
+.time-off-warning ul, .time-off-confirm ul { max-height: 240px; overflow: auto; padding-left: 22px; }
+.time-off-warning li, .time-off-confirm li { margin: 8px 0; }
+.time-off-confirm {
+    margin: auto;
+    width: min(560px, calc(100% - 32px));
+    max-height: 85vh;
+    overflow: auto;
+    padding: 24px;
+    border: 2px solid #e8ad36;
+    border-radius: 16px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+.time-off-confirm::backdrop { background: rgba(0,0,0,.7); }
+.time-off-confirm p { margin: 16px 0; line-height: 1.6; }

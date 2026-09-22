@@ -18,6 +18,9 @@ const ANY_BARBER = 'Any Available';
 
 // --- state the functions read and write -------------------------------
 let barbers, barberHours, timeOff;
+let bookings = [];
+const today = () => '2026-01-01';
+function fetchLiveBookings() {}
 let editingBarberIndex = -1, draftRota = null, draftTimeOff = null, draftImage = '';
 let synced = null, toasts = [];
 let confirmAnswer = true;
@@ -53,6 +56,7 @@ eval([
   'renderModalRota', 'updateDraftRota', 'toggleDraftRotaDay', 'renderModalTimeOff',
   'addTimeOffFor', 'updateDraftTimeOff', 'removeDraftTimeOff',
   'saveBarberModal', 'deleteBarberFromModal', 'addBarber'
+  , 'renderTimeOffWarning'
 ].map(grab).join('\n'));
 
 // --- helpers -----------------------------------------------------------
@@ -124,14 +128,21 @@ async function main() {
   ok('pending save keeps the modal open',editingBarberIndex,1);
   closeBarberModal();
   ok('closing cannot discard an in-flight save',editingBarberIndex,1);
-  const sent = synced;
+  const pendingProposal = synced;
   await saveBarberModal();
-  ok('a second save does not send another proposal',synced === sent,true);
+  ok('a second save does not send another proposal',synced === pendingProposal,true);
   saveDetails = {timeOffConflictCount:2};
+  bookings = [1,2].map(i => ({barberName:'Hemen',date:'2026-09-02',time:'10:00',customerName:'Test '+i,status:'Confirmed'}));
   releaseSave();
   await pendingSave;
   ok('success closes the modal',editingBarberIndex,-1);
-  ok('existing appointments get a persistent warning',/2 existing booking/.test(el('barberTimeOffWarning').textContent),true);
+  ok('existing appointments get a persistent warning',/2 booking/.test(el('barberTimeOffWarning').innerHTML),true);
+  el('barberTimeOffWarning').innerHTML = '';
+  renderTimeOffWarning();
+  ok('warning is rebuilt after a refresh from saved data',/2 booking/.test(el('barberTimeOffWarning').innerHTML),true);
+  timeOff = [];
+  renderTimeOffWarning();
+  ok('removing the leave clears the warning',el('barberTimeOffWarning').hidden,true);
 
   reset();
   openBarberModal(1);
@@ -215,6 +226,24 @@ async function main() {
   updateDraftRota(sun, 'from', '');
   ok('and clearing one is refused', draftRota[sun].from, '10:00');
   ok('with a reason', toasts.length, 1);
+
+  const responses = [], sent = [];
+  let proceed = false, prompts = 0;
+  const saveReal = new Function('apiPost','asOwner','confirmTimeOffSave','showToast','lockOwnerPages','adminPassword',
+    grab('saveToServer')+';return saveToServer;')(
+      async payload => {sent.push(payload);return responses.shift();}, x=>x,
+      async () => {prompts++;return proceed;},showToast,()=>{},'test-password');
+  const proposal={timeOff:[{barber:'Hemen',from:'2026-09-01',to:'2026-09-03'}]};
+  const needsReview={status:'error',confirmationRequired:true,conflicts:[{id:7}]};
+  responses.push(needsReview);
+  ok('Cancel refuses the save',await saveReal(proposal),false);
+  ok('Cancel sends no confirmation request',sent.length,1);
+  proceed=true; sent.length=0;
+  responses.push(needsReview,{...needsReview,conflicts:[{id:7},{id:8}]},{status:'success'});
+  ok('Continue saves after reviewing the current conflicts',await saveReal(proposal),true);
+  ok('first confirmation names only the reviewed booking',sent[1].confirmedTimeOffBookings,[7]);
+  ok('a newly arrived booking is reviewed too',sent[2].confirmedTimeOffBookings,[7,8]);
+  ok('each changed conflict list gets its own prompt',prompts,3);
 }
 
 main().then(() => {

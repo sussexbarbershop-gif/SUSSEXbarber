@@ -140,10 +140,19 @@ async function saveToServer(partial, onSaved) {
         return false;
     }
     try {
-        const result = await apiPost(asOwner(Object.assign({
+        let result = await apiPost(asOwner(Object.assign({
             action: 'saveCMS',
             password: adminPassword
         }, partial)));
+
+        while (result.confirmationRequired) {
+            const conflicts = result.conflicts || [];
+            if (!await confirmTimeOffSave(conflicts)) return false;
+            // The server checks these exact bookings again under its lock.
+            // A booking arriving during the dialog requires another review.
+            result = await apiPost(asOwner(Object.assign({action:'saveCMS',password:adminPassword},
+                partial,{confirmedTimeOffBookings:conflicts.map(b => b.id)})));
+        }
 
         if (result.status !== 'success') {
             showToast(result.message || 'Server refused the change', 'error');
@@ -162,6 +171,41 @@ async function saveToServer(partial, onSaved) {
 }
 
 // ---- State ----
+let timeOffConfirmationResolve = null;
+function confirmTimeOffSave(conflicts) {
+    if (!conflicts.length) return Promise.resolve(true);
+    const dialog = document.getElementById('timeOffConfirmation');
+    document.getElementById('timeOffConfirmationList').innerHTML = conflicts.map(b =>
+        `<li><strong>${escapeHtml(b.date)} · ${escapeHtml(b.time)}</strong> — ${escapeHtml(b.barber)} · ${escapeHtml(b.service)}</li>`).join('');
+    return new Promise(resolve => {
+        timeOffConfirmationResolve = resolve;
+        dialog.oncancel = event => { event.preventDefault(); resolveTimeOffConfirmation(false); };
+        dialog.showModal();
+        document.getElementById('timeOffCancel').focus();
+    });
+}
+
+function resolveTimeOffConfirmation(continueSaving) {
+    document.getElementById('timeOffConfirmation').close();
+    const resolve = timeOffConfirmationResolve;
+    timeOffConfirmationResolve = null;
+    if (resolve) resolve(continueSaving);
+}
+
+// Rebuild from confirmed server data after either config or diary loads.
+// A toast/local flag disappears on refresh and can outlive a cancelled leave.
+function renderTimeOffWarning() {
+    const box = document.getElementById('barberTimeOffWarning');
+    if (!box) return;
+    const conflicts = bookings.filter(b => b.status !== 'Cancelled' && b.date >= today() &&
+        timeOff.some(t => t.barber === b.barberName && b.date >= t.from && b.date <= (t.to || t.from)));
+    box.hidden = conflicts.length === 0;
+    box.innerHTML = conflicts.length ? `<strong>Attention: ${conflicts.length} booking(s) overlap time off</strong>
+        <p>These bookings are still active. Review them and contact the customers.</p>
+        <ul>${conflicts.map(b => `<li>${escapeHtml(b.date)} · ${escapeHtml(b.time)} — ${escapeHtml(b.barberName)} · ${escapeHtml(b.customerName)}</li>`).join('')}</ul>
+        <button class="btn btn-primary" onclick="navigateTo('bookings')">Review Bookings</button>` : '';
+}
+
 /**
  * Today, in the shop.
  *
@@ -265,6 +309,7 @@ async function fetchLiveCMS() {
         if (data.hours && data.hours.length > 0) hours = data.hours;
         if (data.barberHours) barberHours = data.barberHours;
         if (data.timeOff) timeOff = data.timeOff;
+        renderTimeOffWarning();
 
         cmsLoaded = true;
         saveData();
@@ -1829,6 +1874,7 @@ async function moveBarberPriority(index, direction) {
 }
 
 function renderBarbers() {
+    renderTimeOffWarning();
     renderBarberPriority();
     const container = document.getElementById('barbersContainer');
     if (!container) return;
@@ -2108,9 +2154,8 @@ async function saveBarberModal() {
     closeBarberModal();
     renderBarbers();
     const count = result.timeOffConflictCount || 0;
-    const warning = document.getElementById('barberTimeOffWarning');
-    if (warning) warning.textContent = count
-        ? `Time off saved. ${count} existing booking(s) fall on time off. They are unchanged; review Bookings and contact the customers.` : '';
+    renderTimeOffWarning();
+    fetchLiveBookings();
     showToast(count ? 'Saved. Existing bookings need your attention — see the notice.'
         : `${newName} updated — customers see this now`, count ? 'info' : 'success');
 }
@@ -2119,6 +2164,8 @@ async function deleteBarberFromModal() {
     const b = barbers[editingBarberIndex];
     if (!b) return;
     if (!confirm(`Remove ${b.name}? Existing bookings are not affected.`)) return;
+
+    const previous = {barbers: [...barbers], barberHours: {...barberHours}, timeOff: [...timeOff]};
 
     const name = String(b.name).trim();
     barbers = barbers.filter((_, i) => i !== editingBarberIndex);
@@ -2130,6 +2177,13 @@ async function deleteBarberFromModal() {
 
     if (await saveToServer({ barbers, barberHours, timeOff })) {
         showToast(`${name} removed`, 'success');
+    } else {
+        // Cancelling a leave-conflict review must undo the optimistic list
+        // change too; the server rolled the whole request back.
+        barbers = previous.barbers;
+        barberHours = previous.barberHours;
+        timeOff = previous.timeOff;
+        renderBarbers();
     }
 }
 
@@ -2895,6 +2949,7 @@ async function fetchLiveBookings() {
             renderBarberFilters();
             renderBookings();
             renderWeeklyPlannerGrid();
+            renderTimeOffWarning();
         }
     } catch (e) {
         console.error("Failed to fetch live bookings", e);

@@ -346,6 +346,16 @@ newly closed date remain active; the save response counts them and the panel
 shows a notice for manual follow-up. A rollback restores the previous behavior,
 so it also loses the new leave-save safeguards.
 
+Conflicting leave now requires explicit confirmation before mutation. Under the
+same schedule lock, the transaction checks the proposed dates against active
+bookings and the exact booking IDs the owner reviewed. An unreviewed conflict
+raises `time_off_confirmation_required` and rolls back the entire save. The
+owner-only response contains the current conflict list; Continue retries with
+its IDs, while Cancel sends no retry. The transaction-local
+`sussex.unconfirmed_leave` setting is only a bridge into the DO block; no new
+schema or persistent setting is required. Old panel tabs must reload to gain
+the confirmation UI; they safely receive a refusal rather than silently save.
+
 **There is no cache to wait for.** The old config was cached for two minutes
 because reading it cost twenty seconds, so the owner could save a price and
 watch the site ignore them. The queries are indexed and take milliseconds, so

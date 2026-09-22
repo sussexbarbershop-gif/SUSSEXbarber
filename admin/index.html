@@ -506,7 +506,7 @@
                         </div>
                         <div style="padding: 20px">
                             <div class="gallery-grid" id="barbersContainer"></div>
-                            <p id="barberTimeOffWarning" role="status" style="color:var(--text-primary)"></p>
+                            <section id="barberTimeOffWarning" class="time-off-warning" role="status" hidden></section>
                         </div>
                     </div>
 
@@ -545,6 +545,15 @@
 
     <!-- SERVICE MODAL -->
     <!-- One barber: name, photo, the week they work, and their time off. -->
+    <dialog id="timeOffConfirmation" class="time-off-confirm" aria-labelledby="timeOffConfirmationTitle">
+        <h3 id="timeOffConfirmationTitle">Existing bookings on these dates</h3>
+        <p>These bookings overlap the time off you want to save. Continue to save the time off and keep these bookings unchanged, or cancel to review your dates.</p>
+        <ul id="timeOffConfirmationList"></ul>
+        <div class="modal-footer">
+            <button id="timeOffCancel" class="btn btn-outline" onclick="resolveTimeOffConfirmation(false)">Cancel</button>
+            <button class="btn btn-primary" onclick="resolveTimeOffConfirmation(true)">Continue</button>
+        </div>
+    </dialog>
     <div class="modal-overlay" id="barberModal">
         <div class="modal" style="max-width:720px">
             <div class="modal-header">

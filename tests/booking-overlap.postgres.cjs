@@ -69,8 +69,8 @@ async function request(method, body) {
 const book = patch => request('POST', {action:'addBooking', date:day, time:'10:00',
   name:'Synthetic test', phone:'0612345678', service:'Short cut', barber:'Amir', ...patch});
 const availability = (service, barber = 'Amir') => request('GET', {date:day, service, barber, slots:'1'});
-const saveLeave = timeOff => request('POST',{action:'saveCMS',password:process.env.ADMIN_PASSWORD,
-  pin:process.env.REPORTS_PIN,timeOff});
+const saveLeave = (timeOff, confirmedTimeOffBookings) => request('POST',{action:'saveCMS',password:process.env.ADMIN_PASSWORD,
+  pin:process.env.REPORTS_PIN,timeOff,confirmedTimeOffBookings});
 const reset = async () => {
   arrival = null;
   await pool.query('DELETE FROM time_off');
@@ -122,9 +122,21 @@ async function main() {
     await check('saving leave preserves existing appointments and reports them to the owner', async () => {
       await book({});
       const before=(await pool.query('SELECT row_to_json(b) AS row FROM bookings b')).rows;
-      const answer=await saveLeave([{barber:'Amir',from:day,to:day}]);
-      assert.equal(answer.timeOffConflictCount,1);
-      assert.deepEqual((await pool.query('SELECT row_to_json(b) AS row FROM bookings b')).rows,before);
+      const leave=[{barber:'Amir',from:day,to:day}];
+      const preview=await saveLeave(leave);
+      assert.equal(preview.confirmationRequired,true);
+      assert.equal(preview.conflicts[0].date,day);
+      assert.equal(preview.conflicts[0].time,'10:00');
+      assert.equal((await pool.query('SELECT count(*)::int AS n FROM time_off')).rows[0].n,0);
+      await book({time:'11:00'});
+      const changed=await saveLeave(leave,preview.conflicts.map(b=>b.id));
+      assert.equal(changed.confirmationRequired,true,'a new booking requires another confirmation');
+      assert.equal(changed.conflicts.length,2);
+      assert.equal((await pool.query('SELECT count(*)::int AS n FROM time_off')).rows[0].n,0);
+      const allBefore=(await pool.query('SELECT row_to_json(b) AS row FROM bookings b ORDER BY id')).rows;
+      const answer=await saveLeave(leave,changed.conflicts.map(b=>b.id));
+      assert.equal(answer.timeOffConflictCount,2);
+      assert.deepEqual((await pool.query('SELECT row_to_json(b) AS row FROM bookings b ORDER BY id')).rows,allBefore);
       assert.equal((await book({time:'11:00'})).status,'error');
     });
     await check('invalid leave cannot silently erase the saved leave', async () => {

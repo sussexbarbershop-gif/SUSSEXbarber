@@ -81,7 +81,11 @@ Availability also blocks an old browser tab's pre-leave slots. The final insert
 rechecks leave under the same transaction lock as schedule saves, so a booking
 that read an older rota cannot slip in after leave is committed. “Any Available”
 tries another working barber. Existing bookings are never cancelled by a leave
-save: the panel shows a count for the owner to review and contact those customers.
+save. Before saving conflicting leave, the owner sees the booking dates, times,
+barbers and services and chooses Continue or Cancel. Cancel keeps the draft and
+saves nothing. A newly arrived booking requires another review. After saving,
+a prominent warning is rebuilt from the saved leave and live diary on refresh;
+it remains until the conflicts are resolved and links to Bookings.
 
 The email signing key, `cancel_key`, stays on the server. The public config
 used to return it alongside the website text, letting a visitor sign a cancel

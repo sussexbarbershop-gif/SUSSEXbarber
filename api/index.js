@@ -1309,6 +1309,24 @@ async function saveCMS(payload, res) {
   if (Array.isArray(payload.timeOff) || Array.isArray(payload.barbers)) {
     statements.push(sql`SELECT pg_advisory_xact_lock(73021, 2047)`);
   }
+  if (Array.isArray(payload.timeOff)) {
+    // Check before ANY mutation, under the booking writer's lock. Confirming
+    // a preview is not permission to miss a new booking that arrived later.
+    const approved = Array.isArray(payload.confirmedTimeOffBookings) ? payload.confirmedTimeOffBookings : [];
+    statements.push(sql`SELECT set_config('sussex.unconfirmed_leave', EXISTS (
+      SELECT 1 FROM bookings k
+       WHERE k.status = 'active' AND k.booked_on >= (now() AT TIME ZONE 'Europe/Amsterdam')::date
+         AND NOT (k.id = ANY(${approved}::integer[]))
+         AND EXISTS (SELECT 1 FROM jsonb_to_recordset(${JSON.stringify(payload.timeOff)}::jsonb)
+           AS t(barber text, "from" text, "to" text)
+           WHERE t.barber = k.barber AND k.booked_on BETWEEN t."from"::date AND COALESCE(NULLIF(t."to",''),t."from")::date)
+      )::text, true)`);
+    statements.push(sql`DO $$ BEGIN
+      IF current_setting('sussex.unconfirmed_leave') = 'true' THEN
+        RAISE EXCEPTION 'time_off_confirmation_required';
+      END IF;
+    END $$`);
+  }
 
   if (payload.settings) {
     // Old tabs may still echo the signing key from a config loaded before it
@@ -1445,6 +1463,18 @@ async function saveCMS(payload, res) {
         timeOffConflictCount = Number((results[results.length - 1][0] || {}).leave_conflicts) || 0;
       }
     } catch (err) {
+      if (String(err.message || '').includes('time_off_confirmation_required')) {
+        const conflicts = await sql`SELECT k.id, k.barber,
+          to_char(k.booked_on,'YYYY-MM-DD') AS date, left(k.booked_at::text,5) AS time,
+          k.service FROM bookings k
+          WHERE k.status='active' AND k.booked_on >= (now() AT TIME ZONE 'Europe/Amsterdam')::date
+            AND EXISTS (SELECT 1 FROM jsonb_to_recordset(${JSON.stringify(payload.timeOff)}::jsonb)
+              AS t(barber text, "from" text, "to" text)
+              WHERE t.barber=k.barber AND k.booked_on BETWEEN t."from"::date AND COALESCE(NULLIF(t."to",''),t."from")::date)
+          ORDER BY k.booked_on,k.booked_at,k.id`;
+        return json(res,{status:'error',confirmationRequired:true,conflicts,
+          message:'These bookings overlap the proposed time off. Nothing has been saved.'});
+      }
       // The database's own rules, said back in the panel's language. Without
       // this the owner sees a 500 and has to be told to read a log to find out
       // that a day was switched on with no hours in it.

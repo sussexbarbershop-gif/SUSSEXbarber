@@ -149,6 +149,7 @@ function grabByBraces(src, name) {
   // The cards are what this checks; the priority list beside them draws into
   // its own element and has its own test.
   const renderBarberPriority = () => {};
+  const renderTimeOffWarning = () => {}; // checked by barber-panel
   eval(grabByBraces(adminJs, 'renderBarbers'));
   renderBarbers();
 
