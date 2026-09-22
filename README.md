@@ -85,7 +85,12 @@ save. Before saving conflicting leave, the owner sees the booking dates, times,
 barbers and services and chooses Continue or Cancel. Cancel keeps the draft and
 saves nothing. A newly arrived booking requires another review. After saving,
 a prominent warning is rebuilt from the saved leave and live diary on refresh;
-it remains until the conflicts are resolved and links to Bookings.
+it remains until the conflicts are resolved. Review Bookings used to open the
+whole diary; it now selects Time off conflicts and the affected barber (or
+everyone when several barbers are affected). Only active upcoming bookings
+inside their own barber's saved leave appear, including both boundary dates.
+Cancelled bookings and removed leave drop out on the next redraw. The same
+filter applies to CSV export; All exits it, retaining the selected barber.
 
 The email signing key, `cancel_key`, stays on the server. The public config
 used to return it alongside the website text, letting a visitor sign a cancel

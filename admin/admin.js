@@ -194,16 +194,31 @@ function resolveTimeOffConfirmation(continueSaving) {
 
 // Rebuild from confirmed server data after either config or diary loads.
 // A toast/local flag disappears on refresh and can outlive a cancelled leave.
+function timeOffConflicts() {
+    return bookings.filter(b => b.status !== 'Cancelled' && b.date >= today() &&
+        timeOff.some(t => t.barber === b.barberName && b.date >= t.from && b.date <= (t.to || t.from)));
+}
+
+// Review used to open the whole diary, leaving the owner to find the clashes.
+// Use the same live predicate as the warning, not a snapshot of booking IDs:
+// cancelling a booking or removing leave must remove it from this view too.
+function reviewTimeOffBookings() {
+    const names = [...new Set(timeOffConflicts().map(b => b.barberName))];
+    bookingFilter = 'timeOff';
+    // An old barber selection must not hide the warning's bookings.
+    setBarberFilter(names.length === 1 ? names[0] : '');
+    navigateTo('bookings');
+}
+
 function renderTimeOffWarning() {
     const box = document.getElementById('barberTimeOffWarning');
     if (!box) return;
-    const conflicts = bookings.filter(b => b.status !== 'Cancelled' && b.date >= today() &&
-        timeOff.some(t => t.barber === b.barberName && b.date >= t.from && b.date <= (t.to || t.from)));
+    const conflicts = timeOffConflicts();
     box.hidden = conflicts.length === 0;
     box.innerHTML = conflicts.length ? `<strong>Attention: ${conflicts.length} booking(s) overlap time off</strong>
         <p>These bookings are still active. Review them and contact the customers.</p>
         <ul>${conflicts.map(b => `<li>${escapeHtml(b.date)} · ${escapeHtml(b.time)} — ${escapeHtml(b.barberName)} · ${escapeHtml(b.customerName)}</li>`).join('')}</ul>
-        <button class="btn btn-primary" onclick="navigateTo('bookings')">Review Bookings</button>` : '';
+        <button class="btn btn-primary" onclick="reviewTimeOffBookings()">Review Bookings</button>` : '';
 }
 
 /**
@@ -776,7 +791,7 @@ function listCaption(count, noun) {
  * their own week exported the whole shop's year.
  */
 function visibleBookings() {
-    let filtered = forChosenBarber(bookings);
+    let filtered = forChosenBarber(bookingFilter === 'timeOff' ? timeOffConflicts() : bookings);
 
     const day = today();
     const weekAgo = shopDayOffset(-7);
@@ -811,7 +826,8 @@ function renderBookings() {
     const filtered = visibleBookings();
 
     const caption = document.getElementById('bookingsCaption');
-    if (caption) caption.textContent = listCaption(filtered.length, 'appointment');
+    if (caption) caption.textContent = listCaption(filtered.length, 'appointment') +
+        (bookingFilter === 'timeOff' ? ' · Time off conflicts' : '');
 
     // Which tab is lit, before anything can return early. This ran at the foot
     // of the function, after a `return` taken whenever the filter matched

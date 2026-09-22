@@ -56,7 +56,7 @@ eval([
   'renderModalRota', 'updateDraftRota', 'toggleDraftRotaDay', 'renderModalTimeOff',
   'addTimeOffFor', 'updateDraftTimeOff', 'removeDraftTimeOff',
   'saveBarberModal', 'deleteBarberFromModal', 'addBarber'
-  , 'renderTimeOffWarning'
+  , 'renderTimeOffWarning', 'timeOffConflicts'
 ].map(grab).join('\n'));
 
 // --- helpers -----------------------------------------------------------
@@ -226,6 +226,52 @@ async function main() {
   updateDraftRota(sun, 'from', '');
   ok('and clearing one is refused', draftRota[sun].from, '10:00');
   ok('with a reason', toasts.length, 1);
+
+  // Review must replace stale date/barber selections and keep exactly the
+  // warning's live conflicts, including both inclusive leave boundaries.
+  const reviewRows = [
+    {id:1,barberName:'Hemen',date:'2026-09-01'},
+    {id:2,barberName:'Hemen',date:'2026-09-03'},
+    {id:3,barberName:'Hemen',date:'2026-08-31'},
+    {id:4,barberName:'Hemen',date:'2026-09-04'},
+    {id:5,barberName:'Amir',date:'2026-09-02'},
+    {id:6,barberName:'Hemen',date:'2026-09-02',status:'Cancelled'},
+    {id:7,barberName:'Hemen',date:'2025-12-31'},
+    {id:8,barberName:'Hemen',date:'2026-09-10'},
+    {id:9,barberName:'Hemen',date:'2026-09-05'}
+  ].map(b=>({status:'Confirmed',time:'10:00',...b}));
+  const reviewLeave = [
+    {barber:'Hemen',from:'2026-09-01',to:'2026-09-03'},
+    {barber:'Hemen',from:'2026-09-10'},
+    {barber:'Hemen',from:'2025-12-30',to:'2025-12-31'}
+  ];
+  const review = new Function('bookings','timeOff','today',`
+    let bookingFilter='today', barberFilter='Amir', page='barbers';
+    const NO_PREFERENCE='__any__', ANY_BARBER='Any Available';
+    const shopDayOffset=()=> '2025-12-25';
+    function setBarberFilter(name){barberFilter=name;}
+    function navigateTo(name){page=name;}
+    function renderBookings(){}
+    ${['timeOffConflicts','reviewTimeOffBookings','forChosenBarber','visibleBookings','setBookingFilter'].map(grab).join('\n')}
+    return {open:reviewTimeOffBookings, rows:visibleBookings, filter:setBookingFilter,
+      state:()=>({bookingFilter,barberFilter,page})};
+  `)(reviewRows,reviewLeave,today);
+  review.open();
+  const reviewIds=()=>review.rows().map(b=>b.id).sort((a,b)=>a-b);
+  ok('Review replaces stale filters and opens the diary',review.state(),
+     {bookingFilter:'timeOff',barberFilter:'Hemen',page:'bookings'});
+  ok('Review only shows matching barber and leave dates',reviewIds(),[1,2,8]);
+  reviewLeave.push({barber:'Amir',from:'2026-09-02'});
+  review.open();
+  ok('Review includes each affected barber, not unrelated appointments',reviewIds(),[1,2,5,8]);
+  reviewRows[0].status='Cancelled';
+  ok('a cancelled conflict disappears immediately',reviewIds(),[2,5,8]);
+  reviewLeave.splice(0,reviewLeave.length);
+  ok('removing leave clears the review instead of showing the whole diary',reviewIds(),[]);
+  review.filter('all');
+  ok('All exits the conflict filter',review.rows().length,reviewRows.length);
+  ok('the warning button activates the review filter',
+     grab('renderTimeOffWarning').includes('onclick="reviewTimeOffBookings()"'),true);
 
   const responses = [], sent = [];
   let proceed = false, prompts = 0;
