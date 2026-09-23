@@ -102,5 +102,40 @@ const script = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'optimize-i
 ok('and the optimiser will write a file that grew by a profile',
    /if \(after < before \|\| untagged\)/.test(script), true);
 
-console.log(failed ? `\n${failed} FAILED` : '\nAll image upload checks passed.');
-process.exit(failed ? 1 : 0);
+async function checkExperienceUpload() {
+  const panel = fs.readFileSync(path.join(root,'admin','admin.js'),'utf8');
+  const markup = fs.readFileSync(path.join(root,'admin','index.html'),'utf8');
+  const grab = name => panel.match(new RegExp('^(?:async )?function '+name+'\\([\\s\\S]*?^}', 'm'))[0];
+  const settings={about_image:'old.jpg',booking_open:'yes'};
+  const fields={experienceImagePreview:{src:'old.jpg'},experienceImageStatus:{textContent:''}};
+  let uploadResult=null, saveResult=false, sent=[], gate=null, uploads=0;
+  const handler=new Function('settings','document','uploadImage','saveToServer','showToast',
+    'let experienceImageSaving=false;'+grab('renderExperienceImage')+grab('handleExperienceUpload')+';return handleExperienceUpload;')(
+    settings,{getElementById:id=>fields[id]},async()=>{uploads++;if(gate)await gate;return uploadResult;},
+    async payload=>{sent.push(payload);return saveResult;},()=>{});
+  const input={files:[{name:'photo.jpg'}],value:'photo.jpg',disabled:false};
+  ok('Experience control is connected',markup.includes('onchange="handleExperienceUpload(this)"'),true);
+  await handler(input);
+  ok('upload failure does not save a setting',sent.length,0);
+  ok('upload failure keeps the existing photo',settings.about_image,'old.jpg');
+  uploadResult='https://example.com/new.jpg';
+  await handler(input);
+  ok('save refusal keeps the preview',fields.experienceImagePreview.src,'old.jpg');
+  ok('save refusal keeps the setting',settings.about_image,'old.jpg');
+  saveResult=true;
+  let release; gate=new Promise(r=>{release=r;});
+  const pending=handler(input), count=uploads;
+  await handler(input);
+  ok('a second click cannot start another upload',uploads,count);
+  ok('input disabled while saving',input.disabled,true);
+  release();await pending;
+  ok('only the photo setting is sent',sent[sent.length-1],{settings:{about_image:uploadResult}});
+  ok('confirmed photo appears in preview',fields.experienceImagePreview.src,uploadResult);
+  ok('other settings survive',settings.booking_open,'yes');
+  ok('input re-enabled for another photo',input.disabled,false);
+  ok('same file can be selected again',input.value,'');
+}
+checkExperienceUpload().then(()=>{
+  console.log(failed ? `\n${failed} FAILED` : '\nAll image upload checks passed.');
+  process.exit(failed ? 1 : 0);
+}).catch(err=>{console.error(err);process.exit(1);});

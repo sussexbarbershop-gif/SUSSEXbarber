@@ -1278,7 +1278,9 @@ const SITE_SETTINGS = ['hero_title', 'hero_subtitle', 'about_text',
  * sitting in customers' inboxes stop — which the shop hears about, if at all,
  * as customers ringing up to cancel.
  */
-const KEPT_SETTINGS = ['visit_count', 'cancel_key', 'booking_open']
+// Saved separately from the text form: an older panel's complete text save
+// must not prune the Experience photo just because it has not loaded it.
+const KEPT_SETTINGS = ['visit_count', 'cancel_key', 'booking_open', 'about_image']
   .concat(require('./_lib/icons').ICON_SETTINGS);
 
 /**

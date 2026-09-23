@@ -45,6 +45,12 @@ Everything in `api/_lib/` is a plain module with no framework in it. Anything
 starting with `_` is invisible to Vercel's routing, which is why the folder is
 named that way.
 
+Gallery Management also contains The Sussex Experience photo. It was formerly
+hard-coded in the home page, so gallery changes could not replace it. Choosing
+a photo now uses the existing compressed image upload and saves only the
+`about_image` setting. The preview changes only after the server confirms the
+save; older settings and failed public image loads retain the original photo.
+
 ---
 
 ## How a booking travels

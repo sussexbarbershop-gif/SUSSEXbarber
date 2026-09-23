@@ -2067,7 +2067,7 @@
             <div class="w-full md:w-1/2">
                 <!-- 16:9 on a phone: the portrait original ran most of a screen on
                      its own before a word of the text appeared. -->
-                <img src="assets/sussex_experience_1783438070840.jpg" alt="Barber Tools" loading="lazy" class="w-full aspect-video md:aspect-auto object-cover grayscale hover:grayscale-0 transition-all duration-700 shadow-lg sm:shadow-2xl shadow-black/20 dark:shadow-black/50 rounded-xl">
+                <img id="cms-about-image" src="assets/sussex_experience_1783438070840.jpg" alt="The Sussex Experience" loading="lazy" class="w-full aspect-video md:aspect-auto object-cover grayscale hover:grayscale-0 transition-all duration-700 shadow-lg sm:shadow-2xl shadow-black/20 dark:shadow-black/50 rounded-xl">
             </div>
             <div class="w-full md:w-1/2">
                 <h2 class="font-serif text-3xl sm:text-4xl mb-3 sm:mb-6 text-gray-900 dark:text-white">The Sussex <span class="text-gold">Experience</span></h2>
@@ -5065,8 +5065,19 @@
             });
         }
 
+        // Keep the original for older settings and failed image loads. This
+        // photo was previously fixed in markup despite the panel's gallery.
+        function renderExperienceImage(settings) {
+            const photo = document.getElementById('cms-about-image');
+            if (!photo) return;
+            const fallback = 'assets/sussex_experience_1783438070840.jpg';
+            photo.onerror = () => { photo.onerror = null; photo.src = fallback; };
+            photo.src = settings.about_image || fallback;
+        }
+
         function renderSettings(settings) {
             if (!settings) return;
+            renderExperienceImage(settings);
             // The headline has a shape — two lines, the second gold italic —
             // and setText would flatten it to one plain line. setHeroTitle is
             // defined up beside the hero itself, because it runs there first.

@@ -107,7 +107,15 @@ global.document = {
 function setText(node, value) { node.innerHTML = value; }
 
 eval(grab('setHeroTitle'));
+eval(grab('renderExperienceImage'));
 eval(renderSettingsSrc);
+
+renderSettings({about_image:'https://example.com/new-experience.jpg'});
+ok('Experience photo reads the saved setting',el('cms-about-image').src,'https://example.com/new-experience.jpg');
+el('cms-about-image').onerror();
+ok('a broken Experience photo falls back to the original',el('cms-about-image').src,'assets/sussex_experience_1783438070840.jpg');
+renderSettings({});
+ok('older settings keep the original Experience photo',el('cms-about-image').src,'assets/sussex_experience_1783438070840.jpg');
 
 renderSettings({
   hero_title: 'New Headline',

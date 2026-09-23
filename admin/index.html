@@ -325,6 +325,16 @@
                 <!-- ========== GALLERY ========== -->
                 <div id="page-gallery" class="page-section">
                     <div class="data-card">
+                        <div class="data-card-header"><h3>The Sussex Experience</h3></div>
+                        <div style="padding:20px">
+                            <p class="cms-hint">The large photo beside The Sussex Experience on the website. Choose a new photo to upload and save it.</p>
+                            <img id="experienceImagePreview" src="/assets/sussex_experience_1783438070840.jpg" alt="Current Sussex Experience photo" style="display:block;width:100%;max-width:320px;max-height:300px;object-fit:contain;margin:16px 0;border-radius:8px">
+                            <button type="button" class="btn btn-primary" onclick="document.getElementById('experienceImageUpload').click()">Change photo</button>
+                            <input type="file" id="experienceImageUpload" accept="image/*" onchange="handleExperienceUpload(this)" style="display:none">
+                            <p id="experienceImageStatus" role="status" aria-live="polite" class="cms-hint"></p>
+                        </div>
+                    </div>
+                    <div class="data-card">
                         <div class="data-card-header">
                             <h3>Gallery Management</h3>
                             <span style="font-size:13px;color:var(--text-muted)">Changes save as you make them</span>

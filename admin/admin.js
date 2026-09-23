@@ -1779,7 +1779,45 @@ function rotaFor(name) {
 
 
 // ---- Gallery ----
+// The Experience photo used to be hard-coded on the public page, so gallery
+// uploads could never change it. Save only its setting, and keep the confirmed
+// preview if either upload or save fails; unrelated text/settings stay intact.
+let experienceImageSaving = false;
+function renderExperienceImage() {
+    const preview = document.getElementById('experienceImagePreview');
+    if (preview) preview.src = settings.about_image || '/assets/sussex_experience_1783438070840.jpg';
+}
+
+async function handleExperienceUpload(input) {
+    if (experienceImageSaving) return;
+    const file = input.files[0];
+    if (!file) return;
+    input.value = '';
+    experienceImageSaving = true;
+    input.disabled = true;
+    const status = document.getElementById('experienceImageStatus');
+    if (status) status.textContent = 'Uploading and saving photo…';
+    try {
+        const url = await uploadImage(file);
+        if (!url || !await saveToServer({settings: {about_image: url}})) {
+            if (status) status.textContent = 'Photo not saved. Please try again.';
+            return;
+        }
+        settings.about_image = url;
+        renderExperienceImage();
+        if (status) status.textContent = 'Photo saved to the website.';
+        showToast('Experience photo saved', 'success');
+    } catch (err) {
+        if (status) status.textContent = 'Could not confirm the save. Refresh to check before trying again.';
+        showToast('Could not confirm the photo save', 'error');
+    } finally {
+        experienceImageSaving = false;
+        input.disabled = false;
+    }
+}
+
 function renderGallery() {
+    renderExperienceImage();
     const container = document.getElementById('galleryContainer');
     if (!container) return;
 

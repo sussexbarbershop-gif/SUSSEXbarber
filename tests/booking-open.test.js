@@ -74,7 +74,7 @@ console.log('--- the setting cannot be lost ---');
 // would silently reopen or close the form depending on which way the default
 // fell — which is exactly the kind of thing nobody would connect to a save.
 ok('a Website Text save cannot prune it',
-   /KEPT_SETTINGS = \['visit_count', 'cancel_key', 'booking_open'\]/.test(api), true);
+   /KEPT_SETTINGS = \[[^\]]*'booking_open'/.test(api), true);
 // And the panel writes it explicitly either way, so it stops being absent the
 // first time that page is saved.
 ok('the panel writes a value both ways',
