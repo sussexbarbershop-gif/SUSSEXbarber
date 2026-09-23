@@ -84,7 +84,11 @@ const igHandle = node('SPAN');
 const mapsLink = node('A');
 
 const made = [];
+const heroStyles = {};
+const heroPhoto = {style:{setProperty:(key,value)=>{heroStyles[key]=value;},removeProperty:key=>{delete heroStyles[key];}}};
+const blackLogo = {}, whiteLogo = {};
 global.document = {
+  querySelector: selector => selector === '.hero-bg' ? heroPhoto : null,
   getElementById: el,
   createElement(tag) {
     const n = { tagName: tag.toUpperCase(), className: '', children: [],
@@ -98,7 +102,7 @@ global.document = {
     return n;
   },
   createTextNode: text => ({ tagName: '#text', textContent: text, children: [] }),
-  querySelectorAll: sel => sel === '.cms-contact-phone' ? [phoneText]
+  querySelectorAll: sel => sel === '.logo-ink' ? [blackLogo] : sel === '.logo-paper' ? [whiteLogo] : sel === '.cms-contact-phone' ? [phoneText]
                         : sel === '.cms-contact-phone-link' ? [phoneLink]
                         : sel === '[data-cms-link="instagram"]' ? [igLink]
                         : sel === '.cms-instagram-handle' ? [igHandle]
@@ -108,7 +112,17 @@ function setText(node, value) { node.innerHTML = value; }
 
 eval(grab('setHeroTitle'));
 eval(grab('renderExperienceImage'));
+eval(grab('renderBrandImages'));
 eval(renderSettingsSrc);
+
+renderSettings({hero_image:'https://example.com/hero.jpg',logo_black:'https://example.com/black.png',logo_white:'https://example.com/white.png'});
+ok('hero photo changes without replacing theme overlays',heroStyles['--hero-photo'],'url("https://example.com/hero.jpg")');
+ok('both logo themes read their own saved image',[blackLogo.src,whiteLogo.src],['https://example.com/black.png','https://example.com/white.png']);
+blackLogo.onerror();
+ok('broken logo returns to its original',blackLogo.src,'assets/logo-black.png');
+renderSettings({});
+ok('older config retains original hero',heroStyles['--hero-photo'],undefined);
+ok('older config retains both original logos',[blackLogo.src,whiteLogo.src],['assets/logo-black.png','assets/logo-white.png']);
 
 renderSettings({about_image:'https://example.com/new-experience.jpg'});
 ok('Experience photo reads the saved setting',el('cms-about-image').src,'https://example.com/new-experience.jpg');

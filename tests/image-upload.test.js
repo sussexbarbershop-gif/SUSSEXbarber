@@ -58,7 +58,8 @@ ok('and a size it is aiming for', /TARGET_BYTES/.test(source), true);
 console.log('--- the stored name matches the stored bytes ---');
 // Everything is re-encoded to JPEG, so a URL ending .png would be a lie that
 // only shows up in whatever reads the extension instead of the header.
-ok('always written as .jpg', /put\(`site\/\$\{name\}\.jpg`/.test(source), true);
+ok('photos and transparent logos keep their matching extensions',
+   /compressed.contentType === 'image\/png' \? `site\/\$\{name\}\.png` : `site\/\$\{name\}\.jpg`/.test(source), true);
 
 console.log('--- images that are the same colour on both phones ---');
 // Reported holding the two phones side by side: the same photographs looked
@@ -103,9 +104,43 @@ ok('and the optimiser will write a file that grew by a profile',
    /if \(after < before \|\| untagged\)/.test(script), true);
 
 async function checkExperienceUpload() {
+  // Exercise the real image encoder on a transparent pixel, without storage
+  // or a production upload. JPEG photos must retain their existing format.
+  const sharp = require('sharp');
+  const encoderSource=source.match(/async function compressImage\([\s\S]*?\n}/)[0];
+  const encode=new Function('require','MAX_EDGE','TARGET_BYTES','QUALITY_STEPS',encoderSource+';return compressImage;')(require,1600,300*1024,[82,74,66,58]);
+  const png=await sharp({create:{width:4,height:4,channels:4,background:{r:255,g:255,b:255,alpha:0}}}).png().toBuffer();
+  const logo=await encode(png,true), photo=await encode(png);
+  const meta=await sharp(logo.bytes).metadata();
+  const pixels=await sharp(logo.bytes).raw().toBuffer();
+  ok('transparent logos are PNG with alpha',[logo.contentType,meta.format,meta.hasAlpha,pixels[3]],['image/png','png',true,0]);
+  ok('ordinary photos remain JPEG',[photo.contentType,(await sharp(photo.bytes).metadata()).format],['image/jpeg','jpeg']);
   const panel = fs.readFileSync(path.join(root,'admin','admin.js'),'utf8');
   const markup = fs.readFileSync(path.join(root,'admin','index.html'),'utf8');
   const grab = name => panel.match(new RegExp('^(?:async )?function '+name+'\\([\\s\\S]*?^}', 'm'))[0];
+  const brandDefinitions=panel.match(/const BRAND_IMAGES = \[[\s\S]*?\];/)[0];
+  const brandSettings={hero_image:'old-hero.jpg',logo_black:'old-black.png',logo_white:'old-white.png'};
+  let brandSaves=[], brandOK=false, alphaMode=null, brandURL=null;
+  const brandHandler=new Function('settings','uploadImage','saveToServer','showToast',
+    brandDefinitions+';let brandImageSaving=false;function renderBrandLogos(){}function renderBrandImages(){}'+grab('handleBrandUpload')+';return handleBrandUpload;')(
+      brandSettings,async(file,alpha)=>{alphaMode=alpha;return brandURL;},async p=>{brandSaves.push(p);return brandOK;},()=>{});
+  const brandInput={files:[{name:'branding.png'}],value:'branding.png',disabled:false};
+  await brandHandler(brandInput,'logo_black');
+  ok('failed brand upload does not save',brandSaves.length,0);
+  brandURL='https://example.com/new.png';
+  await brandHandler(brandInput,'logo_black');
+  ok('refused logo save retains the confirmed image',brandSettings.logo_black,'old-black.png');
+  brandOK=true;
+  for(const key of ['hero_image','logo_black','logo_white']){
+    await brandHandler(brandInput,key);
+    ok(key+' saves only its own setting',brandSaves[brandSaves.length-1],{settings:{[key]:brandURL}});
+    ok(key+' uses the correct transparency mode',alphaMode,key!=='hero_image');
+    ok(key+' commits after confirmation',brandSettings[key],brandURL);
+  }
+  const saveCount=brandSaves.length;
+  await brandHandler(brandInput,'booking_open');
+  ok('image handler refuses unrelated settings',brandSaves.length,saveCount);
+  ok('brand picker enabled after completion',brandInput.disabled,false);
   const settings={about_image:'old.jpg',booking_open:'yes'};
   const fields={experienceImagePreview:{src:'old.jpg'},experienceImageStatus:{textContent:''}};
   let uploadResult=null, saveResult=false, sent=[], gate=null, uploads=0;

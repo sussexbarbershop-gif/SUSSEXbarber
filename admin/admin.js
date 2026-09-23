@@ -80,7 +80,7 @@ async function apiPost(payload) {
 /** Shrink an image in the browser before it ever leaves the machine.
  *  Gallery photos off a phone are several megabytes; at that size the upload
  *  is slow and storage fills up for no visual benefit on a 400px-wide card. */
-function shrinkImage(file, maxEdge = 1600, quality = 0.82) {
+function shrinkImage(file, maxEdge = 1600, quality = 0.82, preserveAlpha = false) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onerror = () => reject(new Error('Could not read that file'));
@@ -98,7 +98,7 @@ function shrinkImage(file, maxEdge = 1600, quality = 0.82) {
                 canvas.width = width;
                 canvas.height = height;
                 canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-                resolve(canvas.toDataURL('image/jpeg', quality));
+                resolve(canvas.toDataURL(preserveAlpha ? 'image/png' : 'image/jpeg', quality));
             };
             img.src = reader.result;
         };
@@ -107,18 +107,19 @@ function shrinkImage(file, maxEdge = 1600, quality = 0.82) {
 }
 
 /** Shrink, upload to blob storage, and hand back a URL fit to store. */
-async function uploadImage(file) {
+async function uploadImage(file, preserveAlpha = false) {
     if (!adminPassword) {
         showToast('Session expired — please sign in again', 'error');
         return null;
     }
     showToast('Uploading image...', 'info');
     try {
-        const dataUrl = await shrinkImage(file);
+        const dataUrl = await shrinkImage(file, preserveAlpha ? 800 : 1600, 0.82, preserveAlpha);
         const result = await apiPost(asOwner({
             action: 'uploadImage',
             password: adminPassword,
             filename: file.name,
+            preserveAlpha,
             dataUrl: dataUrl
         }));
         if (result.status !== 'success' || !result.url) {
@@ -324,6 +325,7 @@ async function fetchLiveCMS() {
         if (data.hours && data.hours.length > 0) hours = data.hours;
         if (data.barberHours) barberHours = data.barberHours;
         if (data.timeOff) timeOff = data.timeOff;
+        renderBrandLogos();
         renderTimeOffWarning();
 
         cmsLoaded = true;
@@ -1779,6 +1781,59 @@ function rotaFor(name) {
 
 
 // ---- Gallery ----
+// Branding was fixed in markup/CSS, unlike gallery and team pictures. Keep
+// individual settings so changing a logo cannot overwrite other CMS edits.
+const BRAND_IMAGES = [
+    {key:'hero_image', label:'Homepage background', fallback:'/assets/hero_bg_shop.jpg'},
+    {key:'logo_black', label:'Dark logo (light background)', fallback:'/assets/logo-black.png', alpha:true},
+    {key:'logo_white', label:'Light logo (dark background)', fallback:'/assets/logo-white.png', alpha:true}
+];
+let brandImageSaving = false;
+
+function renderBrandLogos() {
+    document.querySelectorAll('.logo-light, .brand-logo-light').forEach(el => {
+        el.src = settings.logo_black || '/assets/logo-black.png';
+    });
+    document.querySelectorAll('.logo-dark, .brand-logo-dark').forEach(el => {
+        el.src = settings.logo_white || '/assets/logo-white.png';
+    });
+}
+
+function renderBrandImages() {
+    const container = document.getElementById('brandImagesContainer');
+    if (!container || brandImageSaving) return;
+    container.innerHTML = BRAND_IMAGES.map(item => `<div class="data-card">
+        <div class="data-card-header"><h3>${item.label}</h3></div>
+        <div style="padding:20px">
+            <img src="${escapeAttr(settings[item.key] || item.fallback)}" alt="${item.label}" style="display:block;width:100%;max-width:320px;height:180px;object-fit:contain;background:${item.key === 'logo_black' ? '#fafafa' : '#222'};border-radius:8px;margin-bottom:16px">
+            <label>${item.alpha ? 'Choose a logo (transparent PNG recommended)' : 'Choose a background photo'}
+                <input type="file" accept="image/*" onchange="handleBrandUpload(this, '${item.key}')">
+            </label>
+        </div></div>`).join('');
+}
+
+async function handleBrandUpload(input, key) {
+    const item = BRAND_IMAGES.find(item => item.key === key);
+    const file = input.files[0];
+    if (!item || !file || brandImageSaving) return;
+    input.value = '';
+    brandImageSaving = true;
+    input.disabled = true;
+    try {
+        const url = await uploadImage(file, !!item.alpha);
+        if (!url || !await saveToServer({settings:{[key]:url}})) return;
+        settings[key] = url;
+        renderBrandLogos();
+        showToast(item.label + ' saved to the website', 'success');
+    } catch (err) {
+        showToast('Could not confirm the image save. Refresh to check before trying again.', 'error');
+    } finally {
+        brandImageSaving = false;
+        input.disabled = false;
+        renderBrandImages();
+    }
+}
+
 // The Experience photo used to be hard-coded on the public page, so gallery
 // uploads could never change it. Save only its setting, and keep the confirmed
 // preview if either upload or save fails; unrelated text/settings stay intact.
@@ -1818,6 +1873,7 @@ async function handleExperienceUpload(input) {
 
 function renderGallery() {
     renderExperienceImage();
+    renderBrandImages();
     const container = document.getElementById('galleryContainer');
     if (!container) return;
 

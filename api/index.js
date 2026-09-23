@@ -1119,11 +1119,13 @@ const MAX_EDGE = 1600;
 const TARGET_BYTES = 300 * 1024;
 const QUALITY_STEPS = [82, 74, 66, 58];
 
-async function compressImage(bytes) {
+async function compressImage(bytes, preserveAlpha = false) {
   let sharp;
   try {
     sharp = require('sharp');
   } catch (err) {
+    // A logo must never silently become an opaque JPEG if sharp is missing.
+    if (preserveAlpha) throw err;
     // Not installed, or no build for this platform. Storing the original is
     // worse than storing a small one and far better than refusing the upload.
     console.warn('[upload] sharp unavailable, storing as received:', err.message);
@@ -1143,6 +1145,9 @@ async function compressImage(bytes) {
     .toColourspace('srgb')
     .withIccProfile('srgb');
 
+  if (preserveAlpha) {
+    return {bytes: await base.clone().png({compressionLevel:9}).toBuffer(), contentType:'image/png'};
+  }
   let out = null;
   for (const quality of QUALITY_STEPS) {
     out = await base.clone().jpeg({ quality, mozjpeg: true }).toBuffer();
@@ -1169,23 +1174,23 @@ async function uploadImage(payload, res) {
 
   let compressed;
   try {
-    compressed = await compressImage(original);
+    compressed = await compressImage(original, payload.preserveAlpha === true);
   } catch (err) {
     // Anything sharp cannot read is not a picture, whatever it is called.
     console.error('[upload] could not read that image:', err);
     return json(res, { status: 'error', message: 'That file is not a readable image' });
   }
 
-  // Always .jpg: the stored bytes are JPEG now whatever arrived, and a URL
-  // ending .png that serves a JPEG confuses everything reading the extension
-  // rather than the header.
+  // Photos remain JPEG; logos use PNG so transparent backgrounds survive.
+  // The extension must match the bytes, regardless of the original filename.
   const requested = String(payload.filename || `image-${Date.now()}`);
   const name = requested.replace(/\.[^.]*$/, '').replace(/[^\w\-]/g, '_').slice(0, 60) || 'image';
 
   const { put } = require('@vercel/blob');
   // addRandomSuffix so re-uploading a file called photo.jpg does not silently
   // replace the one already on the site.
-  const blob = await put(`site/${name}.jpg`, compressed.bytes, {
+  const storedName = compressed.contentType === 'image/png' ? `site/${name}.png` : `site/${name}.jpg`;
+  const blob = await put(storedName, compressed.bytes, {
     access: 'public', contentType: compressed.contentType, addRandomSuffix: true
   });
 
@@ -1280,7 +1285,7 @@ const SITE_SETTINGS = ['hero_title', 'hero_subtitle', 'about_text',
  */
 // Saved separately from the text form: an older panel's complete text save
 // must not prune the Experience photo just because it has not loaded it.
-const KEPT_SETTINGS = ['visit_count', 'cancel_key', 'booking_open', 'about_image']
+const KEPT_SETTINGS = ['visit_count', 'cancel_key', 'booking_open', 'about_image', 'hero_image', 'logo_black', 'logo_white']
   .concat(require('./_lib/icons').ICON_SETTINGS);
 
 /**

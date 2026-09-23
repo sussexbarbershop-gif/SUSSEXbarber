@@ -50,6 +50,12 @@ hard-coded in the home page, so gallery changes could not replace it. Choosing
 a photo now uses the existing compressed image upload and saves only the
 `about_image` setting. The preview changes only after the server confirms the
 save; older settings and failed public image loads retain the original photo.
+The same page now edits the homepage background and the dark/light logos,
+which were also fixed in CSS/markup. Logos are resized as transparent PNG in
+the browser and on the server; ordinary photos still use compressed JPEG.
+The homepage preserves its light/dark overlays, and saved logos also update
+the panel branding. These separate image settings survive text-form pruning.
+Home-screen and tab icons keep their existing dedicated icon editor.
 
 ---
 
