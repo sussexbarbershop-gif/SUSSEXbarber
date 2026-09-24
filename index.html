@@ -3964,8 +3964,8 @@
             // Email is optional, but its absence removes online cancellation.
             // Ask before writing a booking, and let the customer return to email.
             if (!emailVal && !confirm(window.currentLang === 'nl'
-                ? 'Zonder e-mail kunt u uw afspraak niet online annuleren. Neem contact op met de zaak om te annuleren of een tijd te wijzigen. Toch boeken zonder e-mail?'
-                : 'Without an email, you cannot cancel your booking online. Contact the shop to cancel or change the time. Continue booking without email?')) {
+                ? 'Boeken zonder e-mail?\n\nZonder e-mailadres ontvangt u geen bevestigingsmail of annuleringslink. U kunt deze afspraak dan niet zelf online annuleren.\n\nMet een e-mailadres kunt u via de link in uw e-mail annuleren en daarna opnieuw boeken op een beschikbare tijd. Zonder e-mail kunt u de zaak bellen om te annuleren of een andere tijd af te spreken.\n\nUw afspraak is nog niet geboekt. Kies Annuleren om een e-mailadres in te vullen, of OK om door te gaan zonder e-mail.'
+                : 'Book without email?\n\nWithout an email address, you will not receive a confirmation email or cancellation link. You will not be able to cancel this appointment yourself online.\n\nWith an email address, you can cancel using the link in your email, then book again for an available time. Without email, call the shop to cancel or arrange a different time.\n\nYour appointment has not been booked yet. Choose Cancel to add an email address, or OK to continue without email.')) {
                 document.getElementById('emailAddress').focus();
                 submitBtn.innerText = originalText;
                 submitBtn.disabled = false;

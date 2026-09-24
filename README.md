@@ -87,7 +87,11 @@ stored email receives only its own bookings, even if a family shares a phone.
 The old phone lookup disclosed the diary and phone/date/time cancellation could
 cancel several appointments at once. That public write is now refused; staff
 use their panel password and the database booking ID, including for no-email
-bookings. Email remains optional, with a warning before submitting without it.
+bookings. Email remains optional, with an English/Dutch warning before submitting
+without it. It explains the missing confirmation and cancellation link, cancelling
+then rebooking an available time, and contacting the shop without email. The
+native confirmation explicitly says nothing is booked yet: Cancel returns to
+the email field, while OK continues without email.
 Changing a time still requires contacting the shop; no rescheduling feature
 is implied by providing an email.
 
