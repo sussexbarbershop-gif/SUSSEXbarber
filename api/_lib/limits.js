@@ -42,10 +42,9 @@ const RULES = {
   // One customer books one haircut. Four is a family from one address; eight
   // in an hour is not a household, and a script does not stop at eight.
   addBooking:    { perHour: 8,  perDay: 20 },
-  // Cancelling needs the date, the time and the phone number all three.
+  // Count refused legacy public requests too. Authenticated staff bypass this.
   cancelBooking: { perHour: 10, perDay: 40 },
-  // A lookup by phone number, which is also how you would find out whether a
-  // given number belongs to a customer at all.
+  // Phone/email lookup sends mail only; it never returns customer records.
   myBookings:    { perHour: 20, perDay: 60 },
   // On top of the delay that already grows with each wrong answer. The owner
   // mistyping their password must never be locked out of their own panel, and
@@ -146,4 +145,22 @@ async function sweepOldCounters(sql) {
   return rows.length;
 }
 
-module.exports = { tooMany, forget, sweepOldCounters, callerKey, RULES };
+// IP limits alone allow different callers to flood one inbox. Share this
+// recipient limit between phone and email lookups; never store raw addresses.
+// Unlike booking admission, email sending fails closed if counting fails.
+async function allowBookingEmail(email) {
+  const key = require('crypto').createHash('sha256').update(email.trim().toLowerCase()).digest('hex');
+  try {
+    const sql = db();
+    const [hour, day] = await Promise.all([
+      bump(sql, `booking-email:h:${key}`, 3600),
+      bump(sql, `booking-email:d:${key}`, 86400)
+    ]);
+    return hour <= 3 && day <= 6;
+  } catch (err) {
+    console.warn('[mail] booking email limit unavailable');
+    return false;
+  }
+}
+
+module.exports = { tooMany, forget, sweepOldCounters, callerKey, RULES, allowBookingEmail };

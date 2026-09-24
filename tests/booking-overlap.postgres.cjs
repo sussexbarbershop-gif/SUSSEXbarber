@@ -52,6 +52,8 @@ delete process.env.NOTIFY_EMAIL;
 const db = require('../api/_lib/db');
 db.minutesSinceJobRun = async () => 0;
 const mail = require('../api/_lib/mail');
+let bookingLists=[];
+mail.sendCustomerBookings=async(to,list)=>{bookingLists.push({to,list});return true;};
 for (const name of ['sendBookingNotice', 'sendCustomerConfirmation', 'sendCancellationNotice', 'sendCustomerCancellation']) {
   mail[name] = async () => false;
 }
@@ -103,6 +105,25 @@ async function main() {
     await pool.query("INSERT INTO services(name_en,name_nl,price,duration_min,position) VALUES ('Short cut','Kort',25,30,1),('Long cut','Lang',40,60,2)");
     await pool.query("INSERT INTO settings(key,value) VALUES ('booking_open','yes'),('barber_priority','Amir,Saan')");
     await pool.query("INSERT INTO shop_hours(weekday,is_open,opens_at,closes_at) SELECT n,true,'10:00','18:00' FROM generate_series(1,7) n");
+    await check('email lookup keeps shared-phone recipients separate and staff cancel uses one ID',async()=>{
+      const a=(await insert(pool,'10:00',30,'Amir')).rows[0].id;
+      const b=(await insert(pool,'10:00',30,'Saan')).rows[0].id;
+      await pool.query('UPDATE bookings SET email=$1 WHERE id=$2',['first@example.com',a]);
+      await pool.query('UPDATE bookings SET email=$1 WHERE id=$2',['second@example.com',b]);
+      bookingLists=[];
+      const before=(await pool.query('SELECT row_to_json(b) AS row FROM bookings b ORDER BY id')).rows;
+      const reply=await request('POST',{action:'myBookings',sendEmail:true,identifier:'0612345678'});
+      assert.equal(reply.status,'success');
+      assert.equal(JSON.stringify(reply).includes('2099'),false);
+      assert.deepEqual(bookingLists.map(m=>m.to).sort(),['first@example.com','second@example.com']);
+      assert.ok(bookingLists.every(m=>m.list.length===1));
+      assert.deepEqual((await pool.query('SELECT row_to_json(b) AS row FROM bookings b ORDER BY id')).rows,before);
+      bookingLists=[];
+      await request('POST',{action:'myBookings',sendEmail:true,identifier:'FIRST@EXAMPLE.COM'});
+      assert.deepEqual(bookingLists.map(m=>m.to),['first@example.com']);
+      await request('POST',{action:'cancelBooking',password:process.env.ADMIN_PASSWORD,id:a});
+      assert.deepEqual((await pool.query('SELECT status FROM bookings ORDER BY id')).rows.map(r=>r.status),['cancelled','active']);
+    });
     await check('saved leave closes both pickers, named bookings and Any assignment', async () => {
       const saved=await request('POST',{action:'saveCMS',password:process.env.ADMIN_PASSWORD,pin:process.env.REPORTS_PIN,
         timeOff:[{barber:'Amir',from:day,to:day,note:'Synthetic leave'}]});

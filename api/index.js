@@ -28,9 +28,9 @@ const { isAuthorized, isPinCorrect, isOwner, reportsPinIsSet, issueUnlockPass,
         UNLOCK_MINUTES, throttleFailedLogin, resetFailedLogins,
         cancelToken, bookingFromCancelToken } = require('./_lib/auth');
 const { readReports } = require('./_lib/reports');
-const { tooMany, forget } = require('./_lib/limits');
+const { tooMany, forget, allowBookingEmail } = require('./_lib/limits');
 const { sendBookingNotice, sendCustomerConfirmation, sendCancellationNotice,
-        sendCustomerCancellation } = require('./_lib/mail');
+        sendCustomerCancellation, sendCustomerBookings, isEmail } = require('./_lib/mail');
 
 /**
  * Bumped when this file changes in a way the site depends on, and reported
@@ -429,7 +429,7 @@ async function handlePost(req, res) {
   //
   // First, before any of these does any work — a limit applied after the query
   // has already run has not saved the database anything.
-  const enough = await tooMany(req, action);
+  const enough = action === 'cancelBooking' && isAuthorized(payload) ? '' : await tooMany(req, action);
   if (enough) return json(res, { status: 'error', message: enough }, 429);
 
   if (action === 'adminLogin') {
@@ -507,30 +507,50 @@ async function handlePost(req, res) {
     return json(res, { status: 'success', visits: Number(rows[0].value) });
   }
 
-  // A customer finding their own appointments. Unauthenticated by design — the
-  // phone number is the only thing they have — but a POST rather than a GET,
-  // so the number is not left in browser history, in a referrer, or in the
-  // access log of every proxy between here and them.
+  // Knowing a phone/email is not proof of ownership. Never return the diary
+  // or cancel tokens here: send each list only to its stored email address.
+  // The same reply covers missing/no-email bookings and delivery failures,
+  // so a caller cannot enumerate customers from the response.
   if (action === 'myBookings') {
-    const key = phoneKey(payload.phone);
-    if (!key) return json(res, []);
+    const reply = {status:'success', message:'If matching bookings have a registered email, their details have been sent there. Check your inbox and spam folder. If nothing arrives, contact the shop.'};
+    // Older tabs performed automatic lookups. Do not let those trigger mail
+    // after deployment: only the new explicit request form sets this flag.
+    if (payload.sendEmail !== true) return json(res, {status:'error',message:'Please refresh the website to request your bookings by email.'},409);
+    const identifier = trimmed(payload.identifier || payload.phone || payload.email);
+    const email = identifier.includes('@') ? identifier.toLowerCase() : '';
+    const key = email ? '' : phoneKey(identifier);
+    if (identifier.length > 254 || (email ? !isEmail(email) : key.length < 6)) return json(res, reply);
     const sql = db();
     const today = shopNow().date;
     const rows = await withNewSchema(() => sql`
-      SELECT to_char(booked_on, 'YYYY-MM-DD') AS booked_on,
-             booked_at, service, barber, customer_name, phone, duration_min
+      SELECT id, to_char(booked_on, 'YYYY-MM-DD') AS booked_on,
+             booked_at, service, barber, customer_name, email, lang
         FROM bookings
-       WHERE phone_key = ${key} AND status = 'active' AND booked_on >= ${today}
+       WHERE ((${email} <> '' AND lower(trim(email)) = ${email}) OR
+              (${key} <> '' AND phone_key = ${key}))
+         AND status = 'active' AND booked_on >= ${today}
        ORDER BY booked_on, booked_at`);
-    return json(res, rows.map(r => ({
-      date: r.booked_on,
-      time: rota.minutesToLabel(rota.parseClock(r.booked_at)),
-      service: r.service,
-      duration: r.duration_min,
-      barber: r.barber,
-      name: r.customer_name,
-      phone: r.phone
-    })));
+    const groups = new Map();
+    for (const row of rows) {
+      const to = trimmed(row.email).toLowerCase();
+      if (!isEmail(to)) continue;
+      if (!groups.has(to)) groups.set(to, []);
+      groups.get(to).push(row);
+    }
+    if (groups.size) {
+      const secret = await getCancelKey();
+      const config = await readConfig();
+      await Promise.allSettled([...groups].map(async ([to, list]) => {
+        if (!await allowBookingEmail(to)) return;
+        const delivered = await sendCustomerBookings(to, list.map(r => ({
+          date:r.booked_on, time:rota.minutesToLabel(rota.parseClock(r.booked_at)),
+          service:r.service, barber:r.barber, lang:r.lang,
+          cancelToken:cancelToken(r.id, secret)
+        })), config);
+        if (!delivered) console.warn('[mail] booking list delivery failed');
+      }));
+    }
+    return json(res, reply);
   }
 
   if (action === 'addBooking') return await addBooking(payload, res, false);
@@ -1045,7 +1065,8 @@ async function cancelByLink(payload, res) {
 }
 
 /**
- * Cancel one appointment, from the site or from a link in an email.
+ * Staff cancel exactly one appointment from the authenticated panel.
+ * Customers instead use cancelByLink after receiving the token by email.
  *
  * Marked cancelled rather than deleted: the row is what the shop's takings and
  * its no-show history are counted from, and a cancellation is a fact worth
@@ -1053,22 +1074,20 @@ async function cancelByLink(payload, res) {
  * status, not on the row being gone.
  */
 async function cancelBooking(payload, res) {
-  const date = trimmed(payload.date);
-  const time = trimmed(payload.time);
-  const key = phoneKey(payload.phone);
-  const minutes = rota.clockToMinutes(time);
-  if (!date || minutes === null || !key) {
+  // Public cancellation is email-token-only. Staff retain their authenticated
+  // diary action for phone customers, including bookings without an email.
+  if (!isAuthorized(payload)) return json(res, {status:'error', message:'Use the confirmation link sent to your registered email.'}, 401);
+  const id = Number(payload.id);
+  if (!Number.isSafeInteger(id) || id <= 0) {
     return json(res, { status: 'error', message: 'Booking not found' });
   }
 
   const sql = db();
-  // Matched on the phone number as well as the slot, so knowing only the date
-  // and time is not enough to cancel a stranger's appointment.
+  // One ID, not phone/date/time: families can share those across two barbers.
   const rows = await sql`
     UPDATE bookings
        SET status = 'cancelled', cancelled_at = now()
-     WHERE booked_on = ${date} AND booked_at = ${rota.minutesToClock(minutes)}
-       AND phone_key = ${key} AND status = 'active'
+     WHERE id = ${id} AND status = 'active'
     RETURNING to_char(booked_on, 'YYYY-MM-DD') AS booked_on,
               booked_at, service, barber, customer_name, phone, email, lang`;
 

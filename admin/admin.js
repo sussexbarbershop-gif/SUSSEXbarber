@@ -3037,6 +3037,7 @@ async function fetchLiveBookings() {
             // the diary shares this password.
             bookings = data.map((b, idx) => ({
                 id: 'BK-' + (100 + idx),
+                bookingId: b.id,
                 customerName: b.name || 'Customer',
                 customerPhone: b.phone || '',
                 serviceName: b.service || 'Haircut',
@@ -3218,9 +3219,8 @@ async function cancelBookingById(id) {
     try {
         const result = await apiPost({
             action: 'cancelBooking',
-            date: b.date,
-            time: b.time,
-            phone: b.customerPhone
+            password: adminPassword,
+            id: Number(b.bookingId)
         });
 
         if (result.status === 'success') {

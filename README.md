@@ -6,7 +6,7 @@ Live at **[sussexbarber.nl](https://sussexbarber.nl)**.
 A customer picks a barber, a service, a date and a time, and leaves a name and
 a phone number. The shop sees it immediately, gets an email, and works the
 diary from a panel at `/admin`. There are no accounts and no passwords for
-customers — a phone number is who you are.
+customers. Phone numbers identify bookings but do not authorize access to them.
 
 This repository is public. Nothing secret is in it and nothing secret may go
 into it — the database URL, the panel password, the owner's PIN and the API
@@ -36,7 +36,7 @@ api/
     limits.js       how often one number may book
     reports.js      the takings, for the owner's page
 db/schema.sql       the database, and why each column is the way it is
-tests/              46 files, run by `npm test`
+tests/              47 files, run by `npm test`
                     booking-overlap.postgres.cjs: isolated PostgreSQL integration checks
 MIGRATION.md        how the backend works and what to set up from nothing
 ```
@@ -76,8 +76,26 @@ Home-screen and tab icons keep their existing dedicated icon editor.
    because the booking is already saved and a bounced address must not be
    reported to the customer as a failed appointment.
 
-The reverse — cancelling — is the same shape: a signed token from the email, or
-the phone number on the site.
+Customers cancel only through a signed link delivered to their stored email,
+then explicitly confirm on the cancellation page. Looking up by phone/email
+only requests an email listing active upcoming bookings; the public response
+never contains bookings, recipient addresses or cancellation tokens. Each
+stored email receives only its own bookings, even if a family shares a phone.
+The old phone lookup disclosed the diary and phone/date/time cancellation could
+cancel several appointments at once. That public write is now refused; staff
+use their panel password and the database booking ID, including for no-email
+bookings. Email remains optional, with a warning before submitting without it.
+Changing a time still requires contacting the shop; no rescheduling feature
+is implied by providing an email.
+
+Email requests require an explicit click (no background lookup on page load
+or booking confirmation). The same generic response covers absent bookings,
+missing emails, throttling and mail delivery failures; it asks the customer to
+contact the shop if nothing arrives. Existing per-IP limits remain, with an
+additional hashed-recipient cap of 3 emails/hour and 6/day that fails closed.
+No existing booking or cancellation link is rewritten by this change.
+`tests/booking-email-access.test.js` covers disclosure, recipient isolation,
+mail failure, unauthenticated refusal and authenticated single-booking cancel.
 
 The service duration saved by the owner now controls public and panel time
 pickers, closing/break checks, availability and calendar exports. Previously

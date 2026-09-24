@@ -615,6 +615,29 @@ async function sendReviewRequest(booking, config, reviewUrl) {
   });
 }
 
-module.exports = { sendBookingNotice, sendCancellationNotice,
+// No booking details return to the public lookup caller. Each recipient gets
+// only their own stored-email group, with one signed cancellation per row.
+async function sendCustomerBookings(to, bookings, config) {
+  if (!isEmail(to) || !bookings.length) return false;
+  const lang = langOf(bookings[0]);
+  const heading = say(lang, ['Your upcoming appointments', 'Uw komende afspraken']);
+  const intro = say(lang, [
+    'Your appointments are still active. To cancel one, open its link and confirm. If you did not request this email, you can ignore it. To change a time, contact the shop.',
+    'Uw afspraken zijn nog actief. Open de link van een afspraak en bevestig om te annuleren. Heeft u deze e-mail niet aangevraagd? Dan kunt u deze negeren. Neem contact op met de zaak om een tijd te wijzigen.'
+  ]);
+  const text = [heading, '', intro, ''];
+  const cards = bookings.map(b => {
+    const details = `${b.date} ${timeIn(lang,b.time)} — ${b.service} — ${barberName(b,lang)}`;
+    const url = `${SITE_URL}/cancel.html?b=${encodeURIComponent(b.cancelToken)}&l=${lang}`;
+    const label = say(lang,['Review cancellation','Annulering bekijken']);
+    text.push(details, url, '');
+    return `<p><strong>${esc(details)}</strong><br><a href="${esc(url)}">${esc(label)}</a></p>`;
+  }).join('');
+  return send({to, subject:heading, text:text.join('\n'), html:shell({
+    config, heading, preheader:heading, lead:esc(intro), rows:[], note:cards
+  })});
+}
+
+module.exports = { sendBookingNotice, sendCancellationNotice, sendCustomerBookings,
                    sendCustomerConfirmation, sendCustomerCancellation,
                    sendReminder, sendReviewRequest, isEmail };

@@ -2133,11 +2133,12 @@
                 </summary>
                 <form id="myBookingsLookupForm" class="mt-4 bg-white dark:bg-charcoal-900 rounded-2xl shadow-lg border border-gray-100 dark:border-charcoal-700 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-end gap-4">
                     <div class="flex-1">
-                        <label for="lookupPhone" class="block text-gray-500 dark:text-gray-400 mb-2 text-xs uppercase tracking-widest" data-translate="Your Phone Number">Your Phone Number</label>
-                        <input type="tel" id="lookupPhone" inputmode="numeric" placeholder="+31 6 12345678" class="w-full bg-gray-50 dark:bg-charcoal-800 border border-gray-300 dark:border-charcoal-700 text-gray-900 dark:text-white p-3.5 focus:outline-none focus:border-gold transition-colors rounded-lg">
+                        <label for="lookupPhone" class="block text-gray-500 dark:text-gray-400 mb-2 text-xs uppercase tracking-widest" data-translate="Phone number or email">Phone number or email</label>
+                        <input type="text" id="lookupPhone" placeholder="Phone number or email" class="w-full bg-gray-50 dark:bg-charcoal-800 border border-gray-300 dark:border-charcoal-700 text-gray-900 dark:text-white p-3.5 focus:outline-none focus:border-gold transition-colors rounded-lg">
                     </div>
-                    <button type="submit" class="bg-charcoal-900 dark:bg-white text-white dark:text-charcoal-900 font-semibold uppercase tracking-widest px-6 py-3.5 rounded-lg hover:bg-gold hover:text-charcoal-900 dark:hover:bg-gold transition-colors text-xs sm:text-sm whitespace-nowrap" data-translate="Find My Booking">Find My Booking</button>
+                    <button type="submit" class="bg-charcoal-900 dark:bg-white text-white dark:text-charcoal-900 font-semibold uppercase tracking-widest px-6 py-3.5 rounded-lg hover:bg-gold hover:text-charcoal-900 dark:hover:bg-gold transition-colors text-xs sm:text-sm whitespace-nowrap" data-translate="Email my bookings">Email my bookings</button>
                 </form>
+                <p id="bookingEmailStatus" role="status" aria-live="polite"></p>
             </details>
         </div>
 
@@ -3960,6 +3961,16 @@
             }
 
             const selectedServiceName = document.getElementById('service').value;
+            // Email is optional, but its absence removes online cancellation.
+            // Ask before writing a booking, and let the customer return to email.
+            if (!emailVal && !confirm(window.currentLang === 'nl'
+                ? 'Zonder e-mail kunt u uw afspraak niet online annuleren. Neem contact op met de zaak om te annuleren of een tijd te wijzigen. Toch boeken zonder e-mail?'
+                : 'Without an email, you cannot cancel your booking online. Contact the shop to cancel or change the time. Continue booking without email?')) {
+                document.getElementById('emailAddress').focus();
+                submitBtn.innerText = originalText;
+                submitBtn.disabled = false;
+                return;
+            }
             let servicePrice = 0;
             try {
                 if (window.sussexServices && Array.isArray(window.sussexServices)) {
@@ -4039,7 +4050,7 @@
                 // was made; the appointment is in the diary and the shop has
                 // been emailed. If this refresh fails, the list is stale, and
                 // nothing else is wrong.
-                loadMyBookings(bookingData.phone, true);
+                // Confirmation email is sent by booking creation; no second email request.
 
                 // Populate confirmation card
                 document.getElementById('confirmName').innerText = bookingData.name;
@@ -4392,6 +4403,8 @@
             'Contact Us': 'Neem Contact Op',
             'Quick Links': 'Snelle Links',
             'Rights Reserved.': 'Alle rechten voorbehouden.',
+            'Phone number or email': 'Telefoonnummer of e-mailadres',
+            'Email my bookings': 'Stuur mijn afspraken per e-mail',
             'The Sussex Experience': 'De Sussex Ervaring',
             'Service': 'Dienst',
             'Date & Time': 'Datum & Tijd',
@@ -5533,146 +5546,47 @@
         return digits.length > 9 ? digits.slice(-9) : digits;
     }
 
-    async function loadMyBookings(phone, silent = false) {
-        const container = document.getElementById('myBookingsContainer');
-        const listEl = document.getElementById('myBookingsList');
-        if (!container || !listEl) return;
-
-        const digits = normalisePhone(phone);
-        if (!digits) {
-            if (!silent) showToast('Please enter your phone number.', 'error');
+    let bookingEmailPending = false;
+    async function loadMyBookings(identifier, silent = false) {
+        // Old automatic lookups must not turn page visits into email sends.
+        if (silent || bookingEmailPending) return;
+        identifier = String(identifier || '').trim();
+        const nl = window.currentLang === 'nl';
+        if (!identifier || (identifier.includes('@') ? !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(identifier) : normalisePhone(identifier).length < 6)) {
+            showToast(nl ? 'Vul uw telefoonnummer of e-mailadres in.' : 'Enter your phone number or email.', 'error');
             return;
         }
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        bookingEmailPending = true;
+        const button = document.querySelector('#myBookingsLookupForm button[type="submit"]');
+        const status = document.getElementById('bookingEmailStatus');
+        if (button) button.disabled = true;
+        if (status) status.textContent = nl ? 'Aanvraag verzenden…' : 'Sending request…';
         try {
-            // POST, so the phone number travels in the body. As a query string
-            // it ended up in browser history and in the access log of every hop
-            // in between, which is a customer's number written down in places
-            // nobody meant to write it down.
-            const res = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: 'myBookings', phone }),
-                signal: controller.signal,
-                cache: 'no-store'
-            });
-            if (!res.ok) {
-                // The server answered — it simply said no. Rate limiting comes
-                // back as 429 with a sentence explaining itself, and reporting
-                // that as "could not reach the server" sends somebody to check
-                // their wifi over a message that was already in their hands.
-                let said = '';
-                try { said = ((await res.json()) || {}).message || ''; } catch (err) { said = ''; }
-                const err = new Error(`HTTP ${res.status}`);
-                err.fromServer = said;
+            const res = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+                body:JSON.stringify({action:'myBookings',identifier,sendEmail:true}), cache:'no-store'});
+            const result = await res.json();
+            if (!res.ok || result.status !== 'success') {
+                const err = new Error('Request refused');
+                err.fromServer = result.message || '';
                 throw err;
             }
-            const data = await res.json();
-            // Filter by phone here as well as server-side, so a backend that
-            // did not understand the action and answered with the whole diary
-            // could not spill it to whoever asked.
-            myBookingsCache = (Array.isArray(data) ? data : [])
-                .filter(b => b && normalisePhone(b.phone) === digits);
+            if (status) status.textContent = nl
+                ? 'Als er passende afspraken met een geregistreerd e-mailadres zijn, zijn de gegevens daarheen verzonden. Controleer uw inbox en spam. Niets ontvangen? Neem contact op met de zaak.'
+                : 'If matching bookings have a registered email, their details have been sent there. Check your inbox and spam folder. If nothing arrives, contact the shop.';
         } catch (err) {
-            console.warn('Could not load bookings for that number:', err);
-            if (!silent) {
-                showToast(err.fromServer ||
-                          'Could not reach the server. Please try again.', 'error');
-            }
-            return;
+            if (status) status.textContent = err.fromServer || (nl ? 'Aanvraag niet bevestigd. Probeer het later opnieuw of bel de zaak.' : 'Could not confirm the request. Try again later or contact the shop.');
         } finally {
-            clearTimeout(timeoutId);
-        }
-
-        lastPhoneUsed = phone;
-        if (myBookingsCache.length > 0) rememberPhone(phone);
-        renderMyBookings();
-
-        // Silent on an automatic lookup — an empty result there just means the
-        // last appointment has passed, which is not worth an error toast.
-        if (myBookingsCache.length === 0 && !silent) {
-            showToast('No upcoming appointments found for that number.', 'error');
+            bookingEmailPending = false;
+            if (button) button.disabled = false;
         }
     }
 
     function renderMyBookings() {
+        // Kept for the existing forget-number control. Details now live only
+        // in email; never revive a previously cached public booking list.
+        myBookingsCache = [];
         const container = document.getElementById('myBookingsContainer');
-        const listEl = document.getElementById('myBookingsList');
-        if (!container || !listEl) return;
-
-        if (myBookingsCache.length === 0) {
-            container.classList.add('hidden');
-            return;
-        }
-
-        container.classList.remove('hidden');
-        listEl.innerHTML = myBookingsCache.map((b, index) => `
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-gray-50 dark:bg-charcoal-900 p-4 rounded-xl border border-gray-100 dark:border-charcoal-700 gap-4">
-                <div class="flex-1">
-                    <div class="font-bold text-gray-900 dark:text-white text-lg">${b.service}</div>
-                    <div class="text-sm text-gray-500 dark:text-gray-400 mt-1 flex flex-col sm:flex-row sm:gap-4 gap-1">
-                        <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>${b.date}</span>
-                        <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>${b.time}</span>
-                        <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>${b.barber || 'Any'}</span>
-                    </div>
-                </div>
-                <button onclick="cancelMyBooking(${index})" class="w-full sm:w-auto px-4 py-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-sm font-medium rounded-lg transition-colors border border-rose-200 dark:border-rose-500/20 flex items-center justify-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                    <span data-translate="Cancel">Cancel</span>
-                </button>
-            </div>
-        `).join('') + `
-            <p class="text-xs text-gray-400 dark:text-gray-500 pt-2 text-center">
-                <button type="button" onclick="forgetPhone()" class="underline hover:text-gold transition-colors" data-translate="Not you? Forget this number">Not you? Forget this number</button>
-            </p>
-        `;
-        // Newly injected markup is English; re-apply the active language to it.
-        if (typeof applyLanguage === 'function') applyLanguage(window.currentLang || 'en');
-    }
-
-    async function cancelMyBooking(index) {
-        const msg = currentLang === 'nl' ? 'Weet je zeker dat je deze boeking wilt annuleren?' : 'Are you sure you want to cancel this booking?';
-        if (!confirm(msg)) return;
-
-        const b = myBookingsCache[index];
-        if (!b) return;
-
-        try {
-            // Not no-cors: the reply has to be readable so a failed cancel is
-            // not reported to the customer as a success.
-            const res = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: 'cancel', phone: b.phone, date: b.date, time: b.time })
-            });
-            const result = await res.json();
-
-            if (result.status !== 'success') {
-                showToast(result.message || 'Could not cancel that booking', 'error');
-                return;
-            }
-
-            const toastMsg = currentLang === 'nl' ? 'Boeking succesvol geannuleerd' : 'Booking cancelled successfully';
-            showToast(toastMsg, 'success');
-
-            // Silent: the list is being refreshed because we just emptied it.
-            // Cancelling your only appointment answered "cancelled" and then
-            // "no upcoming appointments found for that number" in red, one
-            // above the other — the second one reporting the first one's work
-            // as a failure.
-            await loadMyBookings(b.phone, true);
-
-            // Free the slot up in the picker if that date is on screen.
-            const dateEl = document.getElementById('date');
-            if (dateEl && dateEl.value === b.date) {
-                dateEl.dispatchEvent(new Event('change'));
-            }
-        } catch (err) {
-            console.error(err);
-            showToast('Error cancelling booking', 'error');
-        }
+        if (container) container.classList.add('hidden');
     }
 
     function setupMyBookingsLookup() {
@@ -5689,7 +5603,7 @@
         try { saved = localStorage.getItem(PHONE_KEY) || ''; } catch (e) {}
         if (saved) {
             document.getElementById('lookupPhone').value = saved;
-            loadMyBookings(saved, true);
+            // Prefill only. Sending email always requires an explicit request.
         }
     }
 

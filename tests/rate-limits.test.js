@@ -217,6 +217,15 @@ async function main() {
   ok('older than the longest window', /interval '2 days'/.test(deleted), true);
   ok('and it says how many', swept, 3);
 
+  console.log('--- email recipient limits are shared and fail closed ---');
+  reset();
+  for (let i=0;i<3;i++) ok('recipient request within hourly allowance',await limits.allowBookingEmail('Person@Example.com'),true);
+  ok('same recipient casing shares the limit',await limits.allowBookingEmail('person@example.com'),false);
+  ok('stored buckets do not expose recipient addresses',Object.keys(counters).some(k=>k.includes('@')),false);
+  reset(); failCounting=true;
+  ok('a counter outage does not send unlimited mail',await limits.allowBookingEmail('person@example.com'),false);
+  reset();
+
   console.log('--- the limits themselves ---');
   // Written out, so that changing one is a decision somebody made rather than
   // a number that drifted.
