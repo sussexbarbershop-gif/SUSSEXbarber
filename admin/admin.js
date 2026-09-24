@@ -1807,7 +1807,7 @@ function renderBrandImages() {
         <div style="padding:20px">
             <img src="${escapeAttr(settings[item.key] || item.fallback)}" alt="${item.label}" style="display:block;width:100%;max-width:320px;height:180px;object-fit:contain;background:${item.key === 'logo_black' ? '#fafafa' : '#222'};border-radius:8px;margin-bottom:16px">
             <label>${item.alpha ? 'Choose a logo (transparent PNG recommended)' : 'Choose a background photo'}
-                <input type="file" accept="image/*" onchange="handleBrandUpload(this, '${item.key}')">
+                <input class="brand-image-upload" type="file" accept="image/*" onchange="handleBrandUpload(this, '${item.key}')">
             </label>
         </div></div>`).join('');
 }

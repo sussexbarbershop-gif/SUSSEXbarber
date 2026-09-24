@@ -56,7 +56,8 @@ console.log('--- rows whose contents refuse to shrink ---');
   ['.data-card-actions', /flex-wrap:\s*wrap/],
   ['.planner-toolbar', /flex-wrap:\s*wrap/],
   ['.barber-filter', /width:\s*100%/],
-  ['.filter-tabs', /overflow-x:\s*auto/]
+  // Wrapping keeps the active leave-conflict tab visible after Review.
+  ['.filter-tabs', /flex-wrap:\s*wrap/]
 ].forEach(([selector, expected]) => {
   const block = new RegExp(selector.replace('.', '\\.') + '\\s*\\{([^}]*)\\}');
   const found = (mobile.match(block) || [])[1] || '';

@@ -56,6 +56,9 @@ the browser and on the server; ordinary photos still use compressed JPEG.
 The homepage preserves its light/dark overlays, and saved logos also update
 the panel branding. These separate image settings survive text-form pruning.
 Home-screen and tab icons keep their existing dedicated icon editor.
+On phones, booking filter tabs wrap so Review's selected Time off conflicts
+tab stays visible. Branding file pickers use panel button styling and stay
+within the card width, including when the chosen filename is long.
 
 ---
 

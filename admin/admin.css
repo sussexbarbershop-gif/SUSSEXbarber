@@ -614,7 +614,9 @@ button, a, input, select, textarea,
     .topbar-right .admin-name { display: none; }
 
     /* Four filters do not fit in a row; let them scroll rather than squash. */
-    .filter-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    /* Review selects the last tab; keeping it offscreen made the active
+       conflict filter invisible on phones. Wrap instead of hiding tabs. */
+    .filter-tabs { flex-wrap: wrap; max-width: 100%; }
     .filter-tabs .filter-tab { white-space: nowrap; }
 
     /* A dropdown and two buttons in one header row is wider than a phone. */
@@ -1340,3 +1342,9 @@ textarea.form-control { resize: vertical; line-height: 1.6; }
 }
 .time-off-confirm::backdrop { background: rgba(0,0,0,.7); }
 .time-off-confirm p { margin: 16px 0; line-height: 1.6; }
+
+/* Match image pickers to panel buttons without hiding the keyboard-operable
+   native input. Long filenames must not widen a phone's gallery cards. */
+.brand-image-upload { display:block; width:100%; max-width:100%; margin-top:12px; color:var(--text-secondary); font:inherit; }
+.brand-image-upload::file-selector-button { border:0; border-radius:6px; padding:10px 14px; margin-right:10px; background:var(--gold); color:#111; font:inherit; cursor:pointer; }
+.brand-image-upload:focus-visible { outline:2px solid var(--gold); outline-offset:4px; }
