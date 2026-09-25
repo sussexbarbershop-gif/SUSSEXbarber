@@ -90,8 +90,10 @@ use their panel password and the database booking ID, including for no-email
 bookings. Email remains optional, with an English/Dutch warning before submitting
 without it. It explains the missing confirmation and cancellation link, cancelling
 then rebooking an available time, and contacting the shop without email. The
-native confirmation explicitly says nothing is booked yet: Cancel returns to
-the email field, while OK continues without email.
+picker-style sheet uses the existing blurred backdrop and glass panel. Add email,
+Close, backdrop and Escape return without booking; only Book without email
+continues. The buttons stay visible above a scrolling message on short screens.
+Keyboard focus stays inside the sheet and the background is inert while it waits.
 Changing a time still requires contacting the shop; no rescheduling feature
 is implied by providing an email.
 

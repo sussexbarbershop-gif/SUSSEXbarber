@@ -74,29 +74,30 @@ async function main(){
   assert.equal(rows[0].status,'cancelled');
   assert.equal(rows[1].status,'active');
   const site=fs.readFileSync(path.join(root,'index.html'),'utf8');
-  assert.match(site,/if \(!emailVal && !confirm/);
+  assert.match(site,/await confirmWithoutEmail\(\)/);
   // Execute the actual warning branch: going back never reaches the write,
   // continuing keeps email optional, and a supplied email needs no warning.
-  const warningStart=site.indexOf('            if (!emailVal && !confirm');
+  const warningStart=site.indexOf('            if (!emailVal && !(await confirmWithoutEmail');
   const warningEnd=site.indexOf('            let servicePrice',warningStart);
   const warning=site.slice(warningStart,warningEnd);
   let prompts=0,focus=0,agree=false,warningText='';
-  const runWarning=new Function('emailVal','confirm','window','document','submitBtn','originalText',warning+'return "proceed";');
+  const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
+  const runWarning=new AsyncFunction('emailVal','confirmWithoutEmail','window','document','submitBtn','originalText',warning+'return "proceed";');
   const args=[text=>{prompts++;warningText=text;return agree;},{currentLang:'en'},{getElementById:()=>({focus(){focus++;}})},{disabled:true},'Book'];
-  assert.equal(runWarning('',...args),undefined);
+  assert.equal(await runWarning('',...args),undefined);
   assert.equal(focus,1);
-  assert.match(warningText,/confirmation email or cancellation link/);
-  assert.match(warningText,/then book again for an available time/);
-  assert.match(warningText,/has not been booked yet/);
-  assert.match(warningText,/Cancel to add an email address/);
+  assert.match(site,/confirmation email or cancellation link/);
+  assert.match(site,/book again for an available time/);
+  assert.match(site,/has not been booked yet/);
+  assert.match(site,/Add email/);
   assert.equal(args[3].disabled,false,'going back re-enables the booking button');
   args[1].currentLang='nl';
-  assert.equal(runWarning('',...args),undefined);
-  assert.match(warningText,/opnieuw boeken op een beschikbare tijd/);
-  assert.match(warningText,/nog niet geboekt/);
+  assert.equal(await runWarning('',...args),undefined);
+  assert.match(site,/opnieuw boeken op een beschikbare tijd/);
+  assert.match(site,/nog niet geboekt/);
   args[1].currentLang='en';
-  agree=true;assert.equal(runWarning('',...args),'proceed');
-  const before=prompts;assert.equal(runWarning('test@example.com',...args),'proceed');assert.equal(prompts,before);
+  agree=true;assert.equal(await runWarning('',...args),'proceed');
+  const before=prompts;assert.equal(await runWarning('test@example.com',...args),'proceed');assert.equal(prompts,before);
   assert.equal(site.includes("action: 'cancel', phone"),false);
   const panel=fs.readFileSync(path.join(root,'admin/admin.js'),'utf8');
   assert.match(panel,/bookingId: b.id/);
@@ -118,6 +119,31 @@ async function main(){
   assert.deepEqual(requests[0],{action:'myBookings',identifier:'first@example.com',sendEmail:true});
   assert.equal(button.disabled,false);
   assert.match(formStatus.textContent,/If matching bookings/);
+  // Execute the actual sheet controller: dismissal is never consent and a
+  // second click cannot settle the decision again or leak event handlers.
+  const controller=site.match(/window\.confirmWithoutEmail = function confirmWithoutEmail\(\) \{[\s\S]*?\n        \}/)[0];
+  const nodes={}; const listeners={};
+  for(const id of ['emailWarningSheet','emailWarningAdd','emailWarningBook','emailWarningClose','emailWarningTitle','emailWarningBody','emailWarningChange','emailWarningPending']) {
+    nodes[id]={id,inert:false,textContent:'',setAttribute(){},focus(){fakeDoc.activeElement=this;},addEventListener(k,f){listeners[k]=f;},removeEventListener(k){delete listeners[k];}};
+  }
+  const background={inert:false};
+  const fakeDoc={body:{children:[background,nodes.emailWarningSheet]},activeElement:null,getElementById:id=>nodes[id],addEventListener(k,f){listeners[k]=f;},removeEventListener(k){delete listeners[k];}};
+  const sheetWindow={currentLang:'en'};let shown=0,hidden=0;
+  new Function('window','document','showSheet','hideSheet',controller)(sheetWindow,fakeDoc,()=>shown++,()=>hidden++);
+  for(const choice of ['add','escape','backdrop','close','book']) {
+    const pending=sheetWindow.confirmWithoutEmail();
+    assert.equal(background.inert,true);
+    assert.equal(fakeDoc.activeElement,nodes.emailWarningAdd);
+    listeners.keydown({key:'Tab',shiftKey:false,preventDefault(){}});
+    assert.equal(fakeDoc.activeElement,nodes.emailWarningBook);
+    if(choice==='escape')listeners.keydown({key:'Escape',preventDefault(){}});
+    else if(choice==='backdrop'||choice==='close')listeners.click({target:{closest:()=>true}});
+    else {const target=nodes[choice==='book'?'emailWarningBook':'emailWarningAdd'];target.closest=()=>false;listeners.click({target});}
+    assert.equal(await pending,choice==='book',choice+' only explicit Book proceeds');
+    assert.equal(background.inert,false);
+    assert.deepEqual(Object.keys(listeners),[]);
+  }
+  assert.equal(shown,5);assert.equal(hidden,5);
   console.log('PASS email-only lookup, recipient isolation, no public disclosure, no-email staff cancellation and single-ID confirmation');
 }
 main().catch(err=>{console.error(err);process.exitCode=1;});
