@@ -368,3 +368,12 @@ be. `repairSettingErrors()` and the rest of the type-guessing are gone.
 
 **The price is the shop's, not the browser's.** The booking form sends what it
 thinks a service costs; the row records what the `services` table says.
+
+### International phone identity
+
+phone_e164 is nullable and only filled on new bookings. Both schema.sql and
+ensureSchema add it without updating old booking rows. The old customer backfill
+is retired; existing customer links are preserved. No environment variables,
+SMS provider or credentials are needed. Keep the new column on code rollback:
+do not delete bookings or reset the database. New customers use e164: keys;
+reports keep legacy and canonical identities separate rather than guessing a merge.

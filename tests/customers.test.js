@@ -59,15 +59,10 @@ ok('and the code does it too',
 ok('the foreign key is added only once',
    /pg_constraint WHERE conname = 'bookings_customer_fk'/.test(schema), true);
 
-console.log('--- everyone already in the diary becomes a customer ---');
-[[schema, 'schema.sql'], [dbjs, 'db.js']].forEach(([src, name]) => {
-  ok(`${name} backfills from the diary`,
-     /INSERT INTO customers \(phone_key[\s\S]{0,400}FROM bookings/.test(src), true);
-  // Run twice, do nothing the second time — this is on the path every request
-  // takes when the schema is behind.
-  ok(`${name} can be re-run`, /ON CONFLICT \(phone_key\) DO NOTHING/.test(src), true);
-  ok(`${name} links only the unlinked`,
-     /UPDATE bookings b SET customer_id[\s\S]{0,200}customer_id IS NULL/.test(src), true);
+console.log('--- legacy identities are never inferred from placeholder numbers ---');
+[[schema,'schema.sql'],[dbjs,'db.js']].forEach(([src,name])=>{
+  ok(name+' never relinks historical bookings', /UPDATE bookings b SET customer_id/.test(src), false);
+  ok(name+' adds canonical column without backfill', /ADD COLUMN IF NOT EXISTS phone_e164 text/.test(src), true);
 });
 
 console.log('--- a booking resolves its customer as it is written ---');
@@ -83,7 +78,7 @@ ok('a later booking refreshes the name',
 // An empty name on one booking must not wipe a good one from an earlier
 // booking, which is what a plain EXCLUDED.name would do.
 ok('but an empty one does not wipe it', /NULLIF\(EXCLUDED\.name, ''\)/.test(fn), true);
-ok('the booking carries the link', /customer_id, duration_min\)[\s\S]{0,300}\$\{customerId\}/.test(api), true);
+ok('the booking carries the link', /customer_id, duration_min, phone_e164\)[\s\S]{0,300}\$\{customerId\}/.test(api), true);
 // A number that is not one — the shop typing in a walk-in with no phone — must
 // still produce a booking.
 ok('no number still books', /if \(!key\) return null/.test(fn), true);

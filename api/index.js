@@ -1,3 +1,4 @@
+const {canonical: canonicalPhone, legacyVariants} = require('../assets/phone');
 /**
  * The whole backend, on one route.
  *
@@ -114,7 +115,7 @@ function readBody(req) {
 
 const trimmed = v => String(v == null ? '' : v).trim();
 
-/** Last nine digits, so 06…, +316… and 00316… are one customer. */
+/** Legacy length guard only; identity matching never uses this suffix. */
 const phoneKey = v => {
   const digits = trimmed(v).replace(/\D/g, '');
   return digits.length > 9 ? digits.slice(-9) : digits;
@@ -463,7 +464,7 @@ async function handlePost(req, res) {
     const rows = await withNewSchema(() => sql`
       SELECT id,
              to_char(booked_on, 'YYYY-MM-DD') AS booked_on,
-             booked_at, service, barber, customer_name, phone, email, source, duration_min,
+             booked_at, service, barber, customer_name, phone, phone_e164, email, source, duration_min,
              to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at
         FROM bookings WHERE status = 'active'
        ORDER BY booked_on, booked_at`);
@@ -475,7 +476,7 @@ async function handlePost(req, res) {
       duration: r.duration_min,
       barber: r.barber,
       name: r.customer_name,
-      phone: r.phone,
+      phone: r.phone_e164 || r.phone,
       // Whether there is an address to reach them on, not the address itself.
       // The panel only needs to show whether a reminder can go out; handing
       // every customer's email to every screen the diary is open on is a
@@ -519,6 +520,10 @@ async function handlePost(req, res) {
     const identifier = trimmed(payload.identifier || payload.phone || payload.email);
     const email = identifier.includes('@') ? identifier.toLowerCase() : '';
     const key = email ? '' : phoneKey(identifier);
+    const international = email ? '' : canonicalPhone(identifier, payload.phoneCountry || 'NL');
+    const variants = legacyVariants(international);
+    // Unknown legacy inputs can only match their entire digits, never a suffix.
+    if (!international && !email) variants.push(identifier.replace(/\D/g, ''));
     if (identifier.length > 254 || (email ? !isEmail(email) : key.length < 6)) return json(res, reply);
     const sql = db();
     const today = shopNow().date;
@@ -527,7 +532,8 @@ async function handlePost(req, res) {
              booked_at, service, barber, customer_name, email, lang
         FROM bookings
        WHERE ((${email} <> '' AND lower(trim(email)) = ${email}) OR
-              (${key} <> '' AND phone_key = ${key}))
+              (${key} <> '' AND (phone_e164 = ${international} OR
+                (phone_e164 IS NULL AND regexp_replace(phone, '[^0-9]', '', 'g') = ANY(${variants}::text[])))))
          AND status = 'active' AND booked_on >= ${today}
        ORDER BY booked_on, booked_at`);
     const groups = new Map();
@@ -668,7 +674,7 @@ async function handlePost(req, res) {
   if (action === 'reports') {
     // months is 1, 3, 6 or 12; anything else falls back to 12 rather than
     // being refused. It comes from a dropdown, not from a person typing.
-    const report = await readReports(db(), shopNow().date, payload.months);
+    const report = await withNewSchema(() => readReports(db(), shopNow().date, payload.months));
     return json(res, Object.assign({ status: 'success' }, report));
   }
 
@@ -741,7 +747,9 @@ async function refuseBooking(config, payload, byShop, duration = rota.SLOT_MINUT
   const name = trimmed(payload.name);
   const phone = trimmed(payload.phone);
   if (!name) return 'Please give a name for the booking';
-  if (phoneKey(phone).length < 6) return 'Please give a phone number we can reach you on';
+  const international = canonicalPhone(phone, payload.phoneCountry || 'NL');
+  if (!international) return 'Please enter a complete phone number and choose its country code';
+  const variants = legacyVariants(international);
   if (name.length > 100 || phone.length > 40) return 'That name or number is too long';
 
   // Optional, but a typo is worse than leaving it blank: the booking would be
@@ -788,9 +796,10 @@ async function refuseBooking(config, payload, byShop, duration = rota.SLOT_MINUT
                                         + ${duration} * interval '1 minute'
            AND booked_on + booked_at + duration_min * interval '1 minute'
                  > ${date}::date + ${rota.minutesToClock(minutes)}::time`),
-    sql`SELECT count(*) AS held FROM bookings
-         WHERE phone_key = ${phoneKey(phone)} AND status = 'active'
-           AND booked_on >= ${now.date}`
+    withNewSchema(() => sql`SELECT count(*) AS held FROM bookings
+         WHERE (phone_e164 = ${international} OR
+           (phone_e164 IS NULL AND regexp_replace(phone, '[^0-9]', '', 'g') = ANY(${variants}::text[])))
+           AND status = 'active' AND booked_on >= ${now.date}`)
   ]);
 
   // The limit exists because the form is public and anonymous. It says so in
@@ -870,6 +879,7 @@ async function addBooking(payload, res, byShop) {
   // and the barber that were recorded, not what the browser claimed.
   const record = Object.assign({}, payload, {
     service, price, barber: written.barber,
+    phone: canonicalPhone(payload.phone, payload.phoneCountry || 'NL'),
     // The language as it was written down, not as the browser sent it. The
     // payload's copy is unchecked; this one is the value in the row, which is
     // what every later email will be picked from.
@@ -950,7 +960,7 @@ async function insertBooking(sql, ctx) {
       // record of an appointment does not depend on us having a row for who
       // came to it.
       const customerId = await customerFor({
-        phone: payload.phone, name: payload.name, email: payload.email
+        phone: payload.phone, phoneCountry: payload.phoneCountry || 'NL', name: payload.name, email: payload.email
       });
 
       // Serialize only the final write with schedule saves. A config read
@@ -959,10 +969,10 @@ async function insertBooking(sql, ctx) {
         sql`SELECT pg_advisory_xact_lock(73021, 2047)`,
         sql`
         INSERT INTO bookings (booked_on, booked_at, service, barber, customer_name,
-                              phone, email, price, source, lang, customer_id, duration_min)
+                              phone, email, price, source, lang, customer_id, duration_min, phone_e164)
         SELECT ${date}::date, ${clock}::time, ${service}, ${barber}, ${trimmed(payload.name)},
                 ${trimmed(payload.phone)}, ${trimmed(payload.email)}, ${price},
-                ${source}, ${lang}, ${customerId}, ${duration}
+                ${source}, ${lang}, ${customerId}, ${duration}, ${canonicalPhone(payload.phone, payload.phoneCountry || 'NL')}
         WHERE EXISTS (SELECT 1 FROM barbers WHERE name = ${barber})
           AND NOT EXISTS (
             SELECT 1 FROM time_off t JOIN barbers b ON b.id = t.barber_id

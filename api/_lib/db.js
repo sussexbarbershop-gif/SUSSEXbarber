@@ -1,3 +1,4 @@
+const {canonical: canonicalPhone} = require('../../assets/phone');
 /**
  * The database, and the shape the site expects to read it in.
  *
@@ -85,6 +86,9 @@ function ensureSchema() {
       // Whether a barber has a card on the website. Not whether they can be
       // booked — see the note in db/schema.sql.
       await sql`ALTER TABLE barbers ADD COLUMN IF NOT EXISTS on_team boolean NOT NULL DEFAULT true`;
+      // Additive only: legacy phone text and customer links are never rewritten.
+      await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS phone_e164 text`;
+      await sql`CREATE INDEX IF NOT EXISTS bookings_by_e164 ON bookings (phone_e164, booked_on)`;
       await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'web'`;
       await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS lang text NOT NULL DEFAULT 'en'`;
       await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS reminded_at timestamptz`;
@@ -102,7 +106,7 @@ function ensureSchema() {
                   job    text PRIMARY KEY,
                   ran_at timestamptz NOT NULL DEFAULT now())`;
 
-      // One row per person, keyed on the last nine digits of their number.
+      // New customers use e164: keys; old suffix keys remain untouched.
       // See db/schema.sql for what it is for; the short version is that a
       // discount or a loyalty count is a fact about a customer, and the diary
       // can only answer questions about bookings.
@@ -118,24 +122,8 @@ function ensureSchema() {
       await ensureBookingProtection();
       await sql`CREATE INDEX IF NOT EXISTS bookings_by_customer ON bookings (customer_id)`;
 
-      // The diary already holds every customer the shop has; this is the one
-      // pass that turns those numbers into rows. Re-running it does nothing:
-      // the insert skips numbers that are already there and the update only
-      // touches bookings that have no customer yet.
-      await sql`
-        INSERT INTO customers (phone_key, name, email, first_seen, last_seen)
-        SELECT phone_key,
-               (array_agg(customer_name ORDER BY created_at DESC))[1],
-               COALESCE((array_agg(NULLIF(email, '') ORDER BY created_at DESC))[1], ''),
-               min(created_at), max(created_at)
-          FROM bookings
-         WHERE phone_key <> ''
-         GROUP BY phone_key
-        ON CONFLICT (phone_key) DO NOTHING`;
-      await sql`
-        UPDATE bookings b SET customer_id = c.id
-          FROM customers c
-         WHERE b.customer_id IS NULL AND b.phone_key = c.phone_key`;
+      // Do not backfill customer links: old phone numbers can be placeholders.
+      // Existing links stay intact; only new bookings resolve canonical customers.
     })();
     // A failure must not be remembered as a success. Clearing it means the
     // next request tries again rather than every request after a blip
@@ -409,9 +397,11 @@ async function readRotaConfig() {
  * Returns the id, or null when there is no usable number — the caller stores
  * that as-is, because a booking without a customer is still a booking.
  */
-async function customerFor({ phone, name, email }) {
-  const digits = String(phone || '').replace(/\D/g, '');
-  const key = digits.length > 9 ? digits.slice(-9) : digits;
+async function customerFor({ phone, phoneCountry = 'NL', name, email }) {
+  // A separate namespace prevents a new international customer from inheriting
+  // a legacy suffix-based profile, whose original numbers may be placeholders.
+  const number = canonicalPhone(phone, phoneCountry);
+  const key = number ? 'e164:' + number : '';
   if (!key) return null;
 
   const sql = db();

@@ -190,7 +190,7 @@ const reports = fs.readFileSync(path.join(__dirname, '..', 'api', '_lib', 'repor
   ok(`no ${column} is selected`, reports.includes('SELECT ' + column), false);
 });
 ok('phone keys are only ever counted',
-   /count\(DISTINCT phone_key\)/.test(reports), true);
+   /count\(DISTINCT COALESCE\('e164:'/.test(reports), true);
 
 console.log('--- the PIN is not stored on the device ---');
 // What is kept is the signed pass, never the PIN. Storing the PIN would save

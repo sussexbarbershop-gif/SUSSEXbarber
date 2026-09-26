@@ -1348,3 +1348,7 @@ textarea.form-control { resize: vertical; line-height: 1.6; }
 .brand-image-upload { display:block; width:100%; max-width:100%; margin-top:12px; color:var(--text-secondary); font:inherit; }
 .brand-image-upload::file-selector-button { border:0; border-radius:6px; padding:10px 14px; margin-right:10px; background:var(--gold); color:#111; font:inherit; cursor:pointer; }
 .brand-image-upload:focus-visible { outline:2px solid var(--gold); outline-offset:4px; }
+
+/* Country selection uses the same field spacing as the booking form. */
+ .phone-country-label { display:block; font-size:12px; margin:0 0 6px; }
+ .phone-country { display:block; width:100%; min-height:44px; margin-bottom:8px; padding:10px; border:1px solid GrayText; border-radius:8px; color:var(--text-primary); background:var(--bg-input); }

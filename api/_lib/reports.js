@@ -113,7 +113,7 @@ async function readReports(sql, today, months) {
   const takings = (a, b) => sql`
     SELECT count(*) AS bookings,
            COALESCE(sum(price), 0) AS revenue,
-           count(DISTINCT phone_key) AS customers
+           count(DISTINCT COALESCE('e164:' || phone_e164, 'legacy:' || phone_key)) AS customers
       FROM bookings
      WHERE status = 'active' AND booked_on >= ${a} AND booked_on <= ${b}`;
 
@@ -126,7 +126,7 @@ async function readReports(sql, today, months) {
       sql`
         SELECT count(*) FILTER (WHERE status = 'active' AND booked_on <= ${today}) AS done,
                count(*) FILTER (WHERE status = 'cancelled') AS cancelled,
-               count(DISTINCT phone_key) FILTER (WHERE status = 'active') AS customers,
+               count(DISTINCT COALESCE('e164:' || phone_e164, 'legacy:' || phone_key)) FILTER (WHERE status = 'active') AS customers,
                COALESCE(sum(price) FILTER (WHERE status = 'active' AND booked_on <= ${today}), 0) AS revenue
           FROM bookings`,
 
@@ -136,7 +136,7 @@ async function readReports(sql, today, months) {
       sql`
         SELECT count(*) FILTER (WHERE status = 'active') AS done,
                count(*) FILTER (WHERE status = 'cancelled') AS cancelled,
-               count(DISTINCT phone_key) FILTER (WHERE status = 'active') AS customers,
+               count(DISTINCT COALESCE('e164:' || phone_e164, 'legacy:' || phone_key)) FILTER (WHERE status = 'active') AS customers,
                COALESCE(sum(price) FILTER (WHERE status = 'active'), 0) AS revenue
           FROM bookings
          WHERE booked_on >= ${from} AND booked_on <= ${today}`,
@@ -144,7 +144,7 @@ async function readReports(sql, today, months) {
       sql`
         SELECT count(*) AS done,
                COALESCE(sum(price), 0) AS revenue,
-               count(DISTINCT phone_key) AS customers
+               count(DISTINCT COALESCE('e164:' || phone_e164, 'legacy:' || phone_key)) AS customers
           FROM bookings
          WHERE status = 'active' AND booked_on >= ${monthStart} AND booked_on <= ${today}`,
 
@@ -188,18 +188,18 @@ async function readReports(sql, today, months) {
         SELECT count(*) FILTER (WHERE visits = 1) AS once,
                count(*) FILTER (WHERE visits > 1) AS returning,
                COALESCE(round(avg(visits), 2), 0) AS average
-          FROM (SELECT phone_key, count(*) AS visits
+          FROM (SELECT COALESCE('e164:' || phone_e164, 'legacy:' || phone_key) AS identity, count(*) AS visits
                   FROM bookings
                  WHERE status = 'active' AND booked_on <= ${today} AND booked_on >= ${from}
-                 GROUP BY phone_key) AS per_customer`,
+                 GROUP BY COALESCE('e164:' || phone_e164, 'legacy:' || phone_key)) AS per_customer`,
 
       // Faces the shop had not seen before this month.
       sql`
         SELECT count(*) AS first_timers
-          FROM (SELECT phone_key, min(booked_on) AS first_seen
+          FROM (SELECT COALESCE('e164:' || phone_e164, 'legacy:' || phone_key) AS identity, min(booked_on) AS first_seen
                   FROM bookings
                  WHERE status = 'active'
-                 GROUP BY phone_key) AS per_customer
+                 GROUP BY COALESCE('e164:' || phone_e164, 'legacy:' || phone_key)) AS per_customer
          WHERE first_seen >= ${monthStart} AND first_seen <= ${today}`,
 
       sql`

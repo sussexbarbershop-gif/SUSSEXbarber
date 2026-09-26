@@ -124,6 +124,42 @@ async function main() {
       await request('POST',{action:'cancelBooking',password:process.env.ADMIN_PASSWORD,id:a});
       assert.deepEqual((await pool.query('SELECT status FROM bookings ORDER BY id')).rows.map(r=>r.status),['cancelled','active']);
     });
+    await check('international numbers stay distinct and legacy bookings remain unchanged',async()=>{
+      const legacy=(await insert(pool,'10:00')).rows[0].id;
+      await pool.query('UPDATE bookings SET email=$1 WHERE id=$2',['legacy@example.com',legacy]);
+      const before=(await pool.query('SELECT row_to_json(b) AS row FROM bookings b WHERE id=$1',[legacy])).rows;
+      assert.equal((await book({time:'11:00',phone:'+31612345678',email:'nl@example.com'})).status,'success');
+      assert.equal((await book({time:'12:00',phone:'+447612345678',email:'gb@example.com'})).status,'success');
+      assert.equal((await book({time:'14:00',phone:'07501234567',phoneCountry:'IQ',email:'iq@example.com'})).status,'success');
+      const saved=(await pool.query('SELECT phone,phone_e164,customer_id FROM bookings WHERE id<>$1 ORDER BY id',[legacy])).rows;
+      assert.deepEqual(saved.map(r=>r.phone_e164),['+31612345678','+447612345678','+9647501234567']);
+      assert.equal(new Set(saved.map(r=>r.customer_id)).size,3);
+      const report=await require('../api/_lib/reports').readReports(sql,day,12);
+      assert.equal(report.lifetime.customers,4,'legacy and full international identities remain distinct');
+      for(const identifier of ['0612345678','+31612345678','0031612345678']){
+        bookingLists=[];await request('POST',{action:'myBookings',identifier,sendEmail:true});
+        assert.deepEqual(bookingLists.map(m=>m.to).sort(),['legacy@example.com','nl@example.com']);
+      }
+      await pool.query('TRUNCATE rate_limit');bookingLists=[];
+      await request('POST',{action:'myBookings',identifier:'+447612345678',sendEmail:true});
+      assert.deepEqual(bookingLists.map(m=>m.to),['gb@example.com']);
+      assert.deepEqual((await pool.query('SELECT row_to_json(b) AS row FROM bookings b WHERE id=$1',[legacy])).rows,before);
+    });
+    await check('booking cap uses the complete number rather than a shared suffix',async()=>{
+      for(let n=0;n<10;n++)await insert(pool,'10:00',30,'Amir',`2099-10-${String(n+1).padStart(2,'0')}`);
+      assert.equal((await book({phone:'+31612345678'})).status,'error');
+      assert.equal((await book({phone:'+447612345678'})).status,'success');
+    });
+    await check('phone schema upgrade preserves historical rows and links',async()=>{
+      await insert(pool,'10:00');
+      await pool.query('ALTER TABLE bookings DROP COLUMN phone_e164');
+      const before=(await pool.query('SELECT row_to_json(b) AS row FROM bookings b')).rows;
+      delete require.cache[require.resolve('../api/_lib/db')];
+      await require('../api/_lib/db').ensureSchema();
+      const after=(await pool.query('SELECT row_to_json(b) AS row FROM bookings b')).rows;
+      assert.equal(after[0].row.phone_e164,null);delete after[0].row.phone_e164;
+      assert.deepEqual(after,before);
+    });
     await check('saved leave closes both pickers, named bookings and Any assignment', async () => {
       const saved=await request('POST',{action:'saveCMS',password:process.env.ADMIN_PASSWORD,pin:process.env.REPORTS_PIN,
         timeOff:[{barber:'Amir',from:day,to:day,note:'Synthetic leave'}]});

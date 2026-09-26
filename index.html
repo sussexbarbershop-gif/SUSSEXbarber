@@ -1444,6 +1444,9 @@
         @media (prefers-color-scheme: dark) { #emailWarningBook { color: #f3f4f6; border-color: #6b7280; } }
         #emailWarningSheet button:focus-visible { outline: 2px solid #d4af37; outline-offset: 3px; }
         #emailWarningClose { min-width: 44px; min-height: 44px; display: grid; place-items: center; }
+        .phone-country-label { display:block; font-size:12px; margin:0 0 6px; }
+        .phone-country { display:block; width:100%; min-height:44px; margin-bottom:8px; padding:10px; border:1px solid GrayText; border-radius:8px; color:#111827; background:#f9fafb; }
+        @media (prefers-color-scheme: dark) { .phone-country { color:#f3f4f6; background:#262626; border-color:#404040; color-scheme:dark; } }
     </style>
 
     <!-- Tells Google this is a barber shop in Wassenaar rather than leaving it
@@ -1491,6 +1494,8 @@
       "sameAs": ["https://www.instagram.com/sussexbarbershop"]
     }
     </script>
+<script src="/assets/vendor/libphonenumber-min.js" defer></script>
+<script src="/assets/phone.js" defer></script>
 </head>
 <body class="antialiased font-sans selection:bg-gold selection:text-charcoal-900 overflow-x-hidden">
 
@@ -2146,6 +2151,7 @@
                 <form id="myBookingsLookupForm" class="mt-4 bg-white dark:bg-charcoal-900 rounded-2xl shadow-lg border border-gray-100 dark:border-charcoal-700 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-end gap-4">
                     <div class="flex-1">
                         <label for="lookupPhone" class="block text-gray-500 dark:text-gray-400 mb-2 text-xs uppercase tracking-widest" data-translate="Phone number or email">Phone number or email</label>
+                        <label for="lookupPhoneCountry" class="phone-country-label" data-translate="Country code">Country code</label><select id="lookupPhoneCountry" data-phone-country class="phone-country"><option value="NL">Netherlands (+31)</option></select>
                         <input type="text" id="lookupPhone" placeholder="Phone number or email" class="w-full bg-gray-50 dark:bg-charcoal-800 border border-gray-300 dark:border-charcoal-700 text-gray-900 dark:text-white p-3.5 focus:outline-none focus:border-gold transition-colors rounded-lg">
                     </div>
                     <button type="submit" class="bg-charcoal-900 dark:bg-white text-white dark:text-charcoal-900 font-semibold uppercase tracking-widest px-6 py-3.5 rounded-lg hover:bg-gold hover:text-charcoal-900 dark:hover:bg-gold transition-colors text-xs sm:text-sm whitespace-nowrap" data-translate="Email my bookings">Email my bookings</button>
@@ -2388,7 +2394,8 @@
                         </div>
                         <div>
                             <label class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2 font-semibold">Phone Number</label>
-                            <input type="tel" id="phoneNumber" inputmode="numeric" required placeholder="+31 6 12345678" class="w-full bg-gray-50 dark:bg-charcoal-800 border border-gray-300 dark:border-charcoal-700 text-gray-900 dark:text-white p-3.5 focus:outline-none focus:border-gold transition-colors rounded-lg">
+                            <label for="phoneNumberCountry" class="phone-country-label" data-translate="Country code">Country code</label><select id="phoneNumberCountry" data-phone-country class="phone-country" aria-label="Phone country"><option value="NL">Netherlands (+31)</option></select>
+<input type="tel" id="phoneNumber" inputmode="tel" required placeholder="+31 6 12345678" class="w-full bg-gray-50 dark:bg-charcoal-800 border border-gray-300 dark:border-charcoal-700 text-gray-900 dark:text-white p-3.5 focus:outline-none focus:border-gold transition-colors rounded-lg">
                         </div>
                         <div>
                             <!-- Optional on purpose. The phone number is what the shop
@@ -3963,9 +3970,9 @@
             // The phone number is the only way the shop can reach the customer,
             // and the only key that finds this booking again later.
             const phoneVal = document.getElementById('phoneNumber').value.trim();
-            const phoneDigits = phoneVal.replace(/\D/g, '');
-            if (phoneDigits.length < 9 || phoneDigits.length > 15) {
-                showToast('Please enter a valid phone number.', 'error');
+            const phoneCountry = document.getElementById('phoneNumberCountry').value;
+            if (!window.SussexPhone || !SussexPhone.canonical(phoneVal, phoneCountry)) {
+                showToast(window.currentLang === 'nl' ? 'Vul een volledig telefoonnummer in en kies de landcode.' : 'Enter a complete phone number and choose its country code.', 'error');
                 document.getElementById('phoneNumber').focus();
                 submitBtn.innerText = originalText;
                 submitBtn.disabled = false;
@@ -4018,6 +4025,7 @@
                 time: timeVal,
                 name: nameVal,
                 phone: phoneVal,
+                phoneCountry,
                 email: emailVal,
                 service: selectedServiceName,
                 barber: document.getElementById('barber').value,
@@ -4066,10 +4074,10 @@
 
                 // The booking lives only in the Sheet now. Pull the customer's
                 // list straight back from there so they see it immediately.
-                lastPhoneUsed = bookingData.phone;
-                rememberPhone(bookingData.phone);
+                lastPhoneUsed = SussexPhone.canonical(bookingData.phone, phoneCountry);
+                rememberPhone(lastPhoneUsed);
                 const lookupField = document.getElementById('lookupPhone');
-                if (lookupField) lookupField.value = bookingData.phone;
+                if (lookupField) lookupField.value = lastPhoneUsed;
                 // Silent, and that is the whole point of the flag here. This
                 // is a background refresh of a list further down the page,
                 // fired the instant the confirmation appears. Letting it speak
@@ -4434,6 +4442,7 @@
             'Quick Links': 'Snelle Links',
             'Rights Reserved.': 'Alle rechten voorbehouden.',
             'Phone number or email': 'Telefoonnummer of e-mailadres',
+            'Country code': 'Landcode',
             'Email my bookings': 'Stuur mijn afspraken per e-mail',
             'The Sussex Experience': 'De Sussex Ervaring',
             'Service': 'Dienst',
@@ -5652,7 +5661,7 @@
         if (status) status.textContent = nl ? 'Aanvraag verzenden…' : 'Sending request…';
         try {
             const res = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-                body:JSON.stringify({action:'myBookings',identifier,sendEmail:true}), cache:'no-store'});
+                body:JSON.stringify({action:'myBookings',identifier,sendEmail:true,...(!identifier.includes('@') ? {phoneCountry:document.getElementById('lookupPhoneCountry').value} : {})}), cache:'no-store'});
             const result = await res.json();
             if (!res.ok || result.status !== 'success') {
                 const err = new Error('Request refused');

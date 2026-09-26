@@ -20,6 +20,9 @@
     <meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#0f0f0f" media="(prefers-color-scheme: dark)">
     <link rel="stylesheet" href="/admin/admin.css">
+<script src="/assets/vendor/libphonenumber-min.js" defer></script>
+<script src="/assets/phone.js" defer></script>
+
 </head>
 <body>
 
@@ -730,7 +733,8 @@
                     <div class="field-row">
                         <div class="form-group cms-field">
                             <label for="shopBookPhone">Phone</label>
-                            <input type="tel" id="shopBookPhone" placeholder="06 12345678" required>
+                            <label for="shopBookPhoneCountry" class="phone-country-label">Country code</label><select id="shopBookPhoneCountry" data-phone-country class="phone-country" aria-label="Phone country"><option value="NL">Netherlands (+31)</option></select>
+<input type="tel" id="shopBookPhone" placeholder="06 12345678" required>
                         </div>
                         <div class="form-group cms-field">
                             <!-- Optional, and said so on the label: most

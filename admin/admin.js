@@ -1484,6 +1484,13 @@ async function submitShopBooking(e) {
         return showToast('Choose a time', 'error');
     }
 
+    const number = document.getElementById('shopBookPhone').value.trim();
+    const country = document.getElementById('shopBookPhoneCountry').value;
+    if (!window.SussexPhone || !SussexPhone.canonical(number, country)) {
+        showToast('Enter a complete phone number and choose its country code', 'error');
+        document.getElementById('shopBookPhone').focus();
+        return;
+    }
     const submit = document.getElementById('shopBookSubmit');
     // Two taps on a slow connection is two bookings, and the second one would
     // be refused by the index — but only after both had been sent.
@@ -1499,7 +1506,8 @@ async function submitShopBooking(e) {
             barber: document.getElementById('shopBookBarber').value,
             service: document.getElementById('shopBookService').value,
             name: document.getElementById('shopBookName').value.trim(),
-            phone: document.getElementById('shopBookPhone').value.trim(),
+            phone: number,
+            phoneCountry: country,
             email: document.getElementById('shopBookEmail').value.trim()
         });
 

@@ -24,6 +24,8 @@ model arriving with no context.
 
 ```
 index.html          the whole public site: markup, styles and script in one file
+assets/phone.js     shared country-aware phone parsing and country selector
+assets/vendor/      pinned local libphonenumber bundle and its licence
 admin/              the shop's panel — index.html, admin.js, admin.css
 api/
   index.js          every request the site makes, on one route
@@ -247,3 +249,31 @@ nothing to a table that already exists, so new columns are also listed at the
 foot of that file *and* applied by `ensureSchema()` in `db.js` when a query
 first trips over one missing. Add a column in all three places or a live
 database quietly keeps the old shape.
+
+## International phone numbers
+
+New web and staff bookings require a complete number, with Netherlands (+31)
+as the initial country choice. The locally bundled, pinned libphonenumber-js
+parser checks possible length and structure, not ownership; there are no SMS,
+paid services or phone-data lookups. Explicit +/00 international numbers override
+the selected default country. Raw input remains in phone; phone_e164 stores the
+new booking's canonical number. Both browser and API use assets/phone.js.
+
+Old raw numbers, booking IDs, customer links and signed email links are untouched.
+The old suffix-based customer backfill is retired because initial staff numbers
+may be placeholders. New customer keys use an e164: namespace and never inherit
+legacy profiles. Reports preserve historical legacy grouping and separate new
+canonical identities, so the same returning person may count separately across
+the transition; revenue and appointment counts do not change.
+
+Lookup and booking limits compare full canonical numbers. For old rows, only
+complete digit variants match: explicit international forms, Dutch local form,
+or an exact whole-digit match for an unparseable legacy search. No suffix-only
+fallback remains. Uncertain old numbers can still be managed by staff or found
+by stored email; country codes are never backfilled by guessing.
+
+The phone_e164 column and its index are additive and installed through
+withNewSchema. Rollback leaves these nullable fields in place and retains all
+bookings, including those created after deployment. tests/booking-email-access.test.js
+and the PostgreSQL integration suite cover NL/GB suffix collisions, Iraq local
+format, equivalent Dutch prefixes, recipient separation and unchanged legacy rows.

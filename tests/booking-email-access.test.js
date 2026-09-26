@@ -14,7 +14,7 @@ const rows=[
   {id:2,email:'second@example.com',phone_key:'612345678',barber:'B'},
   {id:3,email:'',phone_key:'612345678',barber:'C'},
   {id:4,email:'first@example.com',phone_key:'611111111',barber:'D'}
-].map(r=>({...r,status:'active',booked_on:'2099-09-08',booked_at:'14:30',service:'Haircut',lang:'en'}));
+].map(r=>({...r,phone:'0'+r.phone_key,status:'active',booked_on:'2099-09-08',booked_at:'14:30',service:'Haircut',lang:'en'}));
 function stub(p,exports){const id=require.resolve(p);require.cache[id]={id,filename:id,loaded:true,exports};}
 const sql=async(strings,...values)=>{
   const q=strings.join('?');
@@ -25,7 +25,7 @@ const sql=async(strings,...values)=>{
     r.status='cancelled';return [r];
   }
   if(q.includes('FROM bookings WHERE id'))return rows.filter(r=>r.id===values[0]);
-  if(q.includes('FROM bookings'))return rows.filter(r=>r.status==='active' && ((values[0]&&r.email===values[0])||(values[2]&&r.phone_key===values[2])));
+  if(q.includes('FROM bookings'))return rows.filter(r=>r.status==='active' && ((values[0]&&r.email===values[0])||(values[2]&&(r.phone_e164===values[3]||(!r.phone_e164&&values[4].includes(r.phone.replace(/\D/g,'')))))));
   return [];
 };
 stub('../api/_lib/db',{db:()=>sql,withNewSchema:fn=>fn(),readConfig:async()=>({settings:{}}),getCancelKey:async()=>KEY});
@@ -35,6 +35,14 @@ const api=require('../api/index');
 const auth=require('../api/_lib/auth');
 async function post(body){let result,code=200;await api({method:'POST',headers:{},body:JSON.stringify(body)},{status(n){code=n;return this;},setHeader(){},send(s){result=JSON.parse(s);}});return {code,result};}
 async function main(){
+  const phones=require('../assets/phone');
+  for(const value of ['0612345678','+31612345678','0031612345678','06 1234 5678'])assert.equal(phones.canonical(value),' +31612345678'.trim());
+  assert.equal(phones.canonical('07501234567','IQ'),'+9647501234567');
+  assert.equal(phones.canonical('+9647501234567','NL'),'+9647501234567');
+  for(const value of ['','123','not a phone','+000123456789','0612345678 ext 9'])assert.equal(phones.canonical(value),'');
+  assert.notEqual(phones.canonical('+31612345678'),phones.canonical('+447612345678'));
+  assert.equal(phones.legacyVariants('+447612345678').includes('0612345678'),false);
+
   assert.equal((await post({action:'myBookings',phone:'0612345678'})).code,409);
   assert.equal(sent.length,0,'old automatic lookups never send email');
   const reply=await post({action:'myBookings',sendEmail:true,identifier:'0612345678',email:'attacker@example.com'});
