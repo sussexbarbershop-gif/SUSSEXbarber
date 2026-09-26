@@ -277,3 +277,10 @@ withNewSchema. Rollback leaves these nullable fields in place and retains all
 bookings, including those created after deployment. tests/booking-email-access.test.js
 and the PostgreSQL integration suite cover NL/GB suffix collisions, Iraq local
 format, equivalent Dutch prefixes, recipient separation and unchanged legacy rows.
+
+The lookup form hides its country selector for email input, shows a country-specific
+mobile example for phone input, and reports incomplete input inline before sending.
+Examples are locally bundled from the same pinned library and never become input.
+English/Dutch errors are linked to the field for assistive technology. This stricter
+public form does not rewrite legacy records; uncertain old numbers should be looked
+up by their recorded email or managed by staff. The API legacy matching stays intact.

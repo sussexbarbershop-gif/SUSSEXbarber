@@ -112,14 +112,33 @@ async function main(){
   assert.match(panel,/id: Number\(b.bookingId\)/);
   const loadFn=site.match(/^    async function loadMyBookings\([\s\S]*?^    }/m)[0];
   const formStatus={textContent:''}, button={disabled:false};
+  const lookupNodes={lookupPhone:{value:'',setAttribute(k,v){this[k]=v;},focus(){this.focused=true;}},lookupPhoneCountry:{value:'NL'},lookupCountryField:{hidden:false},lookupHint:{textContent:''},lookupError:{hidden:true,textContent:''},bookingEmailStatus:formStatus};
+  const lookupWindow={currentLang:'en',SussexPhone:phones};
+  const lookupDoc={querySelector:()=>button,getElementById:id=>lookupNodes[id]};
+  const uiCode=site.match(/^    function lookupProblem\([\s\S]*?^    window.updateLookupPresentation = updateLookupPresentation;/m)[0];
+  const refresh=new Function('window','document',uiCode+';return updateLookupPresentation;')(lookupWindow,lookupDoc);
+  refresh();assert.match(lookupNodes.lookupHint.textContent,/06/);
+  lookupNodes.lookupPhoneCountry.value='IQ';refresh();assert.match(lookupNodes.lookupHint.textContent,/0791/);
+  lookupNodes.lookupPhone.value='person@example.com';refresh();assert.equal(lookupNodes.lookupCountryField.hidden,true);
+  lookupNodes.lookupPhone.value='123';assert.equal(refresh(true),false);assert.equal(lookupNodes.lookupCountryField.hidden,false);assert.equal(lookupNodes.lookupPhone['aria-invalid'],'true');
+  lookupWindow.currentLang='nl';refresh(true);assert.match(lookupNodes.lookupError.textContent,/landcode/);
+  lookupNodes.lookupPhone.value='07501234567';assert.equal(refresh(true),true);assert.equal(lookupNodes.lookupError.hidden,true);
+  lookupNodes.lookupPhone.value='bad@';assert.equal(refresh(true),false);
+  lookupNodes.lookupPhone.value='';assert.equal(refresh(true),false);
+  lookupWindow.currentLang='en';
+
   let requests=[], releaseRequest;
   const requestGate=new Promise(resolve=>{releaseRequest=resolve;});
-  const lookup=new Function('window','document','fetch','API_URL','normalisePhone','showToast',
+  const lookup=new Function('window','document','fetch','API_URL','updateLookupPresentation','showToast',
     'let bookingEmailPending=false;'+loadFn+';return loadMyBookings;')(
-    {currentLang:'en'},{querySelector:()=>button,getElementById:()=>formStatus},
+    lookupWindow,lookupDoc,
     async(url,opts)=>{requests.push(JSON.parse(opts.body));await requestGate;return {ok:true,json:async()=>reply.result};},
-    '/api',v=>v.replace(/\D/g,''),()=>{});
+    '/api',refresh,()=>{});
   await lookup('0612345678',true);assert.equal(requests.length,0);
+  lookupNodes.lookupPhone.value='123';
+  await lookup('123');assert.equal(requests.length,0,'invalid phone must not send email request');
+  assert.equal(lookupNodes.lookupPhone.focused,true);
+  lookupNodes.lookupPhone.value='first@example.com';
   const pending=lookup('first@example.com');
   await lookup('first@example.com');assert.equal(requests.length,1);
   assert.equal(button.disabled,true);
@@ -127,6 +146,10 @@ async function main(){
   assert.deepEqual(requests[0],{action:'myBookings',identifier:'first@example.com',sendEmail:true});
   assert.equal(button.disabled,false);
   assert.match(formStatus.textContent,/If matching bookings/);
+  lookupNodes.lookupPhone.value='07501234567';
+  await lookup('07501234567');assert.equal(requests[1].phoneCountry,'IQ');
+  assert.equal(requests[1].identifier,'07501234567');
+  lookupNodes.lookupPhone.value='+31612345678';assert.equal(refresh(true),true,'explicit prefix overrides retained country');
   // Execute the actual sheet controller: dismissal is never consent and a
   // second click cannot settle the decision again or leak event handlers.
   const controller=site.match(/window\.confirmWithoutEmail = function confirmWithoutEmail\(\) \{[\s\S]*?\n        \}/)[0];

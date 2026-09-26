@@ -1444,6 +1444,12 @@
         @media (prefers-color-scheme: dark) { #emailWarningBook { color: #f3f4f6; border-color: #6b7280; } }
         #emailWarningSheet button:focus-visible { outline: 2px solid #d4af37; outline-offset: 3px; }
         #emailWarningClose { min-width: 44px; min-height: 44px; display: grid; place-items: center; }
+        #lookupCountryField[hidden], #lookupError[hidden] { display:none; }
+        .lookup-hint, .lookup-error { font-size:13px; line-height:1.5; margin-top:8px; }
+        .lookup-hint { color:#6b7280; }
+        .lookup-error { color:#b91c1c; }
+        #lookupPhone[aria-invalid="true"] { border-color:#dc2626; }
+        @media (prefers-color-scheme: dark) { .lookup-hint { color:#9ca3af; } .lookup-error { color:#fca5a5; } }
         .phone-country-label { display:block; font-size:12px; margin:0 0 6px; }
         .phone-country { display:block; width:100%; min-height:44px; margin-bottom:8px; padding:10px; border:1px solid GrayText; border-radius:8px; color:#111827; background:#f9fafb; }
         @media (prefers-color-scheme: dark) { .phone-country { color:#f3f4f6; background:#262626; border-color:#404040; color-scheme:dark; } }
@@ -2151,8 +2157,10 @@
                 <form id="myBookingsLookupForm" class="mt-4 bg-white dark:bg-charcoal-900 rounded-2xl shadow-lg border border-gray-100 dark:border-charcoal-700 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-end gap-4">
                     <div class="flex-1">
                         <label for="lookupPhone" class="block text-gray-500 dark:text-gray-400 mb-2 text-xs uppercase tracking-widest" data-translate="Phone number or email">Phone number or email</label>
-                        <label for="lookupPhoneCountry" class="phone-country-label" data-translate="Country code">Country code</label><select id="lookupPhoneCountry" data-phone-country class="phone-country"><option value="NL">Netherlands (+31)</option></select>
-                        <input type="text" id="lookupPhone" placeholder="Phone number or email" class="w-full bg-gray-50 dark:bg-charcoal-800 border border-gray-300 dark:border-charcoal-700 text-gray-900 dark:text-white p-3.5 focus:outline-none focus:border-gold transition-colors rounded-lg">
+                        <div id="lookupCountryField"><label for="lookupPhoneCountry" class="phone-country-label" data-translate="Country code">Country code</label><select id="lookupPhoneCountry" data-phone-country class="phone-country"><option value="NL">Netherlands (+31)</option></select></div>
+                        <input type="text" id="lookupPhone" aria-describedby="lookupHint lookupError" autocapitalize="none" spellcheck="false" placeholder="Phone number or email" class="w-full bg-gray-50 dark:bg-charcoal-800 border border-gray-300 dark:border-charcoal-700 text-gray-900 dark:text-white p-3.5 focus:outline-none focus:border-gold transition-colors rounded-lg">
+                        <p id="lookupHint" class="lookup-hint"></p>
+                        <p id="lookupError" class="lookup-error" role="alert" hidden></p>
                     </div>
                     <button type="submit" class="bg-charcoal-900 dark:bg-white text-white dark:text-charcoal-900 font-semibold uppercase tracking-widest px-6 py-3.5 rounded-lg hover:bg-gold hover:text-charcoal-900 dark:hover:bg-gold transition-colors text-xs sm:text-sm whitespace-nowrap" data-translate="Email my bookings">Email my bookings</button>
                 </form>
@@ -4495,6 +4503,7 @@
 
         function applyLanguage(lang) {
             window.currentLang = lang;
+            if (window.updateLookupPresentation) window.updateLookupPresentation(!document.getElementById('lookupError').hidden);
             document.documentElement.setAttribute('lang', lang);
 
             // Update Toggle Button Text
@@ -5610,15 +5619,13 @@
         window.closeServicePicker = closeServicePicker;
         window.chooseService = chooseService;
     })();
-    // --- 11. My Bookings: looked up from the Sheet by phone number ---
-    // Nothing is stored on the device, so a customer can check or cancel an
-    // appointment from any browser, not just the one they booked on.
+    // --- 11. My Bookings: request booking details at their recorded email ---
+    // Knowing a phone number never exposes appointments on this page.
     let myBookingsCache = [];
     let lastPhoneUsed = '';
 
-    // Only the customer's phone number is kept on the device, as a key to look
-    // themselves up again. The appointments themselves always come from the
-    // Sheet, so what they see is never a stale local copy.
+    // Remember only the last number as a convenience, never appointment details.
+    // Prefilling it does not send an email or grant access.
     const PHONE_KEY = 'sussex_customer_phone';
 
     function rememberPhone(phone) {
@@ -5636,13 +5643,35 @@
     }
     window.forgetPhone = forgetPhone;
 
-    /** Same rule the Apps Script uses. Comparing the last 9 digits makes the
-     *  Dutch local and international forms of one number match:
-     *  "06 1234 5678", "+31 6 1234 5678" and "0031612345678" are all equal. */
-    function normalisePhone(value) {
-        const digits = String(value || '').replace(/\D/g, '');
-        return digits.length > 9 ? digits.slice(-9) : digits;
+    // A country selector confused email users, while short numbers were sent
+    // without useful feedback. Keep hints local and validate before any request.
+    function lookupProblem(identifier, country) {
+        if (!identifier.trim()) return 'empty';
+        if (identifier.includes('@')) return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(identifier) ? '' : 'email';
+        return window.SussexPhone && window.SussexPhone.canonical(identifier, country) ? '' : 'phone';
     }
+    function updateLookupPresentation(validate = false) {
+        const field = document.getElementById('lookupPhone');
+        if (!field) return false;
+        const country = document.getElementById('lookupPhoneCountry');
+        const error = document.getElementById('lookupError');
+        const nl = window.currentLang === 'nl';
+        const email = field.value.includes('@');
+        document.getElementById('lookupCountryField').hidden = email;
+        const example = window.SussexPhone ? window.SussexPhone.example(country.value) : '';
+        document.getElementById('lookupHint').textContent = email
+            ? (nl ? 'Gebruik het e-mailadres van uw afspraak.' : 'Use the email address recorded with your booking.')
+            : (example ? (nl ? 'Voorbeeld: ' : 'Example: ') + example : (nl ? 'Vul uw volledige telefoonnummer in.' : 'Enter your complete phone number.')) + (nl ? ' — of voer uw e-mailadres in.' : ' — or enter your email address.');
+        const problem = validate ? lookupProblem(field.value.trim(), country.value) : '';
+        const messages = nl
+            ? {empty:'Vul uw telefoonnummer of e-mailadres in.',email:'Vul een volledig e-mailadres in, bijvoorbeeld naam@voorbeeld.nl.',phone:'Vul een volledig telefoonnummer in en controleer de landcode. U kunt ook het e-mailadres van uw afspraak gebruiken.'}
+            : {empty:'Enter your phone number or email address.',email:'Enter a complete email address, for example name@example.com.',phone:'Enter a complete phone number and check the country code. You can also use the email address recorded with your booking.'};
+        error.textContent = messages[problem] || '';
+        error.hidden = !problem;
+        field.setAttribute('aria-invalid', problem ? 'true' : 'false');
+        return !problem;
+    }
+    window.updateLookupPresentation = updateLookupPresentation;
 
     let bookingEmailPending = false;
     async function loadMyBookings(identifier, silent = false) {
@@ -5650,8 +5679,9 @@
         if (silent || bookingEmailPending) return;
         identifier = String(identifier || '').trim();
         const nl = window.currentLang === 'nl';
-        if (!identifier || (identifier.includes('@') ? !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(identifier) : normalisePhone(identifier).length < 6)) {
-            showToast(nl ? 'Vul uw telefoonnummer of e-mailadres in.' : 'Enter your phone number or email.', 'error');
+        if (!updateLookupPresentation(true)) {
+            document.getElementById('bookingEmailStatus').textContent = '';
+            document.getElementById('lookupPhone').focus();
             return;
         }
         bookingEmailPending = true;
@@ -5695,14 +5725,17 @@
             loadMyBookings(document.getElementById('lookupPhone').value.trim());
         });
 
-        // Returning visitor: look them up straight away so their appointments
-        // are on screen without typing anything.
+        // Prefill only: page visits must never send email automatically.
         let saved = '';
         try { saved = localStorage.getItem(PHONE_KEY) || ''; } catch (e) {}
+        const field = document.getElementById('lookupPhone');
+        field.addEventListener('input', () => updateLookupPresentation(false));
+        document.getElementById('lookupPhoneCountry').addEventListener('change', () => updateLookupPresentation(!document.getElementById('lookupError').hidden));
         if (saved) {
             document.getElementById('lookupPhone').value = saved;
             // Prefill only. Sending email always requires an explicit request.
         }
+        updateLookupPresentation();
     }
 
     function bootSite() {
