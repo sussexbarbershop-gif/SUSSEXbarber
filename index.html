@@ -1450,6 +1450,16 @@
         .lookup-error { color:#b91c1c; }
         #lookupPhone[aria-invalid="true"] { border-color:#dc2626; }
         @media (prefers-color-scheme: dark) { .lookup-hint { color:#9ca3af; } .lookup-error { color:#fca5a5; } }
+
+        /* Keep the native, accessible country picker, with only its dial code
+           visible beside the number. Full country names remain in the menu. */
+        .phone-entry { display:flex; gap:8px; width:100%; min-width:0; direction:ltr; align-items:stretch; }
+        .phone-entry > input { flex:1; width:0; min-width:0; }
+        .phone-prefix { position:relative; flex:0 0 88px; min-height:48px; }
+        .phone-prefix > span { display:flex; align-items:center; justify-content:center; height:100%; border:1px solid #d1d5db; border-radius:8px; background:#f9fafb; color:#111827; font-size:16px; white-space:pre; }
+        .phone-prefix .phone-country { position:absolute; inset:0; width:100%; height:100%; margin:0; opacity:0; cursor:pointer; }
+        .phone-prefix:focus-within > span { outline:2px solid #d4af37; outline-offset:2px; }
+        @media (prefers-color-scheme: dark) { .phone-prefix > span { color:#f3f4f6; background:#262626; border-color:#404040; } }
         .phone-country-label { display:block; font-size:12px; margin:0 0 6px; }
         .phone-country { display:block; width:100%; min-height:44px; margin-bottom:8px; padding:10px; border:1px solid GrayText; border-radius:8px; color:#111827; background:#f9fafb; }
         @media (prefers-color-scheme: dark) { .phone-country { color:#f3f4f6; background:#262626; border-color:#404040; color-scheme:dark; } }
@@ -2157,8 +2167,9 @@
                 <form id="myBookingsLookupForm" class="mt-4 bg-white dark:bg-charcoal-900 rounded-2xl shadow-lg border border-gray-100 dark:border-charcoal-700 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-end gap-4">
                     <div class="flex-1">
                         <label for="lookupPhone" class="block text-gray-500 dark:text-gray-400 mb-2 text-xs uppercase tracking-widest" data-translate="Phone number or email">Phone number or email</label>
-                        <div id="lookupCountryField"><label for="lookupPhoneCountry" class="phone-country-label" data-translate="Country code">Country code</label><select id="lookupPhoneCountry" data-phone-country class="phone-country"><option value="NL">Netherlands (+31)</option></select></div>
+                        <div class="phone-entry"><div id="lookupCountryField" class="phone-prefix"><span data-phone-code aria-hidden="true">+31 ▾</span><select id="lookupPhoneCountry" data-phone-country class="phone-country" aria-label="Country code"><option value="NL">Netherlands (+31)</option></select></div>
                         <input type="text" id="lookupPhone" aria-describedby="lookupHint lookupError" autocapitalize="none" spellcheck="false" placeholder="Phone number or email" class="w-full bg-gray-50 dark:bg-charcoal-800 border border-gray-300 dark:border-charcoal-700 text-gray-900 dark:text-white p-3.5 focus:outline-none focus:border-gold transition-colors rounded-lg">
+                        </div>
                         <p id="lookupHint" class="lookup-hint"></p>
                         <p id="lookupError" class="lookup-error" role="alert" hidden></p>
                     </div>
@@ -2402,8 +2413,9 @@
                         </div>
                         <div>
                             <label class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2 font-semibold">Phone Number</label>
-                            <label for="phoneNumberCountry" class="phone-country-label" data-translate="Country code">Country code</label><select id="phoneNumberCountry" data-phone-country class="phone-country" aria-label="Phone country"><option value="NL">Netherlands (+31)</option></select>
-<input type="tel" id="phoneNumber" inputmode="tel" required placeholder="+31 6 12345678" class="w-full bg-gray-50 dark:bg-charcoal-800 border border-gray-300 dark:border-charcoal-700 text-gray-900 dark:text-white p-3.5 focus:outline-none focus:border-gold transition-colors rounded-lg">
+                            <div class="phone-entry"><div class="phone-prefix"><span data-phone-code aria-hidden="true">+31 ▾</span><select id="phoneNumberCountry" data-phone-country data-phone-input="phoneNumber" class="phone-country" aria-label="Country code"><option value="NL">Netherlands (+31)</option></select></div>
+<input type="tel" id="phoneNumber" inputmode="tel" required placeholder="06 12345678" class="w-full bg-gray-50 dark:bg-charcoal-800 border border-gray-300 dark:border-charcoal-700 text-gray-900 dark:text-white p-3.5 focus:outline-none focus:border-gold transition-colors rounded-lg">
+                            </div>
                         </div>
                         <div>
                             <!-- Optional on purpose. The phone number is what the shop

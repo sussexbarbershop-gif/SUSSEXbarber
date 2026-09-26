@@ -27,6 +27,14 @@
     const p=lib && lib.getExampleNumber(country,examples);
     return p ? p.formatNational() : "";
   }
+  // Changing country must change the example, never the number already typed.
+  // Also update the translation cache so switching language cannot restore NL.
+  function updateCountryField(select){
+    const code=select.parentElement.querySelector('[data-phone-code]');
+    if(code)code.textContent='+'+lib.getCountryCallingCode(select.value)+' ▾';
+    const input=select.dataset.phoneInput && document.getElementById(select.dataset.phoneInput);
+    if(input){input.placeholder=example(select.value);input._origPlaceholder=input.placeholder;}
+  }
   function initialise(){
     if(!lib)return;
     document.querySelectorAll('select[data-phone-country]').forEach(select=>{
@@ -38,11 +46,14 @@
         const option=document.createElement('option');option.value=country;option.defaultSelected=country==='NL';
         option.textContent=names.of(country)+' (+'+lib.getCountryCallingCode(country)+')';return option;
       }));select.value='NL';
+      select.addEventListener('change',()=>updateCountryField(select));
+      if(select.form)select.form.addEventListener('reset',()=>setTimeout(()=>updateCountryField(select),0));
+      updateCountryField(select);
     });
   }
   if(typeof document!=='undefined'){
     document.addEventListener('DOMContentLoaded',initialise);
     if(document.readyState!=='loading')initialise();
   }
-  return {canonical,legacyVariants,example};
+  return {canonical,legacyVariants,example,updateCountryField};
 });

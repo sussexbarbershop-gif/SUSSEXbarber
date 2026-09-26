@@ -284,3 +284,9 @@ Examples are locally bundled from the same pinned library and never become input
 English/Dutch errors are linked to the field for assistive technology. This stricter
 public form does not rewrite legacy records; uncertain old numbers should be looked
 up by their recorded email or managed by staff. The API legacy matching stays intact.
+
+Phone fields use a compact dial-code picker to the left of the input in public
+booking, lookup and staff booking forms. The native menu retains full country names.
+Changing country updates the booking placeholder, including after form reset and
+language changes, without changing a number already typed. This fixes the booking
+form retaining a Dutch example when Italy was selected.

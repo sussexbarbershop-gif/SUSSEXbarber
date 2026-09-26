@@ -733,8 +733,9 @@
                     <div class="field-row">
                         <div class="form-group cms-field">
                             <label for="shopBookPhone">Phone</label>
-                            <label for="shopBookPhoneCountry" class="phone-country-label">Country code</label><select id="shopBookPhoneCountry" data-phone-country class="phone-country" aria-label="Phone country"><option value="NL">Netherlands (+31)</option></select>
+                            <div class="phone-entry"><div class="phone-prefix"><span data-phone-code aria-hidden="true">+31 ▾</span><select id="shopBookPhoneCountry" data-phone-country data-phone-input="shopBookPhone" class="phone-country" aria-label="Country code"><option value="NL">Netherlands (+31)</option></select></div>
 <input type="tel" id="shopBookPhone" placeholder="06 12345678" required>
+                            </div>
                         </div>
                         <div class="form-group cms-field">
                             <!-- Optional, and said so on the label: most

@@ -36,6 +36,16 @@ const auth=require('../api/_lib/auth');
 async function post(body){let result,code=200;await api({method:'POST',headers:{},body:JSON.stringify(body)},{status(n){code=n;return this;},setHeader(){},send(s){result=JSON.parse(s);}});return {code,result};}
 async function main(){
   const phones=require('../assets/phone');
+  // The previous booking placeholder stayed Dutch after selecting Italy.
+  const typed={value:'existing number',placeholder:''}, code={textContent:''};
+  global.document={getElementById:()=>typed};
+  const countryField={value:'IT',dataset:{phoneInput:'phoneNumber'},parentElement:{querySelector:()=>code}};
+  phones.updateCountryField(countryField);
+  assert.equal(code.textContent,'+39 ▾');assert.equal(typed.placeholder,'312 345 6789');
+  assert.equal(typed._origPlaceholder,typed.placeholder);assert.equal(typed.value,'existing number');
+  countryField.value='NL';phones.updateCountryField(countryField);assert.equal(typed.placeholder,'06 12345678');
+  delete global.document;
+
   for(const value of ['0612345678','+31612345678','0031612345678','06 1234 5678'])assert.equal(phones.canonical(value),' +31612345678'.trim());
   assert.equal(phones.canonical('07501234567','IQ'),'+9647501234567');
   assert.equal(phones.canonical('+9647501234567','NL'),'+9647501234567');
