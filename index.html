@@ -1460,6 +1460,16 @@
         .phone-prefix .phone-country { position:absolute; inset:0; width:100%; height:100%; margin:0; opacity:0; cursor:pointer; }
         .phone-prefix:focus-within > span { outline:2px solid #d4af37; outline-offset:2px; }
         @media (prefers-color-scheme: dark) { .phone-prefix > span { color:#f3f4f6; background:#262626; border-color:#404040; } }
+        .booking-summary { padding:14px; border:1px solid #e5e7eb; border-radius:10px; background:#f9fafb; }
+        .booking-summary h4 { margin:0 0 6px; color:#927000; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; }
+        .summary-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto; gap:10px; align-items:center; padding:6px 0; }
+        .summary-row + .summary-row { border-top:1px solid #e5e7eb; }
+        .summary-label { display:block; color:#6b7280; font-size:11px; margin-bottom:2px; }
+        .summary-value { display:block; color:#111827; font-size:14px; font-weight:500; overflow-wrap:anywhere; }
+        .summary-time { color:#927000; font-weight:700; }
+        .summary-edit { min-height:44px; min-width:44px; padding:4px 6px; color:#6b5200; font-size:12px; text-decoration:underline; text-underline-offset:3px; border-radius:6px; }
+        .summary-edit:focus-visible { outline:2px solid #d4af37; outline-offset:2px; }
+        @media (prefers-color-scheme: dark) { .booking-summary { background:#262626; border-color:#404040; } .summary-row + .summary-row { border-color:#404040; } .summary-label { color:#9ca3af; } .summary-value { color:#f3f4f6; } .booking-summary h4, .summary-time, .summary-edit { color:#d4af37; } }
         .phone-country-label { display:block; font-size:12px; margin:0 0 6px; }
         .phone-country { display:block; width:100%; min-height:44px; margin-bottom:8px; padding:10px; border:1px solid GrayText; border-radius:8px; color:#111827; background:#f9fafb; }
         @media (prefers-color-scheme: dark) { .phone-country { color:#f3f4f6; background:#262626; border-color:#404040; color-scheme:dark; } }
@@ -2341,7 +2351,7 @@
                         <input type="hidden" id="date" required>
                         
                         <!-- Custom Modern Calendar UI -->
-                        <div id="customCalendar" class="bg-gray-50 dark:bg-charcoal-800 border border-gray-200 dark:border-charcoal-700 rounded-xl p-3 sm:p-5 shadow-xl select-none">
+                        <div id="customCalendar" tabindex="-1" aria-labelledby="calendarMonthYear" class="bg-gray-50 dark:bg-charcoal-800 border border-gray-200 dark:border-charcoal-700 rounded-xl p-3 sm:p-5 shadow-xl select-none">
                             <div class="flex justify-between items-center mb-4 pb-3 border-b border-gray-200 dark:border-charcoal-700">
                                 <div class="flex items-center space-x-2">
                                     <svg class="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
@@ -2397,14 +2407,21 @@
 
                 <!-- STEP 3: Confirm Details & Submit -->
                 <div id="bookingStep3" class="space-y-6 hidden">
-                    <!-- Summary Card -->
-                    <div class="bg-gray-50 dark:bg-charcoal-800 p-5 rounded-lg border border-gray-200 dark:border-charcoal-700 space-y-2">
-                        <h4 class="text-xs uppercase tracking-widest text-gold font-bold mb-3">Booking Summary</h4>
-                        <div class="flex justify-between text-sm"><span class="text-gray-500 dark:text-gray-400">Service:</span><span id="summaryService" class="font-medium text-gray-900 dark:text-white">Classic Haircut</span></div>
-                        <div class="flex justify-between text-sm"><span class="text-gray-500 dark:text-gray-400">Barber:</span><span id="summaryBarber" class="font-medium text-gray-900 dark:text-white">Any Available</span></div>
-                        <div class="flex justify-between text-sm"><span class="text-gray-500 dark:text-gray-400">Date:</span><span id="summaryDate" class="font-medium text-gray-900 dark:text-white">-</span></div>
-                        <div class="flex justify-between text-sm"><span class="text-gray-500 dark:text-gray-400">Time Slot:</span><span id="summaryTime" class="font-medium text-gold font-semibold">-</span></div>
-                    </div>
+                    <!-- Two compact rows keep details visible without pushing the
+                         contact fields below a full screen on phones. -->
+                    <section class="booking-summary" aria-labelledby="bookingSummaryTitle">
+                        <h4 id="bookingSummaryTitle" data-translate="Booking Summary">Booking Summary</h4>
+                        <div class="summary-row">
+                            <div><span class="summary-label">Service:</span><span id="summaryService" class="summary-value">-</span></div>
+                            <div><span class="summary-label">Barber:</span><span id="summaryBarber" class="summary-value">-</span></div>
+                            <button type="button" id="editSummaryService" class="summary-edit" aria-label="Edit service and barber"><span data-translate="Edit">Edit</span></button>
+                        </div>
+                        <div class="summary-row">
+                            <div><span class="summary-label">Date:</span><span id="summaryDate" class="summary-value">-</span></div>
+                            <div><span class="summary-label">Time Slot:</span><span id="summaryTime" class="summary-value summary-time">-</span></div>
+                            <button type="button" id="editSummaryTime" class="summary-edit" aria-label="Edit date and time"><span data-translate="Edit">Edit</span></button>
+                        </div>
+                    </section>
 
                     <div class="space-y-4">
                         <div>
@@ -3639,6 +3656,16 @@
             updateWizardUI(3);
         });
 
+        // Editing only changes the visible step: never reset the form or rebuild
+        // contact inputs. Existing picker changes still recheck date/time availability.
+        function editBookingSummary(step) {
+            if (currentWizardStep !== 3 || document.getElementById('submitBtn').disabled) return;
+            updateWizardUI(step);
+            document.getElementById(step === 1 ? 'barberPickerBtn' : 'customCalendar').focus({preventScroll:true});
+        }
+        document.getElementById('editSummaryService').addEventListener('click', () => editBookingSummary(1));
+        document.getElementById('editSummaryTime').addEventListener('click', () => editBookingSummary(2));
+
         document.getElementById('backToStep2Btn').addEventListener('click', () => {
             updateWizardUI(2);
         });
@@ -4398,6 +4425,8 @@
             'Confirm Booking': 'Bevestig Boeking',
             'Booking Confirmed!': 'Boeking Bevestigd!',
             'Booking Summary': 'Boekingsoverzicht',
+            'Time Slot:': 'Tijd:',
+            'Edit': 'Wijzigen',
             'Add to Calendar': 'Zet in Agenda',
             'Book Another': 'Nog een boeken',
             'Working Hours': 'Werktijden',
@@ -4515,6 +4544,8 @@
 
         function applyLanguage(lang) {
             window.currentLang = lang;
+            document.getElementById('editSummaryService').setAttribute('aria-label', lang === 'nl' ? 'Dienst en kapper wijzigen' : 'Edit service and barber');
+            document.getElementById('editSummaryTime').setAttribute('aria-label', lang === 'nl' ? 'Datum en tijd wijzigen' : 'Edit date and time');
             if (window.updateLookupPresentation) window.updateLookupPresentation(!document.getElementById('lookupError').hidden);
             document.documentElement.setAttribute('lang', lang);
 

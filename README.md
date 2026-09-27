@@ -290,3 +290,8 @@ booking, lookup and staff booking forms. The native menu retains full country na
 Changing country updates the booking placeholder, including after form reset and
 language changes, without changing a number already typed. This fixes the booking
 form retaining a Dutch example when Italy was selected.
+
+The pre-submit booking summary uses two compact rows with explicit Edit actions
+for service/barber and date/time. Editing reuses the existing wizard steps without
+resetting contact inputs; changing a selection retains the normal availability checks.
+Edit controls cannot navigate while a booking submission is pending.

@@ -250,5 +250,18 @@ ok('closing a shut sheet releases nothing', pageHeld, 1);
 closeServicePicker();
 ok('and the one that was open still does', pageHeld, 0);
 
+console.log('--- summary edits preserve contact inputs and use existing steps ---');
+const contact={fullName:{value:'Test Customer'},phoneNumber:{value:'3123456789'},emailAddress:{value:'test@example.com'},phoneNumberCountry:{value:'IT'}};
+let focused='',stepShown=3;const pendingSubmit={disabled:false};
+const editDoc={getElementById:id=>id==='submitBtn'?pendingSubmit:contact[id]||{focus(){focused=id;}}};
+const edit=new Function('document','updateWizardUI','let currentWizardStep=3;'+grab('editBookingSummary')+';return editBookingSummary;')(editDoc,n=>{stepShown=n;});
+const beforeContact=JSON.stringify(contact);
+edit(1);ok('service edit opens picker step',stepShown,1);ok('service edit focuses barber picker',focused,'barberPickerBtn');
+edit(2);ok('time edit opens calendar step',stepShown,2);ok('time edit focuses calendar',focused,'customCalendar');
+ok('all contact values and country survive edits',JSON.stringify(contact),beforeContact);
+pendingSubmit.disabled=true;edit(1);ok('pending submission cannot be interrupted by edit',stepShown,2);
+ok('summary service edit is not a submit button',/type="button" id="editSummaryService"/.test(html),true);
+ok('summary time edit is not a submit button',/type="button" id="editSummaryTime"/.test(html),true);
+
 console.log(failed === 0 ? '\nAll picker tests passed.' : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);
