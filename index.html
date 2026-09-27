@@ -4077,6 +4077,10 @@
         }
 
         ['fullName', 'phoneNumber', 'emailAddress'].forEach(id => {
+            // Waiting for Submit made mistakes appear too late. Validate on
+            // leaving a field (Tab or touch), without moving focus back or
+            // showing errors on untouched fields. Blank email stays optional.
+            document.getElementById(id).addEventListener('blur', () => validateBookingContact(id));
             document.getElementById(id).addEventListener('input', () => {
                 if (document.getElementById(id).hasAttribute('aria-invalid')) validateBookingContact(id);
             });

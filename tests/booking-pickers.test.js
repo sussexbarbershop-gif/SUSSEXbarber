@@ -13,7 +13,7 @@ const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   const nodes = {};
   let focused = '';
   for (const id of ['fullName', 'phoneNumber', 'emailAddress', 'phoneNumberCountry']) {
-    nodes[id] = { value:'', attrs:{}, setAttribute(k,v){this.attrs[k]=v;},
+    nodes[id] = { value:'', attrs:{}, listeners:{}, addEventListener(k,f){this.listeners[k]=f;}, hasAttribute(k){return k in this.attrs;}, setAttribute(k,v){this.attrs[k]=v;},
       getAttribute(k){return this.attrs[k];}, removeAttribute(k){delete this.attrs[k];},
       focus(){focused=id;} };
     nodes[id+'Error'] = {hidden:true,textContent:''};
@@ -40,6 +40,22 @@ const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   assert.equal(focused,'phoneNumber');
   api.clearBookingContactErrors();assert.equal(nodes.phoneNumberError.hidden,true);
   assert.equal(nodes.phoneNumber.value,'123','clearing errors never clears inputs');
+  const wiringStart=html.indexOf("        ['fullName', 'phoneNumber', 'emailAddress'].forEach(id => {\n            // Waiting for Submit");
+  const wiring=html.slice(wiringStart,html.indexOf('        // Submit Booking Form Event',wiringStart));
+  new Function('document','window',code+'\n'+wiring)({getElementById:id=>nodes[id]},win);
+  focused='emailAddress';
+  assert.equal(nodes.fullNameError.hidden,true,'untouched field stays quiet');
+  nodes.phoneNumber.listeners.blur();
+  assert.equal(nodes.phoneNumberError.hidden,false,'leaving invalid phone shows error before submit');
+  assert.equal(focused,'emailAddress','blur validation must not steal focus');
+  nodes.phoneNumber.value='+31612345678';nodes.phoneNumber.listeners.input();
+  assert.equal(nodes.phoneNumberError.hidden,true,'correction clears error while typing');
+  nodes.fullName.value=' ';nodes.fullName.listeners.blur();
+  assert.equal(nodes.fullNameError.hidden,false);
+  nodes.emailAddress.value='bad@';nodes.emailAddress.listeners.blur();
+  assert.equal(nodes.emailAddressError.hidden,false);
+  nodes.emailAddress.value='';nodes.emailAddress.listeners.input();
+  assert.equal(nodes.emailAddressError.hidden,true,'blank optional email stays valid');
   assert.match(html,/<form id="bookingForm" novalidate/);
   for(const id of ['fullName','phoneNumber','emailAddress']) assert.match(html,new RegExp('id="'+id+'"[^>]*aria-describedby="'+id+'Error"'));
   const handler=html.slice(html.indexOf("document.getElementById('bookingForm').addEventListener('submit'"));
