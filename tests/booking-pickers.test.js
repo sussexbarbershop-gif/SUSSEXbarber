@@ -5,6 +5,54 @@ const fs = require('fs');
 const path = require('path');
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 
+// Inline errors must stop the actual submit handler before any prompt/POST,
+// keep the draft intact, and retain the shared country-aware phone rules.
+{
+  const assert = require('assert/strict');
+  const phones = require('../assets/phone.js');
+  const nodes = {};
+  let focused = '';
+  for (const id of ['fullName', 'phoneNumber', 'emailAddress', 'phoneNumberCountry']) {
+    nodes[id] = { value:'', attrs:{}, setAttribute(k,v){this.attrs[k]=v;},
+      getAttribute(k){return this.attrs[k];}, removeAttribute(k){delete this.attrs[k];},
+      focus(){focused=id;} };
+    nodes[id+'Error'] = {hidden:true,textContent:''};
+  }
+  nodes.phoneNumberCountry.value = 'NL';
+  nodes.fullName.value = ' ';
+  nodes.phoneNumber.value = '123';
+  nodes.emailAddress.value = 'name@';
+  const win = {currentLang:'en',SussexPhone:phones};
+  const code = ['validateBookingContact','validateBookingContacts','refreshBookingContactErrors','clearBookingContactErrors'].map(grab).join('\n');
+  const api = new Function('document','window',code+';return {validateBookingContacts,refreshBookingContactErrors,clearBookingContactErrors};')({getElementById:id=>nodes[id]},win);
+  assert.equal(api.validateBookingContacts(true),false);
+  assert.equal(focused,'fullName');
+  for(const id of ['fullName','phoneNumber','emailAddress']) assert.equal(nodes[id+'Error'].hidden,false);
+  assert.equal(nodes.phoneNumber.value,'123');
+  win.currentLang='nl';api.refreshBookingContactErrors();
+  assert.match(nodes.fullNameError.textContent,/volledige naam/);
+  nodes.fullName.value='Preview Customer';nodes.phoneNumber.value='0612345678';nodes.emailAddress.value='';
+  assert.equal(api.validateBookingContacts(true),true,'email stays optional');
+  nodes.phoneNumberCountry.value='IQ';nodes.phoneNumber.value='07501234567';
+  nodes.emailAddress.value='preview@example.com';
+  assert.equal(api.validateBookingContacts(true),true,'international numbers use the real parser');
+  nodes.phoneNumber.value='123';assert.equal(api.validateBookingContacts(true),false);
+  assert.equal(focused,'phoneNumber');
+  api.clearBookingContactErrors();assert.equal(nodes.phoneNumberError.hidden,true);
+  assert.equal(nodes.phoneNumber.value,'123','clearing errors never clears inputs');
+  assert.match(html,/<form id="bookingForm" novalidate/);
+  for(const id of ['fullName','phoneNumber','emailAddress']) assert.match(html,new RegExp('id="'+id+'"[^>]*aria-describedby="'+id+'Error"'));
+  const handler=html.slice(html.indexOf("document.getElementById('bookingForm').addEventListener('submit'"));
+  const guard=handler.slice(handler.indexOf('            if (!validateBookingContacts'),handler.indexOf('            const phoneVal'));
+  const btn={disabled:true,innerText:'Processing...'};
+  const run=new Function('validateBookingContacts','submitBtn','originalText',guard+'return "proceed";');
+  assert.equal(run(()=>false,btn,'Confirm'),undefined,'invalid fields cannot reach the POST');
+  assert.equal(btn.disabled,false);
+  assert.equal(run(()=>true,btn,'Confirm'),'proceed');
+  assert.ok(handler.indexOf('validateBookingContacts(true)')<handler.indexOf('await confirmWithoutEmail()'));
+  console.log('PASS inline contact errors, first invalid focus, translation, draft preservation and submit guard');
+}
+
 function grab(name) {
   const re = new RegExp('^        function ' + name + '\\([\\s\\S]*?^        }', 'm');
   const m = html.match(re);

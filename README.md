@@ -300,3 +300,11 @@ Booking summary and confirmation dates show a short weekday, month name and year
 in English or Dutch, refreshed on language changes. Formatting uses UTC explicitly
 for date-only values, so visitor time zones cannot shift the displayed day. Inputs,
 API payloads and stored booking dates retain their original YYYY-MM-DD values.
+
+Contact validation now shows persistent errors beneath name, phone and optional
+email, instead of native bubbles and disappearing toasts. Submitting checks all
+three and focuses the first invalid field before any email warning or request.
+Correcting a field clears its error; country and language changes refresh it.
+Draft values survive validation and summary edits. English/Dutch messages use
+the existing phone parser and email rules; the no-email confirmation stays in
+place. Successful form reset clears validation state. No stored bookings change.

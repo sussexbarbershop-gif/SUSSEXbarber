@@ -1453,6 +1453,13 @@
 
         /* Keep the native, accessible country picker, with only its dial code
            visible beside the number. Full country names remain in the menu. */
+        .booking-field-error { color:#b42332; font-size:13px; line-height:1.5; margin-top:7px; }
+        .booking-field-error:not([hidden])::before { content:'!'; display:inline-block; font-weight:700; margin-right:7px; }
+        #bookingForm input[aria-invalid="true"] { border-color:#b42332; }
+        @media (prefers-color-scheme: dark) {
+            .booking-field-error { color:#ff8791; }
+            #bookingForm input[aria-invalid="true"] { border-color:#ff8791; }
+        }
         .phone-entry { display:flex; gap:8px; width:100%; min-width:0; direction:ltr; align-items:stretch; }
         .phone-entry > input { flex:1; width:0; min-width:0; }
         .phone-prefix { position:relative; flex:0 0 88px; min-height:48px; }
@@ -2294,7 +2301,7 @@
                         </a>
                     </div>
 
-                    <form id="bookingForm" class="bg-white dark:bg-charcoal-900 p-4 sm:p-10 shadow-xl text-left border border-gray-200 dark:border-charcoal-700 transition-colors duration-300 rounded-lg relative z-30">
+                    <form id="bookingForm" novalidate class="bg-white dark:bg-charcoal-900 p-4 sm:p-10 shadow-xl text-left border border-gray-200 dark:border-charcoal-700 transition-colors duration-300 rounded-lg relative z-30">
                 <!-- All three start empty. A barber and a service used to be
                      pre-filled, which meant a customer who never touched either
                      picker still got a booking - for whoever and whatever the
@@ -2425,14 +2432,16 @@
 
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2 font-semibold">Your Full Name</label>
-                            <input type="text" id="fullName" required placeholder="John Doe" class="w-full bg-gray-50 dark:bg-charcoal-800 border border-gray-300 dark:border-charcoal-700 text-gray-900 dark:text-white p-3.5 focus:outline-none focus:border-gold transition-colors rounded-lg">
+                            <label for="fullName" class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2 font-semibold">Your Full Name</label>
+                            <input type="text" id="fullName" required placeholder="John Doe" aria-describedby="fullNameError" class="w-full bg-gray-50 dark:bg-charcoal-800 border border-gray-300 dark:border-charcoal-700 text-gray-900 dark:text-white p-3.5 focus:outline-none focus:border-gold transition-colors rounded-lg">
+                            <p id="fullNameError" class="booking-field-error" role="alert" hidden></p>
                         </div>
                         <div>
-                            <label class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2 font-semibold">Phone Number</label>
+                            <label for="phoneNumber" class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2 font-semibold">Phone Number</label>
                             <div class="phone-entry"><div class="phone-prefix"><span data-phone-code aria-hidden="true">+31 ▾</span><select id="phoneNumberCountry" data-phone-country data-phone-input="phoneNumber" class="phone-country" aria-label="Country code"><option value="NL">Netherlands (+31)</option></select></div>
-<input type="tel" id="phoneNumber" inputmode="tel" required placeholder="06 12345678" class="w-full bg-gray-50 dark:bg-charcoal-800 border border-gray-300 dark:border-charcoal-700 text-gray-900 dark:text-white p-3.5 focus:outline-none focus:border-gold transition-colors rounded-lg">
+<input type="tel" id="phoneNumber" inputmode="tel" required placeholder="06 12345678" aria-describedby="phoneNumberError" class="w-full bg-gray-50 dark:bg-charcoal-800 border border-gray-300 dark:border-charcoal-700 text-gray-900 dark:text-white p-3.5 focus:outline-none focus:border-gold transition-colors rounded-lg">
                             </div>
+                            <p id="phoneNumberError" class="booking-field-error" role="alert" hidden></p>
                         </div>
                         <div>
                             <!-- Optional on purpose. The phone number is what the shop
@@ -2441,7 +2450,8 @@
                             <label for="emailAddress" class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2 font-semibold">
                                 Email <span class="normal-case tracking-normal font-normal text-gray-400 dark:text-gray-500" data-translate="(optional — for your confirmation)">(optional — for your confirmation)</span>
                             </label>
-                            <input type="email" id="emailAddress" autocomplete="email" placeholder="you@example.com" class="w-full bg-gray-50 dark:bg-charcoal-800 border border-gray-300 dark:border-charcoal-700 text-gray-900 dark:text-white p-3.5 focus:outline-none focus:border-gold transition-colors rounded-lg">
+                            <input type="email" id="emailAddress" autocomplete="email" placeholder="you@example.com" aria-describedby="emailAddressError" class="w-full bg-gray-50 dark:bg-charcoal-800 border border-gray-300 dark:border-charcoal-700 text-gray-900 dark:text-white p-3.5 focus:outline-none focus:border-gold transition-colors rounded-lg">
+                            <p id="emailAddressError" class="booking-field-error" role="alert" hidden></p>
                         </div>
                     </div>
 
@@ -4019,6 +4029,62 @@
         // Initial Chips Render
         renderTimeChips();
 
+        // Native bubbles and disappearing toasts hid the other invalid fields.
+        // Keep the same validation rules, but show every problem beside its input
+        // before the no-email decision or POST. Never clear a customer's draft.
+        function validateBookingContact(id) {
+            const input = document.getElementById(id);
+            const value = input.value.trim();
+            const nl = window.currentLang === 'nl';
+            let message = '';
+            if (id === 'fullName' && value.length < 2) {
+                message = nl ? 'Vul je volledige naam in.' : 'Enter your full name.';
+            }
+            if (id === 'phoneNumber' && (!window.SussexPhone || !window.SussexPhone.canonical(value, document.getElementById('phoneNumberCountry').value))) {
+                message = nl ? 'Vul een volledig telefoonnummer in en kies de landcode.' : 'Enter a complete phone number and choose its country code.';
+            }
+            if (id === 'emailAddress' && value && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)) {
+                message = nl ? 'Vul een volledig e-mailadres in, of laat dit veld leeg.' : 'Enter a complete email address, or leave this field empty.';
+            }
+            const error = document.getElementById(id + 'Error');
+            error.textContent = message;
+            error.hidden = !message;
+            input.setAttribute('aria-invalid', String(Boolean(message)));
+            return !message;
+        }
+
+        function validateBookingContacts(focusFirst) {
+            const invalid = ['fullName', 'phoneNumber', 'emailAddress'].filter(id => !validateBookingContact(id));
+            if (focusFirst && invalid.length) document.getElementById(invalid[0]).focus();
+            return invalid.length === 0;
+        }
+
+        function refreshBookingContactErrors() {
+            // Language/country changes refresh only errors already shown; don't
+            // accuse an untouched field before the customer tries to submit.
+            ['fullName', 'phoneNumber', 'emailAddress'].forEach(id => {
+                if (document.getElementById(id).getAttribute('aria-invalid') === 'true') validateBookingContact(id);
+            });
+        }
+
+        function clearBookingContactErrors() {
+            ['fullName', 'phoneNumber', 'emailAddress'].forEach(id => {
+                document.getElementById(id).removeAttribute('aria-invalid');
+                const error = document.getElementById(id + 'Error');
+                error.hidden = true;
+                error.textContent = '';
+            });
+        }
+
+        ['fullName', 'phoneNumber', 'emailAddress'].forEach(id => {
+            document.getElementById(id).addEventListener('input', () => {
+                if (document.getElementById(id).hasAttribute('aria-invalid')) validateBookingContact(id);
+            });
+        });
+        document.getElementById('phoneNumberCountry').addEventListener('change', () => {
+            if (document.getElementById('phoneNumber').hasAttribute('aria-invalid')) validateBookingContact('phoneNumber');
+        });
+
         // Submit Booking Form Event
         document.getElementById('bookingForm').addEventListener('submit', async function(event) {
             event.preventDefault();
@@ -4032,38 +4098,15 @@
 
             const timeVal = document.getElementById('time').value;
 
-            // The phone number is the only way the shop can reach the customer,
-            // and the only key that finds this booking again later.
+            if (!validateBookingContacts(true)) {
+                submitBtn.innerText = originalText;
+                submitBtn.disabled = false;
+                return;
+            }
             const phoneVal = document.getElementById('phoneNumber').value.trim();
             const phoneCountry = document.getElementById('phoneNumberCountry').value;
-            if (!window.SussexPhone || !SussexPhone.canonical(phoneVal, phoneCountry)) {
-                showToast(window.currentLang === 'nl' ? 'Vul een volledig telefoonnummer in en kies de landcode.' : 'Enter a complete phone number and choose its country code.', 'error');
-                document.getElementById('phoneNumber').focus();
-                submitBtn.innerText = originalText;
-                submitBtn.disabled = false;
-                return;
-            }
-
             const nameVal = document.getElementById('fullName').value.trim();
-            if (nameVal.length < 2) {
-                showToast('Please enter your name.', 'error');
-                document.getElementById('fullName').focus();
-                submitBtn.innerText = originalText;
-                submitBtn.disabled = false;
-                return;
-            }
-
-            // Optional, but if it is filled in it has to be usable - a
-            // confirmation sent to a typo is worse than none at all, because
-            // the customer believes one is coming.
             const emailVal = document.getElementById('emailAddress').value.trim();
-            if (emailVal && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(emailVal)) {
-                showToast('That email address does not look right. Leave it blank if you prefer.', 'error');
-                document.getElementById('emailAddress').focus();
-                submitBtn.innerText = originalText;
-                submitBtn.disabled = false;
-                return;
-            }
 
             const selectedServiceName = document.getElementById('service').value;
             // Await the sheet before writing: dismissing it must never book.
@@ -4179,6 +4222,7 @@
 
                 // Reset form in background
                 this.reset();
+                clearBookingContactErrors();
                 document.getElementById('time').value = "";
                 document.getElementById('date').value = "";
                 currentCalDate = new Date();
@@ -4617,6 +4661,7 @@
                 const date = document.getElementById(id).dataset.bookingDate;
                 if (date) renderBookingDate(id, date);
             }
+            refreshBookingContactErrors();
             // Re-render live status badge and desktop live summary safely
             if (typeof updateBusinessStatus === 'function') updateBusinessStatus();
         }
