@@ -80,5 +80,24 @@ console.log('--- times keep their own format ---');
 ok('booked_at is not date-formatted',
    /to_char\(\s*booked_at/.test(all), false);
 
+// Display-only dates must survive both language changes and visitor time zones.
+const site = fs.readFileSync(path.join(root,'index.html'),'utf8');
+const formatSource = site.match(/^        function formatBookingDate\([\s\S]*?^        }/m)[0];
+const format = new Function(formatSource+';return formatBookingDate;')();
+const priorZone = process.env.TZ;
+for (const zone of ['America/Los_Angeles','Pacific/Kiritimati','Europe/Amsterdam']) {
+  process.env.TZ=zone;
+  ok('English calendar date stays Tuesday in '+zone,format('2026-09-29','en'),'Tue, 29 Sept 2026');
+  ok('Dutch calendar date stays Tuesday in '+zone,format('2026-09-29','nl'),'di 29 sep 2026');
+}
+if(priorZone===undefined)delete process.env.TZ;else process.env.TZ=priorZone;
+ok('invalid date is not silently rolled forward',format('2026-02-30','en'),'2026-02-30');
+const dateNode={dataset:{},textContent:''};const dateWindow={currentLang:'en'};
+const renderSource=site.match(/^        function renderBookingDate\([\s\S]*?^        }/m)[0];
+const render=new Function('document','window','formatBookingDate',renderSource+';return renderBookingDate;')({getElementById:()=>dateNode},dateWindow,format);
+render('summaryDate','2026-09-29');dateWindow.currentLang='nl';render('summaryDate',dateNode.dataset.bookingDate);
+ok('language change keeps original ISO day',dateNode.dataset.bookingDate,'2026-09-29');
+ok('language change redraws the label',dateNode.textContent,'di 29 sep 2026');
+
 console.log(failed ? `\n${failed} FAILED` : '\nAll API date checks passed.');
 process.exit(failed ? 1 : 0);

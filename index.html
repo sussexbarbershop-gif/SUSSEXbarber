@@ -3537,6 +3537,24 @@
 
         let currentWizardStep = 1;
 
+        // Booking dates are calendar days, not instants in the visitor's zone.
+        // Format UTC explicitly so a visitor west of Europe cannot see yesterday.
+        function formatBookingDate(iso, lang) {
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(iso || '')) return iso || '';
+            const date = new Date(iso + 'T12:00:00Z');
+            if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0,10) !== iso) return iso;
+            return new Intl.DateTimeFormat(lang === 'nl' ? 'nl-NL' : 'en-GB', {
+                weekday:'short', day:'numeric', month:'short', year:'numeric', timeZone:'UTC'
+            }).format(date);
+        }
+        function renderBookingDate(id, iso) {
+            const element = document.getElementById(id);
+            // Retain the original day only for reformatting after a language change.
+            // Never write a formatted label into the booking input or API payload.
+            element.dataset.bookingDate = iso;
+            element.textContent = formatBookingDate(iso, window.currentLang);
+        }
+
         function updateWizardUI(stepNum) {
             const isForward = stepNum > currentWizardStep;
             
@@ -3650,7 +3668,7 @@
 
             document.getElementById('summaryService').innerText = document.getElementById('service').value;
             document.getElementById('summaryBarber').innerText = document.getElementById('barber').value;
-            document.getElementById('summaryDate').innerText = dateVal;
+            renderBookingDate('summaryDate', dateVal);
             document.getElementById('summaryTime').innerText = timeVal;
 
             updateWizardUI(3);
@@ -4141,7 +4159,7 @@
                 document.getElementById('confirmName').innerText = bookingData.name;
                 document.getElementById('confirmService').innerText = bookingData.service;
                 document.getElementById('confirmBarber').innerText = bookingData.barber || 'Any Available';
-                document.getElementById('confirmDate').innerText = new Date(bookingData.date).toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                renderBookingDate('confirmDate', bookingData.date);
                 document.getElementById('confirmTime').innerText = bookingData.time;
 
                 // Show Step 4
@@ -4595,6 +4613,10 @@
                 }
             });
 
+            for (const id of ['summaryDate', 'confirmDate']) {
+                const date = document.getElementById(id).dataset.bookingDate;
+                if (date) renderBookingDate(id, date);
+            }
             // Re-render live status badge and desktop live summary safely
             if (typeof updateBusinessStatus === 'function') updateBusinessStatus();
         }

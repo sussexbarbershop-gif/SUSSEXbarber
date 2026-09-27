@@ -295,3 +295,8 @@ The pre-submit booking summary uses two compact rows with explicit Edit actions
 for service/barber and date/time. Editing reuses the existing wizard steps without
 resetting contact inputs; changing a selection retains the normal availability checks.
 Edit controls cannot navigate while a booking submission is pending.
+
+Booking summary and confirmation dates show a short weekday, month name and year
+in English or Dutch, refreshed on language changes. Formatting uses UTC explicitly
+for date-only values, so visitor time zones cannot shift the displayed day. Inputs,
+API payloads and stored booking dates retain their original YYYY-MM-DD values.
