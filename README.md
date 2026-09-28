@@ -301,6 +301,13 @@ in English or Dutch, refreshed on language changes. Formatting uses UTC explicit
 for date-only values, so visitor time zones cannot shift the displayed day. Inputs,
 API payloads and stored booking dates retain their original YYYY-MM-DD values.
 
+The date picker shows exactly 30 consecutive dates including today on the
+Amsterdam clock, crossing month and year boundaries. Previously it stopped at
+month-end and could show only a few dates. The compact month-range heading
+replaces month navigation; weekday alignment and closed/time-off checks remain.
+This is a display window, not 30 available working days. No availability or
+stored appointment rules are changed.
+
 Contact validation now shows persistent errors beneath name, phone and optional
 email, instead of native bubbles and disappearing toasts. Submitting checks all
 three and focuses the first invalid field before any email warning or request.

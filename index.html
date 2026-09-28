@@ -1453,6 +1453,9 @@
 
         /* Keep the native, accessible country picker, with only its dial code
            visible beside the number. Full country names remain in the menu. */
+        .calendar-range-header { padding-bottom:8px; margin-bottom:10px; }
+        .calendar-range-title { font-family:inherit; font-size:15px; line-height:1.4; font-weight:500; }
+        .calendar-month-mark { font-size:10px; line-height:1; font-weight:500; margin-bottom:5px; }
         .booking-field-error { color:#b42332; font-size:13px; line-height:1.5; margin-top:7px; }
         .booking-field-error:not([hidden])::before { content:'!'; display:inline-block; font-weight:700; margin-right:7px; }
         #bookingForm input[aria-invalid="true"] { border-color:#b42332; }
@@ -2359,19 +2362,12 @@
                         
                         <!-- Custom Modern Calendar UI -->
                         <div id="customCalendar" tabindex="-1" aria-labelledby="calendarMonthYear" class="bg-gray-50 dark:bg-charcoal-800 border border-gray-200 dark:border-charcoal-700 rounded-xl p-3 sm:p-5 shadow-xl select-none">
-                            <div class="flex justify-between items-center mb-4 pb-3 border-b border-gray-200 dark:border-charcoal-700">
+                            <div class="calendar-range-header border-b border-gray-200 dark:border-charcoal-700">
                                 <div class="flex items-center space-x-2">
                                     <svg class="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                    <h4 id="calendarMonthYear" class="font-serif text-lg font-bold text-gray-900 dark:text-white">Month Year</h4>
+                                    <h4 id="calendarMonthYear" class="calendar-range-title text-gray-900 dark:text-white">Month Year</h4>
                                 </div>
-                                <div class="flex space-x-2">
-                                    <button id="calPrevBtn" type="button" aria-label="Previous Month" class="p-2 rounded-lg border border-gray-300 dark:border-charcoal-700 text-gray-700 dark:text-gray-300 hover:bg-gold hover:text-charcoal-900 hover:border-gold transition-all flex items-center justify-center">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-                                    </button>
-                                    <button id="calNextBtn" type="button" aria-label="Next Month" class="p-2 rounded-lg border border-gray-300 dark:border-charcoal-700 text-gray-700 dark:text-gray-300 hover:bg-gold hover:text-charcoal-900 hover:border-gold transition-all flex items-center justify-center">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                                    </button>
-                                </div>
+
                             </div>
                             <div class="grid grid-cols-7 gap-1 text-center text-xs font-semibold tracking-wider text-gray-500 dark:text-gray-400 mb-3 uppercase">
                                 <div class="text-rose-500/80">Sun</div>
@@ -3633,7 +3629,6 @@
 
         document.getElementById('goToStep2Btn').addEventListener('click', () => {
             updateWizardUI(2);
-            currentCalDate = new Date();
             renderCustomCalendar();
         });
 
@@ -3866,28 +3861,14 @@
             }
         });
 
-        // Set date constraints & Custom Modern Calendar Logic
-        let currentCalDate = new Date();
-
-        /**
-         * The day of `month` the grid should open on.
-         *
-         * A week that has entirely gone is a row of greyed-out numbers nobody
-         * can click. On the 10th of a month beginning on a Saturday that was
-         * two such rows plus six blank cells — a screenful of nothing above the
-         * first bookable date. So the current month starts at the week holding
-         * today, and any other month starts at the 1st.
-         *
-         * Only whole leading weeks go. Days before today *within* today's week
-         * stay, so the columns keep their places under SUN..SAT.
-         *
-         * Cannot empty the calendar: today's own week is never dropped, and
-         * calPrevBtn is disabled once the previous month is entirely past, so
-         * the month on screen holds today or lies ahead of it.
-         */
-        function calendarStartDay(year, month, today) {
-            if (year !== today.getFullYear() || month !== today.getMonth()) return 1;
-            return Math.max(1, today.getDate() - today.getDay());
+        // Set date constraints & rolling calendar window.
+        // A month-end used to leave only two or three dates on screen. Show
+        // exactly 30 consecutive shop dates, including today, across month/year
+        // boundaries. Local date objects keep weekday/rota helpers unchanged.
+        function calendarWindow(now = new Date()) {
+            const parts = new Intl.DateTimeFormat('en-GB', {timeZone:'Europe/Amsterdam', year:'numeric', month:'2-digit', day:'2-digit'}).formatToParts(now);
+            const part = type => Number(parts.find(p => p.type === type).value);
+            return Array.from({length:30}, (_, offset) => new Date(part('year'), part('month') - 1, part('day') + offset));
         }
 
         function renderCustomCalendar() {
@@ -3897,35 +3878,22 @@
 
             const selectedDateVal = document.getElementById('date').value;
             
-            const year = currentCalDate.getFullYear();
-            const month = currentCalDate.getMonth();
-            
-            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-            monthYearEl.innerText = `${monthNames[month]} ${year}`;
-            
+            const dates = calendarWindow();
+            const today = dates[0];
+            const last = dates[dates.length - 1];
+            const locale = window.currentLang === 'nl' ? 'nl-NL' : 'en-GB';
+            const monthLabel = date => new Intl.DateTimeFormat(locale, {month:'short', year:'numeric'}).format(date);
+            monthYearEl.innerText = monthLabel(today) === monthLabel(last) ? monthLabel(today) : monthLabel(today) + ' – ' + monthLabel(last);
             grid.innerHTML = '';
-            
-            const totalDays = new Date(year, month + 1, 0).getDate();
-
-            const today = new Date();
-            today.setHours(0,0,0,0);
-
-            const maxDate = new Date();
-            maxDate.setDate(today.getDate() + 30);
-            maxDate.setHours(0,0,0,0);
-
-            const startDay = calendarStartDay(year, month, today);
-
-            const firstDayIndex = new Date(year, month, startDay).getDay();
+            const firstDayIndex = today.getDay();
             for (let i = 0; i < firstDayIndex; i++) {
                 const emptyCell = document.createElement('div');
                 emptyCell.className = 'w-full min-h-[44px] aspect-[5/4] sm:aspect-square';
                 grid.appendChild(emptyCell);
             }
 
-            for (let day = startDay; day <= totalDays; day++) {
-                const dateObj = new Date(year, month, day);
-                dateObj.setHours(0,0,0,0);
+            for (const dateObj of dates) {
+                const day = dateObj.getDate();
                 
                 const yyyy = dateObj.getFullYear();
                 const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
@@ -3938,17 +3906,19 @@
                 // barber is not in that day — both should read as unbookable.
                 const isClosed = isClosedOn(dateObj) || noSlotsOn(dateObj);
 
-                const isOutOfRange = dateObj < today || dateObj > maxDate;
-                const isDisabled = isOutOfRange || isClosed;
+                const isDisabled = isClosed;
                 
                 const dayBtn = document.createElement('button');
                 dayBtn.type = 'button';
                 dayBtn.className = 'w-full min-h-[44px] aspect-[5/4] sm:aspect-square flex flex-col items-center justify-center text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 relative select-none';
-                dayBtn.innerHTML = `<span>${day}</span>`;
+                dayBtn.innerHTML = `<span>${day}</span>${day === 1 ? '<span class="calendar-month-mark">' + new Intl.DateTimeFormat(locale, {month:'short'}).format(dateObj) + '</span>' : ''}`;
+                dayBtn.setAttribute('aria-label', new Intl.DateTimeFormat(locale, {dateStyle:'full'}).format(dateObj));
+                dayBtn.setAttribute('aria-pressed', String(isSelected));
+                dayBtn.dataset.date = dateStr;
                 
                 if (isDisabled) {
                     dayBtn.disabled = true;
-                    if (isClosed && !isOutOfRange) {
+                    {
                         dayBtn.className += ' text-rose-500/50 dark:text-rose-400/40 bg-rose-500/5 dark:bg-rose-500/10 cursor-not-allowed border border-transparent';
                         const who = selectedBarberName();
                         dayBtn.title = (who && !isClosedOn(dateObj))
@@ -3957,14 +3927,6 @@
                         const dot = document.createElement('span');
                         dot.className = 'absolute bottom-1 w-1 h-1 rounded-full bg-rose-500/40';
                         dayBtn.appendChild(dot);
-                    } else {
-                        // Beyond the 30-day window, or already past. This was
-                        // charcoal-700 text on a charcoal-800 panel at 30%
-                        // opacity - a number you had to hunt for, so the grid
-                        // read as damaged rather than as dates you cannot have
-                        // yet. Legible now, and still plainly not on offer:
-                        // no card, no border, and a grey nothing else uses.
-                        dayBtn.className += ' text-gray-500 dark:text-gray-500 bg-transparent cursor-not-allowed';
                     }
                 } else {
                     if (isSelected) {
@@ -3995,34 +3957,7 @@
                 grid.appendChild(dayBtn);
             }
             
-            const lastDayOfPrevMonth = new Date(year, month, 0);
-            const calPrevBtn = document.getElementById('calPrevBtn');
-            calPrevBtn.disabled = lastDayOfPrevMonth < today;
-            if (lastDayOfPrevMonth < today) {
-                calPrevBtn.classList.add('opacity-30', 'cursor-not-allowed');
-            } else {
-                calPrevBtn.classList.remove('opacity-30', 'cursor-not-allowed');
-            }
-            
-            const nextMonthFirstDay = new Date(year, month + 1, 1);
-            const calNextBtn = document.getElementById('calNextBtn');
-            calNextBtn.disabled = nextMonthFirstDay > maxDate;
-            if (nextMonthFirstDay > maxDate) {
-                calNextBtn.classList.add('opacity-30', 'cursor-not-allowed');
-            } else {
-                calNextBtn.classList.remove('opacity-30', 'cursor-not-allowed');
-            }
         }
-
-        document.getElementById('calPrevBtn').addEventListener('click', () => {
-            currentCalDate.setMonth(currentCalDate.getMonth() - 1);
-            renderCustomCalendar();
-        });
-
-        document.getElementById('calNextBtn').addEventListener('click', () => {
-            currentCalDate.setMonth(currentCalDate.getMonth() + 1);
-            renderCustomCalendar();
-        });
 
         renderCustomCalendar();
 
@@ -4229,7 +4164,6 @@
                 clearBookingContactErrors();
                 document.getElementById('time').value = "";
                 document.getElementById('date').value = "";
-                currentCalDate = new Date();
                 renderCustomCalendar();
                 
                 submitBtn.innerText = originalText;
@@ -4666,6 +4600,7 @@
                 if (date) renderBookingDate(id, date);
             }
             refreshBookingContactErrors();
+            renderCustomCalendar();
             // Re-render live status badge and desktop live summary safely
             if (typeof updateBusinessStatus === 'function') updateBusinessStatus();
         }
