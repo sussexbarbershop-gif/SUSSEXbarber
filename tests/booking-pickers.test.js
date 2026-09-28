@@ -242,10 +242,12 @@ console.log('--- changing step scrolls to the steps, not past them ---');
   ok('it does not aim at the sticky indicator', /getElementById\('stepIndicator'\)/.test(src), false);
   ok('the anchor exists above the indicator',
      html.indexOf('id="bookingStepsAnchor"') < html.indexOf('id="stepIndicator"'), true);
-  // The nav is fixed, so the anchor needs its own scroll margin or the browser
-  // parks it underneath the header.
+  // Root scroll-padding already reserves the measured nav height. Reserving
+  // another 96px here left a large gap; a fixed sticky top could hide steps.
   const anchorTag = (html.match(/<div id="bookingStepsAnchor"[^>]*>/) || [''])[0];
-  ok('the anchor clears the fixed nav', /scroll-mt-/.test(anchorTag), true);
+  ok('the anchor adds only an 8px gap', /scroll-margin-top:8px/.test(anchorTag), true);
+  const indicatorTag = (html.match(/<div id="stepIndicator"[^>]*>/) || [''])[0];
+  ok('sticky steps clear the measured nav', /top:calc\(var\(--nav-h, 5rem\) \+ 8px\)/.test(indicatorTag), true);
 }
 
 console.log('--- the desktop Live Summary is gone ---');

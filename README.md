@@ -317,6 +317,13 @@ the selection. Changing date still clears time and refetches availability.
 The dialog traps focus, makes the background inert and restores scrolling;
 resizing to desktop restores the inline controls. The shared step indicator
 is compact on all three mobile steps. Desktop retains its original layout.
+The booking introduction now uses short English/Dutch copy and a My Bookings
+disclosure. Mobile spacing and title size are reduced so the first choice is
+closer to the top; the lookup still has a 44px touch target and the same email
+request flow. Desktop spacing and heading sizes remain unchanged.
+Step changes land 8px below the measured navigation height. The sticky step
+indicator uses that same height: the old fixed top could sit behind the nav,
+while a second full scroll margin left unnecessary empty space on each change.
 
 Contact validation now shows persistent errors beneath name, phone and optional
 email, instead of native bubbles and disappearing toasts. Submitting checks all

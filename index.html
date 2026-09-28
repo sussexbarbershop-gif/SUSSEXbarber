@@ -1467,6 +1467,13 @@
         /* One shared indicator across all three steps. Only the phone layout
            becomes a 48px row; desktop retains its original calendar and dots. */
         @media (max-width:639px) {
+            /* The lookup link and long intro consumed a phone screen before
+               the first choice. Keep the entry compact, with a 44px lookup target. */
+            #booking { padding-top:24px; padding-bottom:32px; }
+            #bookingLookupEntry { margin-bottom:8px; }
+            #lookupDisclosure > summary { min-height:44px; display:flex; align-items:center; justify-content:center; }
+            #bookingIntroTitle { font-size:24px; line-height:1.3; font-weight:400; margin-bottom:6px; }
+            #bookingIntroCopy { font-size:14px; line-height:1.5; margin-bottom:20px; }
             #stepIndicator { min-height:48px; padding:9px 6px; border-radius:10px; align-items:center; gap:4px; }
             #stepIndicator > div:first-child { display:none; }
             #stepIndicator > div:not(:first-child) { flex-direction:row; justify-content:center; gap:5px; }
@@ -2208,12 +2215,12 @@
 
     <!-- Booking Section (Multi-step Wizard) -->
     <section id="booking" class="py-14 sm:py-24 bg-gray-50 dark:bg-charcoal-800 transition-colors duration-300">
-        <!-- Look up existing appointments. Bookings live in the Google Sheet,
-             not on this device, so the phone number is what identifies them. -->
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
+        <!-- Lookup requests booking links at the stored email; this disclosure
+             stays easy to reach without a long sentence above the booking form. -->
+        <div id="bookingLookupEntry" class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
             <details id="lookupDisclosure" class="group">
                 <summary class="cursor-pointer list-none text-center text-sm text-gray-500 dark:text-gray-400 hover:text-gold transition-colors py-2">
-                    <span class="underline underline-offset-4" data-translate="Already booked? Check your appointment">Already booked? Check your appointment</span>
+                    <span class="underline underline-offset-4" data-translate="My Bookings">My Bookings</span>
                 </summary>
                 <form id="myBookingsLookupForm" class="mt-4 bg-white dark:bg-charcoal-900 rounded-2xl shadow-lg border border-gray-100 dark:border-charcoal-700 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-end gap-4">
                     <div class="flex-1">
@@ -2246,8 +2253,8 @@
         </div>
 
         <div class="max-w-4xl mx-auto bg-white dark:bg-charcoal-800 rounded-2xl md:rounded-3xl shadow-2xl p-4 sm:p-6 md:p-10 lg:p-12 border border-gray-100 dark:border-charcoal-700 relative">
-            <h2 class="font-serif text-3xl sm:text-4xl text-gray-900 dark:text-white mb-3 text-center">Book an Appointment</h2>
-            <p class="text-gray-600 dark:text-gray-400 mb-10 font-light text-center">Select your preferred service, barber, date, and time slot.</p>
+            <h2 id="bookingIntroTitle" data-translate="Book your visit" class="font-serif text-3xl sm:text-4xl text-gray-900 dark:text-white mb-3 text-center">Book your visit</h2>
+            <p id="bookingIntroCopy" data-translate="Choose your barber and service." class="text-gray-600 dark:text-gray-400 mb-10 font-light text-center">Choose your barber and service.</p>
             
             <div class="md:grid md:grid-cols-12 md:gap-8 md:items-start text-left">
                 <!-- Left Column: Form -->
@@ -2256,15 +2263,16 @@
                          marker rather than the indicator itself: once the indicator is
                          stuck its box sits where it is pinned, not where it belongs in
                          the page, so both measuring it and scrollIntoView on it land in
-                         the wrong place. scroll-mt clears the fixed nav. -->
-                    <div id="bookingStepsAnchor" class="scroll-mt-24 sm:scroll-mt-28"></div>
+                         the wrong place. Root scroll-padding clears the measured
+                         nav; this marker adds only a small breathing gap. -->
+                    <div id="bookingStepsAnchor" style="scroll-margin-top:8px"></div>
 
                     <!-- Step Progress Indicator -->
                     <!-- On a phone this was 40px discs with "Barber & Service"
                          wrapping under them, so the header alone took a fifth of
                          the screen before the form began. Smaller discs, one-word
                          labels on a single line, full labels from sm: up. -->
-                    <div id="stepIndicator" class="flex justify-between items-start max-w-md mx-auto mb-5 sm:mb-10 relative px-3 sm:px-4 sticky top-16 sm:top-20 z-40 bg-gray-50/90 dark:bg-charcoal-800/90 backdrop-blur py-2.5 sm:py-4 rounded-xl border border-gray-100 dark:border-charcoal-700 shadow-sm">
+                    <div id="stepIndicator" style="top:calc(var(--nav-h, 5rem) + 8px)" class="flex justify-between items-start max-w-md mx-auto mb-5 sm:mb-10 relative px-3 sm:px-4 sticky top-16 sm:top-20 z-40 bg-gray-50/90 dark:bg-charcoal-800/90 backdrop-blur py-2.5 sm:py-4 rounded-xl border border-gray-100 dark:border-charcoal-700 shadow-sm">
                         <div class="absolute top-[1.6rem] sm:top-[2.25rem] left-[calc(0.75rem_+_(100%_-_1.5rem)/6)] right-[calc(0.75rem_+_(100%_-_1.5rem)/6)] sm:left-[calc(1rem_+_(100%_-_2rem)/6)] sm:right-[calc(1rem_+_(100%_-_2rem)/6)] h-0.5 bg-gray-300 dark:bg-charcoal-700 z-0">
                             <div id="progressLine" class="h-full bg-gold transition-all duration-500 ease-out" style="width: 0%"></div>
                         </div>
@@ -3634,7 +3642,9 @@
             // pinned rather than where it sits in the page, and both hand-rolled
             // arithmetic and scrollIntoView on it overshoot by however far the
             // page had already scrolled. The gap under the nav comes from the
-            // anchor's scroll-mt, so the browser does the arithmetic.
+            // root's measured scroll-padding plus the anchor's 8px margin.
+            // A second full header margin left a large gap, while a fixed
+            // sticky top could hide the indicator behind a taller mobile nav.
             setTimeout(() => {
                 const anchor = document.getElementById('bookingStepsAnchor');
                 if (anchor) anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -4460,6 +4470,8 @@
             'Our Master Barbers': 'Onze Meesterkappers',
             'Our Services': 'Onze Diensten',
             'Book an Appointment': 'Maak een afspraak',
+            'Book your visit': 'Maak een afspraak',
+            'Choose your barber and service.': 'Kies je kapper en behandeling.',
             '1. Choose Service': '1. Kies Dienst',
             '2. Choose Barber (Optional)': '2. Kies Kapper (Optioneel)',
             'Any Available Barber': 'Elke Beschikbare Kapper',
