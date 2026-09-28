@@ -34,6 +34,7 @@ const PAGES = ['index.html', 'privacy.html', 'terms.html', 'cancel.html',
 // $2`, written to explain a cast, turned api/daily.js into a syntax error.
 // Node would have said so on the next deploy; this says so now.
 const FILES = [
+  path.join('assets', 'mobile-booking.js'),
   path.join('admin', 'admin.js'),
   path.join('api', 'index.js'),
   path.join('api', 'daily.js'),

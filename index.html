@@ -1454,6 +1454,37 @@
         /* Keep the native, accessible country picker, with only its dial code
            visible beside the number. Full country names remain in the menu. */
         .calendar-range-header { padding-bottom:8px; margin-bottom:10px; }
+        .mobile-booking-control { display:none; }
+        #bookingPickerSheet .booking-sheet-panel { position:absolute; inset:auto 0 0; max-height:85dvh; border-radius:24px 24px 0 0; display:flex; flex-direction:column; overflow:hidden; }
+        .booking-sheet-header { display:flex; align-items:center; justify-content:space-between; padding:12px 18px; border-bottom:1px solid #d1d5db; flex-shrink:0; }
+        .booking-sheet-header h3 { font-family:inherit; font-size:17px; font-weight:500; }
+        #bookingPickerClose { width:44px; height:44px; font-size:26px; }
+        #bookingPickerContent { overflow-y:auto; padding:12px 16px max(20px,env(safe-area-inset-bottom)); }
+        #bookingPickerContent #customCalendar { padding:0; border:0; box-shadow:none; background:transparent; }
+        #bookingPickerContent #timePickerContent > div:first-child { display:block; }
+        #bookingPickerContent #timePickerContent label { display:none; }
+        @media (prefers-color-scheme:dark) { .booking-sheet-header { border-color:#333; } }
+        /* One shared indicator across all three steps. Only the phone layout
+           becomes a 48px row; desktop retains its original calendar and dots. */
+        @media (max-width:639px) {
+            #stepIndicator { min-height:48px; padding:9px 6px; border-radius:10px; align-items:center; gap:4px; }
+            #stepIndicator > div:first-child { display:none; }
+            #stepIndicator > div:not(:first-child) { flex-direction:row; justify-content:center; gap:5px; }
+            #stepIndicator [id^="stepDot"] { width:22px; height:22px; flex-shrink:0; font-size:11px; font-weight:500; box-shadow:none; }
+            #stepIndicator [id^="stepLabel"] { margin-top:0; font-size:10px; letter-spacing:.3px; }
+            #barberPickerBtn, #servicePickerBtn { min-height:48px; padding:10px 12px; border-radius:10px; }
+            #barberPickerBtn > span:first-child > span:first-child { width:24px; height:24px; }
+            .mobile-booking-control { display:block; }
+            .mobile-booking-picker { display:flex; width:100%; min-height:48px; align-items:center; gap:10px; padding:10px 12px; border:1px solid #d1d5db; border-radius:10px; background:#f9fafb; color:#111827; text-align:left; font-size:14px; }
+            .mobile-booking-picker:disabled { opacity:.5; }
+            .mobile-booking-picker > span:first-child { color:#a17d13; }
+            .mobile-booking-picker > span:last-child { margin-left:auto; }
+            #datePickerHome > #customCalendar, #timePickerHome > #timePickerContent { display:none; }
+        }
+        @media (max-width:639px) and (prefers-color-scheme:dark) {
+            .mobile-booking-picker { border-color:#333; background:#1a1a1a; color:#f3f4f6; }
+            .mobile-booking-picker > span:first-child { color:#d4af37; }
+        }
         .calendar-range-title { font-family:inherit; font-size:15px; line-height:1.4; font-weight:500; }
         .calendar-month-mark { font-size:10px; line-height:1; font-weight:500; margin-bottom:5px; }
         .booking-field-error { color:#b42332; font-size:13px; line-height:1.5; margin-top:7px; }
@@ -2359,6 +2390,8 @@
                     <div>
                         <label class="block text-xs sm:text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2 sm:mb-3 font-semibold">1. Select Date</label>
                         <input type="hidden" id="date" required>
+                        <div class="mobile-booking-control"><button type="button" id="datePickerBtn" class="mobile-booking-picker" aria-haspopup="dialog" aria-controls="bookingPickerSheet"><span aria-hidden="true">▦</span><span id="datePickerLabel">Choose a date</span><span aria-hidden="true">⌄</span></button></div>
+                        <div id="datePickerHome">
                         
                         <!-- Custom Modern Calendar UI -->
                         <div id="customCalendar" tabindex="-1" aria-labelledby="calendarMonthYear" class="bg-gray-50 dark:bg-charcoal-800 border border-gray-200 dark:border-charcoal-700 rounded-xl p-3 sm:p-5 shadow-xl select-none">
@@ -2380,9 +2413,12 @@
                             </div>
                             <div id="calendarDaysGrid" class="grid grid-cols-7 gap-1.5 sm:gap-2"></div>
                         </div>
+                        </div>
                     </div>
 
-                    <div>
+                    <div id="timePickerHome">
+                        <div class="mobile-booking-control"><label for="timePickerBtn" class="block text-xs text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2 font-semibold" data-translate="2. Select Time Slot">2. Select Time Slot</label><button type="button" id="timePickerBtn" class="mobile-booking-picker" aria-haspopup="dialog" aria-controls="bookingPickerSheet" disabled><span aria-hidden="true">◷</span><span id="timePickerLabel">Choose a date first</span><span aria-hidden="true">⌄</span></button></div>
+                        <div id="timePickerContent">
                         <div class="flex justify-between items-center mb-3">
                             <label class="block text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest font-semibold">2. Select Time Slot</label>
                             <!-- Announced when it changes. The whole grid of times is
@@ -2394,6 +2430,7 @@
                         </div>
                         <!-- Interactive Time Chips Grid -->
                         <div id="timeChipsGrid" role="group" aria-label="Available times" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-2.5"></div>
+                        </div>
                     </div>
 
                     <div class="pt-4 flex justify-between items-stretch gap-3">
@@ -2499,6 +2536,15 @@
         </div>
     </section>
 
+    <!-- The actual calendar/time controls move here on phones, never clones:
+         one availability request, one selected date/time, and unchanged desktop. -->
+    <div id="bookingPickerSheet" class="fixed inset-0 z-[80] hidden">
+        <div class="sheet-veil absolute inset-0 bg-black/50 backdrop-blur-sm opacity-0" data-booking-dismiss></div>
+        <div role="dialog" aria-modal="true" aria-labelledby="bookingPickerTitle" class="sheet-panel booking-sheet-panel bg-white dark:bg-charcoal-900 shadow-2xl">
+            <div class="booking-sheet-header"><h3 id="bookingPickerTitle">Choose a date</h3><button type="button" id="bookingPickerClose" aria-label="Close" data-booking-dismiss>×</button></div>
+            <div id="bookingPickerContent" class="sheet-scroll"></div>
+        </div>
+    </div>
     <!-- Barber picker: a bottom sheet on a phone, a centred panel from sm: up -
          one list, tap a row, done. Populated by renderBarberCards(). -->
     <div id="barberPickerSheet" class="fixed inset-0 z-[80] hidden">
@@ -3685,6 +3731,7 @@
             if (currentWizardStep !== 3 || document.getElementById('submitBtn').disabled) return;
             updateWizardUI(step);
             document.getElementById(step === 1 ? 'barberPickerBtn' : 'customCalendar').focus({preventScroll:true});
+            if (step === 2 && window.mobileBookingFocus) window.mobileBookingFocus();
         }
         document.getElementById('editSummaryService').addEventListener('click', () => editBookingSummary(1));
         document.getElementById('editSummaryTime').addEventListener('click', () => editBookingSummary(2));
@@ -3695,6 +3742,7 @@
 
         // Time Chips Rendering
         function renderTimeChips() {
+            if (window.syncMobileBooking) window.syncMobileBooking();
             const grid = document.getElementById('timeChipsGrid');
             const selectedTime = document.getElementById('time').value;
             const selectedDate = document.getElementById('date').value;
@@ -4601,6 +4649,7 @@
             }
             refreshBookingContactErrors();
             renderCustomCalendar();
+            if (window.syncMobileBooking) window.syncMobileBooking();
             // Re-render live status badge and desktop live summary safely
             if (typeof updateBusinessStatus === 'function') updateBusinessStatus();
         }
@@ -5667,6 +5716,7 @@
         window.openServicePicker = openServicePicker;
         window.closeServicePicker = closeServicePicker;
         window.chooseService = chooseService;
+        window.bookingSheetMotion = {show:showSheet, hide:hideSheet};
     })();
     // --- 11. My Bookings: request booking details at their recorded email ---
     // Knowing a phone number never exposes appointments on this page.
@@ -5795,5 +5845,6 @@
     if (document.readyState !== 'loading') bootSite();
 
     </script>
+<script src="assets/mobile-booking.js"></script>
 </body>
 </html>

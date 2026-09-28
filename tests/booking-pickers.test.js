@@ -5,6 +5,41 @@ const fs = require('fs');
 const path = require('path');
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 
+// Drive the phone controller without a server: the same nodes must return to
+// desktop, and captured selection must finish AFTER the picker writes its value.
+{
+  const assert=require('assert/strict');
+  const ids=['bookingPickerSheet','bookingPickerContent','datePickerBtn','timePickerBtn','date','time','datePickerLabel','timePickerLabel','bookingPickerClose','bookingPickerTitle','datePickerHome','timePickerHome','customCalendar','timePickerContent','bookingForm','timeChipsGrid'];
+  const nodes=Object.fromEntries(ids.map(id=>[id,{id,value:'',inert:false,events:{},setAttribute(k,v){this[k]=v;},addEventListener(k,f,capture){this.events[k]=f;this[k+'Capture']=capture;},appendChild(n){n.parent=this;},focus(){doc.activeElement=this;}}]));
+  const bg={inert:false},alreadyInert={inert:true};
+  const doc={body:{children:[bg,alreadyInert,nodes.bookingPickerSheet]},getElementById:id=>nodes[id],events:{},addEventListener(k,f){this.events[k]=f;}};
+  const media={matches:true,addEventListener(k,f){this.change=f;}};
+  let held=0;const microtasks=[];
+  const win={matchMedia:()=>media,currentLang:'en',bookingSheetMotion:{show(){held++;},hide(){held--;}}};
+  const source=fs.readFileSync(path.join(__dirname,'../assets/mobile-booking.js'),'utf8');
+  new Function('window','document','MutationObserver','setTimeout','queueMicrotask',source)(win,doc,class{constructor(fn){this.fn=fn;}observe(){}},fn=>fn(),fn=>microtasks.push(fn));
+  assert.equal(nodes.timePickerBtn.disabled,true);
+  nodes.datePickerBtn.events.click();assert.equal(nodes.customCalendar.parent,nodes.bookingPickerContent);
+  assert.equal(bg.inert,true);assert.equal(held,1);
+  assert.equal(nodes.bookingPickerSheet.clickCapture,true,'selection observed before renderer removes button');
+  const picked={disabled:false};
+  nodes.bookingPickerSheet.events.click({target:{closest:s=>s==='[data-booking-dismiss]'?null:picked}});
+  assert.equal(held,1,'selection close waits for original handler');
+  nodes.date.value='2026-09-30';microtasks.shift()();
+  assert.equal(held,0);assert.equal(nodes.customCalendar.parent,nodes.datePickerHome);
+  assert.match(nodes.datePickerLabel.textContent,/30/);assert.equal(nodes.timePickerBtn.disabled,false);
+  assert.equal(bg.inert,false);assert.equal(alreadyInert.inert,true);
+  nodes.timePickerBtn.events.click();assert.equal(nodes.timePickerContent.parent,nodes.bookingPickerContent);
+  doc.events.keydown({key:'Escape',preventDefault(){}});
+  assert.equal(nodes.timePickerContent.parent,nodes.timePickerHome);assert.equal(doc.activeElement,nodes.timePickerBtn);
+  nodes.datePickerBtn.events.click();media.matches=false;media.change();
+  assert.equal(held,0);assert.equal(nodes.customCalendar.parent,nodes.datePickerHome);
+  nodes.datePickerBtn.events.click();assert.equal(held,0,'desktop cannot open phone sheet');
+  nodes.time.value='10:30';win.syncMobileBooking();assert.equal(nodes.timePickerLabel.textContent,'10:30');
+  nodes.time.value='';win.currentLang='nl';win.syncMobileBooking();assert.equal(nodes.timePickerLabel.textContent,'Kies een tijd');
+  console.log('PASS mobile sheet node reuse, selection ordering, focus, inert restoration and desktop resize');
+}
+
 // Inline errors must stop the actual submit handler before any prompt/POST,
 // keep the draft intact, and retain the shared country-aware phone rules.
 {
@@ -318,7 +353,7 @@ console.log('--- summary edits preserve contact inputs and use existing steps --
 const contact={fullName:{value:'Test Customer'},phoneNumber:{value:'3123456789'},emailAddress:{value:'test@example.com'},phoneNumberCountry:{value:'IT'}};
 let focused='',stepShown=3;const pendingSubmit={disabled:false};
 const editDoc={getElementById:id=>id==='submitBtn'?pendingSubmit:contact[id]||{focus(){focused=id;}}};
-const edit=new Function('document','updateWizardUI','let currentWizardStep=3;'+grab('editBookingSummary')+';return editBookingSummary;')(editDoc,n=>{stepShown=n;});
+const edit=new Function('document','updateWizardUI','window','let currentWizardStep=3;'+grab('editBookingSummary')+';return editBookingSummary;')(editDoc,n=>{stepShown=n;},{});
 const beforeContact=JSON.stringify(contact);
 edit(1);ok('service edit opens picker step',stepShown,1);ok('service edit focuses barber picker',focused,'barberPickerBtn');
 edit(2);ok('time edit opens calendar step',stepShown,2);ok('time edit focuses calendar',focused,'customCalendar');

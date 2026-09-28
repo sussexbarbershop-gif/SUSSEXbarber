@@ -25,6 +25,7 @@ model arriving with no context.
 ```
 index.html          the whole public site: markup, styles and script in one file
 assets/phone.js     shared country-aware phone parsing and country selector
+assets/mobile-booking.js mobile date/time sheets reusing the live booking controls
 assets/vendor/      pinned local libphonenumber bundle and its licence
 admin/              the shop's panel — index.html, admin.js, admin.css
 api/
@@ -307,6 +308,15 @@ month-end and could show only a few dates. The compact month-range heading
 replaces month navigation; weekday alignment and closed/time-off checks remain.
 This is a display window, not 30 available working days. No availability or
 stored appointment rules are changed.
+
+Below 640px, date and time use compact 48px buttons that open the existing
+blurred bottom-sheet style. The actual calendar/time controls move into one
+dialog and return on close; there are no duplicated IDs, availability requests
+or scheduling rules. Selecting closes it, while Escape/backdrop/Close preserve
+the selection. Changing date still clears time and refetches availability.
+The dialog traps focus, makes the background inert and restores scrolling;
+resizing to desktop restores the inline controls. The shared step indicator
+is compact on all three mobile steps. Desktop retains its original layout.
 
 Contact validation now shows persistent errors beneath name, phone and optional
 email, instead of native bubbles and disappearing toasts. Submitting checks all
