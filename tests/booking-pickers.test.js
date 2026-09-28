@@ -227,27 +227,15 @@ console.log('--- every inline onclick can actually reach its function ---');
   ok('no onclick calls a function trapped inside the IIFE', unreachable, []);
 }
 
-console.log('--- changing step scrolls to the steps, not past them ---');
-// This scrolled to the top of #booking minus 100px, which put the "Book an
-// Appointment" heading and its subtitle back on screen on every step change.
+console.log('--- all steps keep the booking introduction visible ---');
 {
   const wizard = html.match(/function updateWizardUI\(stepNum\)[\s\S]*?\n        \}/);
   const src = wizard ? wizard[0] : '';
-  ok('the wizard scrolls to the steps anchor', /getElementById\('bookingStepsAnchor'\)/.test(src), true);
-  ok('it no longer scrolls to the section top', /getElementById\('booking'\)/.test(src), false);
-  // The indicator is sticky: once stuck, its box is where it is pinned rather
-  // than where it belongs in the page, so measuring it or scrolling to it
-  // overshoots by however far the page had already moved. The anchor is a
-  // plain, empty, non-sticky element and has neither problem.
-  ok('it does not aim at the sticky indicator', /getElementById\('stepIndicator'\)/.test(src), false);
-  ok('the anchor exists above the indicator',
-     html.indexOf('id="bookingStepsAnchor"') < html.indexOf('id="stepIndicator"'), true);
-  // Root scroll-padding already reserves the measured nav height. Reserving
-  // another 96px here left a large gap; a fixed sticky top could hide steps.
-  const anchorTag = (html.match(/<div id="bookingStepsAnchor"[^>]*>/) || [''])[0];
-  ok('the anchor adds only an 8px gap', /scroll-margin-top:8px/.test(anchorTag), true);
+  ok('every step uses the same section target as booking links', src.includes("smoothScrollTo('#booking')"), true);
+  ok('no obsolete steps anchor remains', html.includes('bookingStepsAnchor'), false);
+  ok('book another does not start a competing native scroll', html.includes("document.getElementById('booking').scrollIntoView"), false);
   const indicatorTag = (html.match(/<div id="stepIndicator"[^>]*>/) || [''])[0];
-  ok('sticky steps clear the measured nav', /top:calc\(var\(--nav-h, 5rem\) \+ 8px\)/.test(indicatorTag), true);
+  ok('sticky steps clear the measured nav', indicatorTag.includes('top:calc(var(--nav-h, 5rem) + 8px)'), true);
 }
 
 console.log('--- the desktop Live Summary is gone ---');

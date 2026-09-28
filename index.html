@@ -2259,13 +2259,6 @@
             <div class="md:grid md:grid-cols-12 md:gap-8 md:items-start text-left">
                 <!-- Left Column: Form -->
                 <div class="md:col-span-12">
-                    <!-- Where changing step scrolls to. A separate, empty, non-sticky
-                         marker rather than the indicator itself: once the indicator is
-                         stuck its box sits where it is pinned, not where it belongs in
-                         the page, so both measuring it and scrollIntoView on it land in
-                         the wrong place. Root scroll-padding clears the measured
-                         nav; this marker adds only a small breathing gap. -->
-                    <div id="bookingStepsAnchor" style="scroll-margin-top:8px"></div>
 
                     <!-- Step Progress Indicator -->
                     <!-- On a phone this was 40px discs with "Barber & Service"
@@ -3632,23 +3625,10 @@
 
             currentWizardStep = stepNum;
 
-            // Bring the steps to just under the nav, rather than the top of the
-            // booking section - that put "Book an Appointment" and its subtitle
-            // back on screen on every step change, a screenful spent re-reading
-            // a heading the customer had already passed.
-            //
-            // Scrolls to the empty anchor above the indicator, not the indicator
-            // itself: it is sticky, so once stuck its box reports where it is
-            // pinned rather than where it sits in the page, and both hand-rolled
-            // arithmetic and scrollIntoView on it overshoot by however far the
-            // page had already scrolled. The gap under the nav comes from the
-            // root's measured scroll-padding plus the anchor's 8px margin.
-            // A second full header margin left a large gap, while a fixed
-            // sticky top could hide the indicator behind a taller mobile nav.
-            setTimeout(() => {
-                const anchor = document.getElementById('bookingStepsAnchor');
-                if (anchor) anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 50);
+            // Keep My Bookings and the compact introduction visible on every
+            // step, just like all #booking entry links. The shared scroller
+            // clears the measured nav and never aims at the sticky indicator.
+            setTimeout(() => smoothScrollTo('#booking'), 50);
 
             // Progress Line width
             if (stepNum === 1) progressLine.style.width = '0%';
@@ -4340,7 +4320,7 @@
         document.getElementById('bookAnotherBtn').addEventListener('click', () => {
             document.getElementById('bookingStep4').classList.add('hidden');
             updateWizardUI(1);
-            document.getElementById('booking').scrollIntoView({ behavior: 'smooth' });
+            // updateWizardUI handles scrolling; avoid a competing animation.
         });
 
         /**

@@ -321,9 +321,10 @@ The booking introduction now uses short English/Dutch copy and a My Bookings
 disclosure. Mobile spacing and title size are reduced so the first choice is
 closer to the top; the lookup still has a 44px touch target and the same email
 request flow. Desktop spacing and heading sizes remain unchanged.
-Step changes land 8px below the measured navigation height. The sticky step
-indicator uses that same height: the old fixed top could sit behind the nav,
-while a second full scroll margin left unnecessary empty space on each change.
+All step changes and booking entry links scroll to the start of the booking
+section, keeping My Bookings and the compact introduction visible below the
+measured navigation bar. The sticky step indicator still clears that bar by 8px.
+Book Another uses the same step transition without a second competing scroll.
 
 Contact validation now shows persistent errors beneath name, phone and optional
 email, instead of native bubbles and disappearing toasts. Submitting checks all
