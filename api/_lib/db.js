@@ -86,6 +86,10 @@ function ensureSchema() {
       // Whether a barber has a card on the website. Not whether they can be
       // booked — see the note in db/schema.sql.
       await sql`ALTER TABLE barbers ADD COLUMN IF NOT EXISTS on_team boolean NOT NULL DEFAULT true`;
+      // Lost-response retries share one unique key; NULL preserves old rows.
+      await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS request_key uuid`;
+      await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS request_hash text`;
+      await sql`CREATE UNIQUE INDEX IF NOT EXISTS bookings_request_key ON bookings (request_key)`;
       // Additive only: legacy phone text and customer links are never rewritten.
       await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS phone_e164 text`;
       await sql`CREATE INDEX IF NOT EXISTS bookings_by_e164 ON bookings (phone_e164, booked_on)`;

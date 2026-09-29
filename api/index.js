@@ -1,3 +1,4 @@
+const { createHash } = require('node:crypto');
 const {canonical: canonicalPhone, legacyVariants} = require('../assets/phone');
 /**
  * The whole backend, on one route.
@@ -834,7 +835,30 @@ async function refuseBooking(config, payload, byShop, duration = rota.SLOT_MINUT
  * address must not turn a confirmed appointment into an error on the customer's
  * screen.
  */
+// Bind the opaque retry key to the original input, never to current prices or
+// rota. A replay remains recognisable after admin edits, but cannot expose a
+// different customer's result or resurrect a cancelled appointment.
+function bookingRequest(payload, byShop) {
+  if (!payload.requestKey || byShop) return null;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(payload.requestKey)) throw new Error('Invalid booking request key');
+  const input = ['date','time','service','barber','name','phone','phoneCountry','email','lang'].map(k => trimmed(payload[k]));
+  return {key:payload.requestKey, hash:createHash('sha256').update(JSON.stringify(input)).digest('hex')};
+}
+async function replayBooking(sql, request) {
+  if (!request) return null;
+  const rows = await withNewSchema(() => sql`SELECT request_hash, status, barber, duration_min FROM bookings WHERE request_key = ${request.key}::uuid`);
+  if (!rows.length) return null;
+  const row=rows[0];
+  if (row.request_hash !== request.hash) return {status:'error', message:'This request belongs to different booking details. Please start a new booking.'};
+  if (row.status !== 'active') return {status:'error', message:'This appointment has already been cancelled. Please start a new booking.'};
+  return {status:'success', message:'Booking added', barber:row.barber, duration:row.duration_min};
+}
 async function addBooking(payload, res, byShop) {
+  let request;
+  try { request = bookingRequest(payload, byShop); }
+  catch (_) { return json(res, {status:'error', message:'Invalid booking request key'}); }
+  const replay = await replayBooking(db(), request);
+  if (replay) return json(res, replay);
   const config = await readRotaConfig();
   // Resolve the service once, on the server. This same duration controls the
   // rota check, overlap query and saved row, even if the panel edits the
@@ -854,7 +878,7 @@ async function addBooking(payload, res, byShop) {
   const duration = Number(known[0].duration_min) || rota.SLOT_MINUTES;
   const price = Number(known[0].price);
   const refusal = await refuseBooking(config, payload, byShop, duration);
-  if (refusal) return json(res, { status: 'error', message: refusal });
+  if (refusal) return json(res, await replayBooking(sql, request) || { status: 'error', message: refusal });
 
   const date = trimmed(payload.date);
   const time = trimmed(payload.time);
@@ -868,11 +892,13 @@ async function addBooking(payload, res, byShop) {
   // which is how two people ever got the same last chair.
   const candidates = asked ? [asked] : [];
   const written = await insertBooking(sql, {
-    date, clock, service, price, duration, payload, config, time, asked, candidates,
+    date, clock, service, price, duration, payload, config, time, asked, candidates, request,
     source: byShop ? 'shop' : 'web'
   });
 
-  if (written.error) return json(res, { status: 'error', message: written.error });
+  // Only the request that inserted the row sends notifications.
+  if (written.replay) return json(res, written.replay);
+  if (written.error) return json(res, await replayBooking(sql, request) || { status: 'error', message: written.error });
 
   // After the row is safely written. A booking must never fail because an
   // email did. The row, not the payload — so the notification quotes the price
@@ -969,23 +995,30 @@ async function insertBooking(sql, ctx) {
         sql`SELECT pg_advisory_xact_lock(73021, 2047)`,
         sql`
         INSERT INTO bookings (booked_on, booked_at, service, barber, customer_name,
-                              phone, email, price, source, lang, customer_id, duration_min, phone_e164)
+                              phone, email, price, source, lang, customer_id, duration_min, phone_e164, request_key, request_hash)
         SELECT ${date}::date, ${clock}::time, ${service}, ${barber}, ${trimmed(payload.name)},
                 ${trimmed(payload.phone)}, ${trimmed(payload.email)}, ${price},
-                ${source}, ${lang}, ${customerId}, ${duration}, ${canonicalPhone(payload.phone, payload.phoneCountry || 'NL')}
+                ${source}, ${lang}, ${customerId}, ${duration}, ${canonicalPhone(payload.phone, payload.phoneCountry || 'NL')}, ${ctx.request?.key || null}::uuid, ${ctx.request?.hash || null}
         WHERE EXISTS (SELECT 1 FROM barbers WHERE name = ${barber})
           AND NOT EXISTS (
             SELECT 1 FROM time_off t JOIN barbers b ON b.id = t.barber_id
              WHERE b.name = ${barber} AND ${date}::date BETWEEN t.starts_on AND t.ends_on)
+        ON CONFLICT (request_key) DO NOTHING
         RETURNING id`]));
       const written = results[1];
       if (!written.length) {
+        const replay = await replayBooking(sql, ctx.request);
+        if (replay) return {replay};
         if (asked) return {error: 'That barber is no longer available on that date. Please choose another.'};
         refused.push(barber);
         continue;
       }
       return { barber, id: (written[0] || {}).id, lang };
     } catch (err) {
+      // A concurrent retry can lose either the key or chair constraint race.
+      // Read the committed winner before trying another chair.
+      const replay = await replayBooking(sql, ctx.request);
+      if (replay) return {replay};
       // Concurrent GiST checks can deadlock. PostgreSQL has rolled this
       // statement back; retry it so the winner becomes an ordinary clash.
       if (err.code === '40P01' && deadlockRetries++ < 2) {

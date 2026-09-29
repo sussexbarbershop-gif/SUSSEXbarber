@@ -39,7 +39,7 @@ api/
     limits.js       how often one number may book
     reports.js      the takings, for the owner's page
 db/schema.sql       the database, and why each column is the way it is
-tests/              47 files, run by `npm test`
+tests/              48 files, run by `npm test`
                     booking-overlap.postgres.cjs: isolated PostgreSQL integration checks
 MIGRATION.md        how the backend works and what to set up from nothing
 ```
@@ -335,3 +335,15 @@ error; country and language changes refresh it.
 Draft values survive validation and summary edits. English/Dutch messages use
 the existing phone parser and email rules; the no-email confirmation stays in
 place. Successful form reset clears validation state. No stored bookings change.
+
+Booking retries carry a random request key, bound to a digest of the original
+input and protected by a unique database index. A lost response previously
+allowed Any Available retries to reserve a second barber. Replays now return
+the saved result without sending notifications again; changed inputs and
+cancelled appointments cannot reuse a key. Legacy rows retain NULL keys.
+The browser keeps only a key/digest in session storage, retains form fields on
+network errors, and allows a same-details retry after a 20-second timeout.
+Real concurrent retries are checked in tests/booking-overlap.postgres.cjs.
+
+`tests/booking-retry.test.js` exercises the real browser submission handler with
+controlled failed responses and timeouts, without sending bookings or emails.

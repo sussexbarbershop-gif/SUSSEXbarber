@@ -4062,6 +4062,26 @@
             if (document.getElementById('phoneNumber').hasAttribute('aria-invalid')) validateBookingContact('phoneNumber');
         });
 
+        // Keep a retry identity across network failures (and reloads when session
+        // storage is available). Store only a digest, never contact details.
+        let bookingAttempt = null;
+        async function identifyBookingAttempt(data) {
+            const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(['date','time','service','barber','name','phone','phoneCountry','email','lang'].map(k => data[k]))));
+            const fingerprint = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+            if (!bookingAttempt) {
+                try { bookingAttempt = JSON.parse(sessionStorage.getItem('sussex.bookingAttempt')); } catch (_) {}
+            }
+            if (!bookingAttempt || bookingAttempt.fingerprint !== fingerprint) {
+                bookingAttempt = {fingerprint, key:crypto.randomUUID()};
+                try { sessionStorage.setItem('sussex.bookingAttempt', JSON.stringify(bookingAttempt)); } catch (_) {}
+            }
+            return bookingAttempt.key;
+        }
+        function clearBookingAttempt() {
+            bookingAttempt = null;
+            try { sessionStorage.removeItem('sussex.bookingAttempt'); } catch (_) {}
+        }
+
         // Submit Booking Form Event
         document.getElementById('bookingForm').addEventListener('submit', async function(event) {
             event.preventDefault();
@@ -4121,19 +4141,25 @@
                 lang: window.currentLang || 'en'
             };
 
+            let requestTimeout;
             try {
+                bookingData.requestKey = await identifyBookingAttempt(bookingData);
+                const controller = new AbortController();
+                requestTimeout = setTimeout(() => controller.abort(), 20000);
                 // Not no-cors: the server can refuse this booking (for example
                 // when the slot was taken a second earlier), and confirming an
                 // appointment that was never made is the worst outcome here.
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify(bookingData)
+                    body: JSON.stringify(bookingData),
+                    signal: controller.signal
                 });
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const result = await response.json();
 
                 if (result.status !== 'success') {
+                    clearBookingAttempt();
                     showToast(result.message || 'That booking could not be completed.', 'error');
 
                     submitBtn.innerText = originalText;
@@ -4154,6 +4180,7 @@
                     return;
                 }
 
+                clearBookingAttempt();
                 bookedTimesList.push(bookingData.time);
                 renderTimeChips();
 
@@ -4209,10 +4236,15 @@
 
             } catch (error) {
                 console.error("Failed to submit booking:", error);
-                const errMsg = error.message ? error.message : String(error);
-                showToast("Error: " + errMsg, "error");
+                // The server may have committed before the connection failed.
+                // Retrying these unchanged details reuses the same identity.
+                showToast(window.currentLang === 'nl'
+                    ? 'Geen bevestiging ontvangen. Je gegevens zijn bewaard. Probeer opnieuw met dezelfde gegevens; je afspraak wordt niet dubbel geboekt.'
+                    : 'No confirmation received. Your details are saved. Retry with the same details; your appointment will not be booked twice.', 'error');
                 submitBtn.innerText = originalText;
                 submitBtn.disabled = false;
+            } finally {
+                clearTimeout(requestTimeout);
             }
         });
 

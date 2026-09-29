@@ -52,10 +52,10 @@ delete process.env.NOTIFY_EMAIL;
 const db = require('../api/_lib/db');
 db.minutesSinceJobRun = async () => 0;
 const mail = require('../api/_lib/mail');
-let bookingLists=[];
+let bookingLists=[], confirmationCount=0;
 mail.sendCustomerBookings=async(to,list)=>{bookingLists.push({to,list});return true;};
 for (const name of ['sendBookingNotice', 'sendCustomerConfirmation', 'sendCancellationNotice', 'sendCustomerCancellation']) {
-  mail[name] = async () => false;
+  mail[name] = async () => {if(name==='sendCustomerConfirmation')confirmationCount++;return false;};
 }
 const api = require('../api');
 const day = '2099-09-08';
@@ -105,6 +105,25 @@ async function main() {
     await pool.query("INSERT INTO services(name_en,name_nl,price,duration_min,position) VALUES ('Short cut','Kort',25,30,1),('Long cut','Lang',40,60,2)");
     await pool.query("INSERT INTO settings(key,value) VALUES ('booking_open','yes'),('barber_priority','Amir,Saan')");
     await pool.query("INSERT INTO shop_hours(weekday,is_open,opens_at,closes_at) SELECT n,true,'10:00','18:00' FROM generate_series(1,7) n");
+    for (const barber of ['Amir', 'Any Available']) {
+      await check('lost response retry and concurrent requests: '+barber, async()=>{
+        const requestKey=crypto.randomUUID();
+        confirmationCount=0;
+        let count=0, release;
+        const gate=new Promise(resolve=>{release=resolve;});
+        arrival=async()=>{if(++count===2){arrival=null;release();} await gate;};
+        const results=await Promise.all([book({barber,requestKey}),book({barber,requestKey})]);
+        assert.ok(results.every(r=>r.status==='success'),JSON.stringify(results));
+        assert.equal(results[0].barber,results[1].barber);
+        assert.equal((await pool.query('SELECT count(*)::int AS n FROM bookings')).rows[0].n,1);
+        assert.deepEqual(await book({barber,requestKey}),results[0]);
+        assert.equal(confirmationCount,1,'only the inserting request sends confirmation');
+        assert.equal((await book({barber,requestKey,name:'Changed person'})).status,'error');
+        await pool.query("UPDATE bookings SET status='cancelled', cancelled_at=now()");
+        assert.equal((await book({barber,requestKey})).status,'error');
+        assert.equal((await pool.query('SELECT count(*)::int AS n FROM bookings')).rows[0].n,1);
+      });
+    }
     await check('email lookup keeps shared-phone recipients separate and staff cancel uses one ID',async()=>{
       const a=(await insert(pool,'10:00',30,'Amir')).rows[0].id;
       const b=(await insert(pool,'10:00',30,'Saan')).rows[0].id;
