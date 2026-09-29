@@ -352,5 +352,15 @@ pendingSubmit.disabled=true;edit(1);ok('pending submission cannot be interrupted
 ok('summary service edit is not a submit button',/type="button" id="editSummaryService"/.test(html),true);
 ok('summary time edit is not a submit button',/type="button" id="editSummaryTime"/.test(html),true);
 
+// The time-step recap must reflect edits and sum multi-service selections.
+{
+  const fields={service:{value:'Cut, Beard'},barber:{value:'Any Available'},timeSelectionSummary:{textContent:''}};
+  const state={currentLang:'en',sussexServices:[{nameEN:'Cut',nameNL:'Knippen',price:20},{nameEN:'Beard',nameNL:'Baard',price:10}]};
+  const recap=new Function('document','window',grab('updateTimeSelectionSummary')+';return updateTimeSelectionSummary;')({getElementById:id=>fields[id]},state);
+  recap();ok('time recap sums selected services',fields.timeSelectionSummary.textContent.includes('€30.00'),true);
+  state.currentLang='nl';recap();ok('time recap follows language',fields.timeSelectionSummary.textContent.includes('Knippen, Baard'),true);
+  fields.service.value='Cut';fields.barber.value='Hemen';recap();ok('time recap follows edits',fields.timeSelectionSummary.textContent.startsWith('Hemen · Knippen'),true);
+}
+
 console.log(failed === 0 ? '\nAll picker tests passed.' : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);

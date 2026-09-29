@@ -1521,6 +1521,18 @@
         .phone-country-label { display:block; font-size:12px; margin:0 0 6px; }
         .phone-country { display:block; width:100%; min-height:44px; margin-bottom:8px; padding:10px; border:1px solid GrayText; border-radius:8px; color:#111827; background:#f9fafb; }
         @media (prefers-color-scheme: dark) { .phone-country { color:#f3f4f6; background:#262626; border-color:#404040; color-scheme:dark; } }
+        .time-selection-summary {display:flex; align-items:center; gap:12px; padding:8px 12px; border:1px solid #7774; border-radius:10px; font-size:13px; line-height:1.5;}
+        #timeSelectionSummary {flex:1; min-width:0; overflow-wrap:anywhere;}
+        #editTimeSelection {flex-shrink:0; min-height:44px; padding:0 8px; color:#b89420; text-decoration:underline; text-underline-offset:3px;}
+        .booking-picker-date {margin:0; padding:0 20px 12px; font-size:14px; color:#888; line-height:1.5;}
+        .confirmation-details {padding:18px; border-radius:12px; text-align:left; margin:20px 0;}
+        .confirmation-when {display:flex; flex-direction:column; gap:4px; padding-bottom:16px; margin-bottom:14px; border-bottom:1px solid #7774;}
+        #confirmDate {font-size:20px; font-weight:500; line-height:1.4;}
+        #confirmTime {font-size:32px; line-height:1.2;}
+        .confirmation-row {display:grid; grid-template-columns:70px minmax(0,1fr); gap:12px; padding:6px 0; font-size:14px; overflow-wrap:anywhere;}
+        .confirmation-address {border-top:1px solid #7774; margin-top:12px; padding-top:12px; font-size:14px; line-height:1.6;}
+        #bookingConfirmationCard #addToCalendarBtn {background:#d4af37; color:#111; min-height:48px; text-transform:none; letter-spacing:0;}
+        @media(max-width:639px) {#bookingConfirmationCard {padding:20px 14px;} #bookingConfirmationCard > svg {width:36px; height:36px;} #bookingConfirmationCard #bookAnotherBtn {min-height:44px; text-transform:none; letter-spacing:0;}}
     </style>
 
     <!-- Tells Google this is a barber shop in Wassenaar rather than leaving it
@@ -2379,8 +2391,7 @@
                          an app; back to a right-aligned button from sm: up. -->
                     <div class="pt-2 sm:pt-4 flex justify-stretch sm:justify-end">
                         <button type="button" id="goToStep2Btn" disabled class="w-full sm:w-auto bg-gold text-charcoal-900 font-semibold uppercase tracking-widest px-6 sm:px-8 py-3.5 rounded-lg hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-charcoal-900 transition-colors duration-300 text-xs sm:text-sm flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gold disabled:hover:text-charcoal-900">
-                            <span class="sm:hidden">Continue</span>
-                            <span class="hidden sm:inline">Continue to Date &amp; Time</span>
+                            <span data-translate="Choose date & time">Choose date &amp; time</span>
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                         </button>
                     </div>
@@ -2388,6 +2399,10 @@
 
                 <!-- STEP 2: Select Date & Time Chips -->
                 <div id="bookingStep2" class="space-y-4 sm:space-y-8 hidden">
+                    <div class="time-selection-summary" aria-label="Selected barber and service">
+                        <span id="timeSelectionSummary"></span>
+                        <button type="button" id="editTimeSelection" data-translate="Edit">Edit</button>
+                    </div>
                     <div>
                         <label class="block text-xs sm:text-sm text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2 sm:mb-3 font-semibold">1. Select Date</label>
                         <input type="hidden" id="date" required>
@@ -2440,7 +2455,7 @@
                             <span>Back</span>
                         </button>
                         <button type="button" id="goToStep3Btn" class="bg-gold text-charcoal-900 font-semibold uppercase tracking-widest px-4 sm:px-8 py-3.5 rounded-lg hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-charcoal-900 transition-colors duration-300 text-xs sm:text-sm flex flex-1 items-center justify-center gap-2 text-center whitespace-nowrap sm:whitespace-normal">
-                            <span>Continue to Summary</span>
+                            <span data-translate="Review booking">Review booking</span>
                             <svg class="w-4 h-4 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                         </button>
                     </div>
@@ -2502,16 +2517,18 @@
 
                 <!-- Step 4: Confirmation Card -->
                 <div id="bookingStep4" class="space-y-6 hidden animate-slide-in-right">
-                    <div class="bg-gold/5 dark:bg-gold/10 border border-gold p-8 rounded-xl text-center shadow-lg">
+                    <div id="bookingConfirmationCard" class="bg-gold/5 dark:bg-gold/10 border border-gold p-8 rounded-xl text-center shadow-lg" role="status">
                         <svg class="w-12 h-12 md:w-16 md:h-16 text-gold mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         <h3 class="text-2xl font-serif text-gray-900 dark:text-white mb-2">Booking Confirmed!</h3>
                         <p class="text-gray-600 dark:text-gray-400 mb-6 font-light">Thank you, <span id="confirmName" class="font-medium text-gray-900 dark:text-white"></span>. We look forward to seeing you.</p>
                         
-                        <div class="bg-white dark:bg-charcoal-800 p-4 rounded-lg text-left mb-8 space-y-3 border border-gray-200 dark:border-charcoal-700">
-                            <div class="flex justify-between text-sm border-b border-gray-100 dark:border-charcoal-700 pb-2"><span class="text-gray-500">Service:</span><span id="confirmService" class="font-medium text-gray-900 dark:text-white"></span></div>
-                            <div class="flex justify-between text-sm border-b border-gray-100 dark:border-charcoal-700 pb-2"><span class="text-gray-500">Barber:</span><span id="confirmBarber" class="font-medium text-gray-900 dark:text-white"></span></div>
-                            <div class="flex justify-between text-sm border-b border-gray-100 dark:border-charcoal-700 pb-2"><span class="text-gray-500">Date:</span><span id="confirmDate" class="font-medium text-gray-900 dark:text-white"></span></div>
-                            <div class="flex justify-between text-sm"><span class="text-gray-500">Time:</span><span id="confirmTime" class="font-medium text-gold font-bold text-base"></span></div>
+                        <!-- Date/time first: the customer can check the appointment at
+                             a glance. Address shares the admin-managed map content. -->
+                        <div class="confirmation-details bg-white dark:bg-charcoal-800 border border-gray-200 dark:border-charcoal-700">
+                            <div class="confirmation-when"><span id="confirmDate" class="text-gray-900 dark:text-white"></span><strong id="confirmTime" class="text-gold"></strong></div>
+                            <div class="confirmation-row"><span class="text-gray-500">Service:</span><span id="confirmService" class="text-gray-900 dark:text-white"></span></div>
+                            <div class="confirmation-row"><span class="text-gray-500">Barber:</span><span id="confirmBarber" class="text-gray-900 dark:text-white"></span></div>
+                            <div class="confirmation-address"><span data-translate="Location" class="text-gray-500">Location</span><p class="cms-map-address text-gray-900 dark:text-white">Van Hogendorpstraat 10, Wassenaar</p></div>
                         </div>
 
                         <div class="flex flex-col sm:flex-row gap-4 justify-center">
@@ -2543,6 +2560,7 @@
         <div class="sheet-veil absolute inset-0 bg-black/50 backdrop-blur-sm opacity-0" data-booking-dismiss></div>
         <div role="dialog" aria-modal="true" aria-labelledby="bookingPickerTitle" class="sheet-panel booking-sheet-panel bg-white dark:bg-charcoal-900 shadow-2xl">
             <div class="booking-sheet-header"><h3 id="bookingPickerTitle">Choose a date</h3><button type="button" id="bookingPickerClose" aria-label="Close" data-booking-dismiss>×</button></div>
+            <p id="bookingPickerDate" class="booking-picker-date" hidden></p>
             <div id="bookingPickerContent" class="sheet-scroll"></div>
         </div>
     </div>
@@ -3608,7 +3626,25 @@
             element.textContent = formatBookingDate(iso, window.currentLang);
         }
 
+        // Read the current selection each time, so editing service/barber or
+        // switching language never leaves yesterday's price above the calendar.
+        function updateTimeSelectionSummary() {
+            const selected = document.getElementById('service').value.split(',').map(s => s.trim()).filter(Boolean);
+            const services = window.sussexServices || [];
+            const matches = selected.map(name => services.find(s => s.nameEN === name || s.nameNL === name));
+            const nl = window.currentLang === 'nl';
+            const labels = matches.map((s,i) => s ? (nl ? s.nameNL || s.nameEN : s.nameEN) : selected[i]);
+            const barber = document.getElementById('barber').value;
+            const parts = [barber === 'Any Available' && nl ? 'Eerst beschikbare' : barber, labels.join(', ')];
+            if (matches.length && matches.every(Boolean)) parts.push(new Intl.NumberFormat(nl ? 'nl-NL' : 'en-IE', {style:'currency',currency:'EUR',maximumFractionDigits:2}).format(matches.reduce((sum,s) => sum + Number(s.price || 0), 0)));
+            document.getElementById('timeSelectionSummary').textContent = parts.filter(Boolean).join(' · ');
+        }
+        document.getElementById('editTimeSelection').addEventListener('click', () => {
+            updateWizardUI(1);
+            document.getElementById('barberPickerBtn').focus({preventScroll:true});
+        });
         function updateWizardUI(stepNum) {
+            updateTimeSelectionSummary();
             const isForward = stepNum > currentWizardStep;
             
             [step1, step2, step3].forEach((el, i) => {
@@ -4205,13 +4241,15 @@
                 // Populate confirmation card
                 document.getElementById('confirmName').innerText = bookingData.name;
                 document.getElementById('confirmService').innerText = bookingData.service;
-                document.getElementById('confirmBarber').innerText = bookingData.barber || 'Any Available';
+                document.getElementById('confirmBarber').innerText = result.barber || bookingData.barber || 'Any Available';
                 renderBookingDate('confirmDate', bookingData.date);
                 document.getElementById('confirmTime').innerText = bookingData.time;
 
                 // Show Step 4
                 document.getElementById('bookingStep3').classList.add('hidden');
                 document.getElementById('bookingStep4').classList.remove('hidden');
+                // Keep the success card visible after the long contact form shrinks.
+                smoothScrollTo('#booking');
                 
                 // Keep progress bar full
                 document.getElementById('progressLine').style.width = '100%';
@@ -4545,6 +4583,8 @@
             'Barber & Service': 'Kapper & Dienst',
             'Choose Date & Time': 'Kies Datum & Tijd',
             'Finalize Details': 'Rond details af',
+            'Choose date & time': 'Kies datum en tijd',
+            'Review booking': 'Controleer afspraak',
             'Continue to Date & Time': 'Ga naar Datum & Tijd',
             'Continue to Summary': 'Ga naar Overzicht',
             'Confirming...': 'Bevestigen...',
@@ -4674,7 +4714,8 @@
             refreshBookingContactErrors();
             renderCustomCalendar();
             if (window.syncMobileBooking) window.syncMobileBooking();
-            // Re-render live status badge and desktop live summary safely
+            updateTimeSelectionSummary();
+            // Re-render live status badge safely
             if (typeof updateBusinessStatus === 'function') updateBusinessStatus();
         }
 

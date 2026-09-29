@@ -24,6 +24,15 @@
         // loading, a full day or a failed request, rather than hide that status.
         timeButton.disabled = !date;
         get('bookingPickerClose').setAttribute('aria-label', nl ? 'Sluiten' : 'Close');
+        // Keep the day in view while choosing a time; a short date button
+        // behind the sheet is not enough context for this decision.
+        const subtitle = get('bookingPickerDate');
+        if (subtitle) {
+            subtitle.hidden = active !== 'time' || !date;
+            subtitle.textContent = date ? new Intl.DateTimeFormat(nl ? 'nl-NL' : 'en-GB', {
+                weekday:'long', day:'numeric', month:'long', year:'numeric', timeZone:'UTC'
+            }).format(new Date(date + 'T12:00:00Z')) : '';
+        }
         get('bookingPickerTitle').textContent = active === 'time' ? (nl ? 'Kies een tijd' : 'Choose a time') : (nl ? 'Kies een datum' : 'Choose a date');
     }
 

@@ -347,3 +347,10 @@ Real concurrent retries are checked in tests/booking-overlap.postgres.cjs.
 
 `tests/booking-retry.test.js` exercises the real browser submission handler with
 controlled failed responses and timeouts, without sending bookings or emails.
+
+Booking UX: the time step shows the selected barber, services and current total
+with an Edit action that preserves the form. Mobile time sheets show the chosen
+date in English/Dutch. Action labels name the next step. Confirmation prioritises
+date/time, displays the server-assigned barber and admin-managed shop address,
+and highlights the existing Add to Calendar action without changing calendar
+export or booking rules.
