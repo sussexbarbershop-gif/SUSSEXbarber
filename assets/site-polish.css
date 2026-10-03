@@ -1,0 +1,74 @@
+/* Visual refinement only. Scheduling, CMS content and picker behaviour stay in
+   their existing modules. Keep one surface around the form instead of three
+   nested borders; use gold for primary actions and current selections. */
+:root { --ui-line: #d8dadd; --ui-muted: #4b5563; --ui-soft: #f1f2f3; }
+@media (prefers-color-scheme: dark) {
+    :root { --ui-line: #383b40; --ui-muted: #c1c5cc; --ui-soft: #242629; }
+}
+/* Inter already ships with the site. Preserve the serif section headings,
+   while controls and supporting labels use a quieter sentence-case rhythm. */
+.site-nav a:not(.logo-stack), .site-nav button,
+#booking button, #booking label, #booking .summary-label,
+#bookingSummaryTitle, #stepIndicator [id^="stepLabel"],
+#barberPickerSheet button, #servicePickerSheet button,
+#bookingPickerSheet button { font-family: Inter, sans-serif; letter-spacing: .01em; }
+.site-nav a:not(.logo-stack), #booking button, #booking label,
+#bookingSummaryTitle, #stepIndicator [id^="stepLabel"] { text-transform:none; }
+#booking label { font-weight:500; }
+#stepIndicator [id^="stepLabel"] { font-size:12px; }
+#bookingPanel { background:transparent; border:0; box-shadow:none; }
+#bookingForm { box-shadow:none; border-radius:14px; border-color:var(--ui-line); }
+#stepIndicator { border:0; box-shadow:none; backdrop-filter:none; }
+/* When pinned, the indicator still needs an opaque surface for legibility. */
+#stepIndicator { background:#f9fafb; }
+@media (prefers-color-scheme: dark) { #stepIndicator { background:#1a1a1a; } }
+#servicePickerPrice { font-family:Inter,sans-serif; font-weight:500; color:inherit; }
+#barberPickerBtn > span:first-child > span:first-child { background:var(--ui-soft); color:var(--ui-muted); }
+#editTimeSelection, #editSummaryService, #editSummaryTime { color:var(--ui-muted); }
+#bookAnotherBtn { color:var(--ui-muted); background:transparent; border-color:var(--ui-line); }
+#bookingConfirmationCard { border-color:var(--ui-line); background:transparent; box-shadow:none; }
+#confirmTime { color:inherit; }
+#quickContactBtn { background:var(--ui-soft); color:var(--ui-muted); border:1px solid var(--ui-line); box-shadow:0 4px 14px #0002; }
+.site-nav a[data-translate="My Bookings"], .site-nav .cms-contact-phone-link { background:transparent; color:var(--ui-muted); border-color:var(--ui-line); }
+/* Same geometry for initial images and photos later loaded from the panel. */
+#cms-gallery-grid { gap:12px; }
+#cms-gallery-grid .gallery-img { display:block; width:100%; height:auto; aspect-ratio:1; object-fit:cover; border-radius:12px; }
+@media (hover:hover) {
+    #bookAnotherBtn:hover, #quickContactBtn:hover,
+    .site-nav a[data-translate="My Bookings"]:hover,
+    .site-nav .cms-contact-phone-link:hover { background:var(--ui-soft); color:var(--ui-muted); }
+}
+@media (max-width:639px) {
+    /* Reserve the existing safe-area inset on nav, with a 64px content row.
+       Its ResizeObserver publishes the actual height to all scroll targets. */
+    #navRow { height:64px; }
+    .site-nav .logo-stack { min-width:44px; min-height:44px; }
+    .site-nav .logo-stack img { height:48px; width:auto; margin:0 !important; }
+    #navActions { gap:6px; }
+    #navActions > * { margin-left:0; margin-right:0; }
+    #langToggleBtn { width:44px; padding:0; min-height:44px; font-size:12px; box-shadow:none; }
+    #navActions > a.bg-gold { padding:0 14px; min-height:44px; font-size:13px; display:inline-flex; align-items:center; }
+    #mobileMenuBtn { width:44px; height:44px; padding:10px; }
+    #mobileMenuBtn svg { width:24px; height:24px; }
+    #bookingPanel { padding:0 16px; }
+    #bookingForm { padding:16px; }
+    #booking button { letter-spacing:0; }
+    #stepIndicator [id^="stepLabel"] { font-size:11px; }
+    #cms-gallery-grid { gap:8px; }
+    #cms-gallery-grid .gallery-img { border-radius:10px; }
+}
+
+/* Long translated barber names need room on the narrowest phones. Keep the
+   edit action alongside two readable lines instead of three squeezed columns. */
+@media (max-width:359px) {
+    #booking .summary-row { grid-template-columns:minmax(0,1fr) auto; gap:8px 12px; }
+    #booking .summary-row > div { grid-column:1; }
+    #booking .summary-edit { grid-column:2; grid-row:1 / span 2; }
+}
+
+/* The full link row and translated action labels do not fit tablet widths.
+   Keep the existing menu available until the desktop row has enough room. */
+@media (min-width:640px) and (max-width:1023px) {
+    #navLinks, #navActions .cms-contact-phone-link { display:none; }
+    #mobileMenuBtn { display:block; min-width:44px; min-height:44px; }
+}

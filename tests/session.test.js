@@ -79,5 +79,50 @@ ok('the password is checked first',
 ok('and a PIN that was never configured says so',
    /No REPORTS_PIN set/.test(owner), true);
 
-console.log(failed === 0 ? '\nAll session tests passed.' : `\n${failed} FAILED`);
-process.exit(failed === 0 ? 0 : 1);
+
+// Run the real login handler: mobile capitalization must reach authentication,
+// while a password with changed case or surrounding spaces must still fail.
+async function checkLoginCase() {
+  const vm = require('vm');
+  const { isAuthorized } = require('../api/_lib/auth');
+  const source = panel.match(/async function handleLogin\(e\)[\s\S]*?\n\}/)[0];
+  const configured = process.env.ADMIN_PASSWORD;
+  process.env.ADMIN_PASSWORD = 'Case-Sensitive-Test!';
+  try {
+    for (const [username, password, allowed, requests] of [
+      ['admin', 'Case-Sensitive-Test!', true, 1],
+      ['Admin', 'Case-Sensitive-Test!', true, 1],
+      ['ADMIN', 'Case-Sensitive-Test!', true, 1],
+      ['  aDmIn  ', 'Case-Sensitive-Test!', true, 1],
+      ['administrator', 'Case-Sensitive-Test!', false, 0],
+      ['', 'Case-Sensitive-Test!', false, 0],
+      ['Admin', 'case-sensitive-test!', false, 1],
+      ['ADMIN', ' Case-Sensitive-Test! ', false, 1]
+    ]) {
+      let shown = false;
+      const sent = [], stored = new Map();
+      const fields = {loginUsername:{value:username}, loginPassword:{value:password},loginError:{style:{},textContent:''}};
+      const button = {textContent:'Sign in',disabled:false};
+      const context = {ADMIN_USERNAME:'admin',adminPassword:'',console,
+        document:{getElementById:id=>fields[id]},
+        sessionStorage:{setItem:(k,v)=>stored.set(k,v)},
+        showAdmin:()=>{shown=true;},showToast:()=>{},
+        apiPost:async payload=>{sent.push(payload);return {status:isAuthorized(payload)?'success':'error'};}};
+      vm.createContext(context);
+      vm.runInContext(source,context);
+      await context.handleLogin({preventDefault(){},target:{querySelector:()=>button}});
+      ok('login case '+JSON.stringify(username)+' / password preserved '+JSON.stringify(password), shown, allowed);
+      ok('request count for '+JSON.stringify(username), sent.length, requests);
+      if (requests) ok('password reaches server byte-for-byte',sent[0].password,password);
+      ok('only successful login creates session',stored.has('sussex_admin_pw'),allowed);
+      ok('submit button restored',button.disabled,false);
+    }
+  } finally {
+    if (configured === undefined) delete process.env.ADMIN_PASSWORD;
+    else process.env.ADMIN_PASSWORD = configured;
+  }
+}
+checkLoginCase().then(() => {
+  console.log(failed === 0 ? '\nAll session tests passed.' : '\n'+failed+' FAILED');
+  process.exit(failed === 0 ? 0 : 1);
+}).catch(error => { console.error(error); process.exit(1); });

@@ -465,7 +465,9 @@ function showAdmin() {
 
 async function handleLogin(e) {
     e.preventDefault();
-    const username = document.getElementById('loginUsername').value.trim();
+    // Phone keyboards may capitalize the username. Only this public label is
+    // case-insensitive; send the password unchanged for server verification.
+    const username = document.getElementById('loginUsername').value.trim().toLowerCase();
     const password = document.getElementById('loginPassword').value;
     const errorEl = document.getElementById('loginError');
     const submitBtn = e.target.querySelector('button[type="submit"]');

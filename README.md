@@ -24,6 +24,7 @@ model arriving with no context.
 
 ```
 index.html          the whole public site: markup, styles and script in one file
+assets/site-polish.css public visual refinements, loaded after the base styles
 assets/phone.js     shared country-aware phone parsing and country selector
 assets/mobile-booking.js mobile date/time sheets reusing the live booking controls
 assets/vendor/      pinned local libphonenumber bundle and its licence
@@ -64,6 +65,16 @@ tab stays visible. Branding file pickers use panel button styling and stay
 within the card width, including when the chosen filename is long.
 
 ---
+
+The public visual layer uses a 64px mobile header (plus the safe-area inset),
+consistent sans-serif controls, one booking form border and square gallery tiles.
+Gold marks primary actions, focus and selections; secondary actions stay neutral.
+The header height is still measured for scrolling. Gallery originals remain
+available in the lightbox; CMS images use the same tile geometry.
+
+Panel usernames accept any letter case (`admin`, `Admin`, `ADMIN`). Previously
+the browser rejected capitalized usernames before contacting the server. Passwords
+remain case-sensitive and are sent unchanged to the existing server check.
 
 ## How a booking travels
 
