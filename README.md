@@ -28,6 +28,7 @@ assets/site-polish.css public visual refinements, loaded after the base styles
 assets/phone.js     shared country-aware phone parsing and country selector
 assets/mobile-booking.js mobile date/time sheets reusing the live booking controls
 assets/vendor/      pinned local libphonenumber bundle and its licence
+admin/booking-editor.js PIN-gated booking drafts, slot checks and in-place updates
 admin/password-visibility.js temporary password reveal with a five-second idle timer
 admin/              the shop's panel — index.html, admin.js, admin.css
 api/
@@ -35,13 +36,14 @@ api/
   daily.js          the reminder and the evening round; only the clock calls it
   _lib/
     db.js           the database, and the shape the site reads it in
+    booking-edit.js owner-only updates with optimistic and schedule concurrency guards
     rota.js         who is working when, and whether a slot is free
     mail.js         the four emails a customer can get
     auth.js         the panel password, the owner's PIN, the cancel token
     limits.js       how often one number may book
     reports.js      the takings, for the owner's page
 db/schema.sql       the database, and why each column is the way it is
-tests/              49 files, run by `npm test`
+tests/              50 files, run by `npm test`
                     booking-overlap.postgres.cjs: isolated PostgreSQL integration checks
 MIGRATION.md        how the backend works and what to set up from nothing
 ```
@@ -370,3 +372,31 @@ date in English/Dutch. Action labels name the next step. Confirmation prioritise
 date/time, displays the server-assigned barber and admin-managed shop address,
 and highlights the existing Add to Calendar action without changing calendar
 export or booking rules.
+
+## Editing an appointment
+
+Each diary row has Edit beside Cancel. Each opening asks for the owner PIN.
+The server requires the panel password and owner PIN/pass for fetching private
+contact details, checking edit slots and saving. The form starts with the saved
+name, barber, service, date, time, phone and email; Discard changes writes nothing.
+
+Updates keep the booking id, source and creation time. Unchanged services keep
+their recorded price and duration; a different service takes its current values.
+Legacy phone/email values may remain unchanged, but replacement contact details
+are validated. Contact corrections may keep an old date or a saved time-off
+conflict; changing the schedule checks the rota and overlapping appointments.
+Owners can also correct historical dates, but no update email is sent for them.
+Changing the canonical phone clears the old customer link, never another
+customer's record. Rescheduling resets the reminder timestamp.
+
+A content fingerprint rejects stale edits; a schedule fingerprint is rechecked
+under the same transaction lock as booking inserts and rota saves. The update
+checks overlaps again under that lock and retains the database exclusion guard.
+No cancelled row is revived. Optional updated-details mail is sent only after
+saving, only when staff checks the box, and never for a past appointment.
+A mail failure reports a saved booking without claiming email delivery.
+
+Run `npm run test:edit-postgres` with TEST_DATABASE_URL pointing to a disposable
+local PostgreSQL server to verify real update races and rollback behavior.
+It creates/drops its own random schema and sends no mail. The existing
+`npm run test:postgres` separately covers the production exclusion constraint.

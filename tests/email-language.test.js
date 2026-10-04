@@ -176,6 +176,13 @@ async function main() {
   const anyEn = await sent(mail.sendCustomerConfirmation, 'en', { barber: '' });
   ok('and in English', /Any Available/.test(anyEn.text), true);
 
+  for (const [lang, phrase] of [['en','updated'],['nl','gewijzigd']]) {
+    const changed = await sent(mail.sendCustomerConfirmation, lang, {updated:true});
+    ok('updated appointment subject '+lang, changed.subject.toLowerCase().includes(phrase), true);
+    ok('updated appointment body '+lang, changed.text.toLowerCase().includes(phrase), true);
+    ok('updated appointment heading '+lang, changed.html.toLowerCase().includes(phrase), true);
+    ok('updated appointment retains its cancel link '+lang, /cancel\.html\?b=41\./.test(changed.text), true);
+  }
   console.log('--- the page the button leads to ---');
   const fs = require('fs');
   const page = fs.readFileSync(path.join(__dirname, '..', 'cancel.html'), 'utf8');

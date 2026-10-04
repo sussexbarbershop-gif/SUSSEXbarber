@@ -875,6 +875,7 @@ function renderBookings() {
                       // an address would be a note on most of the table.
                       (b.hasEmail ? '' : '<span class="cell-muted cell-nowrap" title="No email address, so no reminder can be sent"> no reminder</span>')}</td>
             <td>
+                <button class="btn btn-secondary btn-sm" onclick="openBookingEditor('${escapeAttr(b.id)}')" title="Edit this booking">Edit</button>
                 <button class="btn btn-danger btn-sm" onclick="cancelBookingById('${escapeAttr(b.id)}')" title="Cancel this booking">Cancel</button>
             </td>
         </tr>

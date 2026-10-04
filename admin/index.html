@@ -760,7 +760,39 @@
         </div>
     </div>
 
+
+    <!-- Owner-only editing keeps the original booking until the server confirms. -->
+    <div id="bookingEditModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="bookingEditTitle">
+      <div class="modal booking-edit-modal">
+        <div class="modal-header"><h2 id="bookingEditTitle">Edit booking</h2><button type="button" class="modal-close" onclick="closeBookingEditor()" aria-label="Close edit booking">&times;</button></div>
+        <form id="bookingEditPinForm" onsubmit="unlockBookingEditor(event)">
+          <div class="modal-body"><p>Enter the owner PIN to edit this appointment.</p><div class="form-group"><label for="bookingEditPin">Owner PIN</label><input id="bookingEditPin" type="password" inputmode="numeric" autocomplete="off" required></div></div>
+          <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeBookingEditor()">Cancel</button><button type="submit" class="btn btn-primary">Unlock editing</button></div>
+        </form>
+        <form id="bookingEditForm" onsubmit="saveBookingEditor(event)" hidden>
+          <div class="modal-body">
+            <div class="form-group"><label for="editBookingName">Customer name</label><input id="editBookingName" maxlength="100" required></div>
+            <div class="form-row">
+              <div class="form-group"><label for="editBookingBarber">Barber</label><select id="editBookingBarber" onchange="loadBookingEditSlots()"></select></div>
+              <div class="form-group"><label for="editBookingService">Service</label><select id="editBookingService" onchange="loadBookingEditSlots()" required></select></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label for="editBookingDate">Date</label><input id="editBookingDate" type="date" onchange="loadBookingEditSlots()" required></div>
+              <div class="form-group"><label for="editBookingTime">Time</label><select id="editBookingTime" required></select></div>
+            </div>
+            <p id="bookingEditSlotStatus" role="status"></p>
+            <div class="form-group"><label for="editBookingPhone">Phone number</label><div class="phone-entry"><div class="phone-prefix"><span data-phone-code aria-hidden="true">+31 ▾</span><select id="editBookingCountry" data-phone-country data-phone-input="editBookingPhone" class="phone-country" aria-label="Country code"><option value="NL">Netherlands (+31)</option></select></div><input id="editBookingPhone" type="tel" inputmode="tel"></div></div>
+            <div class="form-group"><label for="editBookingEmail">Email (optional)</label><input id="editBookingEmail" type="text" inputmode="email"></div>
+            <label class="booking-edit-notify"><input type="checkbox" id="editBookingNotify"> Email the updated details to the customer</label>
+            <p class="booking-edit-note">The saved price and duration stay the same unless you change the service. Changing the date, time, barber or service checks availability again.</p>
+          </div>
+          <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeBookingEditor()">Discard changes</button><button type="submit" id="bookingEditSave" class="btn btn-primary">Save changes</button></div>
+        </form>
+        <p id="bookingEditError" role="alert" class="booking-edit-error"></p>
+      </div>
+    </div>
     <script src="/admin/password-visibility.js"></script>
     <script src="/admin/admin.js"></script>
+    <script src="/admin/booking-editor.js"></script>
 </body>
 </html>

@@ -338,7 +338,9 @@ async function sendCustomerConfirmation(booking, config) {
   // not to be trusted just because the browser looked at it first.
   if (!isEmail(to)) return false;
 
+  // An owner edit uses the same details/link, but must not look like a new booking.
   const lang = langOf(booking);
+  const updated = booking.updated === true;
   const settings = (config && config.settings) || {};
   const phone = String(settings.contact_phone || '').trim();
   const address = String(settings.contact_address || '').trim().replace(/<br\s*\/?>/gi, ', ');
@@ -354,6 +356,7 @@ async function sendCustomerConfirmation(booking, config) {
   const lines = [
     say(lang, [`Hello ${booking.name || ''},`, `Hallo ${booking.name || ''},`]),
     '',
+    updated ? say(lang, ['Your appointment has been updated. These are your new details.', 'Uw afspraak is gewijzigd. Dit zijn uw nieuwe gegevens.']) :
     say(lang, [`Your appointment at ${SHOP_NAME} is booked.`,
                `Uw afspraak bij ${SHOP_NAME} staat genoteerd.`]),
     '',
@@ -378,12 +381,12 @@ async function sendCustomerConfirmation(booking, config) {
 
   return send({
     to,
-    subject: say(lang, [`Your appointment — ${when}`, `Uw afspraak — ${when}`]),
+    subject: updated ? say(lang, [`Appointment updated — ${when}`, `Afspraak gewijzigd — ${when}`]) : say(lang, [`Your appointment — ${when}`, `Uw afspraak — ${when}`]),
     text: lines.join('\n') + '\n',
     html: shell({
       config,
       preheader: `${when} ${say(lang, ['with', 'bij'])} ${barber}`,
-      heading: say(lang, ['Your appointment is booked', 'Uw afspraak staat genoteerd']),
+      heading: updated ? say(lang, ['Your appointment has been updated', 'Uw afspraak is gewijzigd']) : say(lang, ['Your appointment is booked', 'Uw afspraak staat genoteerd']),
       lead: say(lang, [
         `Hello ${esc(booking.name || '')}, we have you down for the following.`,
         `Hallo ${esc(booking.name || '')}, wij hebben het volgende voor u genoteerd.`

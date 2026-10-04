@@ -639,7 +639,7 @@ async function handlePost(req, res) {
   // of them and a hand-written request would still have saved a new price
   // list, because the only thing that had ever been checked was the password
   // every barber knows.
-  if (['reports', 'unlock', 'saveCMS', 'uploadImage', 'uploadAppIcon'].includes(action)) {
+  if (['reports', 'unlock', 'saveCMS', 'uploadImage', 'uploadAppIcon', 'getBookingForEdit', 'editBookingSlots', 'updateBooking'].includes(action)) {
     if (!isAuthorized(payload)) {
       await throttleFailedLogin();
       return json(res, { status: 'error', message: 'Unauthorized' }, 401);
@@ -677,6 +677,10 @@ async function handlePost(req, res) {
     // being refused. It comes from a dropdown, not from a person typing.
     const report = await withNewSchema(() => readReports(db(), shopNow().date, payload.months));
     return json(res, Object.assign({ status: 'success' }, report));
+  }
+
+  if (['getBookingForEdit', 'editBookingSlots', 'updateBooking'].includes(action)) {
+    return json(res, await require('./_lib/booking-edit').handle(action, payload, shopNow()));
   }
 
   if (action === 'uploadImage') return await uploadImage(payload, res);
