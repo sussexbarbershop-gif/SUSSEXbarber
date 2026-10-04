@@ -69,6 +69,26 @@ async function update(patch={}) {queries=[];return handle('updateBooking',{...ba
     process.env.ADMIN_PASSWORD='test-panel';process.env.REPORTS_PIN='test-owner';
     try {
       const apiHandler=require('../api');
+      // Run the actual browser unlock flow against the actual API/auth gate.
+      // Mocking unlock as always-success hid differences from Management.
+      const vm=require('vm');
+      const adminSource=fs.readFileSync(require.resolve('../admin/admin.js'),'utf8');
+      const helper=adminSource.slice(adminSource.indexOf('function requestOwnerUnlock('),adminSource.indexOf('/** Ask the server for the ten-minute pass'));
+      const fields={};
+      const field=id=>fields[id] ||= {value:'',hidden:false,disabled:false,textContent:'',addEventListener(){},removeAttribute(){},focus(){},scrollIntoView(){}};
+      const context=vm.createContext({document:{getElementById:field},adminPassword:'test-panel',setTimeout,clearTimeout,
+        apiPost:async payload=>{let result;await apiHandler({method:'POST',body:JSON.stringify(payload)},
+          {status(){return this;},setHeader(){},send(v){result=JSON.parse(v);}});return result;}});
+      vm.runInContext(helper+'\n'+fs.readFileSync(require.resolve('../admin/booking-editor.js'),'utf8'),context);
+      vm.runInContext('fillBookingEditor=()=>{};loadBookingEditSlots=async()=>{};',context);
+      const event={preventDefault(){},target:{querySelector:()=>field('submit')}};
+      for(const pin of ['test-owner','  test-owner  ','wrong']) {
+        vm.runInContext("bookingEditorState={id:7,original:null};",context);
+        field('bookingEditPin').value=pin;field('bookingEditPinForm').hidden=false;field('bookingEditForm').hidden=true;
+        await context.unlockBookingEditor(event);
+        assert.equal(field('bookingEditForm').hidden,pin==='wrong','same Management PIN must open editor, wrong PIN must not');
+      }
+      console.log('PASS browser editor accepts Management PIN and surrounding spaces through real API, rejects wrong PIN');
       for(const action of ['getBookingForEdit','editBookingSlots','updateBooking']) {
         for(const creds of [{},{password:'wrong',pin:'test-owner'},{password:'test-panel',pin:'wrong'}]) {
           let code,answer;await apiHandler({method:'POST',body:JSON.stringify({action,id:7,...creds})},{status(c){code=c;return this;},setHeader(){},send(v){answer=JSON.parse(v);}});

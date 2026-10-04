@@ -375,7 +375,17 @@ export or booking rules.
 
 ## Editing an appointment
 
-Each diary row has Edit beside Cancel. Each opening asks for the owner PIN.
+Each diary row has Edit beside Cancel in a non-wrapping action row on phones
+and desktops; narrow screens retain the existing horizontal table scroll. Each opening asks for the owner PIN.
+Management and Edit share one PIN-unlock request, including whitespace trimming.
+The editor previously omitted trimming and used a password field susceptible to
+panel-password autofill; it now uses Management's masked-text PIN field and
+password-manager hints. PIN verification still happens on the server, and a
+refused editing pass is reported separately from a refused PIN.
+The PIN card reuses Management's lock, heading, masked input and gold Unlock
+button; the short PIN prompt fits a compact modal, while the edit form keeps
+its full-height mobile sheet. Row actions have equal sizes and 44px mobile
+touch targets, with space between Edit and Cancel.
 The server requires the panel password and owner PIN/pass for fetching private
 contact details, checking edit slots and saving. The form starts with the saved
 name, barber, service, date, time, phone and email; Discard changes writes nothing.

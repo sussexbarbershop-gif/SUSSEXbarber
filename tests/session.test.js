@@ -54,7 +54,7 @@ ok('signing out clears both', /sussex_admin_pw/.test(out), true);
 console.log('--- and what the owner gate says when it happens anyway ---');
 // A password can stop being accepted while a tab is open: changed in Vercel,
 // or a session that outlived a deploy. The gate has to name the right secret.
-const gate = (panel.match(/action: 'unlock'[\s\S]*?\n        \}/) || [''])[0];
+const gate = (panel.match(/async function submitOwnerPin\([\s\S]*?\n        \}/) || [''])[0];
 ok('the unlock knows the two refusals apart',
    /unauthorized/i.test(gate), true);
 ok('and does not call one the other',

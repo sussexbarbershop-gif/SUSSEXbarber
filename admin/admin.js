@@ -874,10 +874,10 @@ function renderBookings() {
                       // absence is marked: a note on every row that does have
                       // an address would be a note on most of the table.
                       (b.hasEmail ? '' : '<span class="cell-muted cell-nowrap" title="No email address, so no reminder can be sent"> no reminder</span>')}</td>
-            <td>
+            <td><div class="booking-row-actions">
                 <button class="btn btn-secondary btn-sm" onclick="openBookingEditor('${escapeAttr(b.id)}')" title="Edit this booking">Edit</button>
                 <button class="btn btn-danger btn-sm" onclick="cancelBookingById('${escapeAttr(b.id)}')" title="Cancel this booking">Cancel</button>
-            </td>
+            </div></td>
         </tr>
     `).join('');
 }
@@ -2531,6 +2531,12 @@ function renderReports() {
     content.innerHTML = reportsMarkup(reportsData);
 }
 
+// Both Management and booking edits trade the same PIN for the same pass.
+// The editor formerly sent whitespace verbatim while Management trimmed it.
+function requestOwnerUnlock(pin) {
+    return apiPost({action:'unlock', password:adminPassword, pin:String(pin || '').trim()});
+}
+
 /** Ask the server for the ten-minute pass, then show whatever was locked. */
 async function submitOwnerPin(e) {
     if (e) e.preventDefault();
@@ -2541,7 +2547,7 @@ async function submitOwnerPin(e) {
 
     error.classList.remove('is-shown');
     try {
-        const result = await apiPost({ action: 'unlock', password: adminPassword, pin });
+        const result = await requestOwnerUnlock(pin);
         if (result.status !== 'success') {
             // "Unauthorized" here is not about the PIN at all — it is the panel
             // password being refused, which means this session is no longer one

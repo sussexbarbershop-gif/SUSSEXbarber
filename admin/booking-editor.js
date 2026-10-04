@@ -2,11 +2,11 @@
 // Each opening asks for the owner PIN, even if another owner page is unlocked.
 let bookingEditorState = null;
 const editEl = id => document.getElementById(id);
-async function bookingEditorPost(payload) {
+async function bookingEditorPost(payload, request = () => apiPost(payload)) {
     // A lost response must not trap the owner in a disabled modal indefinitely.
     // The version guard makes a retry safe even if the first write did arrive.
     let timer;
-    try { return await Promise.race([apiPost(payload),new Promise((_,reject)=>{
+    try { return await Promise.race([request(),new Promise((_,reject)=>{
         timer=setTimeout(()=>reject(new Error('The request timed out. Reopen the booking to check its saved details before retrying.')),30000);
     })]); } finally {clearTimeout(timer);}
 }
@@ -45,15 +45,18 @@ async function unlockBookingEditor(event) {
     const button=event.target.querySelector('button[type="submit"]'); button.disabled=true;
     editError('');
     try {
-        const answer=await bookingEditorPost({action:'unlock',password:adminPassword,pin:editEl('bookingEditPin').value});
+        const answer=await bookingEditorPost(null, () => requestOwnerUnlock(editEl('bookingEditPin').value));
         if (bookingEditorState!==state) return;
         editEl('bookingEditPin').value='';
-        if (answer.status!=='success') throw new Error(answer.message || 'That PIN is not right.');
+        if (answer.status!=='success') throw new Error(/unauthorized/i.test(answer.message || '')
+            ? 'Your sign-in has expired. Log out and sign in again.'
+            : answer.locked ? 'Enter the same owner PIN used for Management.' : answer.message || 'That PIN is not right.');
         state.pass=answer.unlockPass;
         if (!state.original) {
             const data=await bookingEditorPost({action:'getBookingForEdit',password:adminPassword,unlockPass:state.pass,id:state.id});
             if (bookingEditorState!==state) return;
-            if (data.status!=='success') throw new Error(data.message);
+            if (data.status!=='success') throw new Error(data.locked
+                ? 'Your PIN was accepted, but the editing pass was refused. Please unlock again.' : data.message);
             state.original=data.booking;
             fillBookingEditor(state.original);
         }
@@ -124,6 +127,11 @@ async function saveBookingEditor(event) {
     } catch(e) { editError(e.message || 'Connection lost. Reopen the booking to check whether it saved before trying again.'); }
     finally { controls.forEach(([el,disabled])=>{el.disabled=disabled;}); state.busy=false; button.disabled=false; button.textContent='Save changes'; }
 }
+// Match Management's masked text field: password managers must not replace
+// the owner PIN with the panel password merely because this is a form.
+['focus','pointerdown','touchstart','click','keydown'].forEach(event => {
+    editEl('bookingEditPin').addEventListener(event, () => editEl('bookingEditPin').removeAttribute('readonly'));
+});
 editEl('bookingEditModal').addEventListener('keydown',event=>{
     if (event.key==='Escape') { event.preventDefault(); closeBookingEditor(); }
     if (event.key==='Tab') {

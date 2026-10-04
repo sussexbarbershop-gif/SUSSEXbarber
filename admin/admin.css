@@ -1389,3 +1389,15 @@ textarea.form-control { resize: vertical; line-height: 1.6; }
 @media(max-width:400px) { .booking-edit-modal .form-row { grid-template-columns:minmax(0,1fr); gap:0; } }
 
 #bookingEditModal .modal-close { min-width:44px; min-height:44px; font-size:24px; }
+
+/* Keep diary actions beside each other even when the table is narrow.
+   The existing table scroller handles the extra column width on phones. */
+.booking-row-actions { display:inline-flex; flex-wrap:nowrap; align-items:center; gap:8px; white-space:nowrap; }
+.booking-row-actions > .btn { flex:0 0 auto; min-width:64px; min-height:36px; justify-content:center; border-radius:8px; }
+@media (max-width:767px) { .booking-row-actions > .btn { min-height:44px; } }
+
+/* Reuse Management's PIN card rather than a second, unrelated login design. */
+.booking-edit-modal .booking-pin-card { width:100%; max-width:none; margin:0; border:0; box-shadow:none; }
+.booking-pin-back { justify-content:center; min-height:44px; width:100%; margin-top:20px; }
+#bookingEditModal:has(#bookingEditPinForm:not([hidden])) { padding:16px; align-items:center; }
+.booking-edit-modal:has(#bookingEditPinForm:not([hidden])) { height:auto; max-height:calc(100dvh - 32px); max-width:440px; border:1px solid var(--border-color); border-radius:var(--radius-lg); display:block; }
