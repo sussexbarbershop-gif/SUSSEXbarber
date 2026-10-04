@@ -37,12 +37,17 @@
 
             <form onsubmit="handleLogin(event)">
                 <div class="form-group">
-                    <label>Username</label>
+                    <label for="loginUsername">Username</label>
                     <input type="text" id="loginUsername" placeholder="Enter username" required autocomplete="username" autocapitalize="none" spellcheck="false">
                 </div>
                 <div class="form-group">
-                    <label>Password</label>
-                    <input type="password" id="loginPassword" placeholder="Enter password" required autocomplete="current-password">
+                    <label for="loginPassword">Password</label>
+                    <div class="password-entry">
+                        <input type="password" id="loginPassword" placeholder="Enter password" required autocomplete="current-password" autocapitalize="none" spellcheck="false">
+                        <button type="button" id="passwordVisibilityBtn" class="password-visibility" aria-label="Show password" aria-controls="loginPassword" aria-pressed="false">
+                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path class="password-eye-slash" d="m3 3 18 18"/></svg>
+                        </button>
+                    </div>
                 </div>
                 <button type="submit" class="btn-login">Sign In</button>
             </form>
@@ -755,6 +760,7 @@
         </div>
     </div>
 
+    <script src="/admin/password-visibility.js"></script>
     <script src="/admin/admin.js"></script>
 </body>
 </html>

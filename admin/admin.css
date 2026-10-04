@@ -1363,3 +1363,13 @@ textarea.form-control { resize: vertical; line-height: 1.6; }
         .phone-prefix .phone-country { position:absolute; inset:0; width:100%; height:100%; margin:0; opacity:0; cursor:pointer; }
         .phone-prefix:focus-within > span { outline:2px solid #d4af37; outline-offset:2px; }
 
+
+/* Room for the eye without covering text or the password manager control. */
+.password-entry { position:relative; display:flex; align-items:center; gap:4px; }
+.password-entry #loginPassword { flex:1; min-width:0; }
+.password-visibility { flex:0 0 44px; width:44px; height:44px; display:grid; place-items:center; border:1px solid var(--border-color); border-radius:var(--radius-sm); background:var(--bg-input); color:var(--text-secondary); cursor:pointer; }
+.password-visibility svg { width:21px; height:21px; pointer-events:none; }
+.password-visibility:focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
+.password-visibility[aria-pressed="true"] { color:var(--text-primary); border-color:var(--gold); }
+.password-eye-slash { display:none; }
+.password-visibility[aria-pressed="true"] .password-eye-slash { display:block; }

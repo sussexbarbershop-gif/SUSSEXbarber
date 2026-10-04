@@ -28,6 +28,7 @@ assets/site-polish.css public visual refinements, loaded after the base styles
 assets/phone.js     shared country-aware phone parsing and country selector
 assets/mobile-booking.js mobile date/time sheets reusing the live booking controls
 assets/vendor/      pinned local libphonenumber bundle and its licence
+admin/password-visibility.js temporary password reveal with a five-second idle timer
 admin/              the shop's panel — index.html, admin.js, admin.css
 api/
   index.js          every request the site makes, on one route
@@ -40,7 +41,7 @@ api/
     limits.js       how often one number may book
     reports.js      the takings, for the owner's page
 db/schema.sql       the database, and why each column is the way it is
-tests/              48 files, run by `npm test`
+tests/              49 files, run by `npm test`
                     booking-overlap.postgres.cjs: isolated PostgreSQL integration checks
 MIGRATION.md        how the backend works and what to set up from nothing
 ```
@@ -75,6 +76,10 @@ available in the lightbox; CMS images use the same tile geometry.
 Panel usernames accept any letter case (`admin`, `Admin`, `ADMIN`). Previously
 the browser rejected capitalized usernames before contacting the server. Passwords
 remain case-sensitive and are sent unchanged to the existing server check.
+The login eye reveals the password for five idle seconds. Typing/caret activity
+renews the timer; composition pauses it until finished. Leaving the field group,
+submitting, or leaving the tab/window hides it immediately, without changing its value.
+`tests/password-visibility.test.js` exercises these transitions with a fake clock.
 
 ## How a booking travels
 
