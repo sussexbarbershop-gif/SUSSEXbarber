@@ -281,23 +281,23 @@
 
                 <!-- ========== WEEK ========== -->
                 <!-- The same appointments laid out as a week, which is how a
-                     barber reads their own shift. Scrolls sideways on a phone;
+                     barber reads their own shift. Days stack vertically;
                      the buttons move a week at a time. -->
                 <div id="page-week" class="page-section">
                     <div class="data-card">
-                        <div class="data-card-header" style="flex-wrap:wrap; gap:12px;">
+                        <div class="data-card-header week-header">
                             <h3 id="plannerWeekTitle">Week</h3>
-                            <div class="data-card-actions" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                            <div class="data-card-actions week-controls">
                                 <select id="weekBarberFilter" class="barber-filter" aria-label="Show one barber's week"></select>
                                 <button class="btn btn-secondary btn-sm" onclick="fetchLiveBookings()">Refresh</button>
                             </div>
                         </div>
 
-                        <div style="padding: 16px 20px;">
+                        <div class="week-content">
                             <div class="planner-toolbar">
-                                <button class="btn btn-secondary btn-sm" onclick="navigateWeek(-1)">← Previous</button>
+                                <button class="btn btn-secondary btn-sm" onclick="navigateWeek(-1)" aria-label="Previous week">← Prev</button>
                                 <button class="btn btn-secondary btn-sm" onclick="navigateWeek(0)">This week</button>
-                                <button class="btn btn-secondary btn-sm" onclick="navigateWeek(1)">Next →</button>
+                                <button class="btn btn-secondary btn-sm" onclick="navigateWeek(1)" aria-label="Next week">Next →</button>
                             </div>
 
                             <p id="weekCaption" class="list-caption" style="padding:0 0 10px 0"></p>

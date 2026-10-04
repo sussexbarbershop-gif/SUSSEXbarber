@@ -636,19 +636,6 @@ button, a, input, select, textarea,
     .planner-toolbar { flex-wrap: wrap; }
     .planner-toolbar .btn { flex: 1 1 auto; }
 
-    /* A week is swiped through, one day almost filling the screen, and each
-       day snaps into place so a half-scrolled column is not left on screen.
-       Stacking the seven days down the page was the other option and reads
-       worse: a week is a row, and scrolling past six empty Sundays to reach
-       Saturday is not reading a week. */
-    #weeklyGridContainer {
-        grid-template-columns: none;
-        grid-auto-flow: column;
-        grid-auto-columns: minmax(220px, 82vw);
-        scroll-snap-type: x mandatory;
-    }
-    .planner-day-col { scroll-snap-align: start; }
-    .planner-day-body { min-height: 0 !important; }
     .stats-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
     .stat-card { padding: 16px; }
     .stat-card .stat-value { font-size: 24px; }
@@ -723,20 +710,21 @@ button, a, input, select, textarea,
     display: flex; flex-direction: column;
 }
 .planner-day-header {
-    padding: 12px; text-align: center; background: var(--bg-secondary);
+    padding: 12px 16px; text-align: left; background: var(--bg-secondary);
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
     border-bottom: 1px solid var(--border-color);
 }
 .planner-day-col.is-closed .planner-day-header { background: var(--red-bg); }
 .planner-day-name { font-weight: 700; color: var(--gold); font-size: 14px; }
-.planner-day-date { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-.planner-day-count { font-size: 11px; color: var(--text-secondary); margin-top: 4px; font-weight: 600; }
+.planner-day-date { font-size: 12px; color: var(--text-muted); margin-top: 0; }
+.planner-day-count { font-size: 12px; color: var(--text-secondary); margin-left:auto; font-weight: 500; }
 
 .planner-day-body {
-    padding: 10px; flex: 1; display: flex; flex-direction: column; gap: 8px; min-height: 120px;
+    padding: 10px; flex: 1; display: flex; flex-direction: column; gap: 8px; min-width:0;
 }
 
 .planner-empty {
-    text-align: center; color: var(--text-muted); font-size: 12px; padding: 20px 0;
+    text-align: center; color: var(--text-muted); font-size: 13px; padding: 4px 0;
 }
 .planner-empty.is-closed { color: var(--red); font-weight: 600; }
 
@@ -790,17 +778,28 @@ button, a, input, select, textarea,
     margin-bottom: 14px;
 }
 
-/* Seven columns that scroll sideways rather than squashing to nothing. The
-   scroll is the point on a phone: a week does not fit and should not pretend
-   to, so the columns keep a readable width and the week is swiped through. */
-.weekly-grid-container {
-    display: grid;
-    grid-template-columns: repeat(7, minmax(180px, 1fr));
-    gap: 12px;
-    overflow-x: auto;
-    padding-bottom: 10px;
-    -webkit-overflow-scrolling: touch;
-}
+/* Days form a vertical agenda on every screen. Empty days stay compact so
+   all seven remain visible without the old horizontal swipe. */
+.weekly-grid-container { display:grid; grid-template-columns:minmax(0,1fr); gap:12px; }
+/* The header already says zero bookings; avoid repeating it in a blank card. */
+.planner-day-col:has(.planner-empty):not(.is-closed) .planner-day-body { display:none; }
+.planner-day-col:has(.planner-empty):not(.is-closed) .planner-day-header { border-bottom:0; }
+.week-header { gap:12px; }
+.week-header h3 { font-size:16px; line-height:1.5; font-weight:600; }
+.week-controls { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px; min-width:0; }
+.week-controls .barber-filter, .week-controls .picker { width:100%; min-width:0; }
+.week-controls .btn, .week-controls .picker-toggle { min-height:44px; }
+.week-content { padding:16px; }
+.week-content .planner-toolbar { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+.week-content .planner-toolbar .btn { min-height:44px; justify-content:center; padding:8px; font-size:13px; white-space:nowrap; }
+@media(max-width:600px) { .week-header { padding:16px; } .week-controls { width:100%; } }
+.planner-card { display:grid; grid-template-columns:64px minmax(0,1fr) 44px; column-gap:12px; padding:12px; border-left-width:2px; border-radius:8px; }
+.planner-card-top { display:contents; }
+.planner-card-time { grid-column:1; grid-row:1 / span 3; align-self:center; font-size:15px; }
+.planner-card-cancel { grid-column:3; grid-row:1 / span 3; align-self:center; width:44px; height:44px; display:grid; place-items:center; border-radius:8px; background:var(--red-bg); opacity:1; }
+.planner-card-name, .planner-card-detail, .planner-card-phone { grid-column:2; overflow-wrap:anywhere; }
+.planner-card-name { font-size:14px; }
+.planner-card-detail, .planner-card-phone { font-size:13px; line-height:1.5; }
 
 /* ---- The Reports PIN gate ---------------------------------------------
    Deliberately the sign-in card again rather than a data-card with a form

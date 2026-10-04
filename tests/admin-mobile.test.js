@@ -65,17 +65,10 @@ console.log('--- rows whose contents refuse to shrink ---');
 });
 
 console.log('--- a week of appointments ---');
-// Swiped through a day at a time rather than stacked down the page: a week is
-// a row, and scrolling past six empty days to reach Saturday is not reading a
-// week. The snap is what stops a half-scrolled column being left on screen.
-ok('the week scrolls sideways',
-   /#weeklyGridContainer\s*\{[^}]*grid-auto-flow:\s*column/.test(mobile), true);
-ok('one day nearly fills the screen',
-   /#weeklyGridContainer\s*\{[^}]*grid-auto-columns:[^;]*vw/.test(mobile), true);
-ok('and the days snap into place',
-   /#weeklyGridContainer\s*\{[^}]*scroll-snap-type:\s*x/.test(mobile), true);
-ok('the grid it scrolls can overflow',
-   /\.weekly-grid-container\s*\{[^}]*overflow-x:\s*auto/.test(css), true);
+// Week is now a vertical agenda on phones and desktops.
+ok('week days use one fluid column',
+   /\.weekly-grid-container\s*\{[^}]*grid-template-columns:minmax\(0,1fr\)/.test(css), true);
+ok('no horizontal day carousel remains', /grid-auto-flow:\s*column/.test(mobile), false);
 
 console.log('--- the download menu has to stay on the screen ---');
 // It hangs off a button at the right edge of a card, so it opens leftwards

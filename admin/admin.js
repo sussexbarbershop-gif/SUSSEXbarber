@@ -3146,7 +3146,10 @@ function renderWeeklyPlannerGrid() {
     sunday.setDate(monday.getDate() + 6);
 
     if (titleEl) {
-        titleEl.textContent = `${formatDateShort(monday)} – ${formatDateShort(sunday)}`;
+        // Month names distinguish date/month ordering; include both months
+        // (and years) when the week crosses a boundary.
+        const label = d => d.toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'});
+        titleEl.textContent = `${label(monday)} – ${label(sunday)}`;
     }
 
     const mine = forChosenBarber(bookings);
@@ -3208,7 +3211,7 @@ function renderWeeklyPlannerGrid() {
     }).join('');
 
     container.innerHTML = html;
-    if (captionEl) captionEl.textContent = listCaption(weekTotal, 'appointment') + ' this week';
+    if (captionEl) captionEl.textContent = listCaption(weekTotal, 'booking');
 }
 
 /** Cancel by the id the panel gave the booking, so no customer-typed text is

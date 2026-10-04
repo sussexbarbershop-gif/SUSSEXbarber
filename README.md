@@ -395,6 +395,13 @@ columns and sticky action footer. Both start with the customer name, then
 barber/service and scheduling, followed by full-width phone and optional email.
 Add retains its available-time buttons and existing booking rules; its barber
 and service controls now use the same native selects as Edit.
+Week now lists Monday through Sunday vertically on both phones and desktops,
+replacing the sideways seven-column planner. Compact day headers show dates
+and counts; appointments keep their time, customer, service/barber, phone link
+and a separate 44px cancellation control. Empty days take only a short row.
+Week navigation, barber filtering and chronological booking order are unchanged.
+The Week toolbar uses equal-height navigation buttons, a single row for barber
+filter/Refresh, a shorter booking count, and explicit month/year date labels.
 The server requires the panel password and owner PIN/pass for fetching private
 contact details, checking edit slots and saving. The form starts with the saved
 name, barber, service, date, time, phone and email; Discard changes writes nothing.
