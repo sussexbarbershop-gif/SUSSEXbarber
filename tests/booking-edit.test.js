@@ -75,15 +75,20 @@ async function update(patch={}) {queries=[];return handle('updateBooking',{...ba
       const adminSource=fs.readFileSync(require.resolve('../admin/admin.js'),'utf8');
       const helper=adminSource.slice(adminSource.indexOf('function requestOwnerUnlock('),adminSource.indexOf('/** Ask the server for the ten-minute pass'));
       const fields={};
-      const field=id=>fields[id] ||= {value:'',hidden:false,disabled:false,textContent:'',addEventListener(){},removeAttribute(){},focus(){},scrollIntoView(){}};
-      const context=vm.createContext({document:{getElementById:field},adminPassword:'test-panel',setTimeout,clearTimeout,
+      const field=id=>fields[id] ||= {value:'',hidden:false,disabled:false,textContent:'',classList:{add(){},remove(){}},reset(){},addEventListener(){},removeAttribute(){},focus(){},scrollIntoView(){}};
+      const context=vm.createContext({document:{getElementById:field,body:{children:[],style:{overflow:''}}},adminPassword:'test-panel',setTimeout,clearTimeout,
+        showToast(){throw new Error('Unexpected missing booking');},
         apiPost:async payload=>{let result;await apiHandler({method:'POST',body:JSON.stringify(payload)},
           {status(){return this;},setHeader(){},send(v){result=JSON.parse(v);}});return result;}});
       vm.runInContext(helper+'\n'+fs.readFileSync(require.resolve('../admin/booking-editor.js'),'utf8'),context);
+      // Use fetchLiveBookings' real mapping, not a numeric fake UI id.
+      const mapping=adminSource.slice(adminSource.indexOf('bookings = data.map('),adminSource.indexOf('            saveBookings();',adminSource.indexOf('bookings = data.map(')));
+      vm.runInContext('let bookings; const data=[{id:7,name:"Test"}];'+mapping,context);
       vm.runInContext('fillBookingEditor=()=>{};loadBookingEditSlots=async()=>{};',context);
       const event={preventDefault(){},target:{querySelector:()=>field('submit')}};
       for(const pin of ['test-owner','  test-owner  ','wrong']) {
-        vm.runInContext("bookingEditorState={id:7,original:null};",context);
+        vm.runInContext("bookingEditorState=null; openBookingEditor('BK-100');",context);
+        assert.equal(vm.runInContext('bookingEditorState.id',context),7,'table display id must resolve to persistent booking id');
         field('bookingEditPin').value=pin;field('bookingEditPinForm').hidden=false;field('bookingEditForm').hidden=true;
         await context.unlockBookingEditor(event);
         assert.equal(field('bookingEditForm').hidden,pin==='wrong','same Management PIN must open editor, wrong PIN must not');

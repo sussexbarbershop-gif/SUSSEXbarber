@@ -378,6 +378,10 @@ export or booking rules.
 Each diary row has Edit beside Cancel in a non-wrapping action row on phones
 and desktops; narrow screens retain the existing horizontal table scroll. Each opening asks for the owner PIN.
 Management and Edit share one PIN-unlock request, including whitespace trimming.
+Edit resolves the table's display id (`BK-100`, etc.) to its `bookingId` before
+opening a draft. Previously it sent the display id to the API, which accepted
+the PIN but then refused the booking. The server id stays fixed for that draft
+even if a refresh reorders the diary.
 The editor previously omitted trimming and used a password field susceptible to
 panel-password autofill; it now uses Management's masked-text PIN field and
 password-manager hints. PIN verification still happens on the server, and a

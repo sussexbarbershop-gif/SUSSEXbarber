@@ -16,8 +16,15 @@ function editError(message) {
 }
 function openBookingEditor(id) {
     if (bookingEditorState) return;
+    // Table ids (BK-100, etc.) are display-only and change with list order.
+    // Resolve the server id once, as Cancel does, and keep it for this draft.
+    const bookingId = Number(bookings.find(booking => booking.id === id)?.bookingId);
+    if (!Number.isSafeInteger(bookingId) || bookingId < 1) {
+        showToast('Refresh the diary and choose the booking again.', 'error');
+        return;
+    }
     const modal = editEl('bookingEditModal');
-    bookingEditorState = {id, pass:'', original:null, busy:false, slotToken:0,
+    bookingEditorState = {id:bookingId, pass:'', original:null, busy:false, slotToken:0,
         returnFocus:document.activeElement, overflow:document.body.style.overflow, inert:[]};
     for (const el of document.body.children) if (el!==modal && !el.inert) {
         el.inert=true; bookingEditorState.inert.push(el);
