@@ -686,42 +686,40 @@
          stranger through it; this is answered while somebody is waiting on the
          phone, and paging back and forth to change the time is exactly what
          you do not want then. -->
-    <div class="modal-overlay" id="shopBookingModal">
-        <div class="modal" style="max-width:620px">
+    <div class="modal-overlay" id="shopBookingModal" role="dialog" aria-modal="true" aria-labelledby="shopBookingTitle">
+        <div class="modal booking-form-modal">
             <div class="modal-header">
-                <h3>Add Booking</h3>
+                <h2 id="shopBookingTitle">Add booking</h2>
                 <button class="modal-close" onclick="closeShopBookingModal()" aria-label="Close">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
             <form id="shopBookingForm" onsubmit="submitShopBooking(event)">
                 <div class="modal-body">
-                    <p class="list-caption" style="padding:0 0 14px 0; margin:0;">
-                        For a booking taken on the phone or at the counter. It goes
-                        into the diary under the same rules as the website.
-                    </p>
+                    <div class="form-group">
+                        <label for="shopBookName">Customer name</label>
+                        <input type="text" id="shopBookName" placeholder="e.g. Ahmed" required>
+                    </div>
 
-                    <!-- A class rather than an inline grid, so it can stack on
-                         a phone. Side by side these two are 140px wide inside
-                         the dialog's padding, and "Any Available" does not fit
-                         in 140px next to an arrow. -->
-                    <div class="field-row">
-                        <div class="form-group cms-field">
-                            <label for="shopBookService">Service</label>
-                            <select id="shopBookService" onchange="loadShopBookingTimes()" required></select>
-                        </div>
-                        <div class="form-group cms-field">
+
+                    <!-- Match Edit’s field layout; stack on narrow phones. -->
+                    <div class="form-row">
+                        <div class="form-group">
                             <label for="shopBookBarber">Barber</label>
                             <select id="shopBookBarber" onchange="loadShopBookingTimes()"></select>
                         </div>
+                        <div class="form-group">
+                            <label for="shopBookService">Service</label>
+                            <select id="shopBookService" onchange="loadShopBookingTimes()" required></select>
+                        </div>
                     </div>
 
-                    <div class="form-group cms-field">
+                    <div class="form-group">
                         <label for="shopBookDate">Date</label>
                         <input type="date" id="shopBookDate" onchange="loadShopBookingTimes()" required>
                     </div>
 
-                    <div class="form-group cms-field">
+                    <div class="form-group">
                         <label id="shopBookTimeLabel">Time</label>
                         <!-- Announced, because the whole grid is replaced when
                              the date or the barber changes and nothing else
@@ -730,27 +728,22 @@
                         <div id="shopBookTimes" class="slot-grid" role="group" aria-label="Available times"></div>
                     </div>
 
-                    <div class="form-group cms-field">
-                        <label for="shopBookName">Customer name</label>
-                        <input type="text" id="shopBookName" placeholder="e.g. Ahmed" required>
-                    </div>
 
-                    <div class="field-row">
-                        <div class="form-group cms-field">
-                            <label for="shopBookPhone">Phone</label>
+
+                    <div class="form-group">
+                            <label for="shopBookPhone">Phone number</label>
                             <div class="phone-entry"><div class="phone-prefix"><span data-phone-code aria-hidden="true">+31 ▾</span><select id="shopBookPhoneCountry" data-phone-country data-phone-input="shopBookPhone" class="phone-country" aria-label="Country code"><option value="NL">Netherlands (+31)</option></select></div>
 <input type="tel" id="shopBookPhone" placeholder="06 12345678" required>
                             </div>
                         </div>
-                        <div class="form-group cms-field">
+                        <div class="form-group">
                             <!-- Optional, and said so on the label: most
                                  people who ring up will not give one, and a
                                  barber should not be hunting for a way past a
                                  required field with a customer on the line. -->
-                            <label for="shopBookEmail">Email <span style="opacity:.6">— optional</span></label>
+                            <label for="shopBookEmail">Email (optional)</label>
                             <input type="email" id="shopBookEmail" placeholder="Sends them a confirmation">
                         </div>
-                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" onclick="closeShopBookingModal()">Cancel</button>
@@ -763,7 +756,7 @@
 
     <!-- Owner-only editing keeps the original booking until the server confirms. -->
     <div id="bookingEditModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="bookingEditTitle">
-      <div class="modal booking-edit-modal">
+      <div class="modal booking-edit-modal booking-form-modal">
         <div class="modal-header"><h2 id="bookingEditTitle">Edit booking</h2><button type="button" class="modal-close" onclick="closeBookingEditor()" aria-label="Close edit booking">&times;</button></div>
         <form id="bookingEditPinForm" onsubmit="unlockBookingEditor(event)">
           <div class="pin-card booking-pin-card">

@@ -1370,10 +1370,7 @@ function openShopBookingModal() {
             .map(b => `<option value="${escapeAttr(b.name)}">${escapeHtml(b.name)}</option>`))
         .join('');
 
-    // Both lists are the panel's own, not the operating system's. Done after
-    // the options are in, since it paints what it finds.
-    buildPicker(service);
-    buildPicker(barber);
+    // Match Edit's native selects, including the phone's accessible picker.
 
     // Today, because the call is nearly always about today or tomorrow. The
     // shop's date, not the device's — a phone half an hour into tomorrow would
@@ -1384,9 +1381,8 @@ function openShopBookingModal() {
 
     modal.classList.add('active');
     loadShopBookingTimes();
-    // Not the date field: it is already filled in. The first thing actually
-    // being asked is which service.
-    setTimeout(() => document.getElementById('shopBookService').focus(), 50);
+    // Customer name is first in both Add and Edit, so opening stays at the top.
+    setTimeout(() => document.getElementById('shopBookName').focus(), 50);
 }
 
 function closeShopBookingModal() {

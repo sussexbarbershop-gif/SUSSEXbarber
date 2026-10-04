@@ -167,8 +167,9 @@ ok('from the select itself, which is what everything listens to',
 const filters = (js.match(/function renderBarberFilters\(\)[\s\S]*?^}/m) || [''])[0];
 ok('the barber filters get one', /buildPicker\(select\)/.test(filters), true);
 const opener = (js.match(/function openShopBookingModal\(\)[\s\S]*?^}/m) || [''])[0];
-ok('the service list gets one', /buildPicker\(service\)/.test(opener), true);
-ok('the barber list gets one', /buildPicker\(barber\)/.test(opener), true);
+// Add and Edit now share native selects; custom pickers remain on diary filters.
+ok('Add keeps the native service select like Edit', /buildPicker\(service\)/.test(opener), false);
+ok('Add keeps the native barber select like Edit', /buildPicker\(barber\)/.test(opener), false);
 // It has to be safe to call twice: both of those run every time.
 ok('and calling it again repaints rather than nesting',
    /classList\.contains\('picker'\)/.test(picker), true);

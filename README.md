@@ -390,6 +390,11 @@ The PIN card reuses Management's lock, heading, masked input and gold Unlock
 button; the short PIN prompt fits a compact modal, while the edit form keeps
 its full-height mobile sheet. Row actions have equal sizes and 44px mobile
 touch targets, with space between Edit and Cancel.
+Add Booking and Edit share the same modal field styling, header, responsive
+columns and sticky action footer. Both start with the customer name, then
+barber/service and scheduling, followed by full-width phone and optional email.
+Add retains its available-time buttons and existing booking rules; its barber
+and service controls now use the same native selects as Edit.
 The server requires the panel password and owner PIN/pass for fetching private
 contact details, checking edit slots and saving. The form starts with the saved
 name, barber, service, date, time, phone and email; Discard changes writes nothing.

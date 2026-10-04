@@ -1376,19 +1376,19 @@ textarea.form-control { resize: vertical; line-height: 1.6; }
 
 /* Editing uses the panel modal, with its own readable error and action footer. */
 #bookingEditModal [hidden] { display:none !important; }
-.booking-edit-modal .modal-header h2 { font-size:18px; }
-.booking-edit-modal .form-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; }
-.booking-edit-modal .form-group { min-width:0; }
-.booking-edit-modal input, .booking-edit-modal select { min-height:44px; }
+.booking-form-modal .modal-header h2 { font-size:18px; }
+.booking-form-modal .form-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; }
+.booking-form-modal .form-group { min-width:0; }
+.booking-form-modal input, .booking-form-modal select { min-height:44px; }
 .booking-edit-notify { display:flex; align-items:center; gap:10px; font-size:14px; }
 .booking-edit-notify input { flex:none; width:20px; }
 .booking-edit-note, #bookingEditSlotStatus { font-size:13px; color:var(--text-secondary); line-height:1.6; margin:10px 0 16px; }
 .booking-edit-error { color:var(--red); padding:0 24px 16px; font-size:14px; }
 .booking-edit-error:empty { display:none; }
-#bookingEditModal .modal-footer { position:sticky; bottom:0; background:var(--bg-card); }
-@media(max-width:400px) { .booking-edit-modal .form-row { grid-template-columns:minmax(0,1fr); gap:0; } }
+.booking-form-modal .modal-footer { position:sticky; bottom:0; background:var(--bg-card); }
+@media(max-width:400px) { .booking-form-modal .form-row { grid-template-columns:minmax(0,1fr); gap:0; } }
 
-#bookingEditModal .modal-close { min-width:44px; min-height:44px; font-size:24px; }
+.booking-form-modal .modal-close { min-width:44px; min-height:44px; font-size:24px; }
 
 /* Keep diary actions beside each other even when the table is narrow.
    The existing table scroller handles the extra column width on phones. */
