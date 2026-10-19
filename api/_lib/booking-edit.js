@@ -6,9 +6,10 @@ const {canonical} = require('../../assets/phone');
 const {cancelToken} = require('./auth');
 const {sendCustomerConfirmation} = require('./mail');
 const rota = require('./rota');
+const flexible = require('./flexible-bookings');
 const trim = value => String(value ?? '').trim();
 const error = message => ({status:'error', message});
-const VERSION = `md5(jsonb_build_array(booked_on,booked_at,service,barber,customer_name,phone,email,price,duration_min,phone_e164)::text)`;
+const VERSION = `md5(jsonb_build_array(booked_on,booked_at,service,barber,customer_name,phone,email,price,duration_min,phone_e164,flexible)::text)`;
 // Snapshot both before reading the rota and inside the final locked statement.
 // If hours, leave, staff or service prices changed meanwhile, refuse and retry
 // with fresh data. The small config tables are deliberately hashed together.
@@ -18,7 +19,7 @@ const read = (sql,id) => withNewSchema(() => sql(`SELECT *, to_char(booked_on,'Y
     ${VERSION} AS version FROM bookings WHERE id=$1 AND status='active'`, [id]));
 function present(row) {
     return {id:row.id, version:row.version, date:row.date, time:rota.minutesToClock(rota.parseClock(row.booked_at)),
-        service:row.service, barber:row.barber, name:row.customer_name, phone:row.phone_e164 || row.phone,
+        service:row.service, barber:row.flexible ? rota.ANY_BARBER : row.barber, flexible:row.flexible===true, assignedBarber:row.barber, name:row.customer_name, phone:row.phone_e164 || row.phone,
         email:row.email || '', duration:Number(row.duration_min)};
 }
 function validDate(value) {
@@ -40,16 +41,18 @@ async function handle(action,payload,now) {
     if (!sameService && !chosen) return error('Choose a service currently offered by the shop.');
     const duration = sameService ? Number(row.duration_min) : Number(chosen.duration);
     if (!validDate(date)) return error('Choose a valid date.');
-    if (barber !== original.barber && (!barber || barber === rota.ANY_BARBER || barber === 'Any')) return error('Choose the barber who will take this appointment.');
-    const held = await withNewSchema(() => sql`SELECT barber, booked_at, duration_min,
+    const any = !barber || barber===rota.ANY_BARBER || barber==='Any';
+    const held = await withNewSchema(() => sql`SELECT barber, booked_at, duration_min, id, flexible,
         extract(epoch FROM (booked_on + booked_at - ${date}::date))/60 AS start_minute
         FROM bookings WHERE status='active' AND id<>${id}
         AND booked_on + booked_at < ${date}::date + interval '1 day'
         AND booked_on + booked_at + duration_min * interval '1 minute' > ${date}::date`);
     const holdersAt = start => held.filter(r=>Number(r.start_minute)<start+duration && Number(r.start_minute)+Number(r.duration_min)>start).map(r=>r.barber);
+    const canPlan = any || row.flexible===true || held.some(r=>r.flexible===true);
+    const freeAt = time => canPlan ? flexible.propose(config,date,held,time,duration,barber,now).status==='available' : rota.isSlotFree(config,date,time,holdersAt(rota.clockToMinutes(time)),barber,duration);
     if (action === 'editBookingSlots') {
         const slots = rota.slotsForDate(config,date,barber,'',0,duration);
-        return {status:'success', slots, unavailable:slots.filter(t=>!rota.isSlotFree(config,date,t,holdersAt(rota.clockToMinutes(t)),barber,duration))};
+        return {status:'success', slots, unavailable:slots.filter(t=>!freeAt(t))};
     }
     if (trim(payload.version) !== row.version) return error('This booking changed while you were editing. Reopen it to see the latest details.');
     const minute = rota.clockToMinutes(trim(payload.time));
@@ -64,7 +67,7 @@ async function handle(action,payload,now) {
     if (email !== original.email && email && (email.length>254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email))) return error('Enter a valid email address or leave it blank.');
     const moved = date!==original.date || time!==original.time || barber!==original.barber || !sameService;
     if (moved) {
-        if (!rota.isSlotFree(config,date,time,holdersAt(minute),barber,duration)) return error('That barber is unavailable or another appointment overlaps this time.');
+        if (!freeAt(time)) return error('That barber is unavailable or another appointment overlaps this time.');
     }
     const rawPhone = samePhone ? row.phone : phone;
     const price = sameService ? row.price : chosen.price;
@@ -72,6 +75,17 @@ async function handle(action,payload,now) {
     await ensureBookingProtection();
     let written;
     try {
+        if(moved && canPlan) {
+            const snap=await flexible.snapshot(sql,date);
+            const proposal=flexible.propose(snap.config,date,snap.rows,time,duration,barber,now,id);
+            if(proposal.status!=='available') return error('That time is no longer available. Your original booking is unchanged.');
+            const guard=sql(`SELECT 1 / CASE WHEN EXISTS(SELECT 1 FROM bookings WHERE id=$1 AND status='active' AND ${VERSION}=$2) AND ${STAMP}=$3 THEN 1 ELSE 0 END AS valid`,[id,row.version,stampRow.stamp]);
+            written=await flexible.commit(sql,snap,proposal,assigned=>sql`UPDATE bookings SET
+                booked_on=${date}::date,booked_at=${time}::time,service=${service},barber=${assigned},flexible=${any},
+                customer_name=${name},phone=${rawPhone},email=${email},price=${price},duration_min=${duration},
+                customer_id=CASE WHEN phone_e164 IS DISTINCT FROM ${international || null}::text THEN NULL ELSE customer_id END,
+                phone_e164=${international || null},reminded_at=NULL WHERE id=${id} RETURNING id`,{guard,releaseId:id});
+        } else {
         const result = await withNewSchema(() => sql.transaction([
             sql`SELECT pg_advisory_xact_lock(73021,2047)`,
             sql(`UPDATE bookings SET booked_on=$1::date,booked_at=$2::time,service=$3,barber=$4,
@@ -83,11 +97,12 @@ async function handle(action,payload,now) {
                     WHERE occupied.id<>$12 AND occupied.status='active' AND occupied.barber=$4
                     AND occupied.booked_on+occupied.booked_at < $1::date+$2::time+$9 * interval '1 minute'
                     AND occupied.booked_on+occupied.booked_at+occupied.duration_min * interval '1 minute' > $1::date+$2::time))
-                RETURNING id`,[date,time,service,barber,name,rawPhone,email,price,duration,international || null,moved,id,row.version,stampRow.stamp])
+                RETURNING id`,[date,time,service,any ? row.barber : barber,name,rawPhone,email,price,duration,international || null,moved,id,row.version,stampRow.stamp])
         ]));
         written = result[1];
+        }
     } catch (e) {
-        if (/bookings_no_overlap|bookings_one_chair/.test(String(e.constraint || '')+' '+String(e.message || '')) || e.code==='40P01') return error('That time was just taken. Choose another time; your original booking is unchanged.');
+        if (/bookings_no_overlap|bookings_one_chair/.test(String(e.constraint || '')+' '+String(e.message || '')) || flexible.retryable(e)) return error('That time was just taken. Choose another time; your original booking is unchanged.');
         throw e;
     }
     if (!written.length) return error('The booking or shop schedule changed. Reopen this booking before saving.');
@@ -95,7 +110,7 @@ async function handle(action,payload,now) {
     // Mail failure never turns a saved edit into an apparent failed edit.
     let emailed = false;
     if (payload.notifyCustomer === true && email && date>=now.date) {
-        try { emailed = await sendCustomerConfirmation({date,time,service,barber,name,phone,email,lang:row.lang,
+        try { emailed = await sendCustomerConfirmation({date,time,service,barber,name,phone,email,flexible:any,lang:row.lang,
             updated:true,cancelToken:cancelToken(id,await getCancelKey())},config); } catch { /* saved; report delivery separately */ }
     }
     return {status:'success',message:'Booking updated.',emailed};

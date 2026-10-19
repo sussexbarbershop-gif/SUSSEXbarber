@@ -26,6 +26,7 @@ const { db, readConfig, readRotaConfig, indexToIso, WEEKDAY_NAMES,
         withNewSchema, customerFor, claimJobRun, minutesSinceJobRun,
         getCancelKey, ensureBookingProtection } = require('./_lib/db');
 const rota = require('./_lib/rota');
+const flexible = require('./_lib/flexible-bookings');
 const { isAuthorized, isPinCorrect, isOwner, reportsPinIsSet, issueUnlockPass,
         UNLOCK_MINUTES, throttleFailedLogin, resetFailedLogins,
         cancelToken, bookingFromCancelToken } = require('./_lib/auth');
@@ -309,7 +310,7 @@ async function handleGet(req, res) {
     const sql = db();
     const [config, rows] = await Promise.all([
       readRotaConfig(),
-      withNewSchema(() => sql`SELECT booked_at, barber, duration_min,
+      withNewSchema(() => sql`SELECT booked_at, barber, duration_min, id, flexible,
                extract(epoch FROM (booked_on + booked_at - ${dateParam}::date)) / 60 AS start_minute
            FROM bookings WHERE status = 'active'
              AND booked_on + booked_at < ${dateParam}::date + interval '1 day'
@@ -341,7 +342,9 @@ async function handleGet(req, res) {
         return heldStart < start + duration &&
                heldStart + (Number(r.duration_min) || rota.SLOT_MINUTES) > start;
       }).map(r => r.barber);
-      if (!rota.isSlotFree(config, dateParam, label, holders, wanted, duration)) {
+      if (!(rows.some(r=>r.flexible===true)
+        ? flexible.propose(config,dateParam,rows,label,duration,wanted,shopNow()).status==='available'
+        : rota.isSlotFree(config, dateParam, label, holders, wanted, duration))) {
         unavailable.push(label);
       }
     });
@@ -465,7 +468,7 @@ async function handlePost(req, res) {
     const rows = await withNewSchema(() => sql`
       SELECT id,
              to_char(booked_on, 'YYYY-MM-DD') AS booked_on,
-             booked_at, service, barber, customer_name, phone, phone_e164, email, source, duration_min,
+             booked_at, service, barber, customer_name, phone, phone_e164, email, source, duration_min, flexible,
              to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at
         FROM bookings WHERE status = 'active'
        ORDER BY booked_on, booked_at`);
@@ -476,6 +479,7 @@ async function handlePost(req, res) {
       service: r.service,
       duration: r.duration_min,
       barber: r.barber,
+      flexible: r.flexible===true,
       name: r.customer_name,
       phone: r.phone_e164 || r.phone,
       // Whether there is an address to reach them on, not the address itself.
@@ -530,7 +534,7 @@ async function handlePost(req, res) {
     const today = shopNow().date;
     const rows = await withNewSchema(() => sql`
       SELECT id, to_char(booked_on, 'YYYY-MM-DD') AS booked_on,
-             booked_at, service, barber, customer_name, email, lang
+             booked_at, service, barber, customer_name, email, lang, flexible
         FROM bookings
        WHERE ((${email} <> '' AND lower(trim(email)) = ${email}) OR
               (${key} <> '' AND (phone_e164 = ${international} OR
@@ -551,7 +555,7 @@ async function handlePost(req, res) {
         if (!await allowBookingEmail(to)) return;
         const delivered = await sendCustomerBookings(to, list.map(r => ({
           date:r.booked_on, time:rota.minutesToLabel(rota.parseClock(r.booked_at)),
-          service:r.service, barber:r.barber, lang:r.lang,
+          service:r.service, barber:r.barber, flexible:r.flexible===true, lang:r.lang,
           cancelToken:cancelToken(r.id, secret)
         })), config);
         if (!delivered) console.warn('[mail] booking list delivery failed');
@@ -824,6 +828,8 @@ async function refuseBooking(config, payload, byShop, duration = rota.SLOT_MINUT
   }
 
   if (!rota.isSlotFree(config, date, time, held.map(r => r.barber), wanted, duration)) {
+    const dayRows=await flexible.readDay(sql,date);
+    if(dayRows.some(r=>r.flexible===true) && flexible.propose(config,date,dayRows,time,duration,wanted,now).status==='available') return '';
     return byShop
       ? 'Every chair at that time is taken'
       : 'Someone else booked that time while you were filling this in. Please choose another.';
@@ -850,12 +856,12 @@ function bookingRequest(payload, byShop) {
 }
 async function replayBooking(sql, request) {
   if (!request) return null;
-  const rows = await withNewSchema(() => sql`SELECT request_hash, status, barber, duration_min FROM bookings WHERE request_key = ${request.key}::uuid`);
+  const rows = await withNewSchema(() => sql`SELECT request_hash, status, barber, duration_min, flexible FROM bookings WHERE request_key = ${request.key}::uuid`);
   if (!rows.length) return null;
   const row=rows[0];
   if (row.request_hash !== request.hash) return {status:'error', message:'This request belongs to different booking details. Please start a new booking.'};
   if (row.status !== 'active') return {status:'error', message:'This appointment has already been cancelled. Please start a new booking.'};
-  return {status:'success', message:'Booking added', barber:row.barber, duration:row.duration_min};
+  return {status:'success', message:'Booking added', barber:row.flexible ? rota.ANY_BARBER : row.barber, duration:row.duration_min};
 }
 async function addBooking(payload, res, byShop) {
   let request;
@@ -890,10 +896,8 @@ async function addBooking(payload, res, byShop) {
   const clock = rota.minutesToClock(minutes);
   const asked = normaliseBarber(payload.barber);
 
-  // Nobody asked for anyone, so the shop decides — in its own order, and only
-  // among those actually on the floor. Written down rather than left empty:
-  // an empty barber column is the one thing the one-chair index cannot hold,
-  // which is how two people ever got the same last chair.
+  // A real chair keeps the exclusion guard effective. Preference is stored
+  // separately, so assigning Any does not promise that person to the customer.
   const candidates = asked ? [asked] : [];
   const written = await insertBooking(sql, {
     date, clock, service, price, duration, payload, config, time, asked, candidates, request,
@@ -908,7 +912,7 @@ async function addBooking(payload, res, byShop) {
   // email did. The row, not the payload — so the notification quotes the price
   // and the barber that were recorded, not what the browser claimed.
   const record = Object.assign({}, payload, {
-    service, price, barber: written.barber,
+    service, price, barber: written.barber, flexible: !asked,
     phone: canonicalPhone(payload.phone, payload.phoneCountry || 'NL'),
     // The language as it was written down, not as the browser sent it. The
     // payload's copy is unchecked; this one is the value in the row, which is
@@ -930,7 +934,7 @@ async function addBooking(payload, res, byShop) {
     sendCustomerConfirmation(record, config)
   ]);
 
-  return json(res, { status: 'success', message: 'Booking added', barber: written.barber, duration });
+  return json(res, { status: 'success', message: 'Booking added', barber: asked ? written.barber : rota.ANY_BARBER, duration });
 }
 
 /** 'Any Available', 'Any' and '' all mean the same thing: nobody was asked for. */
@@ -959,10 +963,31 @@ async function insertBooking(sql, ctx) {
   const lang = trimmed(payload.lang).toLowerCase() === 'nl' ? 'nl' : 'en';
   const clash = 'Someone else booked that time while you were filling this in. Please choose another.';
 
-  // Barbers this request has already been refused. Carried rather than
-  // re-read: each query is its own trip, and a loop that trusts the next read
-  // to show the row that just beat it is a loop that can pick the same barber
-  // again. There are only so many chairs, so this ends.
+  // Use a complete day plan whenever flexible appointments can be displaced.
+  const flexibleRows=await flexible.readDay(sql,date);
+  if(flexibleRows.some(r=>r.flexible===true)) {
+    const customerId=await customerFor({phone:payload.phone,phoneCountry:payload.phoneCountry || 'NL',name:payload.name,email:payload.email});
+    for(let attempt=0;attempt<3;attempt++) {
+      const replay=await replayBooking(sql,ctx.request);
+      if(replay) return {replay};
+      const snap=await flexible.snapshot(sql,date);
+      const currentService=(snap.config.services || []).find(s=>s.nameEN===service || s.nameNL===service);
+      if((source==='web' && !bookingIsOpen(snap.config)) || !currentService ||
+          Number(currentService.duration)!==duration || Number(currentService.price)!==price) {
+        return {error:'The shop settings changed. Please refresh and choose your appointment again.'};
+      }
+      const proposal=flexible.propose(snap.config,date,snap.rows,time,duration,asked,shopNow());
+      if(proposal.status!=='available') return {error:clash};
+      try {
+        const rows=await flexible.commit(sql,snap,proposal,barber=>sql`INSERT INTO bookings (booked_on,booked_at,service,barber,customer_name,phone,email,price,source,lang,customer_id,duration_min,phone_e164,request_key,request_hash,flexible)
+          VALUES (${date}::date,${clock}::time,${service},${barber},${trimmed(payload.name)},${trimmed(payload.phone)},${trimmed(payload.email)},${price},${source},${lang},${customerId},${duration},${canonicalPhone(payload.phone,payload.phoneCountry || 'NL')},${ctx.request?.key || null}::uuid,${ctx.request?.hash || null},${!asked}) RETURNING id`);
+        return {barber:proposal.barber,id:rows[0].id,lang};
+      } catch(error) {if(!flexible.retryable(error)) throw error;}
+    }
+    return {error:clash};
+  }
+  // With no flexible appointments, keep the existing exclusion-backed path.
+  // Refused chairs are remembered so a stale read cannot retry one forever.
   const refused = [];
   let deadlockRetries = 0;
 
@@ -999,10 +1024,10 @@ async function insertBooking(sql, ctx) {
         sql`SELECT pg_advisory_xact_lock(73021, 2047)`,
         sql`
         INSERT INTO bookings (booked_on, booked_at, service, barber, customer_name,
-                              phone, email, price, source, lang, customer_id, duration_min, phone_e164, request_key, request_hash)
+                              phone, email, price, source, lang, customer_id, duration_min, phone_e164, request_key, request_hash, flexible)
         SELECT ${date}::date, ${clock}::time, ${service}, ${barber}, ${trimmed(payload.name)},
                 ${trimmed(payload.phone)}, ${trimmed(payload.email)}, ${price},
-                ${source}, ${lang}, ${customerId}, ${duration}, ${canonicalPhone(payload.phone, payload.phoneCountry || 'NL')}, ${ctx.request?.key || null}::uuid, ${ctx.request?.hash || null}
+                ${source}, ${lang}, ${customerId}, ${duration}, ${canonicalPhone(payload.phone, payload.phoneCountry || 'NL')}, ${ctx.request?.key || null}::uuid, ${ctx.request?.hash || null}, ${!asked}
         WHERE EXISTS (SELECT 1 FROM barbers WHERE name = ${barber})
           AND NOT EXISTS (
             SELECT 1 FROM time_off t JOIN barbers b ON b.id = t.barber_id
@@ -1030,10 +1055,14 @@ async function insertBooking(sql, ctx) {
         continue;
       }
       if (!/bookings_one_chair|bookings_no_overlap/.test(String(err.constraint || '') + ' ' + String(err.message || ''))) throw err;
-      // Someone took that chair between the read and the write. If the
-      // customer named them, that is the end of it — they asked for that
-      // barber and must not be quietly given another.
-      if (asked) return { error: clash };
+      // A specific preference always stays fixed. Only an explicitly flexible
+      // existing booking can move when re-reading a concurrent winner.
+      if (asked) {
+        // A concurrent Any request may have taken this provisional chair.
+        // Re-read once so its explicit preference can be handled atomically.
+        if(!ctx.flexRetry) return insertBooking(sql,{...ctx,flexRetry:true});
+        return { error: clash };
+      }
       refused.push(barber);
     }
   }
@@ -1052,10 +1081,10 @@ async function lookupCancel(payload, res) {
   if (!id) return json(res, { status: 'error', message: 'That link is not valid any more.' });
 
   const sql = db();
-  const rows = await sql`
+  const rows = await withNewSchema(() => sql`
     SELECT to_char(booked_on, 'YYYY-MM-DD') AS booked_on, booked_at,
-           service, barber, customer_name, status
-      FROM bookings WHERE id = ${id}`;
+           service, barber, customer_name, status, flexible
+      FROM bookings WHERE id = ${id}`);
   if (!rows.length) return json(res, { status: 'error', message: 'We could not find that booking.' });
 
   const r = rows[0];
@@ -1068,7 +1097,7 @@ async function lookupCancel(payload, res) {
       date: r.booked_on,
       time: rota.minutesToLabel(rota.parseClock(r.booked_at)),
       service: r.service,
-      barber: r.barber,
+      barber: r.flexible ? rota.ANY_BARBER : r.barber,
       name: r.customer_name,
       cancelled: r.status === 'cancelled',
       past: r.booked_on < shopNow().date
@@ -1082,12 +1111,12 @@ async function cancelByLink(payload, res) {
   if (!id) return json(res, { status: 'error', message: 'That link is not valid any more.' });
 
   const sql = db();
-  const rows = await sql`
+  const rows = await withNewSchema(() => sql`
     UPDATE bookings
        SET status = 'cancelled', cancelled_at = now()
      WHERE id = ${id} AND status = 'active'
     RETURNING to_char(booked_on, 'YYYY-MM-DD') AS booked_on,
-              booked_at, service, barber, customer_name, phone, email, lang`;
+              booked_at, service, barber, customer_name, phone, email, lang, flexible`);
 
   // Already cancelled. Not an error: a second click on the same link, or a
   // customer who also rang up, and both should be told the same calm thing.
@@ -1100,7 +1129,7 @@ async function cancelByLink(payload, res) {
     date: r.booked_on,
     time: rota.minutesToLabel(rota.parseClock(r.booked_at)),
     name: r.customer_name, phone: r.phone, email: r.email,
-    service: r.service, barber: r.barber, lang: r.lang
+    service: r.service, barber: r.barber, flexible:r.flexible===true, lang: r.lang
   };
   const config = await readConfig();
   await Promise.allSettled([
@@ -1131,12 +1160,12 @@ async function cancelBooking(payload, res) {
 
   const sql = db();
   // One ID, not phone/date/time: families can share those across two barbers.
-  const rows = await sql`
+  const rows = await withNewSchema(() => sql`
     UPDATE bookings
        SET status = 'cancelled', cancelled_at = now()
      WHERE id = ${id} AND status = 'active'
     RETURNING to_char(booked_on, 'YYYY-MM-DD') AS booked_on,
-              booked_at, service, barber, customer_name, phone, email, lang`;
+              booked_at, service, barber, customer_name, phone, email, lang, flexible`);
 
   if (rows.length === 0) {
     return json(res, { status: 'error', message: 'Booking not found' });
@@ -1147,7 +1176,7 @@ async function cancelBooking(payload, res) {
     date: r.booked_on,
     time: rota.minutesToLabel(rota.parseClock(r.booked_at)),
     name: r.customer_name, phone: r.phone, email: r.email,
-    service: r.service, barber: r.barber, lang: r.lang
+    service: r.service, barber: r.barber, flexible:r.flexible===true, lang: r.lang
   };
   // The shop, and the customer. They were emailed when the appointment was
   // made, so silence when it comes off reads as "did that work?".

@@ -33,6 +33,7 @@ async function update(patch){const b=await current();return handle('updateBookin
     for(const table of ['barbers','barber_hours','time_off','shop_hours','services','settings']) await pool.query(`CREATE TABLE ${table}(value text)`);
     await pool.query(`CREATE TABLE bookings(id int PRIMARY KEY,booked_on date,booked_at time,service text,barber text,customer_name text,phone text,email text,price numeric,duration_min int,phone_e164 text,status text,lang text,customer_id int,reminded_at timestamptz,source text,created_at timestamptz)`);
     await pool.query(`INSERT INTO bookings VALUES(1,'2099-09-08','10:00','Cut','Amir','Before','legacy','','18',30,NULL,'active','en',NULL,now(),'shop',now())`);
+    await pool.query('ALTER TABLE bookings ADD COLUMN flexible boolean NOT NULL DEFAULT false');
     let answer=await update({name:'After'});assert.equal(answer.status,'success');assert.equal((await current()).name,'After');
     let row=(await pool.query('SELECT * FROM bookings WHERE id=1')).rows[0];assert.equal(Number(row.price),18);assert.equal(row.duration_min,30);assert.equal(row.phone,'legacy');assert.equal(row.source,'shop');
     const base=await current();

@@ -38,12 +38,14 @@ api/
     db.js           the database, and the shape the site reads it in
     booking-edit.js owner-only updates with optimistic and schedule concurrency guards
     rota.js         who is working when, and whether a slot is free
+    flexible-plan.js full-interval Any Available assignment proposals
+    flexible-bookings.js atomic reassignment with diary/config snapshot guards
     mail.js         the four emails a customer can get
     auth.js         the panel password, the owner's PIN, the cancel token
     limits.js       how often one number may book
     reports.js      the takings, for the owner's page
 db/schema.sql       the database, and why each column is the way it is
-tests/              50 files, run by `npm test`
+tests/              51 files, run by `npm test`
                     booking-overlap.postgres.cjs: isolated PostgreSQL integration checks
 MIGRATION.md        how the backend works and what to set up from nothing
 ```
@@ -51,6 +53,12 @@ MIGRATION.md        how the backend works and what to set up from nothing
 Everything in `api/_lib/` is a plain module with no framework in it. Anything
 starting with `_` is invisible to Vercel's routing, which is why the folder is
 named that way.
+
+Any Available is stored separately from the assigned chair. New flexible bookings
+can move to another eligible barber when a named request needs their chair; old
+bookings and specific preferences remain fixed. Customers keep seeing Any Available,
+while the diary shows the assigned barber and preference together.
+[FLEXIBLE-BOOKINGS.md](FLEXIBLE-BOOKINGS.md) documents the atomic write and tests.
 
 Gallery Management also contains The Sussex Experience photo. It was formerly
 hard-coded in the home page, so gallery changes could not replace it. Choosing

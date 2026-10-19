@@ -86,6 +86,8 @@ function ensureSchema() {
       // Whether a barber has a card on the website. Not whether they can be
       // booked — see the note in db/schema.sql.
       await sql`ALTER TABLE barbers ADD COLUMN IF NOT EXISTS on_team boolean NOT NULL DEFAULT true`;
+      // Existing named bookings must never be inferred to be flexible.
+      await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS flexible boolean NOT NULL DEFAULT false`;
       // Lost-response retries share one unique key; NULL preserves old rows.
       await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS request_key uuid`;
       await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS request_hash text`;

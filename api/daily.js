@@ -315,7 +315,7 @@ function soonCutoff(at, silentFor) {
  */
 async function sendReminders(sql, config, today, from, until) {
   const rows = await withNewSchema(() => sql`
-    SELECT id, booked_at, service, barber, customer_name, email, lang
+    SELECT id, booked_at, service, barber, customer_name, email, lang, flexible
       FROM bookings
      WHERE booked_on = ${today}
        AND status = 'active'
@@ -348,7 +348,7 @@ async function sendReminders(sql, config, today, from, until) {
       email: row.email,
       time: rota.minutesToLabel(rota.parseClock(row.booked_at)),
       service: row.service,
-      barber: row.barber,
+      barber: row.barber, flexible:row.flexible===true,
       lang: row.lang,
       // The morning of the appointment is when a customer discovers they
       // cannot come, so this is the email where saying so easily is worth the
@@ -423,7 +423,7 @@ async function askForReviews(sql, config, today, cutoff) {
   if (!reviewUrl) return 0;
 
   const rows = await withNewSchema(() => sql`
-    SELECT id, booked_at, service, barber, customer_name, email, lang
+    SELECT id, booked_at, service, barber, customer_name, email, lang, flexible
       FROM bookings
      WHERE booked_on = ${today}
        AND status = 'active'
@@ -440,7 +440,7 @@ async function askForReviews(sql, config, today, cutoff) {
       name: row.customer_name,
       email: row.email,
       service: row.service,
-      barber: row.barber, lang: row.lang
+      barber: row.barber, flexible:row.flexible===true, lang: row.lang
     }, config, reviewUrl);
     if (ok) {
       await sql`UPDATE bookings SET review_asked_at = now() WHERE id = ${row.id}`;

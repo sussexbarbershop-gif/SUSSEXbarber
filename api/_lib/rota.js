@@ -202,6 +202,8 @@ function slotsForDate(config, dateStr, barberName, todayStr, nowMinutes, duratio
 
 /**
  * Can `wanted` still be booked at this slot, given who already holds it?
+ * This handles fixed/legacy rows. Explicit flexible preferences use the full
+ * interval planner in flexible-plan.js; they must not be reduced to names.
  *
  * Each booking occupies one chair. A booking naming a barber takes that
  * barber's chair; a booking made with no preference takes an unspecified one,

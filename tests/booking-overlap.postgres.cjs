@@ -16,7 +16,8 @@ const admin = new Client({connectionString: url});
 const pool = new Pool({connectionString: url, options: `-c search_path=${schema},public`, max: 8});
 let arrival = null;
 function sql(strings, ...values) {
-  const text = strings.reduce((out, part, i) => out + (i ? '$' + i : '') + part, '');
+  const text = typeof strings==='string' ? strings : strings.reduce((out, part, i) => out + (i ? '$' + i : '') + part, '');
+  if(typeof strings==='string') values=values[0] || [];
   return {_text: text, _values: values, then(resolve, reject) {
     return (async () => {
       if (arrival && /INSERT INTO bookings/.test(text)) await arrival();
@@ -188,7 +189,7 @@ async function main() {
       assert.ok(times.unavailable.includes('10:00'),'an old public tab must also see the slot blocked');
       assert.equal((await book({})).status,'error');
       assert.equal((await book({action:'addBookingByShop',password:process.env.ADMIN_PASSWORD})).status,'error');
-      assert.equal((await book({barber:'Any Available'})).barber,'Saan');
+      assert.equal((await book({barber:'Any Available'})).barber,'Any Available');
     });
     await check('a cancelled booking releases its whole interval', async () => {
       await insert(pool,'10:00',60);
@@ -240,7 +241,7 @@ async function main() {
         };
         const result=await book({barber});
         assert.equal(result.status,barber==='Amir'?'error':'success');
-        if(barber!=='Amir')assert.equal(result.barber,'Saan');
+        if(barber!=='Amir')assert.equal(result.barber,'Any Available');
       });
     }
     await check('a booking waits for an in-flight leave save, then refuses the absent barber',async()=>{
@@ -338,6 +339,84 @@ async function main() {
         assert.equal((await pool.query("SELECT count(*)::int AS n FROM bookings WHERE status='active'")).rows[0].n,barber==='Amir'?1:2);
       });
     }
+    await check('Any preference survives assignment and a named request moves only the flexible chair',async()=>{
+      const first=await book({barber:'Any Available',requestKey:crypto.randomUUID()});
+      assert.equal(first.barber,'Any Available');
+      const before=(await pool.query('SELECT * FROM bookings')).rows[0];
+      assert.equal(before.flexible,true);assert.equal(before.barber,'Amir');
+      assert.equal((await availability('Short cut','Amir')).unavailable.includes('10:00'),false);
+      assert.equal((await book({barber:'Amir',phone:'0622222222'})).status,'success');
+      const after=(await pool.query('SELECT * FROM bookings WHERE id=$1',[before.id])).rows[0];
+      assert.equal(after.barber,'Saan');after.barber=before.barber;assert.deepEqual(after,before);
+      const full=(await pool.query('SELECT row_to_json(b) row FROM bookings b ORDER BY id')).rows;
+      assert.equal((await book({barber:'Saan',phone:'0633333333'})).status,'error');
+      assert.deepEqual((await pool.query('SELECT row_to_json(b) row FROM bookings b ORDER BY id')).rows,full);
+    });
+    await check('lunch blocks flexible reassignment for the whole service',async()=>{
+      await book({barber:'Any Available',service:'Long cut'});
+      await pool.query("INSERT INTO barber_hours(barber_id,weekday,working,starts_at,ends_at,break_start,break_end) SELECT id,2,true,'10:00','18:00','10:30','11:00' FROM barbers WHERE name='Saan'");
+      try {
+        assert.equal((await availability('Short cut','Amir')).unavailable.includes('10:00'),true);
+        assert.equal((await book({barber:'Amir'})).status,'error');
+        assert.equal((await pool.query('SELECT barber FROM bookings')).rows[0].barber,'Amir');
+      } finally {await pool.query('DELETE FROM barber_hours');}
+    });
+    await check('concurrent named requests cannot steal the same flexible capacity',async()=>{
+      await book({barber:'Any Available'});
+      const replies=await Promise.all([book({phone:'0622222222'}),book({phone:'0633333333'})]);
+      assert.equal(replies.filter(r=>r.status==='success').length,1,JSON.stringify(replies));
+      const saved=(await pool.query('SELECT barber,flexible FROM bookings ORDER BY id')).rows;
+      assert.deepEqual(saved,[{barber:'Saan',flexible:true},{barber:'Amir',flexible:false}]);
+    });
+    await check('chair swaps keep the exclusion active and forced failures roll everything back',async()=>{
+      await book({barber:'Any Available'});await book({barber:'Any Available',phone:'0622222222'});
+      const f=require('../api/_lib/flexible-bookings');
+      let snap=await f.snapshot(sql,day);
+      const [a,b]=snap.rows.sort((a,b)=>a.id-b.id);
+      const proposal={barber:'Amir',moves:[{id:a.id,from:'Amir',to:'Saan'},{id:b.id,from:'Saan',to:'Amir'}]};
+      const before=(await pool.query('SELECT row_to_json(b) row FROM bookings b ORDER BY id')).rows;
+      await assert.rejects(f.commit(sql,snap,proposal,()=>sql`SELECT 1/0`),{code:'22012'});
+      assert.deepEqual((await pool.query('SELECT row_to_json(b) row FROM bookings b ORDER BY id')).rows,before);
+      await f.commit(sql,snap,proposal,()=>sql`SELECT 1 AS done`);
+      assert.deepEqual((await pool.query('SELECT barber FROM bookings ORDER BY id')).rows.map(r=>r.barber),['Saan','Amir']);
+      await assert.rejects(insert(pool,'10:15',30,'Amir'),{code:'23P01'});
+      snap=await f.snapshot(sql,day);
+      await pool.query("UPDATE bookings SET status='cancelled',cancelled_at=now() WHERE id=$1",[a.id]);
+      await assert.rejects(f.commit(sql,snap,proposal,()=>sql`SELECT 1`),{code:'22012'});
+      assert.equal((await pool.query('SELECT status FROM bookings WHERE id=$1',[a.id])).rows[0].status,'cancelled');
+      snap=await f.snapshot(sql,day);
+      await pool.query("UPDATE settings SET value='Saan,Amir' WHERE key='barber_priority'");
+      await assert.rejects(f.commit(sql,snap,{barber:'Saan',moves:[]},()=>sql`SELECT 1`),{code:'22012'});
+      await pool.query("UPDATE settings SET value='Amir,Saan' WHERE key='barber_priority'");
+    });
+    await check('flexible retries and customer lookup retain preference after a move',async()=>{
+      const requestKey=crypto.randomUUID();
+      await book({barber:'Any Available',requestKey,email:'synthetic@example.com'});
+      await book({barber:'Amir',phone:'0622222222'});
+      const before=(await pool.query('SELECT row_to_json(b) row FROM bookings b ORDER BY id')).rows;
+      const again=await book({barber:'Any Available',requestKey,email:'synthetic@example.com'});
+      assert.equal(again.barber,'Any Available');assert.equal(again.status,'success');
+      assert.deepEqual((await pool.query('SELECT row_to_json(b) row FROM bookings b ORDER BY id')).rows,before);
+      bookingLists=[];
+      await request('POST',{action:'myBookings',sendEmail:true,identifier:'synthetic@example.com'});
+      assert.equal(bookingLists[0].list[0].flexible,true);
+      const token=bookingLists[0].list[0].cancelToken;
+      const lookup=await request('POST',{action:'lookupCancel',token});
+      assert.equal(lookup.booking.barber,'Any Available');
+    });
+    await check('owner edit preserves preference for contact changes and can explicitly fix a chair',async()=>{
+      await book({barber:'Any Available'});
+      const id=(await pool.query('SELECT id FROM bookings')).rows[0].id;
+      const owner={password:process.env.ADMIN_PASSWORD,pin:process.env.REPORTS_PIN,id};
+      let original=(await request('POST',{action:'getBookingForEdit',...owner})).booking;
+      assert.equal(original.barber,'Any Available');
+      assert.equal((await request('POST',{action:'updateBooking',...original,...owner,name:'Corrected'})).status,'success');
+      assert.equal((await pool.query('SELECT flexible FROM bookings')).rows[0].flexible,true);
+      original=(await request('POST',{action:'getBookingForEdit',...owner})).booking;
+      const result=await request('POST',{action:'updateBooking',...original,...owner,barber:'Saan'});
+      assert.equal(result.status,'success',JSON.stringify(result));
+      assert.deepEqual((await pool.query('SELECT flexible,barber FROM bookings')).rows[0],{flexible:false,barber:'Saan'});
+    });
     await check('fresh schema and automatic upgrade enforce the same constraint', async () => {
       await insert(pool,'10:00');
       await pool.query('ALTER TABLE bookings DROP CONSTRAINT bookings_no_overlap');

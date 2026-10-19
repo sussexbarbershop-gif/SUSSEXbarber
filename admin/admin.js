@@ -735,7 +735,7 @@ function forChosenBarber(list) {
     if (barberFilter === NO_PREFERENCE) {
         // Nobody was asked for, so nobody's name is on it — these are the ones
         // whoever is free picks up.
-        return list.filter(b => !b.barberName || b.barberName === 'Any' ||
+        return list.filter(b => b.flexible || !b.barberName || b.barberName === 'Any' ||
                                 b.barberName === ANY_BARBER);
     }
     return list.filter(b => b.barberName === barberFilter);
@@ -859,7 +859,7 @@ function renderBookings() {
                     ? `<a class="cell-link" href="tel:${encodeURIComponent(b.customerPhone)}">${escapeHtml(b.customerPhone)}</a>`
                     : '—'}</td>
             <td>${escapeHtml(b.serviceName)}</td>
-            <td>${escapeHtml(b.barberName || 'Any')}</td>
+            <td>${escapeHtml(b.barberName || 'Any')}${b.flexible ? '<small class="booking-flexible">Any Available</small>' : ''}</td>
             <td>${escapeHtml(b.date)}</td>
             <td>${escapeHtml(b.time)}</td>
             <td class="cell-muted cell-nowrap" title="${escapeAttr(bookedAtFull(b.bookedAt))}">${escapeHtml(bookedAgo(b.bookedAt))}${
@@ -3077,6 +3077,7 @@ async function fetchLiveBookings() {
                 customerPhone: b.phone || '',
                 serviceName: b.service || 'Haircut',
                 barberName: b.barber || 'Any',
+                flexible: b.flexible===true,
                 date: b.date || '',
                 time: b.time || '',
                 bookedAt: b.bookedAt || '',
@@ -3216,7 +3217,7 @@ function renderWeeklyPlannerGrid() {
                         </button>
                     </div>
                     <div class="planner-card-name">${escapeHtml(b.customerName)}</div>
-                    <div class="planner-card-detail">${escapeHtml(b.serviceName)}${b.barberName ? ' · ' + escapeHtml(b.barberName) : ''}</div>
+                    <div class="planner-card-detail">${escapeHtml(b.serviceName)}${b.barberName ? ' · ' + escapeHtml(b.barberName) : ''}${b.flexible ? ' · Any Available' : ''}</div>
                     ${b.customerPhone ? `<a class="planner-card-phone" href="tel:${escapeHtml(b.customerPhone)}">${escapeHtml(b.customerPhone)}</a>` : ''}
                 </div>`).join('');
         }

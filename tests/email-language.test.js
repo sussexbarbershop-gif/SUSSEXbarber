@@ -176,6 +176,13 @@ async function main() {
   const anyEn = await sent(mail.sendCustomerConfirmation, 'en', { barber: '' });
   ok('and in English', /Any Available/.test(anyEn.text), true);
 
+  for (const send of [mail.sendCustomerConfirmation,mail.sendReminder]) {
+    for(const [lang,label] of [['en','Any Available'],['nl','Elke Beschikbare Kapper']]) {
+      const flexible=await sent(send,lang,{barber:'Provisional Test Chair',flexible:true});
+      ok('flexible preference survives in customer mail '+lang,flexible.text.includes(label),true);
+      ok('provisional chair is not promised '+lang,flexible.text.includes('Provisional Test Chair') || flexible.html.includes('Provisional Test Chair'),false);
+    }
+  }
   for (const [lang, phrase] of [['en','updated'],['nl','gewijzigd']]) {
     const changed = await sent(mail.sendCustomerConfirmation, lang, {updated:true});
     ok('updated appointment subject '+lang, changed.subject.toLowerCase().includes(phrase), true);

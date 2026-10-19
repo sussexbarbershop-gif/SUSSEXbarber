@@ -76,7 +76,7 @@ async function unlockBookingEditor(event) {
 function fillBookingEditor(b) {
     for (const [key,id] of Object.entries({name:'Name',date:'Date',phone:'Phone',email:'Email'})) editEl('editBooking'+id).value=b[key] || '';
     const options=(items,original) => [...new Set([original,...items])].map(value=>`<option value="${escapeAttr(value)}">${escapeHtml(value || 'Unassigned (saved booking)')}</option>`).join('');
-    editEl('editBookingBarber').innerHTML=options(barbers.filter(b=>b.name!==ANY_BARBER).map(b=>b.name),b.barber);
+    editEl('editBookingBarber').innerHTML=options([ANY_BARBER,...barbers.filter(b=>b.name!==ANY_BARBER).map(b=>b.name)],b.barber);
     editEl('editBookingService').innerHTML=options(services.map(s=>s.nameEN),b.service);
     editEl('editBookingBarber').value=b.barber; editEl('editBookingService').value=b.service;
     editEl('editBookingNotify').checked=false; // Staff deliberately opt in to sending an email.

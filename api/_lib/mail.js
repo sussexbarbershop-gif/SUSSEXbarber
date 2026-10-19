@@ -247,9 +247,9 @@ const langOf = booking => (String((booking && booking.lang) || '').toLowerCase()
 /** Pick one of two. Kept tiny on purpose: two languages, no framework. */
 const say = (lang, pair) => (lang === 'nl' ? pair[1] : pair[0]);
 
-/** The barber column holds '' for "no preference", which each language names. */
+/** Preference survives provisional chair assignment in every customer email. */
 const barberName = (booking, lang) =>
-  String((booking && booking.barber) || '').trim() ||
+  (!booking?.flexible && String((booking && booking.barber) || '').trim()) ||
   say(lang, ['Any Available', 'Elke Beschikbare Kapper']);
 
 /**

@@ -164,6 +164,8 @@ CREATE TABLE IF NOT EXISTS bookings (
     -- happened. Deleting a barber must not erase the appointments they worked,
     -- and renaming one must not rewrite last year's bookings.
     barber        text NOT NULL DEFAULT '',
+    -- Preference is separate from assignment; historical bookings stay fixed.
+    flexible      boolean NOT NULL DEFAULT false,
     customer_name text NOT NULL,
     phone         text NOT NULL,
     email         text NOT NULL DEFAULT '',
@@ -360,3 +362,6 @@ CREATE INDEX IF NOT EXISTS bookings_by_e164 ON bookings (phone_e164, booked_on);
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS request_key uuid;
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS request_hash text;
 CREATE UNIQUE INDEX IF NOT EXISTS bookings_request_key ON bookings (request_key);
+
+-- Never infer a historical customer's preference from the assigned chair.
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS flexible boolean NOT NULL DEFAULT false;
