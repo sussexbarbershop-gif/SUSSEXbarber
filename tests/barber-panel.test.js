@@ -53,7 +53,7 @@ async function saveToServer(partial, onSaved) {
 
 eval([
   'rotaFor', 'openBarberModal', 'setBarberModalPhoto', 'closeBarberModal',
-  'renderModalRota', 'updateDraftRota', 'toggleDraftRotaDay', 'renderModalTimeOff',
+  'renderModalRota', 'updateDraftRota', 'setDraftLunchBreak', 'toggleDraftRotaDay', 'renderModalTimeOff',
   'addTimeOffFor', 'updateDraftTimeOff', 'removeDraftTimeOff',
   'saveBarberModal', 'deleteBarberFromModal', 'addBarber'
   , 'renderTimeOffWarning', 'timeOffConflicts'
@@ -88,6 +88,13 @@ async function main() {
   ok('draft rota loaded',    draftRota.filter(r => r.working).map(r => r.day), ['Tuesday','Friday']);
   ok('draft time off loaded', draftTimeOff.length, 1);
   ok('name shown',           el('barberModalName').value, 'Hemen');
+  updateDraftRota(1,'breakFrom','13:00');
+  ok('custom break editable',draftRota[1].breakFrom,'13:00');
+  updateDraftRota(1,'breakTo','12:00');
+  ok('reversed break refused',draftRota[1].breakTo,'14:00');
+  setDraftLunchBreak(1);
+  ok('default button restores lunch',draftRota[1].breakFrom,'13:30');
+  ok('draft has not saved',synced,null);
 
   console.log('--- Close throws edits away ---');
   toggleDraftRotaDay(WEEK.indexOf('Monday'), true);
@@ -99,6 +106,7 @@ async function main() {
   openBarberModal(1);
   toggleDraftRotaDay(WEEK.indexOf('Monday'), true);
   ok('switching a day on fills the hours', draftRota[WEEK.indexOf('Monday')].from, '10:00');
+  ok('new working day defaults lunch',draftRota[0].breakFrom+'-'+draftRota[0].breakTo,'13:30-14:00');
   await saveBarberModal();
   ok('Monday saved',       workingDays('Hemen'), ['Monday','Tuesday','Friday']);
   ok('sheet was written',  Object.keys(synced).sort(), ['barberHours','barbers','timeOff']);

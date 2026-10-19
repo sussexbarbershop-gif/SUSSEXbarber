@@ -2114,12 +2114,19 @@ function renderModalRota() {
                     <span style="color:var(--text-muted)">—</span>
                     <input type="time" value="${escapeAttr(r.to || '')}"
                            onchange="updateDraftRota(${i}, 'to', this.value)">
-                    <span style="color:var(--text-muted);font-size:12px;margin-left:10px">break</span>
+                    <div class="rota-break">
+                    <div class="rota-break-heading"><strong>Lunch break</strong><span>${r.breakFrom && r.breakTo ? escapeHtml(r.breakFrom+' – '+r.breakTo) : 'Not set'}</span></div>
+                    <p>${r.breakFrom && r.breakTo ? 'This barber cannot be booked during this break, including Any Available.' : 'No lunch break saved. This barber may receive bookings at lunchtime.'}</p>
+                    <div class="rota-break-times">
+                    <label>From
                     <input type="time" value="${escapeAttr(r.breakFrom || '')}"
                            onchange="updateDraftRota(${i}, 'breakFrom', this.value)">
-                    <span style="color:var(--text-muted)">—</span>
+                    </label><label>Until
                     <input type="time" value="${escapeAttr(r.breakTo || '')}"
                            onchange="updateDraftRota(${i}, 'breakTo', this.value)">
+                    </label></div>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="setDraftLunchBreak(${i})">Use 13:30–14:00</button>
+                    </div>
                 ` : '<span class="day-closed">Off</span>'}
             </div>
             <label class="toggle-switch">
@@ -2129,6 +2136,13 @@ function renderModalRota() {
             </label>
         </div>
     `).join('');
+}
+
+// Deliberate draft action: keep saved custom breaks until the owner changes them.
+function setDraftLunchBreak(dayIndex) {
+    draftRota[dayIndex].breakFrom = '13:30';
+    draftRota[dayIndex].breakTo = '14:00';
+    renderModalRota();
 }
 
 function updateDraftRota(dayIndex, field, value) {
@@ -2145,11 +2159,18 @@ function updateDraftRota(dayIndex, field, value) {
         renderModalRota();
         return;
     }
+    if ((field === 'breakFrom' || field === 'breakTo') && row.breakFrom && row.breakTo && row.breakTo <= row.breakFrom) {
+        row[field] = before;
+        showToast('The break must end after it starts', 'error');
+        renderModalRota();
+        return;
+    }
     if (row.working && !value) {
         showToast('A working day needs a start and an end time', 'error');
         row[field] = before;
         renderModalRota();
     }
+    if (field === 'breakFrom' || field === 'breakTo') renderModalRota();
 }
 
 function toggleDraftRotaDay(dayIndex, isWorking) {
@@ -2157,6 +2178,10 @@ function toggleDraftRotaDay(dayIndex, isWorking) {
     row.working = isWorking;
     // Switching a day on with empty times would silently offer no slots.
     if (isWorking && !row.from) { row.from = '10:00'; row.to = '18:00'; }
+    // A newly enabled day starts with lunch protected; retain custom times.
+    if (isWorking && !row.breakFrom && !row.breakTo) {
+        row.breakFrom = '13:30'; row.breakTo = '14:00';
+    }
     renderModalRota();
 }
 
