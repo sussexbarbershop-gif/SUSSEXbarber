@@ -2115,17 +2115,14 @@ function renderModalRota() {
                     <input type="time" value="${escapeAttr(r.to || '')}"
                            onchange="updateDraftRota(${i}, 'to', this.value)">
                     <div class="rota-break">
-                    <div class="rota-break-heading"><strong>Lunch break</strong><span>${r.breakFrom && r.breakTo ? escapeHtml(r.breakFrom+' – '+r.breakTo) : 'Not set'}</span></div>
-                    <p>${r.breakFrom && r.breakTo ? 'This barber cannot be booked during this break, including Any Available.' : 'No lunch break saved. This barber may receive bookings at lunchtime.'}</p>
+                    <div class="rota-break-heading"><span>Lunch break</span><button type="button" class="btn btn-secondary btn-sm" onclick="setDraftLunchBreak(${i})" aria-label="Set ${escapeAttr(r.day)} lunch break to 13:30–14:00" title="Set 13:30–14:00">Default</button></div>
                     <div class="rota-break-times">
-                    <label>From
-                    <input type="time" value="${escapeAttr(r.breakFrom || '')}"
+                    <input type="time" aria-label="${escapeAttr(r.day)} lunch break start" value="${escapeAttr(r.breakFrom || '')}"
                            onchange="updateDraftRota(${i}, 'breakFrom', this.value)">
-                    </label><label>Until
-                    <input type="time" value="${escapeAttr(r.breakTo || '')}"
+                    <span aria-hidden="true">–</span>
+                    <input type="time" aria-label="${escapeAttr(r.day)} lunch break end" value="${escapeAttr(r.breakTo || '')}"
                            onchange="updateDraftRota(${i}, 'breakTo', this.value)">
-                    </label></div>
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="setDraftLunchBreak(${i})">Use 13:30–14:00</button>
+                    </div>
                     </div>
                 ` : '<span class="day-closed">Off</span>'}
             </div>

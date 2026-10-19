@@ -390,10 +390,10 @@ The PIN card reuses Management's lock, heading, masked input and gold Unlock
 button; the short PIN prompt fits a compact modal, while the edit form keeps
 its full-height mobile sheet. Row actions have equal sizes and 44px mobile
 touch targets, with space between Edit and Cancel.
-Barber schedules show an explicit Lunch break block, its saved hours and the
-effect on Any Available. New rota days and newly enabled days without a break
+Barber schedules show a compact Lunch break label, two time inputs and a
+Default button (13:30–14:00), without repeated explanations or time summaries. New rota days and newly enabled days without a break
 default to 13:30–14:00. Existing saved
-breaks (including empty ones) are preserved; Use 13:30–14:00 changes only the
+breaks (including empty ones) are preserved; Default changes only the
 draft and still requires Save. This avoids silently replacing a custom rota.
 Break end times must follow their start times.
 

@@ -1392,14 +1392,11 @@ textarea.form-control { resize: vertical; line-height: 1.6; }
 /* Keep diary actions beside each other even when the table is narrow.
    The existing table scroller handles the extra column width on phones. */
 .booking-row-actions { display:inline-flex; flex-wrap:nowrap; align-items:center; gap:8px; white-space:nowrap; }
-.rota-break { flex:0 0 100%; min-width:0; border-top:1px solid var(--border-color); padding-top:14px; margin-top:8px; }
-.rota-break-heading { display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; font-size:14px; }
-.rota-break-heading span { color:var(--gold-text); }
-.rota-break p { font-size:12px; line-height:1.6; color:var(--text-secondary); margin:8px 0 12px; }
-.rota-break-times { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin-bottom:12px; }
-.rota-break-times label { min-width:0; font-size:12px; color:var(--text-secondary); }
-.rota-break-times input[type="time"] { width:100%; min-width:0; min-height:44px; margin-top:6px; }
-.rota-break > .btn { min-height:44px; }
+.rota-break { flex:0 0 100%; min-width:0; border-top:1px solid var(--border-color); padding-top:6px; margin-top:4px; }
+.rota-break-heading { display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:12px; color:var(--text-secondary); }
+.rota-break-heading .btn { min-height:36px; padding:4px 8px; background:transparent; border-color:transparent; }
+.rota-break-times { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center; gap:8px; }
+.rota-break-times input[type="time"] { width:100%; min-width:0; min-height:44px; margin:0; }
 #barberModalRota .hours-row { display:grid; grid-template-columns:minmax(0,1fr) auto; }
 #barberModalRota .hours-row > .day-name { grid-column:1; grid-row:1; }
 #barberModalRota .hours-row > .toggle-switch { grid-column:2; grid-row:1; }
