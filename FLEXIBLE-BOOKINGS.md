@@ -55,6 +55,11 @@ fingerprint data is returned to the client.
 - npm run test:postgres: disposable local PostgreSQL, real API/schema/exclusion.
   Tests displacement, full capacity, lunch, concurrent requests, swaps, forced
   rollback, stale cancellation/config, preference editing and ordinary retries.
+- Additional real-API regressions cover a three-chair transitive chain, an
+  owner edit releasing its chair for a displaced appointment, concurrent
+  duplicate retries with existing flexible capacity (one row and one email),
+  the database-clock refusal for started appointments, and migration preserving
+  every historical field while defaulting preference to fixed.
 - npm run test:edit-postgres: stale owner edits, configuration changes, overlap
   races and cancellation preservation against real SQL.
 

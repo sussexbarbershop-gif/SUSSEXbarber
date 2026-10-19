@@ -417,6 +417,68 @@ async function main() {
       assert.equal(result.status,'success',JSON.stringify(result));
       assert.deepEqual((await pool.query('SELECT flexible,barber FROM bookings')).rows[0],{flexible:false,barber:'Saan'});
     });
+    await check('concurrent duplicate retries with existing flexible capacity insert and email only once',async()=>{
+      await book({barber:'Any Available'});
+      const requestKey=crypto.randomUUID();confirmationCount=0;
+      let count=0,release;
+      const barrier=new Promise(resolve=>{release=resolve;});
+      arrival=async()=>{if(++count===2){arrival=null;release();}await barrier;};
+      const results=await Promise.all([1,2].map(()=>book({barber:'Any Available',requestKey,phone:'0622222222'})));
+      assert.ok(results.every(r=>r.status==='success'),JSON.stringify(results));
+      assert.ok(results.every(r=>r.barber==='Any Available'));
+      assert.equal(confirmationCount,1);
+      assert.deepEqual((await pool.query('SELECT barber,flexible FROM bookings ORDER BY id')).rows,
+        [{barber:'Amir',flexible:true},{barber:'Saan',flexible:true}]);
+    });
+    await check('real API follows a three-chair transitive chain without altering booking details',async()=>{
+      await pool.query("INSERT INTO barbers(name,position) VALUES('Chain',3)");
+      await pool.query("INSERT INTO barber_hours(barber_id,weekday,working,starts_at,ends_at) SELECT id,2,true,'10:30','18:00' FROM barbers WHERE name='Chain'");
+      try {
+        assert.equal((await book({barber:'Any Available',service:'Long cut'})).status,'success');
+        assert.equal((await book({barber:'Any Available',service:'Long cut',time:'10:30',phone:'0622222222'})).status,'success');
+        await insert(pool,'11:00',30,'Amir');
+        const before=(await pool.query('SELECT * FROM bookings ORDER BY id')).rows;
+        assert.deepEqual(before.map(r=>r.barber),['Amir','Saan','Amir']);
+        assert.equal((await availability('Short cut','Amir')).unavailable.includes('10:00'),false);
+        const answer=await book({barber:'Amir',phone:'0633333333'});
+        assert.equal(answer.status,'success',JSON.stringify(answer));
+        const after=(await pool.query('SELECT * FROM bookings ORDER BY id')).rows;
+        assert.deepEqual(after.map(r=>r.barber),['Saan','Chain','Amir','Amir']);
+        after.slice(0,3).forEach((r,i)=>{r.barber=before[i].barber;assert.deepEqual(r,before[i]);});
+      } finally {await pool.query("DELETE FROM barbers WHERE name='Chain'");}
+    });
+    await check('owner reschedule atomically releases its chair for the displaced flexible booking',async()=>{
+      await book({barber:'Amir'});
+      await book({barber:'Any Available',phone:'0622222222'});
+      const saved=(await pool.query('SELECT * FROM bookings ORDER BY id')).rows;
+      const owner={password:process.env.ADMIN_PASSWORD,pin:process.env.REPORTS_PIN,id:saved[0].id};
+      const original=(await request('POST',{action:'getBookingForEdit',...owner})).booking;
+      const result=await request('POST',{action:'updateBooking',...original,...owner,barber:'Saan'});
+      assert.equal(result.status,'success',JSON.stringify(result));
+      assert.deepEqual((await pool.query('SELECT id,barber,flexible FROM bookings ORDER BY id')).rows,
+        [{id:saved[0].id,barber:'Saan',flexible:false},{id:saved[1].id,barber:'Amir',flexible:true}]);
+      // The first editor's version must now be stale, including after a chair move.
+      assert.equal((await request('POST',{action:'updateBooking',...original,...owner,name:'Stale'})).status,'error');
+    });
+    await check('database clock refuses moving an already-started flexible appointment',async()=>{
+      await book({barber:'Any Available'});
+      await pool.query("UPDATE bookings SET booked_on='2020-01-07'");
+      const f=require('../api/_lib/flexible-bookings');
+      const snap=await f.snapshot(sql,'2020-01-07');
+      const before=(await pool.query('SELECT row_to_json(b) row FROM bookings b')).rows;
+      await assert.rejects(f.commit(sql,snap,{barber:'Amir',moves:[{id:snap.rows[0].id,from:'Amir',to:'Saan'}]},()=>sql`SELECT 1`),{code:'22012'});
+      assert.deepEqual((await pool.query('SELECT row_to_json(b) row FROM bookings b')).rows,before);
+    });
+    await check('preference migration preserves every historical field and defaults to fixed',async()=>{
+      await insert(pool,'10:00');
+      await pool.query('ALTER TABLE bookings DROP COLUMN flexible');
+      const before=(await pool.query('SELECT row_to_json(b) row FROM bookings b')).rows;
+      delete require.cache[require.resolve('../api/_lib/db')];
+      await require('../api/_lib/db').ensureSchema();
+      const after=(await pool.query('SELECT row_to_json(b) row FROM bookings b')).rows;
+      assert.equal(after[0].row.flexible,false);delete after[0].row.flexible;
+      assert.deepEqual(after,before);
+    });
     await check('fresh schema and automatic upgrade enforce the same constraint', async () => {
       await insert(pool,'10:00');
       await pool.query('ALTER TABLE bookings DROP CONSTRAINT bookings_no_overlap');
