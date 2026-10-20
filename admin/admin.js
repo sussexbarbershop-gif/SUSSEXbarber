@@ -140,6 +140,8 @@ async function saveToServer(partial, onSaved) {
         showToast('Session expired — please sign in again', 'error');
         return false;
     }
+    const finish = typeof beginPanelSave === 'function' ? beginPanelSave() : ()=>{};
+    let confirmed = false;
     try {
         let result = await apiPost(asOwner(Object.assign({
             action: 'saveCMS',
@@ -163,12 +165,13 @@ async function saveToServer(partial, onSaved) {
             return false;
         }
         if (onSaved) onSaved(result);
+        confirmed = true;
         return true;
     } catch (err) {
         console.error('Sync failed', err);
         showToast('Could not confirm the save. Check your connection and try again.', 'error');
         return false;
-    }
+    } finally { finish(confirmed); }
 }
 
 // ---- State ----
@@ -536,10 +539,13 @@ function saveData() {
     /* nothing is stored locally */
 }
 
-async function saveServices() {
-    if (await saveToServer({ services: services })) {
+async function saveServices(next = services) {
+    if (await saveToServer({ services: next })) {
+        services = next;
         showToast('Services updated — customers see this now', 'success');
+        return true;
     }
+    return false;
 }
 
 async function saveHours() {
@@ -1592,7 +1598,7 @@ function closeServiceModal() {
     document.getElementById('serviceModal').classList.remove('active');
 }
 
-function handleServiceSubmit(e) {
+async function handleServiceSubmit(e) {
     e.preventDefault();
     const id = document.getElementById('svcId').value;
     const data = {
@@ -1602,21 +1608,18 @@ function handleServiceSubmit(e) {
         duration: parseInt(document.getElementById('svcDuration').value),
     };
 
-    if (id) {
-        // Edit existing
-        const idx = services.findIndex(s => s.id === parseInt(id));
-        if (idx !== -1) {
-            services[idx] = { ...services[idx], ...data };
-        }
-    } else {
-        // Add new
-        data.id = services.length > 0 ? Math.max(...services.map(s => s.id)) + 1 : 1;
-        services.push(data);
+    // Keep the form and saved list intact until the server confirms. Closing
+    // immediately used to make a refused save look successful.
+    let next;
+    if (id) next = services.map(s=>s.id===parseInt(id) ? {...s,...data} : s);
+    else {
+        data.id = services.length ? Math.max(...services.map(s=>s.id))+1 : 1;
+        next = [...services,data];
     }
-
-    saveServices();
-    closeServiceModal();
-    renderServices();
+    if (await saveServices(next)) {
+        closeServiceModal();
+        renderServices();
+    }
 }
 
 function editService(id) {
@@ -1691,7 +1694,7 @@ function toggleDay(index, isOpen) {
 
 // ---- Website Text ----
 // The five boxes on the Website Text page and the Settings rows they write.
-// The page had the boxes and a "Save to Website" button, but nothing ever
+// The page had the boxes and a "Save changes" button, but nothing ever
 // filled them in and saveCMSData() did not exist, so the owner could type into
 // them and lose it on the next click.
 const CMS_FIELDS = {
@@ -1729,9 +1732,8 @@ function renderCms() {
 }
 
 async function saveCMSData() {
-    // There are two save buttons on this page and only one of them is called
-    // Save to Website. Somebody who has just composed an icon and pressed the
-    // big one has every reason to think they are done.
+    // Both text-save locations share this action. The icon has an independent
+    // upload/save flow; remind the owner if its preview has unsaved changes.
     if (iconDirty) {
         showToast('The icon has its own Save icon button — press that too', 'info');
     }

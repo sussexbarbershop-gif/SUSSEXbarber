@@ -30,6 +30,8 @@ assets/mobile-booking.js mobile date/time sheets reusing the live booking contro
 assets/vendor/      pinned local libphonenumber bundle and its licence
 admin/booking-editor.js PIN-gated booking drafts, slot checks and in-place updates
 admin/password-visibility.js temporary password reveal with a five-second idle timer
+admin/panel-ui.js   shared Back navigation and save feedback
+admin/panel-ui.css  consistent compact controls, cards and editing actions
 admin/              the shop's panel — index.html, admin.js, admin.css
 api/
   index.js          every request the site makes, on one route
@@ -45,7 +47,7 @@ api/
     limits.js       how often one number may book
     reports.js      the takings, for the owner's page
 db/schema.sql       the database, and why each column is the way it is
-tests/              51 files, run by `npm test`
+tests/              52 files, run by `npm test`
                     booking-overlap.postgres.cjs: isolated PostgreSQL integration checks
 MIGRATION.md        how the backend works and what to set up from nothing
 ```
@@ -441,3 +443,11 @@ Run `npm run test:edit-postgres` with TEST_DATABASE_URL pointing to a disposable
 local PostgreSQL server to verify real update races and rollback behavior.
 It creates/drops its own random schema and sends no mail. The existing
 `npm run test:postgres` separately covers the production exclusion constraint.
+
+The admin panel uses consistent neutral Back and gold Save changes controls.
+Each page has a Back link; gallery and shop hours clearly identify automatic
+saving, while explicit editors retain their save buttons. Website Text has
+the same actions at the bottom for long forms. Saving disables the active
+form temporarily and shows Saved only after server confirmation; failures
+retain an explicit Not saved status. Service edits formerly closed before
+the server answered; refused saves now retain the form and original service.

@@ -20,6 +20,7 @@
     <meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#0f0f0f" media="(prefers-color-scheme: dark)">
     <link rel="stylesheet" href="/admin/admin.css">
+    <link rel="stylesheet" href="/admin/panel-ui.css">
 <script src="/assets/vendor/libphonenumber-min.js" defer></script>
 <script src="/assets/phone.js" defer></script>
 
@@ -222,6 +223,7 @@
                             Unlocks every one of these pages for ten minutes.
                             The PIN itself is never stored on this device.
                         </p>
+                        <button type="button" class="btn btn-secondary panel-gate-back" onclick="navigateTo('bookings')">Back</button>
                     </div>
                 </div>
 
@@ -324,7 +326,7 @@
                     <div class="data-card">
                         <div class="data-card-header">
                             <h3>Working Hours</h3>
-                            <span style="font-size:13px;color:var(--text-muted)">Toggle days on/off and set hours</span>
+                            <span style="font-size:13px;color:var(--text-muted)">Shop opening hours</span>
                         </div>
                         <div style="padding: 20px" id="hoursContainer"></div>
                     </div>
@@ -360,12 +362,11 @@
                     <div class="data-card">
                         <div class="data-card-header">
                             <h3>Website Content (Texts)</h3>
-                            <button class="btn btn-primary" onclick="saveCMSData()">Save to Website</button>
+                            <button class="btn btn-primary" onclick="saveCMSData()">Save changes</button>
                         </div>
                                                 <div style="padding: 20px" id="cmsContainer">
                             <p style="margin-bottom:20px; font-size:14px; color:var(--text-muted);">
-                                Here you can easily change the texts that appear on your website. 
-                                <br>Make your changes in the boxes below, then click <b>Save to Website</b>.
+                                Edit the website text, then save your changes.
                             </p>
                             
                             <!-- First, because it is the one thing on this page
@@ -511,6 +512,10 @@
                             </div>
 
                         </div>
+                        <div class="panel-form-actions">
+                            <button type="button" class="btn btn-secondary" onclick="navigateTo('bookings')">Back</button>
+                            <button type="button" class="btn btn-primary" onclick="saveCMSData()">Save changes</button>
+                        </div>
                     </div>
                 </div>
 
@@ -520,7 +525,7 @@
                         <div class="data-card-header">
                             <div>
                                 <h3>Our Barbers</h3>
-                                <span style="font-size:13px;color:var(--text-muted)">Click a barber to set their working days, hours and time off</span>
+                                <span style="font-size:13px;color:var(--text-muted)">Working hours and time off</span>
                             </div>
                             <button class="btn btn-primary" onclick="addBarber()">+ Add Barber</button>
                         </div>
@@ -537,8 +542,8 @@
                     <div class="data-card">
                         <div class="data-card-header">
                             <div>
-                                <h3>Who takes "no preference"</h3>
-                                <span class="cms-hint" style="margin:0">The first one free, working down this list</span>
+                                <h3>Assignment order</h3>
+                                <span class="cms-hint" style="margin:0">First available barber in this order</span>
                             </div>
                         </div>
                         <div style="padding: 20px" id="barberPriorityList"></div>
@@ -632,8 +637,8 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-danger" onclick="deleteBarberFromModal()">Delete Barber</button>
-                <button class="btn btn-outline" onclick="closeBarberModal()">Close</button>
-                <button class="btn btn-primary" onclick="saveBarberModal()">Save</button>
+                <button class="btn btn-secondary" onclick="closeBarberModal()">Back</button>
+                <button class="btn btn-primary" onclick="saveBarberModal()">Save changes</button>
             </div>
         </div>
     </div>
@@ -669,8 +674,8 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" onclick="closeServiceModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Service</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeServiceModal()">Back</button>
+                    <button type="submit" class="btn btn-primary">Save changes</button>
                 </div>
             </form>
         </div>
@@ -746,7 +751,7 @@
                         </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" onclick="closeShopBookingModal()">Cancel</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeShopBookingModal()">Back</button>
                     <button type="submit" class="btn btn-primary" id="shopBookSubmit">Add to diary</button>
                 </div>
             </form>
@@ -786,7 +791,7 @@
             <label class="booking-edit-notify"><input type="checkbox" id="editBookingNotify"> Email the updated details to the customer</label>
             <p class="booking-edit-note">The saved price and duration stay the same unless you change the service. Changing the date, time, barber or service checks availability again.</p>
           </div>
-          <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeBookingEditor()">Discard changes</button><button type="submit" id="bookingEditSave" class="btn btn-primary">Save changes</button></div>
+          <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeBookingEditor()">Back</button><button type="submit" id="bookingEditSave" class="btn btn-primary">Save changes</button></div>
         </form>
         <p id="bookingEditError" role="alert" class="booking-edit-error"></p>
       </div>
@@ -794,5 +799,6 @@
     <script src="/admin/password-visibility.js"></script>
     <script src="/admin/admin.js"></script>
     <script src="/admin/booking-editor.js"></script>
+    <script src="/admin/panel-ui.js"></script>
 </body>
 </html>

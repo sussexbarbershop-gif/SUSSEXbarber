@@ -50,7 +50,7 @@ ok('no orphan page sections', sections.filter(s => !pages.includes(s)), []);
 // admin.css or it does nothing. Both of those have shipped - the Website Text
 // boxes carried .form-control, which nothing defined, so they rendered as the
 // browser's own white fields on a dark page.
-const css = fs.readFileSync(path.join(root, 'admin.css'), 'utf8');
+const css = ['admin.css','panel-ui.css'].map(file=>fs.readFileSync(path.join(root,file),'utf8')).join('\n');
 const classes = new Set();
 // Static markup, and the classes the panel writes into it at run time.
 [...html.matchAll(/class="([^"]+)"/g)].forEach(m =>
