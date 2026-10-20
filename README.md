@@ -463,3 +463,9 @@ Generic CMS saves cannot overwrite or prune it. Owner-only saves use the
 schedule lock, diary/config fingerprint and a revision; reducing an extra shift
 requires confirmation for newly affected appointments and never cancels them.
 Both public rota copies, Any assignment and owner editor read the same dates.
+
+The barber dialog groups photo/name into a compact identity row and uses a
+proper website-visibility switch. Special hours has its own entry above the
+weekly rota; helper copy distinguishes one-date additions from recurring hours.
+The footer contains only Back and Save changes. Delete barber remains behind
+More options in the body, with its existing confirmation and save behavior.

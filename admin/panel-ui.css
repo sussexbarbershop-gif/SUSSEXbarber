@@ -48,3 +48,34 @@
 .special-hours-sheet #specialDate { width:100%; min-height:44px; padding:10px 12px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-primary); font:inherit; color-scheme:dark; }
 .special-hours-sheet .form-row { grid-template-columns:repeat(2,minmax(0,1fr)); }
 @media(max-width:640px) { #specialHoursModal { align-items:flex-end; padding:0; } .special-hours-sheet { border-radius:20px 20px 0 0; max-height:92dvh; } }
+
+/* Barber profile: one compact identity row, one visibility switch and a
+   separate dated-hours entry. Scope this layout so booking sheets stay intact. */
+#barberModal .modal { display:flex; flex-direction:column; overflow:hidden; }
+#barberModal .modal-header,#barberModal .modal-footer { flex-shrink:0; }
+#barberModal .modal-body { padding:20px; overflow-y:auto; min-height:0; flex:1 1 auto; }
+#barberModal .barber-identity { grid-template-columns:72px minmax(0,1fr); align-items:center; gap:16px; margin:0 0 18px; }
+.barber-photo-control { position:relative; width:72px; height:72px; }
+#barberModal .barber-photo-control img { width:72px; height:72px; }
+.barber-photo-control button { position:absolute; inset:0; width:72px; height:72px; border:1px solid var(--border-color); border-radius:50%; overflow:hidden; cursor:pointer; color:white; background:linear-gradient(transparent 45%,rgba(0,0,0,.85)); font:inherit; }
+.barber-photo-control button span { display:block; margin-top:43px; font-size:10px; font-weight:600; }
+.barber-photo-control button:focus-visible { outline:2px solid var(--gold); outline-offset:3px; }
+.barber-visibility { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 0; border-top:1px solid var(--border-color); }
+.barber-visibility strong { font-size:13px; font-weight:500; }
+.barber-visibility p { margin:4px 0 0; font-size:11px; line-height:1.5; color:var(--text-secondary); }
+.barber-visibility .toggle-switch { flex-shrink:0; }
+#barberModal .barber-profile-block { margin-bottom:8px; }
+.barber-special-entry { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; padding:13px 16px; margin:0 0 24px; border:1px solid var(--border-color); border-radius:12px; color:var(--text-primary); background:var(--bg-input); text-align:left; font:inherit; cursor:pointer; }
+.barber-special-entry strong { display:block; font-size:13px; font-weight:600; }
+.barber-special-entry small { display:block; margin-top:4px; font-size:11px; color:var(--text-secondary); }
+.barber-special-entry > span:last-child { font-size:24px; line-height:1; color:var(--gold); }
+.barber-special-entry:focus-visible { outline:2px solid var(--gold); outline-offset:3px; }
+#barberModal .sheet-block { margin-bottom:22px; }
+#barberModal .sheet-title { font-size:11px; letter-spacing:.8px; }
+#barberModal .sheet-hint { font-size:12px; margin-bottom:12px; }
+#barberModalRota .hours-row { padding:12px 14px; gap:10px; margin-bottom:8px; border-radius:12px; }
+#barberModalRota .day-name { font-size:13px; }
+.barber-more-options { border-top:1px solid var(--border-color); padding-top:14px; }
+.barber-more-options summary { color:var(--text-secondary); font-size:12px; cursor:pointer; padding:8px 0; }
+.barber-more-options .btn { margin-top:8px; }
+@media(max-width:640px) { #barberModal .modal-body { padding:16px; } }

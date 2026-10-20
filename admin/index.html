@@ -588,56 +588,48 @@
                 </button>
             </div>
             <div class="modal-body">
-                <div class="sheet-block">
+                <div class="sheet-block barber-profile-block">
                     <div class="barber-identity">
-                        <div>
+                        <div class="barber-photo-control">
                             <img id="barberModalPhoto" alt="">
-                            <button class="btn btn-outline btn-sm" onclick="changeBarberPhoto()">Photo</button>
+                            <button type="button" aria-label="Change barber photo" onclick="changeBarberPhoto()"><span>Photo</span></button>
                         </div>
                         <div class="form-group">
                             <label for="barberModalName">Name</label>
                             <input type="text" id="barberModalName" placeholder="e.g. Hemen">
                         </div>
                     </div>
-                    <p class="sheet-hint">
-                        This is the name customers pick on the booking form.
-                    </p>
-
                     <!-- Two different questions, and only this one is being
                          asked here. A barber switched off still takes
                          appointments and still appears on the booking form;
                          they simply have no card in Our Master Barbers. -->
-                    <label class="team-switch">
-                        <input type="checkbox" id="barberModalOnTeam" checked>
-                        <span>Show on the website</span>
-                    </label>
-                    <p class="sheet-hint">
-                        Off means no card in <em>Our Master Barbers</em>. They can
-                        still be booked either way.
-                    </p>
+                    <div class="barber-visibility">
+                        <div><strong>Show on website</strong><p>They can still be booked either way.</p></div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" role="switch" aria-label="Show on website" id="barberModalOnTeam" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
                 </div>
 
+                <button type="button" class="barber-special-entry" onclick="openSpecialHours()">
+                    <span><strong>Special hours</strong><small>Extra hours for one date</small></span><span aria-hidden="true">›</span>
+                </button>
                 <div class="sheet-block">
-                    <h4 class="sheet-title">Working Days</h4>
-                    <p class="sheet-hint">
-                        Switch a day on, then set the hours and the break. Days left off
-                        need a dated Special hours shift to accept bookings.
-                    </p>
-                    <button type="button" class="btn btn-secondary" onclick="openSpecialHours()">Special hours · Add a date</button>
+                    <h4 class="sheet-title">Weekly hours</h4>
+                    <p class="sheet-hint">Repeats every week.</p>
                     <div id="barberModalRota"></div>
                 </div>
 
                 <div class="sheet-block">
                     <h4 class="sheet-title">Time Off</h4>
-                    <p class="sheet-hint">
-                        Holidays and sick days. These close the dates even on a working day.
-                    </p>
+                    <p class="sheet-hint">Unavailable on these dates.</p>
                     <div id="barberModalTimeOff"></div>
                     <button class="btn btn-outline btn-sm" onclick="addTimeOffFor()">+ Add Time Off</button>
                 </div>
+                <details class="barber-more-options"><summary>More options</summary><button type="button" class="btn btn-danger" onclick="deleteBarberFromModal()">Delete barber</button></details>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-danger" onclick="deleteBarberFromModal()">Delete Barber</button>
                 <button class="btn btn-secondary" onclick="closeBarberModal()">Back</button>
                 <button class="btn btn-primary" onclick="saveBarberModal()">Save changes</button>
             </div>
