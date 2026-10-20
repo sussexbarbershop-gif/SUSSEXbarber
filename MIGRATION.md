@@ -377,3 +377,9 @@ is retired; existing customer links are preserved. No environment variables,
 SMS provider or credentials are needed. Keep the new column on code rollback:
 do not delete bookings or reset the database. New customers use e164: keys;
 reports keep legacy and canonical identities separate rather than guessing a merge.
+
+Dated extra working shifts use the protected `barber_special_hours` JSON setting;
+no schema migration is required. Rows reference stable barber IDs. The standalone
+owner save validates dates/hours/breaks, rejects leave and shop-closed times, and
+compares revisions under the existing schedule lock. Do not edit this document
+through generic Website Text settings. Missing data means no extra shifts.

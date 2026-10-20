@@ -30,6 +30,7 @@ assets/mobile-booking.js mobile date/time sheets reusing the live booking contro
 assets/vendor/      pinned local libphonenumber bundle and its licence
 admin/booking-editor.js PIN-gated booking drafts, slot checks and in-place updates
 admin/password-visibility.js temporary password reveal with a five-second idle timer
+admin/special-hours.js dated extra-shift booking-style popup and calendar
 admin/panel-ui.js   shared Back navigation and save feedback
 admin/panel-ui.css  consistent compact controls, cards and editing actions
 admin/              the shop's panel — index.html, admin.js, admin.css
@@ -39,6 +40,7 @@ api/
   _lib/
     db.js           the database, and the shape the site reads it in
     booking-edit.js owner-only updates with optimistic and schedule concurrency guards
+    special-hours.js protected dated shifts with revision and booking-conflict checks
     rota.js         who is working when, and whether a slot is free
     flexible-plan.js full-interval Any Available assignment proposals
     flexible-bookings.js atomic reassignment with diary/config snapshot guards
@@ -47,7 +49,7 @@ api/
     limits.js       how often one number may book
     reports.js      the takings, for the owner's page
 db/schema.sql       the database, and why each column is the way it is
-tests/              52 files, run by `npm test`
+tests/              53 files, run by `npm test`
                     booking-overlap.postgres.cjs: isolated PostgreSQL integration checks
 MIGRATION.md        how the backend works and what to set up from nothing
 ```
@@ -451,3 +453,13 @@ the same actions at the bottom for long forms. Saving disables the active
 form temporarily and shows Saved only after server confirmation; failures
 retain an explicit Not saved status. Service edits formerly closed before
 the server answered; refused saves now retain the form and original service.
+
+Special hours adds one extra shift on a specific date from a barber’s dialog.
+It supplements weekly hours only on that date, inside shop opening hours;
+time off still wins. Full services must fit a weekly or extra window including
+its break. The small schedule document lives in the protected
+`barber_special_hours` setting with stable barber IDs (renames preserve it).
+Generic CMS saves cannot overwrite or prune it. Owner-only saves use the
+schedule lock, diary/config fingerprint and a revision; reducing an extra shift
+requires confirmation for newly affected appointments and never cancels them.
+Both public rota copies, Any assignment and owner editor read the same dates.

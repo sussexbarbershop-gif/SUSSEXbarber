@@ -34,3 +34,17 @@
     .modal-footer > .btn,.panel-form-actions > .btn { flex:1 1 0; }
     .panel-modal-status { max-width:none; padding:10px 16px; }
 }
+
+/* Dated shifts use the same dark/gold booking sheet and blur. */
+#specialHoursModal { z-index:80; }
+.special-row { display:flex; gap:8px; margin:12px 0; }
+.special-row > :first-child { flex:1; }
+.special-calendar-head { display:flex; align-items:center; justify-content:space-between; margin:14px 0 8px; font-size:13px; }
+.special-calendar { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:5px; margin-bottom:18px; }
+.special-calendar .btn { flex-direction:column; gap:2px; padding:6px 0; min-width:0; }
+.special-calendar small { font-size:10px; font-weight:400; }
+.special-calendar .selected { background:var(--gold); color:#111; }
+.special-label { display:block; font-size:12px; margin-bottom:8px; }
+.special-hours-sheet #specialDate { width:100%; min-height:44px; padding:10px 12px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-primary); font:inherit; color-scheme:dark; }
+.special-hours-sheet .form-row { grid-template-columns:repeat(2,minmax(0,1fr)); }
+@media(max-width:640px) { #specialHoursModal { align-items:flex-end; padding:0; } .special-hours-sheet { border-radius:20px 20px 0 0; max-height:92dvh; } }

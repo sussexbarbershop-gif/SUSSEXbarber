@@ -25,6 +25,7 @@ const reset = () => {
 };
 
 function execute(query, values) {
+  if (/pg_advisory_xact_lock/.test(query)) return [];
   if (/SELECT key, value FROM settings/.test(query)) {
     return [...stored].map(([key, value]) => ({ key, value }));
   }

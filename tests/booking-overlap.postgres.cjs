@@ -479,6 +479,49 @@ async function main() {
       assert.equal(after[0].row.flexible,false);delete after[0].row.flexible;
       assert.deepEqual(after,before);
     });
+    await check('dated shifts save once, respect breaks, preserve bookings and survive protected CMS saves',async()=>{
+      await pool.query("INSERT INTO barber_hours(barber_id,weekday,working) SELECT id,2,false FROM barbers WHERE name='Amir'");
+      const owner={password:process.env.ADMIN_PASSWORD,pin:process.env.REPORTS_PIN};
+      const config=()=>request('GET',{action:'getConfig'});
+      const shift={date:day,from:'10:00',to:'16:00',breakFrom:'13:30',breakTo:'14:00'};
+      try {
+        const revision=(await config()).specialHoursRevision;
+        let reply=await request('POST',{action:'saveSpecialHours',...owner,barber:'Amir',revision,shifts:[shift]});
+        assert.equal(reply.status,'success',JSON.stringify(reply));
+        assert.equal((await availability('Short cut')).slots.includes('10:00'),true);
+        assert.equal((await availability('Short cut')).slots.includes('13:30'),false);
+        assert.equal((await availability('Long cut')).slots.includes('13:00'),false);
+        assert.deepEqual((await request('GET',{date:'2099-09-15',barber:'Amir',slots:'1'})).slots,[]);
+        assert.equal((await book({barber:'Any Available'})).status,'success');
+        const before=(await pool.query('SELECT row_to_json(b) row FROM bookings b')).rows;
+        assert.equal(before[0].row.barber,'Amir');
+        assert.equal((await request('POST',{action:'saveSpecialHours',...owner,barber:'Amir',revision,shifts:[]})).status,'error');
+        await request('POST',{action:'saveCMS',...owner,settings:{barber_special_hours:'[]'}});
+        assert.equal((await config()).specialHours.length,1);
+        const latest=(await config()).specialHoursRevision;
+        reply=await request('POST',{action:'saveSpecialHours',...owner,barber:'Amir',revision:latest,shifts:[]});
+        assert.equal(reply.confirmationRequired,true);assert.equal((await config()).specialHours.length,1);
+        reply=await request('POST',{action:'saveSpecialHours',...owner,barber:'Amir',revision:latest,shifts:[],confirmedBookings:reply.conflicts.map(b=>b.id)});
+        assert.equal(reply.status,'success');assert.equal((await config()).specialHours.length,0);
+        assert.deepEqual((await pool.query('SELECT row_to_json(b) row FROM bookings b')).rows,before);
+      } finally {await pool.query("DELETE FROM settings WHERE key='barber_special_hours'");await pool.query('DELETE FROM barber_hours');}
+    });
+    await check('dated shift removal between precheck and insert prevents a stale booking',async()=>{
+      await pool.query("INSERT INTO barber_hours(barber_id,weekday,working) SELECT id,2,false FROM barbers WHERE name='Amir'");
+      const owner={password:process.env.ADMIN_PASSWORD,pin:process.env.REPORTS_PIN};
+      const config=()=>request('GET',{action:'getConfig'});
+      try {
+        const revision=(await config()).specialHoursRevision;
+        assert.equal((await request('POST',{action:'saveSpecialHours',...owner,barber:'Amir',revision,shifts:[{date:day,from:'10:00',to:'16:00'}]})).status,'success');
+        arrival=async()=>{
+          arrival=null;
+          const result=await request('POST',{action:'saveSpecialHours',...owner,barber:'Amir',revision:(await config()).specialHoursRevision,shifts:[]});
+          assert.equal(result.status,'success');
+        };
+        assert.equal((await book({barber:'Amir'})).status,'error');
+        assert.equal((await pool.query('SELECT count(*)::int n FROM bookings')).rows[0].n,0);
+      } finally {arrival=null;await pool.query("DELETE FROM settings WHERE key='barber_special_hours'");await pool.query('DELETE FROM barber_hours');}
+    });
     await check('fresh schema and automatic upgrade enforce the same constraint', async () => {
       await insert(pool,'10:00');
       await pool.query('ALTER TABLE bookings DROP CONSTRAINT bookings_no_overlap');

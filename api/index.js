@@ -643,7 +643,7 @@ async function handlePost(req, res) {
   // of them and a hand-written request would still have saved a new price
   // list, because the only thing that had ever been checked was the password
   // every barber knows.
-  if (['reports', 'unlock', 'saveCMS', 'uploadImage', 'uploadAppIcon', 'getBookingForEdit', 'editBookingSlots', 'updateBooking'].includes(action)) {
+  if (['reports', 'unlock', 'saveSpecialHours', 'saveCMS', 'uploadImage', 'uploadAppIcon', 'getBookingForEdit', 'editBookingSlots', 'updateBooking'].includes(action)) {
     if (!isAuthorized(payload)) {
       await throttleFailedLogin();
       return json(res, { status: 'error', message: 'Unauthorized' }, 401);
@@ -690,6 +690,7 @@ async function handlePost(req, res) {
   if (action === 'uploadImage') return await uploadImage(payload, res);
   if (action === 'uploadAppIcon') return await uploadAppIcon(payload, res);
 
+  if (action === 'saveSpecialHours') return json(res,await require('./_lib/special-hours').save(payload,shopNow()));
   if (action === 'saveCMS') return await saveCMS(payload, res);
 
   return json(res, { status: 'error', message: 'Unknown action' });
@@ -1028,7 +1029,8 @@ async function insertBooking(sql, ctx) {
         SELECT ${date}::date, ${clock}::time, ${service}, ${barber}, ${trimmed(payload.name)},
                 ${trimmed(payload.phone)}, ${trimmed(payload.email)}, ${price},
                 ${source}, ${lang}, ${customerId}, ${duration}, ${canonicalPhone(payload.phone, payload.phoneCountry || 'NL')}, ${ctx.request?.key || null}::uuid, ${ctx.request?.hash || null}, ${!asked}
-        WHERE EXISTS (SELECT 1 FROM barbers WHERE name = ${barber})
+        WHERE (${config.specialHoursRevision || null}::text IS NULL OR md5(COALESCE((SELECT value FROM settings WHERE key='barber_special_hours'),'[]'))=${config.specialHoursRevision || null})
+          AND EXISTS (SELECT 1 FROM barbers WHERE name = ${barber})
           AND NOT EXISTS (
             SELECT 1 FROM time_off t JOIN barbers b ON b.id = t.barber_id
              WHERE b.name = ${barber} AND ${date}::date BETWEEN t.starts_on AND t.ends_on)
@@ -1380,7 +1382,7 @@ const SITE_SETTINGS = ['hero_title', 'hero_subtitle', 'about_text',
  */
 // Saved separately from the text form: an older panel's complete text save
 // must not prune the Experience photo just because it has not loaded it.
-const KEPT_SETTINGS = ['visit_count', 'cancel_key', 'booking_open', 'about_image', 'hero_image', 'logo_black', 'logo_white']
+const KEPT_SETTINGS = ['barber_special_hours', 'visit_count', 'cancel_key', 'booking_open', 'about_image', 'hero_image', 'logo_black', 'logo_white']
   .concat(require('./_lib/icons').ICON_SETTINGS);
 
 /**
@@ -1408,7 +1410,7 @@ async function saveCMS(payload, res) {
       }
     }
   }
-  if (Array.isArray(payload.timeOff) || Array.isArray(payload.barbers)) {
+  if (Array.isArray(payload.timeOff) || Array.isArray(payload.barbers) || payload.hours || payload.barberHours || payload.services || payload.settings) {
     statements.push(sql`SELECT pg_advisory_xact_lock(73021, 2047)`);
   }
   if (Array.isArray(payload.timeOff)) {
@@ -1435,7 +1437,7 @@ async function saveCMS(payload, res) {
     // was made private. Never let a CMS save create or overwrite that key:
     // even a stale value would invalidate links already sent to customers.
     // KEPT_SETTINGS below also keeps a complete save from deleting it.
-    const keys = Object.keys(payload.settings).filter(key => key !== 'cancel_key');
+    const keys = Object.keys(payload.settings).filter(key => key !== 'cancel_key' && key !== 'barber_special_hours');
     keys.forEach(key => {
       statements.push(sql`
         INSERT INTO settings (key, value) VALUES (${key}, ${String(payload.settings[key] ?? '')})

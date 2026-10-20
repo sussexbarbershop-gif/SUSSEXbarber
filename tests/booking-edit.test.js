@@ -61,7 +61,7 @@ async function update(patch={}) {queries=[];return handle('updateBooking',{...ba
     console.log('PASS stale edits, cancellation, DB overlap races, invalid changes and unchanged retries are safe');
     const api=fs.readFileSync(require.resolve('../api/index'),'utf8');
     const guard=api.slice(api.indexOf("if (['reports', 'unlock'"),api.indexOf("if (action === 'unlock')"));
-    for(const action of ['getBookingForEdit','editBookingSlots','updateBooking']) assert.ok(guard.includes("'"+action+"'"));
+    for(const action of ['getBookingForEdit','editBookingSlots','updateBooking','saveSpecialHours']) assert.ok(guard.includes("'"+action+"'"));
     assert.match(guard,/!isAuthorized\(payload\)/);assert.match(guard,/!isOwner\(payload\)/);
     const auth=require('../api/_lib/auth');
     auth.throttleFailedLogin=async()=>{};
@@ -94,7 +94,7 @@ async function update(patch={}) {queries=[];return handle('updateBooking',{...ba
         assert.equal(field('bookingEditForm').hidden,pin==='wrong','same Management PIN must open editor, wrong PIN must not');
       }
       console.log('PASS browser editor accepts Management PIN and surrounding spaces through real API, rejects wrong PIN');
-      for(const action of ['getBookingForEdit','editBookingSlots','updateBooking']) {
+      for(const action of ['getBookingForEdit','editBookingSlots','updateBooking','saveSpecialHours']) {
         for(const creds of [{},{password:'wrong',pin:'test-owner'},{password:'test-panel',pin:'wrong'}]) {
           let code,answer;await apiHandler({method:'POST',body:JSON.stringify({action,id:7,...creds})},{status(c){code=c;return this;},setHeader(){},send(v){answer=JSON.parse(v);}});
           assert.equal(code,401);assert.equal(answer.status,'error');assert.equal(answer.booking,undefined);

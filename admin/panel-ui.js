@@ -24,8 +24,8 @@
 function beginPanelSave() {
     // The overlay, rather than the dialog itself, owns the active class.
     // Safari may leave focus on body after a tap, so also find the open dialog.
-    const scope=document.activeElement?.closest('.modal-overlay.active .modal') ||
-        document.querySelector('.modal-overlay.active .modal') || document.querySelector('.page-section.active');
+    const scope=document.activeElement?.closest('.modal-overlay.active:not([inert]) .modal') ||
+        document.querySelector('.modal-overlay.active:not([inert]) .modal') || document.querySelector('.page-section.active');
     if(!scope) return ()=>{};
     let status=scope.querySelector('.panel-save-status');
     if(!status) {

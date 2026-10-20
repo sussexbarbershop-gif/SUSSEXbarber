@@ -8,7 +8,7 @@
 const fs = require('fs');
 const path = require('path');
 // Handlers may live in the editor module loaded beside admin.js.
-const raw = ['admin.js', 'booking-editor.js'].map(file => fs.readFileSync(path.join(__dirname, '..', 'admin', file), 'utf8')).join('\n');
+const raw = ['admin.js', 'booking-editor.js', 'special-hours.js'].map(file => fs.readFileSync(path.join(__dirname, '..', 'admin', file), 'utf8')).join('\n');
 const html = fs.readFileSync(path.join(__dirname, '..', 'admin', 'index.html'), 'utf8');
 
 // Comments describe the bugs these checks exist for, so reading them as code

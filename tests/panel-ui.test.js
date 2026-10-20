@@ -12,8 +12,8 @@ const status=element('span'),controls=[element('button'),{...element('select'),d
 const scope={...element('form'),querySelector:()=>status,querySelectorAll:()=>controls};
 let went,dialogOpen=false,focused=true;
 const context=vm.createContext({document:{querySelectorAll:()=>pages,createElement:element,
-    querySelector:selector=>selector==='.modal-overlay.active .modal' ? dialogOpen?scope:null : scope,
-    activeElement:{closest:selector=>{assert.equal(selector,'.modal-overlay.active .modal');return focused?scope:null;}}},navigateTo:p=>{went=p;}});
+    querySelector:selector=>selector==='.modal-overlay.active:not([inert]) .modal' ? dialogOpen?scope:null : scope,
+    activeElement:{closest:selector=>{assert.equal(selector,'.modal-overlay.active:not([inert]) .modal');return focused?scope:null;}}},navigateTo:p=>{went=p;}});
 vm.runInContext(ui,context);
 assert(pages.every(p=>p.children[0].className==='panel-page-nav'));
 assert.equal(pages[0].children[0].children[0].href,'/');

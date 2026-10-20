@@ -139,6 +139,12 @@ function isBarberWorkingAt(config, barberName, dateStr, minutes, duration = SLOT
   // The appointment has to finish by closing, not merely start before it.
   if (minutes < shopFrom || minutes + duration > shopTo) return false;
 
+  // An extra dated shift never opens other weeks or overrides leave/shop hours.
+  const extra=(config.specialHours || []).find(r=>r.barber===barberName && r.date===dateStr);
+  if(extra) {
+    const a=parseClock(extra.from),b=parseClock(extra.to),x=parseClock(extra.breakFrom),y=parseClock(extra.breakTo);
+    if(a!==null && b!==null && minutes>=a && minutes+duration<=b && !(x!==null && y!==null && minutes<y && minutes+duration>x)) return true;
+  }
   const entry = barberDayEntry(config, barberName, dateStr);
   if (!entry) return true;                  // no rota yet: shop hours apply
   if (entry.working !== true) return false;

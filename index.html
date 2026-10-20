@@ -3506,6 +3506,11 @@
             if (shopFrom === null || shopTo === null) return false;
             if (minutes < shopFrom || minutes + duration > shopTo) return false;
 
+            const extra=(window.sussexSpecialHours || []).find(r=>r.barber===barberName && r.date===dateKey(dateObj));
+            if(extra) {
+                const a=parseClock(extra.from),b=parseClock(extra.to),x=parseClock(extra.breakFrom),y=parseClock(extra.breakTo);
+                if(a!==null && b!==null && minutes>=a && minutes+duration<=b && !(x!==null && y!==null && minutes<y && minutes+duration>x)) return true;
+            }
             const entry = barberDayEntry(barberName, dateObj);
             if (!entry) return true;
             if (entry.working !== true) return false;
@@ -5607,6 +5612,7 @@
             window.sussexServices = services;   // booking submission reads prices from here
             window.sussexHours = hours;         // slots, calendar and the open/closed badge
             window.sussexBarberHours = config.barberHours || {};  // per-barber rotas
+            window.sussexSpecialHours = config.specialHours || [];
             window.sussexTimeOff = config.timeOff || [];          // holidays, sick days
             window.sussexBarbers = (config.barbers || []).map(b => b.name);
 

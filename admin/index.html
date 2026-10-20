@@ -621,8 +621,9 @@
                     <h4 class="sheet-title">Working Days</h4>
                     <p class="sheet-hint">
                         Switch a day on, then set the hours and the break. Days left off
-                        are never offered to customers.
+                        need a dated Special hours shift to accept bookings.
                     </p>
+                    <button type="button" class="btn btn-secondary" onclick="openSpecialHours()">Special hours · Add a date</button>
                     <div id="barberModalRota"></div>
                 </div>
 
@@ -796,9 +797,16 @@
         <p id="bookingEditError" role="alert" class="booking-edit-error"></p>
       </div>
     </div>
+    <div id="specialHoursModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="specialHoursTitle">
+      <div class="modal booking-form-modal special-hours-sheet">
+        <div class="modal-header"><h3 id="specialHoursTitle">Special hours</h3><button type="button" id="specialHoursClose" class="modal-close" aria-label="Close special hours" onclick="closeSpecialHours()">×</button></div>
+        <form onsubmit="saveSpecialHours(event)"><div class="modal-body" id="specialHoursBody"></div><p class="booking-edit-error" id="specialHoursError" role="alert"></p><div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeSpecialHours()">Back</button><button type="submit" class="btn btn-primary" id="specialHoursSave" disabled>Save changes</button></div></form>
+      </div>
+    </div>
     <script src="/admin/password-visibility.js"></script>
     <script src="/admin/admin.js"></script>
     <script src="/admin/booking-editor.js"></script>
     <script src="/admin/panel-ui.js"></script>
+    <script src="/admin/special-hours.js"></script>
 </body>
 </html>
