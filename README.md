@@ -474,8 +474,9 @@ Both public rota copies, Any assignment and owner editor read the same dates.
 The barber dialog groups photo/name into a compact identity row and uses a
 proper website-visibility switch. Special hours has its own entry above the
 weekly rota; helper copy distinguishes dated additions from recurring hours.
-The footer contains only Back and Save changes. Delete barber remains behind
-More options in the body, with its existing confirmation and save behavior.
+The footer keeps red Delete barber, neutral Back and gold Save changes in one
+row on desktop and phones. Delete is directly visible instead of hidden under
+More options; its existing confirmation and save behavior are unchanged.
 Time off uses separate labeled From/To columns and a full-width optional reason;
 it formerly inherited the weekly flex row, squeezing dates and indenting the
 reason on phones. Add sits beside the section title, while each period has its

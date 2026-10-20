@@ -18,8 +18,8 @@
 .modal-body { padding:20px; }
 .modal-footer,.panel-form-actions { display:flex; gap:10px; align-items:center; padding:16px 20px; border-top:1px solid var(--border-color); }
 .modal-footer > .btn,.panel-form-actions > .btn { flex:1 1 0; min-width:0; }
-#barberModal .modal-footer { flex-wrap:wrap; }
-#barberModal .modal-footer > .btn-danger { order:3; flex-basis:100%; background:transparent; min-height:36px; }
+/* Keep the three barber actions beside each other, including narrow phones. */
+#barberModal .modal-footer { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; align-items:stretch; }
 .modal .form-group label { font-size:11px; letter-spacing:.8px; margin-bottom:8px; }
 .modal input:not([type="checkbox"]):not([type="file"]),.modal select,.modal textarea { border-radius:10px; }
 .data-card .cms-hint { line-height:1.6; }
@@ -77,9 +77,6 @@
 #barberModal .sheet-hint { font-size:12px; margin-bottom:12px; }
 #barberModalRota .hours-row { padding:12px 14px; gap:10px; margin-bottom:8px; border-radius:12px; }
 #barberModalRota .day-name { font-size:13px; }
-.barber-more-options { border-top:1px solid var(--border-color); padding-top:14px; }
-.barber-more-options summary { color:var(--text-secondary); font-size:12px; cursor:pointer; padding:8px 0; }
-.barber-more-options .btn { margin-top:8px; }
 /* Leave used the weekly flex row, squeezing native date controls and leaving
    the reason indented. Dedicated columns keep the whole lower sheet aligned. */
 #barberModal .barber-time-off-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; }
@@ -92,4 +89,7 @@
 #barberModal .barber-time-off-actions { display:flex; justify-content:flex-end; }
 #barberModal .barber-time-off-actions .btn { min-height:44px; background:transparent; }
 #barberModal .barber-time-off-empty { color:var(--text-secondary); font-size:12px; margin:0; padding:12px 0; }
-@media(max-width:640px) { #barberModal .modal-body { padding:16px; } }
+@media(max-width:640px) {
+    #barberModal .modal-body { padding:16px; }
+    #barberModal .modal-footer > .btn { padding:9px 6px; font-size:12px; }
+}
