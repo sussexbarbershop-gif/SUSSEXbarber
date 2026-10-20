@@ -454,8 +454,15 @@ form temporarily and shows Saved only after server confirmation; failures
 retain an explicit Not saved status. Service edits formerly closed before
 the server answered; refused saves now retain the form and original service.
 
-Special hours adds one extra shift on a specific date from a barber’s dialog.
-It supplements weekly hours only on that date, inside shop opening hours;
+Special hours adds extra shifts on selected dates from a barber’s dialog.
+The calendar supports multiple dates across its 30-day pages, applying the same
+hours/break to each selected date in one atomic save. New selections start empty
+so today is never added unintentionally. Existing dates are marked
+unavailable in a new selection; edit their saved shift separately. The duplicate
+native date field and top close control were removed, leaving the calendar and
+one bottom Back action. Failed saves retain the selection without duplicating
+or replacing source rows. Weekly hours are supplemented only on those dates,
+inside shop opening hours;
 time off still wins. Full services must fit a weekly or extra window including
 its break. The small schedule document lives in the protected
 `barber_special_hours` setting with stable barber IDs (renames preserve it).
@@ -466,7 +473,7 @@ Both public rota copies, Any assignment and owner editor read the same dates.
 
 The barber dialog groups photo/name into a compact identity row and uses a
 proper website-visibility switch. Special hours has its own entry above the
-weekly rota; helper copy distinguishes one-date additions from recurring hours.
+weekly rota; helper copy distinguishes dated additions from recurring hours.
 The footer contains only Back and Save changes. Delete barber remains behind
 More options in the body, with its existing confirmation and save behavior.
 Time off uses separate labeled From/To columns and a full-width optional reason;

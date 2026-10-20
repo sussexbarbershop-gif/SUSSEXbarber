@@ -6,7 +6,9 @@ async function openSpecialHours() {
     if(specialDraft || barberSaving) return;
     const barber=barbers[editingBarberIndex];if(!barber)return;
     const modal=specialEl('specialHoursModal');
-    specialDraft={barber:barber.name,rows:[],revision:'',today:'',index:-1,offset:0,busy:false,focus:document.activeElement,inert:[],overflow:document.body.style.overflow};
+    // A prior batch's Saved message must not label this new unsaved draft.
+    modal.querySelector('.panel-save-status')?.remove();
+    specialDraft={barber:barber.name,rows:[],revision:'',today:'',index:-1,dates:null,offset:0,busy:false,focus:document.activeElement,inert:[],overflow:document.body.style.overflow};
     const state=specialDraft;
     for(const node of document.body.children) if(node!==modal && !node.inert){node.inert=true;state.inert.push(node);}
     document.body.style.overflow='hidden';
@@ -17,8 +19,8 @@ async function openSpecialHours() {
         if(specialDraft!==state)return;
         specialDraft.rows=(data.specialHours || []).filter(r=>r.barber===barber.name).map(r=>({...r}));
         specialDraft.revision=data.specialHoursRevision;specialDraft.today=data.today;
-        renderSpecialHours();specialEl('specialHoursClose').focus();
-    }catch{if(specialDraft===state)specialEl('specialHoursError').textContent='Could not load the schedule. Close and try again.';}
+        renderSpecialHours();specialEl('specialHoursTitle').focus();
+    }catch{if(specialDraft===state)specialEl('specialHoursError').textContent='Could not load the schedule. Go back and try again.';}
 }
 function closeSpecialHours() {
     if(specialDraft?.busy)return;
@@ -30,47 +32,73 @@ function closeSpecialHours() {
 }
 function renderSpecialHours() {
     const s=specialDraft;if(!s)return;
-    specialEl('specialHoursBody').innerHTML=`<p class="cms-hint">Extra working hours for one date. Weekly hours stay the same.</p>
+    s.dates=null;
+    specialEl('specialHoursBody').innerHTML=`<p class="cms-hint">Extra hours on selected dates. Weekly hours stay the same.</p>
         <div class="special-list">${s.rows.map((r,i)=>`<div class="special-row"><button type="button" class="btn btn-secondary" onclick="editSpecialDate(${i})">${escapeHtml(r.date)} · ${escapeHtml(r.from)}–${escapeHtml(r.to)}</button><button type="button" class="btn btn-danger" aria-label="Remove shift ${escapeAttr(r.date)}" onclick="removeSpecialDate(${i})">Remove</button></div>`).join('') || '<p class="cms-hint">No special hours yet.</p>'}</div>
-        <button type="button" class="btn btn-secondary" onclick="editSpecialDate(-1)">+ Add a date</button>`;
+        <button type="button" class="btn btn-secondary" onclick="editSpecialDate(-1)">+ Add dates</button>`;
     specialEl('specialHoursSave').disabled=!s.revision;specialEl('specialHoursSave').textContent='Save changes';s.confirmedBookings=null;
 }
 function removeSpecialDate(index) {specialDraft.rows.splice(index,1);renderSpecialHours();}
 function editSpecialDate(index) {
     const s=specialDraft;s.index=index;s.offset=0;
     const r=s.rows[index] || {date:s.today,from:'10:00',to:'18:00',breakFrom:'13:30',breakTo:'14:00'};
-    specialEl('specialHoursBody').innerHTML=`<label class="special-label" for="specialDate">Date</label><input type="date" id="specialDate" value="${escapeAttr(r.date)}" required onchange="specialDraft.confirmedBookings=null">
-        <div class="special-calendar-head"><button type="button" class="btn btn-secondary" aria-label="Previous 30 days" onclick="shiftSpecialCalendar(-30)">‹</button><span id="specialCalendarLabel">Choose a date</span><button type="button" class="btn btn-secondary" aria-label="Next 30 days" onclick="shiftSpecialCalendar(30)">›</button></div><div id="specialCalendar" class="special-calendar"></div>
+    // New batches start empty: today's hours must not be added accidentally
+    // when the owner only taps a different date. Existing shifts start selected.
+    s.dates=index<0?[]:[r.date];
+    // Editing a saved future shift must open its calendar page, not hide the
+    // selection on today's page. Date arithmetic stays at noon across DST.
+    const days=Math.round((new Date(r.date+'T12:00:00')-new Date(s.today+'T12:00:00'))/86400000);
+    s.offset=Math.max(0,Math.floor(days/30)*30);
+    specialEl('specialHoursBody').innerHTML=`<div class="special-date-summary"><strong>Choose dates</strong><span id="specialSelectionCount" role="status" aria-live="polite"></span></div>
+        <p class="cms-hint">Tap dates to apply the same hours.</p>
+        <div class="special-calendar-head"><button type="button" id="specialCalendarPrevious" class="btn btn-secondary" aria-label="Previous 30 days" onclick="shiftSpecialCalendar(-30)">‹</button><span id="specialCalendarLabel">Choose dates</span><button type="button" class="btn btn-secondary" aria-label="Next 30 days" onclick="shiftSpecialCalendar(30)">›</button></div><div id="specialCalendar" class="special-calendar" role="group" aria-label="Select special hours dates"></div>
         <div class="form-row"><div class="form-group"><label for="specialFrom">Start</label><input type="time" id="specialFrom" value="${escapeAttr(r.from)}" required></div><div class="form-group"><label for="specialTo">End</label><input type="time" id="specialTo" value="${escapeAttr(r.to)}" required></div></div>
         <div class="form-row"><div class="form-group"><label for="specialBreakFrom">Break start (optional)</label><input type="time" id="specialBreakFrom" value="${escapeAttr(r.breakFrom || '')}"></div><div class="form-group"><label for="specialBreakTo">Break end (optional)</label><input type="time" id="specialBreakTo" value="${escapeAttr(r.breakTo || '')}"></div></div>
         <p class="cms-hint">Inside shop hours. Time off takes priority.</p>`;
-    renderSpecialCalendar();specialEl('specialHoursSave').disabled=false;specialEl('specialHoursSave').textContent='Save changes';s.confirmedBookings=null;
+    renderSpecialCalendar();specialEl('specialHoursSave').textContent='Save changes';s.confirmedBookings=null;
 }
-function shiftSpecialCalendar(n) {specialDraft.offset=Math.max(0,specialDraft.offset+n);renderSpecialCalendar();}
+function shiftSpecialCalendar(n) {
+    specialDraft.offset=Math.max(0,specialDraft.offset+n);renderSpecialCalendar();
+    if(n<0 && specialDraft.offset===0)specialEl('specialCalendar').querySelector('button:not(:disabled)')?.focus();
+}
 function renderSpecialCalendar() {
     const s=specialDraft,base=new Date(s.today+'T12:00:00');
     const first=new Date(base),last=new Date(base);first.setDate(first.getDate()+s.offset);last.setDate(last.getDate()+s.offset+29);
     specialEl('specialCalendarLabel').textContent=first.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' – '+last.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+    specialEl('specialCalendarPrevious').disabled=s.offset===0;
+    specialEl('specialSelectionCount').textContent=s.dates.length===1?'1 date selected':s.dates.length+' dates selected';
+    specialEl('specialHoursSave').disabled=s.dates.length===0;
     specialEl('specialCalendar').innerHTML=Array.from({length:30},(_,i)=>{
         const d=new Date(base);d.setDate(d.getDate()+s.offset+i);
         const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-        return `<button type="button" class="btn btn-secondary ${specialEl('specialDate').value===key?'selected':''}" aria-pressed="${specialEl('specialDate').value===key}" aria-label="${key}" onclick="chooseSpecialDate('${key}')"><small>${d.toLocaleDateString('en-GB',{weekday:'short'})}</small><span>${d.getDate()}</span></button>`;
+        const selected=s.dates.includes(key),exists=s.rows.some((r,i)=>i!==s.index && r.date===key);
+        return `<button type="button" class="btn btn-secondary ${selected?'selected':''}" aria-pressed="${selected}" aria-label="${key}${exists?' — already added':''}" ${exists?'disabled':''} onclick="chooseSpecialDate('${key}')"><small>${d.toLocaleDateString('en-GB',{weekday:'short'})}</small><span>${d.getDate()}</span></button>`;
     }).join('');
 }
-function chooseSpecialDate(key) {specialEl('specialDate').value=key;specialDraft.confirmedBookings=null;renderSpecialCalendar();}
+function chooseSpecialDate(key) {
+    const s=specialDraft;if(!s || s.busy || !s.dates || s.rows.some((r,i)=>i!==s.index && r.date===key))return;
+    s.dates=s.dates.includes(key)?s.dates.filter(d=>d!==key):[...s.dates,key].sort();
+    s.confirmedBookings=null;specialEl('specialHoursSave').textContent='Save changes';renderSpecialCalendar();
+    // Redrawing the grid must retain keyboard focus on the toggled date.
+    specialEl('specialCalendar').querySelector(`[aria-label="${key}"]`)?.focus();
+}
 async function saveSpecialHours(event) {
     event.preventDefault();const s=specialDraft;if(!s || s.busy || !s.revision)return;
-    const date=specialEl('specialDate');
-    if(date) {
-        const r={date:date.value,from:specialEl('specialFrom').value,to:specialEl('specialTo').value,breakFrom:specialEl('specialBreakFrom').value,breakTo:specialEl('specialBreakTo').value};
-        if(s.rows.some((x,i)=>i!==s.index && x.date===r.date)){specialEl('specialHoursError').textContent='This date already exists. Edit its shift.';return;}
-        if(s.index<0){s.index=s.rows.length;s.rows.push(r);}else s.rows[s.index]=r;
+    let shifts=s.rows;
+    if(s.dates) {
+        if(!s.dates.length){specialEl('specialHoursError').textContent='Choose at least one date.';return;}
+        if(s.rows.some((x,i)=>i!==s.index && s.dates.includes(x.date))){specialEl('specialHoursError').textContent='A selected date already exists. Edit its shift.';return;}
+        const hours={from:specialEl('specialFrom').value,to:specialEl('specialTo').value,breakFrom:specialEl('specialBreakFrom').value,breakTo:specialEl('specialBreakTo').value};
+        // Submit one complete proposal for all selected dates. Keep the source
+        // rows untouched so refused saves and conflict-confirmation retries
+        // cannot duplicate dates or lose the original shift being edited.
+        shifts=s.rows.filter((r,i)=>i!==s.index).concat(s.dates.map(date=>({date,...hours}))).sort((a,b)=>a.date.localeCompare(b.date));
     }
     s.busy=true;specialEl('specialHoursError').textContent='';
     const finish=beginPanelSave();
     let saved=false;
     try {
-        const answer=await apiPost(asOwner({action:'saveSpecialHours',password:adminPassword,barber:s.barber,revision:s.revision,shifts:s.rows,confirmedBookings:s.confirmedBookings}));
+        const answer=await apiPost(asOwner({action:'saveSpecialHours',password:adminPassword,barber:s.barber,revision:s.revision,shifts,confirmedBookings:s.confirmedBookings}));
         if(answer.confirmationRequired) {
             s.confirmedBookings=answer.conflicts.map(b=>b.id);
             specialEl('specialHoursError').textContent='These bookings stay active and need attention: '+answer.conflicts.map(b=>`${b.date} ${b.time} · ${b.name}`).join('; ')+'. Press Save anyway to continue.';
@@ -81,6 +109,9 @@ async function saveSpecialHours(event) {
     }catch(error){specialEl('specialHoursError').textContent=error.message || 'Could not save. Try again.';}
     finally {s.busy=false;finish(saved);}
 }
+specialEl('specialHoursBody').addEventListener('input',()=>{
+    if(specialDraft){specialDraft.confirmedBookings=null;specialEl('specialHoursSave').textContent='Save changes';}
+});
 specialEl('specialHoursModal').addEventListener('keydown',event=>{
     if(event.key==='Escape'){event.preventDefault();event.stopPropagation();closeSpecialHours();}
     if(event.key==='Tab') {
