@@ -78,4 +78,16 @@
 .barber-more-options { border-top:1px solid var(--border-color); padding-top:14px; }
 .barber-more-options summary { color:var(--text-secondary); font-size:12px; cursor:pointer; padding:8px 0; }
 .barber-more-options .btn { margin-top:8px; }
+/* Leave used the weekly flex row, squeezing native date controls and leaving
+   the reason indented. Dedicated columns keep the whole lower sheet aligned. */
+#barberModal .barber-time-off-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; }
+#barberModal .barber-time-off-heading .sheet-title { margin:0; }
+#barberModal .barber-time-off-card { padding:12px; border:1px solid var(--border-color); border-radius:12px; margin-bottom:10px; }
+#barberModal .barber-time-off-dates { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+#barberModal .barber-time-off-card .form-group { min-width:0; margin-bottom:12px; }
+#barberModal .barber-time-off-card label { display:block; font-size:11px; letter-spacing:0; text-transform:none; margin-bottom:6px; color:var(--text-secondary); }
+#barberModal .barber-time-off-card input { width:100%; min-width:0; max-width:100%; min-height:44px; padding:10px; font-size:16px; color-scheme:dark; }
+#barberModal .barber-time-off-actions { display:flex; justify-content:flex-end; }
+#barberModal .barber-time-off-actions .btn { min-height:44px; background:transparent; }
+#barberModal .barber-time-off-empty { color:var(--text-secondary); font-size:12px; margin:0; padding:12px 0; }
 @media(max-width:640px) { #barberModal .modal-body { padding:16px; } }

@@ -2189,20 +2189,28 @@ function renderModalTimeOff() {
     if (!container || !draftTimeOff) return;
 
     if (draftTimeOff.length === 0) {
-        container.innerHTML = '<p style="color:var(--text-muted);font-size:13px">No time off booked.</p>';
+        container.innerHTML = '<p class="barber-time-off-empty">No time off added.</p>';
         return;
     }
     container.innerHTML = draftTimeOff.map((row, i) => `
-        <div class="hours-row">
-            <div class="time-inputs">
-                <input type="date" value="${escapeAttr(row.from || '')}" onchange="updateDraftTimeOff(${i}, 'from', this.value)">
-                <span style="color:var(--text-muted)">—</span>
-                <input type="date" value="${escapeAttr(row.to || row.from || '')}" onchange="updateDraftTimeOff(${i}, 'to', this.value)">
-                <input type="text" placeholder="Reason (optional)" value="${escapeAttr(row.note || '')}"
-                       onchange="updateDraftTimeOff(${i}, 'note', this.value)"
-                       style="background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);border-radius:6px;padding:6px;margin-left:10px">
+        <div class="barber-time-off-card">
+            <div class="barber-time-off-dates">
+                <div class="form-group">
+                    <label for="barberTimeOffFrom${i}">From</label>
+                    <input id="barberTimeOffFrom${i}" type="date" value="${escapeAttr(row.from || '')}" onchange="updateDraftTimeOff(${i}, 'from', this.value)">
+                </div>
+                <div class="form-group">
+                    <label for="barberTimeOffTo${i}">To</label>
+                    <input id="barberTimeOffTo${i}" type="date" value="${escapeAttr(row.to || row.from || '')}" onchange="updateDraftTimeOff(${i}, 'to', this.value)">
+                </div>
             </div>
-            <button class="btn btn-danger btn-sm" onclick="removeDraftTimeOff(${i})">Remove</button>
+            <div class="form-group">
+                <label for="barberTimeOffNote${i}">Reason (optional)</label>
+                <input id="barberTimeOffNote${i}" type="text" value="${escapeAttr(row.note || '')}" onchange="updateDraftTimeOff(${i}, 'note', this.value)">
+            </div>
+            <div class="barber-time-off-actions">
+                <button type="button" class="btn btn-danger btn-sm" aria-label="Remove time off ${i + 1}" onclick="removeDraftTimeOff(${i})">Remove</button>
+            </div>
         </div>
     `).join('');
 }

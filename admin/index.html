@@ -622,10 +622,12 @@
                 </div>
 
                 <div class="sheet-block">
-                    <h4 class="sheet-title">Time Off</h4>
-                    <p class="sheet-hint">Unavailable on these dates.</p>
+                    <div class="barber-time-off-heading">
+                        <h4 class="sheet-title">Time off</h4>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="addTimeOffFor()">+ Add</button>
+                    </div>
+                    <p class="sheet-hint">Unavailable from the first date through the last.</p>
                     <div id="barberModalTimeOff"></div>
-                    <button class="btn btn-outline btn-sm" onclick="addTimeOffFor()">+ Add Time Off</button>
                 </div>
                 <details class="barber-more-options"><summary>More options</summary><button type="button" class="btn btn-danger" onclick="deleteBarberFromModal()">Delete barber</button></details>
             </div>

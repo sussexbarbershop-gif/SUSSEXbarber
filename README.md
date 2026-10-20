@@ -469,3 +469,8 @@ proper website-visibility switch. Special hours has its own entry above the
 weekly rota; helper copy distinguishes one-date additions from recurring hours.
 The footer contains only Back and Save changes. Delete barber remains behind
 More options in the body, with its existing confirmation and save behavior.
+Time off uses separate labeled From/To columns and a full-width optional reason;
+it formerly inherited the weekly flex row, squeezing dates and indenting the
+reason on phones. Add sits beside the section title, while each period has its
+own Remove action. Both endpoint dates remain included; draft/save rules are
+unchanged.
