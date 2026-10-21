@@ -9,6 +9,8 @@ diary from a panel at `/admin`. There are no accounts and no passwords for
 customers. Phone numbers identify bookings but do not authorize access to them.
 The closed-booking notice uses the bold 1 November 2026 announcement as its
 single heading in English and Dutch, replacing the vague opens-soon heading.
+It retains the site's Playfair Display heading font at 24–28px, rather than
+the smaller sans-serif style originally used for the added date line.
 This is informational; the panel's existing booking switch still
 controls when online bookings are accepted.
 

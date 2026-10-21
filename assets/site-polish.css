@@ -59,7 +59,7 @@
 }
 
 /* Announce the shop's opening date clearly without changing the manual gate. */
-#bookingClosed #bookingOpeningDate { margin:0 auto 20px; max-width:28rem; font-size:16px; line-height:1.5; }
+#bookingClosed #bookingOpeningDate { margin:0 auto 20px; max-width:28rem; font-size:clamp(24px,5vw,28px); line-height:1.3; }
 #bookingClosed #bookingOpeningDate strong { font-weight:700; }
 
 /* Long translated barber names need room on the narrowest phones. Keep the
