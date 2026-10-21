@@ -7,8 +7,9 @@ A customer picks a barber, a service, a date and a time, and leaves a name and
 a phone number. The shop sees it immediately, gets an email, and works the
 diary from a panel at `/admin`. There are no accounts and no passwords for
 customers. Phone numbers identify bookings but do not authorize access to them.
-The closed-booking notice announces 1 November 2026 in bold in English and
-Dutch. This is informational; the panel's existing booking switch still
+The closed-booking notice uses the bold 1 November 2026 announcement as its
+single heading in English and Dutch, replacing the vague opens-soon heading.
+This is informational; the panel's existing booking switch still
 controls when online bookings are accepted.
 
 This repository is public. Nothing secret is in it and nothing secret may go

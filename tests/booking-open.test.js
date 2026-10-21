@@ -92,7 +92,7 @@ ok('which follows the panel too',
    /id="bookingClosed"[\s\S]{0,4600}class="cms-contact-phone"/.test(site), true);
 // Both languages, because the site is EN and NL and the shop should not have
 // to write Dutch to close a form.
-ok('in Dutch as well', /'Online reserveren opent binnenkort'/.test(site), true);
+ok('in Dutch as well', /'Online boeken is mogelijk vanaf 1 november 2026\.'/.test(site), true);
 ok('including the line under it',
    /We zijn alles aan het klaarmaken/.test(site), true);
 
