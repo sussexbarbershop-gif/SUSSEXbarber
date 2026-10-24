@@ -1382,7 +1382,7 @@ const SITE_SETTINGS = ['hero_title', 'hero_subtitle', 'about_text',
  */
 // Saved separately from the text form: an older panel's complete text save
 // must not prune the Experience photo just because it has not loaded it.
-const KEPT_SETTINGS = ['barber_special_hours', 'visit_count', 'cancel_key', 'booking_open', 'about_image', 'hero_image', 'logo_black', 'logo_white']
+const KEPT_SETTINGS = ['booking_launch_2026_11_01', 'barber_special_hours', 'visit_count', 'cancel_key', 'booking_open', 'about_image', 'hero_image', 'logo_black', 'logo_white']
   .concat(require('./_lib/icons').ICON_SETTINGS);
 
 /**
@@ -1437,7 +1437,9 @@ async function saveCMS(payload, res) {
     // was made private. Never let a CMS save create or overwrite that key:
     // even a stale value would invalidate links already sent to customers.
     // KEPT_SETTINGS below also keeps a complete save from deleting it.
-    const keys = Object.keys(payload.settings).filter(key => key !== 'cancel_key' && key !== 'barber_special_hours');
+    // The launch marker is server-owned too. Resetting a completed marker
+    // from a stale/forged text save would reopen a deliberately closed shop.
+    const keys = Object.keys(payload.settings).filter(key => key !== 'cancel_key' && key !== 'barber_special_hours' && key !== 'booking_launch_2026_11_01');
     keys.forEach(key => {
       statements.push(sql`
         INSERT INTO settings (key, value) VALUES (${key}, ${String(payload.settings[key] ?? '')})

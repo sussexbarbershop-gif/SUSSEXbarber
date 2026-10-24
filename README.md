@@ -11,8 +11,15 @@ The closed-booking notice uses the bold 1 November 2026 announcement as its
 single heading in English and Dutch, replacing the vague opens-soon heading.
 It retains the site's Playfair Display heading font at 24–28px, rather than
 the smaller sans-serif style originally used for the added date line.
-This is informational; the panel's existing booking switch still
-controls when online bookings are accepted.
+Online booking opens once at 00:00 Europe/Amsterdam on 1 November 2026
+(31 October 23:00 UTC). The first configuration/booking request at or after
+that boundary atomically marks `booking_launch_2026_11_01` completed and sets
+`booking_open=yes`. The protected settings marker survives cold starts and
+CMS pruning/echoes; a later manual closure stays closed. The existing switch
+still permits opening early. An already-open page asks the server at launch
+and retries temporary failures; the visitor's clock never authorizes booking.
+Text saves omit an unchanged booking switch, so an old panel tab cannot
+silently undo the launch just by saving unrelated text.
 
 This repository is public. Nothing secret is in it and nothing secret may go
 into it — the database URL, the panel password, the owner's PIN and the API
@@ -47,6 +54,7 @@ api/
     db.js           the database, and the shape the site reads it in
     booking-edit.js owner-only updates with optimistic and schedule concurrency guards
     special-hours.js protected dated shifts with revision and booking-conflict checks
+    booking-opening.js one-time Amsterdam launch with a durable completion marker
     rota.js         who is working when, and whether a slot is free
     flexible-plan.js full-interval Any Available assignment proposals
     flexible-bookings.js atomic reassignment with diary/config snapshot guards

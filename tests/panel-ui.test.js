@@ -37,4 +37,17 @@ console.log('PASS shared navigation, explicit autosave wording, failure feedback
     accepted=true;await vm.runInContext('handleServiceSubmit({preventDefault(){}})',ctx);
     assert.equal(closed,1);assert.equal(rendered,1);assert.equal(vm.runInContext('services[0].nameEN',ctx),'New cut');
     console.log('PASS refused service saves retain the draft and saved list; confirmed saves close once');
+    // Saving text from a tab loaded before launch must not echo its untouched
+    // off switch after the server has opened. Real deliberate toggles still save.
+    const box={checked:false},sent=[];
+    const cms=vm.createContext({iconDirty:false,settings:{booking_open:'no',hero_title:'Old'},CMS_FIELDS:{hero:'hero_title'},
+        document:{getElementById:id=>id==='cms_booking_open'?box:{value:'New'}},showToast(){},
+        saveToServer:async payload=>{sent.push(payload);return true;}});
+    vm.runInContext(grab('saveCMSData'),cms);
+    await vm.runInContext('saveCMSData()',cms);
+    assert.equal(Object.hasOwn(sent[0].settings,'booking_open'),false);
+    assert.equal(sent[0].settings.hero_title,'New');
+    box.checked=true;await vm.runInContext('saveCMSData()',cms);assert.equal(sent[1].settings.booking_open,'yes');
+    box.checked=false;await vm.runInContext('saveCMSData()',cms);assert.equal(sent[2].settings.booking_open,'no');
+    console.log('PASS an untouched stale booking switch is omitted; explicit opening and closure still save');
 })().catch(e=>{console.error(e);process.exitCode=1;});

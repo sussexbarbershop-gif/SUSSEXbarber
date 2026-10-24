@@ -106,6 +106,34 @@ async function main() {
     await pool.query("INSERT INTO services(name_en,name_nl,price,duration_min,position) VALUES ('Short cut','Kort',25,30,1),('Long cut','Lang',40,60,2)");
     await pool.query("INSERT INTO settings(key,value) VALUES ('booking_open','yes'),('barber_priority','Amir,Saan')");
     await pool.query("INSERT INTO shop_hours(weekday,is_open,opens_at,closes_at) SELECT n,true,'10:00','18:00' FROM generate_series(1,7) n");
+    await check('one-time Amsterdam launch is atomic, concurrent-safe and cannot reopen a manual closure',async()=>{
+      const opening=require('../api/_lib/booking-opening');
+      await insert(pool,'10:00');
+      const before=(await pool.query('SELECT row_to_json(b) AS row FROM bookings b ORDER BY id')).rows;
+      const value=async key=>(await pool.query('SELECT value FROM settings WHERE key=$1',[key])).rows[0]?.value;
+      await pool.query('DELETE FROM settings WHERE key=$1',[opening.KEY]);
+      await pool.query("UPDATE settings SET value='no' WHERE key='booking_open'");
+      await opening.apply(sql,'2026-10-31T22:59:59.999Z');
+      assert.equal(await value(opening.KEY),'pending');assert.equal(await value('booking_open'),'no');
+      // Force the switch write to fail: its marker must roll back with it.
+      await pool.query("ALTER TABLE settings ADD CONSTRAINT launch_test_refuse_open CHECK (key <> 'booking_open' OR value <> 'yes')");
+      await assert.rejects(opening.apply(sql,'2026-10-31T23:00:00.000Z'),{code:'23514'});
+      assert.equal(await value(opening.KEY),'pending');assert.equal(await value('booking_open'),'no');
+      await pool.query('ALTER TABLE settings DROP CONSTRAINT launch_test_refuse_open');
+      const replies=await Promise.all(Array.from({length:8},()=>opening.apply(sql,'2026-10-31T23:00:00.000Z')));
+      assert.equal(replies.filter(rows=>rows.length).length,1);
+      assert.equal(await value(opening.KEY),'completed');assert.equal(await value('booking_open'),'yes');
+      assert.equal((await request('POST',{action:'saveCMS',password:process.env.ADMIN_PASSWORD,pin:process.env.REPORTS_PIN,
+        settings:{booking_open:'no',[opening.KEY]:'pending'}})).status,'success');
+      delete require.cache[require.resolve('../api/_lib/booking-opening')];
+      await require('../api/_lib/booking-opening').apply(sql,'2030-11-01T00:00:00Z');
+      assert.equal(await value(opening.KEY),'completed');assert.equal(await value('booking_open'),'no');
+      // If the first ever request is after launch, it still opens exactly once.
+      await pool.query('DELETE FROM settings WHERE key=$1',[opening.KEY]);
+      await opening.apply(sql,'2026-11-02T00:00:00Z');
+      assert.equal(await value(opening.KEY),'completed');assert.equal(await value('booking_open'),'yes');
+      assert.deepEqual((await pool.query('SELECT row_to_json(b) AS row FROM bookings b ORDER BY id')).rows,before);
+    });
     for (const barber of ['Amir', 'Any Available']) {
       await check('lost response retry and concurrent requests: '+barber, async()=>{
         const requestKey=crypto.randomUUID();

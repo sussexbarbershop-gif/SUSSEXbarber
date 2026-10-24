@@ -6,6 +6,7 @@
 const assert = require('node:assert/strict');
 const Module = require('module');
 const { ICON_SETTINGS } = require('../api/_lib/icons');
+const launch = require('../api/_lib/booking-opening');
 
 const KEY = 'synthetic-cancellation-secret-for-this-test-only';
 const publicSettings = {
@@ -20,11 +21,14 @@ ICON_SETTINGS.forEach(key => { publicSettings[key] = `https://example.com/${key}
 let stored;
 let writes;
 const reset = () => {
-  stored = new Map(Object.entries({ ...publicSettings, cancel_key: KEY }));
+  stored = new Map(Object.entries({ ...publicSettings, cancel_key: KEY, [launch.KEY]:'completed' }));
   writes = [];
 };
 
 function execute(query, values) {
+  // This fixture's one-time launch already ran. Real SQL boundary/concurrency
+  // behavior is exercised against PostgreSQL in booking-overlap.postgres.cjs.
+  if (/WITH opening AS/.test(query)) { assert.equal(stored.get(launch.KEY),'completed'); return []; }
   if (/pg_advisory_xact_lock/.test(query)) return [];
   if (/SELECT key, value FROM settings/.test(query)) {
     return [...stored].map(([key, value]) => ({ key, value }));
@@ -149,6 +153,14 @@ async function main() {
     assert.equal(stored.get('visit_count'), '123');
     ICON_SETTINGS.forEach(key => assert.equal(stored.get(key), publicSettings[key]));
     assert.equal(stored.get('hero_title'), 'New title');
+    assert.equal(stored.get(launch.KEY), 'completed');
+  });
+  await check('an old or forged CMS save cannot re-arm the completed one-time opening', async () => {
+    await save({...publicSettings,booking_open:'no',[launch.KEY]:'pending'});
+    assert.equal(stored.get(launch.KEY),'completed');assert.equal(stored.get('booking_open'),'no');
+    assert.equal(writes.includes(launch.KEY),false);
+    const config=await db.readConfig();assert.equal(config.bookingOpening.status,'completed');
+    assert.equal(Object.hasOwn(config.settings,launch.KEY),false);
   });
   await check('a save containing only the private key cannot create or change it', async () => {
     await save({ cancel_key: 'replacement' });

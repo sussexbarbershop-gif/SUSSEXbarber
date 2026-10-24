@@ -251,6 +251,7 @@ let hours = [];
 let galleryImages = [];
 let barbers = [];
 let settings = {};
+let bookingOpening = null;
 let visitCount = 0;
 let barberHours = {};   // { 'Hemen': [{ day, working, from, to, breakFrom, breakTo }] }
 let timeOff = [];       // [{ barber, from, to, note }]
@@ -314,6 +315,7 @@ async function fetchLiveCMS() {
 
         if (data.settings) {
             settings = data.settings;
+            bookingOpening = data.bookingOpening || null;
             // The visit counter is a row in the settings table.
             visitCount = parseInt(settings.visit_count || '0', 10) || 0;
         }
@@ -1729,6 +1731,11 @@ function renderCms() {
     }
     loadSavedIcon();
     showLiveIcon();
+    const openingStatus = document.getElementById('cms_booking_opening_status');
+    if (openingStatus) openingStatus.textContent = bookingOpening?.status === 'pending'
+        ? 'Opens once on 1 November 2026 at 00:00 (Netherlands time). After that, this switch controls booking.'
+        : bookingOpening?.status === 'completed'
+            ? 'Automatic opening completed. This switch now controls booking; closing it will not reopen it automatically.' : '';
 }
 
 async function saveCMSData() {
@@ -1755,7 +1762,11 @@ async function saveCMSData() {
     // visit counter has to travel with it or it resets to zero.
     if (settings.visit_count !== undefined) next.visit_count = settings.visit_count;
 
-    if (await saveToServer({ settings: next })) {
+    // A text editor left open across launch still displays the old off state.
+    // Echoing an untouched switch would silently undo automatic opening.
+    const payloadSettings = {...next};
+    if (next.booking_open === settings.booking_open) delete payloadSettings.booking_open;
+    if (await saveToServer({ settings: payloadSettings })) {
         settings = next;
         showToast('Website text updated — customers see this now', 'success');
     }

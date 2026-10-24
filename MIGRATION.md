@@ -104,6 +104,15 @@ The local regression tests use a fake database and never rotate a live key.
 
 ## The jobs nobody presses
 
+Online booking has a separate one-time launch on 1 November 2026 at 00:00
+Europe/Amsterdam (31 October 23:00 UTC). It needs no cron or new environment
+variable: configuration/booking reads consume the protected
+`booking_launch_2026_11_01` settings marker and open booking in one atomic SQL
+statement. An active page refetches at the boundary. Once completed, manual
+closures are respected forever; generic CMS saves cannot reset or prune the
+marker. Existing appointments are untouched. See `api/_lib/booking-opening.js`
+and the one-time-launch check in `tests/booking-overlap.postgres.cjs`.
+
 Two rounds on `/api/daily`, and they are scheduled by two different services
 for a reason worth understanding before changing either.
 

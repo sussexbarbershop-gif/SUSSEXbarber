@@ -279,6 +279,10 @@ const indexToIso = idx => (Number(idx) === 0 ? 7 : Number(idx));
  */
 async function readConfig() {
   const sql = db();
+  // The first request at/after launch consumes the one-time opening before
+  // either the public form or booking validation reads the switch. No cron,
+  // visitor clock or open personal computer is needed.
+  await withNewSchema(() => require('./booking-opening').apply(sql));
 
   // Wrapped, and this is the lesson from adding on_team: the column went into
   // the schema file and into ensureSchema, and this read still went straight
@@ -310,7 +314,7 @@ async function readConfig() {
   // to hand visitors the key for signing any booking's cancel link. Keep it
   // out of the shared config, including the panel's copy; only getCancelKey()
   // may supply it to server code that signs or verifies a link.
-  settingsRows.filter(r => r.key !== 'cancel_key' && r.key !== 'barber_special_hours')
+  settingsRows.filter(r => r.key !== 'cancel_key' && r.key !== 'barber_special_hours' && r.key !== 'booking_launch_2026_11_01')
     .forEach(r => { settings[r.key] = r.value; });
 
   // The shop is described a day at a time, and a missing row means closed
@@ -343,6 +347,7 @@ async function readConfig() {
 
   return {
     settings,
+    bookingOpening: require('./booking-opening').describe(settingsRows),
     specialHoursRevision: require('./special-hours').revision(settingsRows.find(r=>r.key==='barber_special_hours')?.value),
     specialHours: require('./special-hours').parse(settingsRows.find(r=>r.key==='barber_special_hours')?.value).map(r=>({...r,barber:barberRows.find(b=>b.id===r.barberId)?.name})).filter(r=>r.barber),
     // onTeam decides the cards on the website and nothing else: every barber

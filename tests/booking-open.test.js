@@ -148,5 +148,27 @@ ok('and it is the first thing on that page',
 ok('saying plainly that phone bookings still work',
    /take bookings\s*over the phone/.test(panelHtml), true);
 
+console.log('--- one-time launch and an already-open page ---');
+const launch = require('../api/_lib/booking-opening');
+const pending = [{key:launch.KEY,value:'pending'}];
+const beforeMidnight=Date.parse('2026-10-31T22:59:59.000Z');
+ok('midnight is Amsterdam winter time, not UTC midnight',launch.describe(pending,beforeMidnight).checkAfterMs,1000);
+ok('completion has no next opening',launch.describe([{key:launch.KEY,value:'completed'}]).checkAfterMs,null);
+ok('the marker cannot be pruned',/KEPT_SETTINGS = \[[^\]]*'booking_launch_2026_11_01'/.test(api),true);
+const timerSource=site.match(/^        function scheduleBookingOpeningCheck\([\s\S]*?^        }/m)[0];
+const timers=new Map();let nextTimer=0,fetches=0,response=null;
+const ctx={clearTimeout:id=>timers.delete(id),setTimeout:(callback,delay)=>{const id=++nextTimer;timers.set(id,{callback,delay});return id;},
+  fetchCMS:()=>{fetches++;if(response)ctx.scheduleBookingOpeningCheck(response);return Promise.resolve();}};
+require('node:vm').runInNewContext('let bookingOpeningTimer=null;'+timerSource,ctx);
+ctx.scheduleBookingOpeningCheck({status:'pending',checkAfterMs:1000});
+ok('uses the server delay plus a small boundary allowance',[...timers.values()][0].delay,1250);
+ctx.scheduleBookingOpeningCheck({status:'pending',checkAfterMs:1e10});
+ok('long delays stay inside browser timer limits',[...timers.values()][0].delay,86400000);
+const fire=()=>{const [id,timer]=[...timers][0];timers.delete(id);timer.callback();};
+fire();ok('midnight asks the server instead of trusting a device clock',fetches,1);
+ok('a network failure retains a bounded retry',[...timers.values()][0].delay,30250);
+response={status:'completed',checkAfterMs:null};fire();
+ok('a completed opening stops automatic checks',timers.size,0);
+
 console.log(failed === 0 ? '\nAll booking-open tests passed.' : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);

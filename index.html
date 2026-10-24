@@ -5598,6 +5598,22 @@
             notice.classList.toggle('hidden', open);
         }
 
+        // An already-open closed-booking page must ask the server at launch.
+        // This is a relative server-supplied delay, never a local-date gate.
+        let bookingOpeningTimer = null;
+        function scheduleBookingOpeningCheck(opening) {
+            clearTimeout(bookingOpeningTimer);
+            bookingOpeningTimer = null;
+            if (opening?.status !== 'pending' || !Number.isFinite(opening.checkAfterMs)) return;
+            const delay = Math.max(1000, Math.min(opening.checkAfterMs + 250, 86400000));
+            bookingOpeningTimer = setTimeout(async () => {
+                // Re-arm a bounded retry first: a temporary network failure
+                // at midnight must not strand an otherwise active page.
+                scheduleBookingOpeningCheck({status:'pending',checkAfterMs:30000});
+                await fetchCMS();
+            }, delay);
+        }
+
         function applyConfig(config) {
             // The grids below are rebuilt from this, so anything scroll-linked
             // has to be told about the new cards. Called at the end, once they
@@ -5632,6 +5648,8 @@
             updateStructuredData(config);
             updateIcons(config);
             showBookingIfOpen(config.settings);
+            const bookingAlreadyOpen = String(config.settings?.booking_open || '').trim().toLowerCase() === 'yes';
+            scheduleBookingOpeningCheck(bookingAlreadyOpen ? null : config.bookingOpening);
 
             // Newly injected markup is English; restore the active language.
             if (typeof applyLanguage === 'function') applyLanguage(window.currentLang || 'en');
